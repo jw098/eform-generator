@@ -2277,12 +2277,52 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return results;
   }
 
+  // Typical height of the page's printed capitals, in canvas px (0 when it can't be told):
+  // the median height of letter-sized blobs of ink.
+  function textCapHeight(clean, w, h){
+    const seen = new Uint8Array(w*h), stack = [], hs = [];
+    for (let st=0; st<w*h; st++){
+      if (!clean[st] || seen[st]) continue;
+      seen[st] = 1; stack.length = 0; stack.push(st);
+      let minx=w, maxx=0, miny=h, maxy=0;
+      while (stack.length){
+        const i = stack.pop(), y = (i/w)|0, x = i - y*w;
+        if (x<minx) minx=x; if (x>maxx) maxx=x; if (y<miny) miny=y; if (y>maxy) maxy=y;
+        if (x>0 && clean[i-1] && !seen[i-1]){ seen[i-1]=1; stack.push(i-1); }
+        if (x<w-1 && clean[i+1] && !seen[i+1]){ seen[i+1]=1; stack.push(i+1); }
+        if (y>0 && clean[i-w] && !seen[i-w]){ seen[i-w]=1; stack.push(i-w); }
+        if (y<h-1 && clean[i+w] && !seen[i+w]){ seen[i+w]=1; stack.push(i+w); }
+      }
+      const bw = maxx-minx+1, bh = maxy-miny+1;
+      if (bh >= 5 && bh <= h*0.03 && bw <= bh*1.5) hs.push(bh);
+    }
+    if (hs.length < 30) return 0;
+    hs.sort((a,b) => a-b);
+    return hs[hs.length >> 1];
+  }
+
   // ===== Text fields from lines (added by FreeScribe) =====
   function textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p){
     const line = Math.max(18, p.naturalH*0.026) * s;          // one written line, in canvas px
     const maxThick = Math.max(3, Math.round(h*0.012));
-    const lines = bands.filter(b => (b.y2-b.y1+1) <= maxThick && (b.x2-b.x1+1) >= minSeg)
+    // A single-line table row can be shorter than the guessed written line: measure it against
+    // the page's own printed text instead
+    const capH = textCapHeight(clean, w, h);
+    // The tops of a run of bold capitals merge into a "line" with solid letters right under it
+    const letterTops = (b) => {
+      if (!capH) return false;
+      const ya = b.y2 + 1, yb = Math.min(h-1, b.y2 + Math.round(capH*0.8));
+      let n = 0;
+      for (let y=ya; y<=yb; y++) for (let x=b.x1; x<=b.x2; x++) if (clean[y*w+x]) n++;
+      return n > (yb-ya+1)*(b.x2-b.x1+1)*0.3;
+    };
+    // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
+    // still a rule, so the row under a heading bar has a top
+    const lines = bands.filter(b => (b.x2-b.x1+1) >= minSeg)
+                       .map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
+                       .filter(b => !letterTops(b))
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
+    const rowLine = capH ? Math.min(line, Math.max(10, capH*1.6)) : line;
     const on = (x,y) => clean[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
     // A vertical rule at x between rows ya..yb (dark in nearly every row, allowing a pixel either side)
@@ -2315,12 +2355,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (!bounded && ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1))) return;
       const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25));
       const floor = L.y1 - 2;
-      if (floor - ceil < line*0.45) return;
+      if (floor - ceil < (bounded ? rowLine : line)*0.45) return;
       // Columns: split at vertical rules inside a bounded row
       const cuts = [L.x1];
       if (bounded){
+        // A divider runs unbroken from rule to rule; a letter's stem in a short row leaves a gap
+        const divider = (x) => { for (let y=top.y2; y<=L.y1; y++) if (!(on(x,y) || on(x-1,y) || on(x+1,y))) return false; return true; };
         for (let x=L.x1+3; x<L.x2-3; x++){
-          if (rule(x, ceil, floor)){ cuts.push(x); x += 3; }
+          if (divider(x)){ cuts.push(x); x += 3; }
         }
       }
       cuts.push(L.x2);
@@ -2331,11 +2373,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // Where the printed label ends: its lowest row and its right-most column. Rows with only
         // small marks (a tick box at the end of the row) don't count as label rows.
         const cellW = x2 - x1 + 1;
-        let lowInk = -1, rightInk = -1;
+        let lowInk = -1, rightInk = -1, highInk = -1;
         for (let y=y1; y<=y2; y++){
           let n = 0, last = -1;
           for (let x=x1; x<=x2; x++) if (on(x,y)){ n++; last = x; }
-          if (n >= 2 && n > cellW*0.03){ lowInk = y; if (last > rightInk) rightInk = last; }
+          if (n >= 2 && n > cellW*0.03){ if (highInk < 0) highInk = y; lowInk = y; if (last > rightInk) rightInk = last; }
         }
         // Stop short of marks left in the blank part (tick boxes at the right end)
         const trim = (ya) => {
@@ -2346,11 +2388,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         let f = null;
         if (lowInk < 0){ const ya = bounded ? y1 : Math.max(y1, floor - Math.round(line)); f = { x1, y1: ya, x2: trim(ya), y2 }; }
         else if (y2 - lowInk >= line*0.6) f = { x1, y1: lowInk + 3, x2: trim(lowInk + 3), y2 };
-        else if (x2 - rightInk >= Math.max(line*2.5, (x2-x1)*0.25)){
+        else if (x2 - rightInk >= Math.max(line*2.5, (x2-x1)*0.25) && (!capH || lowInk - highInk <= capH*1.6)){
+          // (a one-line label only: a paragraph of instructions leaves no field beside it)
           // Label on the left of the row: the field is the blank part to its right
           f = { x1: rightInk + Math.round(line*0.3), y1: Math.max(y1, y2 - Math.round(line)), x2, y2 };
         }
-        if (!f || f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < line*0.4) continue;
+        if (!f || f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < (bounded ? rowLine : line)*0.4) continue;
         const tall = (f.y2 - f.y1) > line*1.8;
         fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
                       type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '' });
