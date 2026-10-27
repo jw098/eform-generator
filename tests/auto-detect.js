@@ -163,7 +163,7 @@
       left.forEach((f, i) => { if (f.kind === e.kind && close(e, f) && (best < 0 || distance(e, f) < distance(e, left[best]))) best = i; });
       if (best < 0) missing.push(e); else pairs.push([e, left.splice(best, 1)[0]]);
     });
-    return { pairs, missing, extra: left };
+    return { pairs, missing, extra: left, found };
   }
 
   // A case's tests; returns the function that runs Auto Detect on its pages (from page
@@ -187,14 +187,26 @@
       if (error) throw new Error('Could not run this case: ' + (error.message || error));
       return pages.flatMap(pg => fn(pg.result).map(l => (pages.length > 1 ? `page ${pg.n}: ` : '') + l));
     };
+    // Expected: the case's eForm. Actual: the eForm built from what Auto Detect found.
     const t = (short, key, fn, message) => test(`${c.name}: ${short}`, () => sameList(lines(fn), [], message),
                                                 { group: c.name, short, todo: todo[key] });
-    t('finds every tick box in the eForm', 'ticks', r => r.missing.filter(e => e.kind === 'tick').map(e => where(e)), 'not found');
-    t('finds every field to write in', 'fields', r => r.missing.filter(e => e.kind === 'write').map(e => where(e)), 'not found');
-    t('finds no tick box the eForm doesn\'t have', 'extraTicks', r => r.extra.filter(f => f.kind === 'tick').map(f => where(f)), 'found, but not in the eForm');
-    t('finds no field the eForm doesn\'t have', 'extraFields', r => r.extra.filter(f => f.kind === 'write').map(f => where(f)), 'found, but not in the eForm');
-    t('gives each field the eForm\'s oscarDB tag', 'tags', r => r.pairs.filter(([e, f]) => e.tag !== f.tag)
-      .map(([e, f]) => `${where(e, false)}: got ${f.tag ? `"${f.tag}"` : 'no tag'}, want ${e.tag ? `"${e.tag}"` : 'no tag'}`), 'wrong tags');
+    // (for an expected box with no actual one where it should be: the closest actual box of its
+    // kind, when there is one nearby, as it may be one just outside the margin)
+    const closest = (e, r) => {
+      const centre = (b) => [b.x + b.width/2, b.y + b.height/2], [ex, ey] = centre(e);
+      const near = r.found.filter(f => f.kind === e.kind).map(f => [f, Math.hypot(centre(f)[0] - ex, centre(f)[1] - ey)])
+        .filter(([, d]) => d <= Math.max(60, 2*Math.max(e.width, e.height))).sort((a, b) => a[1] - b[1])[0];
+      return near ? `closest actual: ${where(near[0])}` : 'nothing nearby';
+    };
+    const missing = (kind) => r => r.missing.filter(e => e.kind === kind).map(e => `expected ${where(e)}\n      → actual: none there (${closest(e, r)})`);
+    const extra = (kind) => r => r.extra.filter(f => f.kind === kind).map(f => `actual ${where(f)}\n      → expected: nothing there`);
+    const tagOf = (t) => t ? `oscarDB="${t}"` : 'no tag';
+    t('each expected tick box is in the actual eForm', 'ticks', missing('tick'), 'expected, but missing from the actual eForm');
+    t('each expected field is in the actual eForm', 'fields', missing('write'), 'expected, but missing from the actual eForm');
+    t('no actual tick box that isn\'t expected', 'extraTicks', extra('tick'), 'in the actual eForm, but not expected');
+    t('no actual field that isn\'t expected', 'extraFields', extra('write'), 'in the actual eForm, but not expected');
+    t('each field\'s actual oscarDB tag is the expected one', 'tags', r => r.pairs.filter(([e, f]) => e.tag !== f.tag)
+      .map(([e, f]) => `${where(e, false)}: expected ${tagOf(e.tag)}, actual ${tagOf(f.tag)}`), 'oscarDB tags that differ');
     return run;
   }
 
@@ -282,18 +294,18 @@
         VARIED_BOXES.forEach(e => {
           const [X, Y] = v.map(e.x + e.width/2, e.y + e.height/2);
           const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*v.scale);
-          if (i < 0) missed.push(where(e)); else left.splice(i, 1);
+          if (i < 0) missed.push(`expected ${where(e)}`); else left.splice(i, 1);
         });
         return { missed, extra: left };
       };
-      test(`Referral form, ${v.name}: finds every tick box`, () => {
+      test(`Referral form, ${v.name}: each expected tick box is found`, () => {
         assert(VARIED_BOXES.length, `the ${VARIED_CASE} case has no tick boxes`);
         const { missed } = matched();
-        if (missed.length) throw new Error(`found ${VARIED_BOXES.length - missed.length} of ${VARIED_BOXES.length}; missed:\n  ${missed.join('\n  ')}`);
-      }, { todo: v.todo, group, short: `${v.name}: finds every tick box` });
-      test(`Referral form, ${v.name}: finds no tick box that isn't there`, () => {
-        sameList(matched().extra.map(f => where(f)), [], 'tick boxes that are not on the page');
-      }, { group, short: `${v.name}: finds no tick box that isn't there` });
+        if (missed.length) throw new Error(`actual: found ${VARIED_BOXES.length - missed.length} of the ${VARIED_BOXES.length} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
+      }, { todo: v.todo, group, short: `${v.name}: each expected tick box is found` });
+      test(`Referral form, ${v.name}: no actual tick box that isn't expected`, () => {
+        sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
+      }, { group, short: `${v.name}: no actual tick box that isn't expected` });
     });
   }
 
@@ -496,7 +508,8 @@
   head.append(title, closeBtn);
   const hint = document.createElement('div');
   hint.style.cssText = 'color:#555;font-size:12px;margin-bottom:6px';
-  hint.textContent = 'Click a line to open it. Each test page is on its own "Edit Page" tab, with what Auto Detect found drawn on it. How the tests work: tests/README.md.';
+  hint.textContent = 'Expected: the test case\'s eForm. Actual: the eForm built from what Auto Detect found on its page image. ' +
+    'Click a line to open it. Each test page is on its own "Edit Page" tab, with what Auto Detect found drawn on it. How the tests work: tests/README.md.';
   const adder = document.createElement('div');
   adder.style.cssText = 'margin-bottom:6px';
   const addBtn = document.createElement('button');
@@ -548,8 +561,8 @@
         if (r.error && (r.status === 'fail' || r.status === 'todo')){
           const pre = document.createElement('pre');
           pre.style.cssText = 'margin:2px 0 6px 16px;white-space:pre-wrap;color:#444;font-size:12px';
-          // (for a variation's to-do, just how far it got: "found 6 of 18")
-          pre.textContent = r.status === 'todo' && /^found \d+ of \d+/.test(r.error) ? r.error.split('\n')[0].replace(/;?\s*missed:$/, '') : r.error;
+          // (for a variation's to-do, just how far it got: "found 6 of the 18 expected tick boxes")
+          pre.textContent = r.status === 'todo' && /^actual: found \d+ of the \d+/.test(r.error) ? r.error.split('\n')[0].replace(/;?\s*missing:$/, '') : r.error;
           row.appendChild(pre);
         }
         box.appendChild(row);

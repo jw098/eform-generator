@@ -36,18 +36,24 @@ itself and doesn't ask.
 
 ## What is compared
 
-For each page of each case, the case's eForm is compared with the one built from Auto Detect:
+Two eForms are compared, page by page:
 
-- **Where the boxes are.** A found box matches an eForm box of the same kind (tick box, or
-  place to write) when each of its edges is within **10 pixels, or 20% of the box's size**
-  in that direction, whichever is more (pixels of the page image). Each case reports:
-  - tick boxes and fields in the eForm that weren't found;
-  - tick boxes and fields found that aren't in the eForm.
-- **The `oscarDB` tags.** Each matched field must have the same tag as the eForm's (or both
+- **Expected:** the test case's eForm.
+- **Actual:** the eForm built (with Build HTML draft) from what Auto Detect found on the
+  case's page image.
+
+What must agree:
+
+- **Where the boxes are.** An actual box matches an expected box of the same kind (tick box,
+  or field to write in) when each of its edges is within **10 pixels, or 20% of the box's
+  size** in that direction, whichever is more (pixels of the page image). Each case reports:
+  - expected tick boxes and fields with no actual one there;
+  - actual tick boxes and fields with no expected one there.
+- **The `oscarDB` tags.** Each matched field's actual tag must be its expected tag (or both
   none).
 
-Names don't matter. The margin is set at the top of `auto-detect.js` (`MARGIN_PX`,
-`MARGIN_SHARE`).
+Names aren't compared; they're only shown, to say which field a failure is about. The
+margin is set at the top of `auto-detect.js` (`MARGIN_PX`, `MARGIN_SHARE`).
 
 Both eForms are read the same way: laid out by the browser, as OSCAR would show them, with
 their scripts switched off (only the layout counts), and every field measured against the
@@ -72,12 +78,19 @@ more, so it only runs when asked: use it when changing how tick boxes are found.
 A panel appears at the top right with one line per case:
 
 - ✔ green: everything in that case passed.
-- ✘ red: something failed. The line opens by itself, and each failure says what went wrong,
-  for example `field "city_town" at (438, 546) 318×38: got "addressline", want "city"`, or
-  `not found: tick box "msp" at (64, 318)`. Each names the field as its eForm does (its
-  `name`, or its `id`): the test case's eForm for a field not found or with the wrong tag, the
-  eForm built from Auto Detect for one found that shouldn't be. Positions are (x, y) from the
-  page image's top-left corner, and width×height, in pixels.
+- ✘ red: something failed. The line opens by itself, and each failure says what was expected
+  and what was actual, for example:
+  ```
+  expected field "surname" at (63, 429) 422×33 oscarDB="patient_nameL"
+      → actual: none there (closest actual: field "surname_of_patient" at (63, 440) 422×20)
+  actual field "text_1" at (60, 1666) 960×54
+      → expected: nothing there
+  field "city_town_40" at (438, 546) 318×38: expected oscarDB="city", actual oscarDB="addressline"
+  ```
+  Each field is named as its eForm names it (its `name`, or its `id`). Positions are (x, y)
+  from the page image's top-left corner, and width×height, in pixels. "Closest actual" is
+  the nearest actual box of that kind, when there is one nearby: often it is the right box,
+  just outside the margin.
 - ○ amber, "to do": something Auto Detect doesn't manage yet (see below); not a failure.
 - ★ blue: a to-do that now passes. Take it off the to-do list.
 
@@ -122,6 +135,6 @@ reason, so it shows as "to do" rather than as a failure:
 }
 ```
 
-The keys are `ticks` (tick boxes not found), `fields` (fields not found), `extraTicks` and
-`extraFields` (found, but not in the eForm), and `tags`. Delete the to-do once it passes.
+The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
+and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once it passes.
 The poorer copies' to-dos are the `todo: '...'` on their lines in `auto-detect.js`.
