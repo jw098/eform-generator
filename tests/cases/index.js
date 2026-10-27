@@ -6,6 +6,10 @@
 //   images  its page images, in that folder
 //   todo    (optional) its tests it doesn't pass yet, shown as "to do" rather than failures, by
 //           key: ticks, fields, extraTicks, extraFields, tags (see tests/README.md)
+//   skip    (optional) boxes to leave out of a test, where it can't apply: a list of
+//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys
+//           above; boxes whose centre is in the region (page-image pixels) on that page are
+//           left out of it. Without a page, every page; without a region, the whole page.
 window.TEST_CASE_LIST = [
   {
     "name": "Referral form",
@@ -33,5 +37,22 @@ window.TEST_CASE_LIST = [
     "todo": {
       "extraFields": "two places that aren't fields (beside the PRESENT COMPLAINT heading, and above the bottom boxes)"
     }
+  },
+  {
+    "name": "Reproductive Mental Health referral",
+    "folder": "reproductive-mental-health",
+    "eform": "Reproductive_Mental_Health_2017_v2.html",
+    "images": [
+      "RMH_referral_form-1.png",
+      "RMH_referral_form-2.png"
+    ],
+    "skip": [
+      {
+        "test": "ticks",
+        "page": 2,
+        "region": [0, 170, 1500, 900],
+        "reason": "no printed tick boxes here (the eForm puts its tick boxes beside the words), so there are none to find"
+      }
+    ]
   }
 ];

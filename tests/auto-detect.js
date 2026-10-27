@@ -17,7 +17,8 @@
   // ----- A small test runner -----
   // (group: the panel's heading for a test, a case or the variations; short: its line there)
   let tests = [];
-  const test = (name, fn, opts = {}) => tests.push({ name, fn, todo: opts.todo, group: opts.group || '', short: opts.short || name });
+  // (note: a function giving a line shown under its result, such as what it skipped)
+  const test = (name, fn, opts = {}) => tests.push({ name, fn, todo: opts.todo, note: opts.note, group: opts.group || '', short: opts.short || name });
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const sameList = (actual, expected, message) => {
     if (JSON.stringify(actual) !== JSON.stringify(expected))
@@ -171,7 +172,7 @@
   // case's eForm, and resolves to how many pages it used
   // (onPage(n, of): told before each page is processed, for the panel's progress line)
   function caseTests(c, entry, firstPage, onPage = () => {}){
-    const todo = entry.todo || {};
+    const todo = entry.todo || {}, skips = Array.isArray(entry.skip) ? entry.skip : [];
     let pages = null, error = null;
     const run = async () => {
       try {
@@ -183,13 +184,26 @@
       } catch (err) { error = err; }
       return pages ? pages.length : 1;
     };
-    const lines = (fn) => {
+    // A skip leaves out of one test the boxes whose centre is in its region (x, y, width,
+    // height in page-image pixels) on its page; without a page, on every page; without a
+    // region, the whole page
+    const inside = (b, [x, y, w, h]) => { const cx = b.x + b.width/2, cy = b.y + b.height/2; return cx >= x && cx <= x + w && cy >= y && cy <= y + h; };
+    const skipFor = (key, n, box) => skips.find(k => k.test === key && (k.page == null || Number(k.page) === n) && (!k.region || inside(box, k.region)));
+    const skippedBy = {};                                 // test key -> Map(skip -> boxes it left out)
+    // fn(result) gives [box, line] for each thing wrong on a page
+    const lines = (key, fn) => {
       if (error) throw new Error('Could not run this case: ' + (error.message || error));
-      return pages.flatMap(pg => fn(pg.result).map(l => (pages.length > 1 ? `page ${pg.n}: ` : '') + l));
+      const counts = skippedBy[key] = new Map();
+      return pages.flatMap(pg => fn(pg.result)
+        .filter(([box]) => { const k = skipFor(key, pg.n, box); if (k) counts.set(k, (counts.get(k) || 0) + 1); return !k; })
+        .map(([, l]) => (pages.length > 1 ? `page ${pg.n}: ` : '') + l));
     };
+    const noteFor = (key, one, many) => () => [...(skippedBy[key] || [])].map(([k, n]) => `${n} ${n === 1 ? one : many}` +
+      (k.page != null ? ` on page ${k.page}` : '') + (k.region ? ` in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]}` : '') +
+      ` skipped${k.reason ? ': ' + k.reason : ''}`).join('\n');
     // Expected: the case's eForm. Actual: the eForm built from what Auto Detect found.
-    const t = (short, key, fn, message) => test(`${c.name}: ${short}`, () => sameList(lines(fn), [], message),
-                                                { group: c.name, short, todo: todo[key] });
+    const t = (short, key, fn, message, one, many) => test(`${c.name}: ${short}`, () => sameList(lines(key, fn), [], message),
+                                                           { group: c.name, short, todo: todo[key], note: noteFor(key, one, many) });
     // (for an expected box with no actual one where it should be: the closest actual box of its
     // kind, when there is one nearby, as it may be one just outside the margin)
     const closest = (e, r) => {
@@ -198,15 +212,15 @@
         .filter(([, d]) => d <= Math.max(60, 2*Math.max(e.width, e.height))).sort((a, b) => a[1] - b[1])[0];
       return near ? `closest actual: ${where(near[0])}` : 'nothing nearby';
     };
-    const missing = (kind) => r => r.missing.filter(e => e.kind === kind).map(e => `expected ${where(e)}\n      → actual: none there (${closest(e, r)})`);
-    const extra = (kind) => r => r.extra.filter(f => f.kind === kind).map(f => `actual ${where(f)}\n      → expected: nothing there`);
+    const missing = (kind) => r => r.missing.filter(e => e.kind === kind).map(e => [e, `expected ${where(e)}\n      → actual: none there (${closest(e, r)})`]);
+    const extra = (kind) => r => r.extra.filter(f => f.kind === kind).map(f => [f, `actual ${where(f)}\n      → expected: nothing there`]);
     const tagOf = (t) => t ? `oscarDB="${t}"` : 'no tag';
-    t('each expected tick box is in the actual eForm', 'ticks', missing('tick'), 'expected, but missing from the actual eForm');
-    t('each expected field is in the actual eForm', 'fields', missing('write'), 'expected, but missing from the actual eForm');
-    t('no actual tick box that isn\'t expected', 'extraTicks', extra('tick'), 'in the actual eForm, but not expected');
-    t('no actual field that isn\'t expected', 'extraFields', extra('write'), 'in the actual eForm, but not expected');
+    t('each expected tick box is in the actual eForm', 'ticks', missing('tick'), 'expected, but missing from the actual eForm', 'tick box', 'tick boxes');
+    t('each expected field is in the actual eForm', 'fields', missing('write'), 'expected, but missing from the actual eForm', 'field', 'fields');
+    t('no actual tick box that isn\'t expected', 'extraTicks', extra('tick'), 'in the actual eForm, but not expected', 'tick box', 'tick boxes');
+    t('no actual field that isn\'t expected', 'extraFields', extra('write'), 'in the actual eForm, but not expected', 'field', 'fields');
     t('each field\'s actual oscarDB tag is the expected one', 'tags', r => r.pairs.filter(([e, f]) => e.tag !== f.tag)
-      .map(([e, f]) => `${where(e, false)}: expected ${tagOf(e.tag)}, actual ${tagOf(f.tag)}`), 'oscarDB tags that differ');
+      .map(([e, f]) => [e, `${where(e, false)}: expected ${tagOf(e.tag)}, actual ${tagOf(f.tag)}`]), 'oscarDB tags that differ', 'field', 'fields');
     return run;
   }
 
@@ -316,6 +330,7 @@
       const r = { name: t.name, group: t.group, short: t.short };
       try { await t.fn(); out.push({ ...r, status: t.todo ? 'todo-passes' : 'pass' }); }
       catch (err) { out.push({ ...r, status: t.todo ? 'todo' : 'fail', error: err.message, todo: t.todo }); }
+      if (t.note) out[out.length - 1].note = t.note();
     }
     return out;
   }
@@ -452,6 +467,10 @@
     `//   images  its page images, in that folder\n` +
     `//   todo    (optional) its tests it doesn't pass yet, shown as "to do" rather than failures, by\n` +
     `//           key: ticks, fields, extraTicks, extraFields, tags (see tests/README.md)\n` +
+    `//   skip    (optional) boxes to leave out of a test, where it can't apply: a list of\n` +
+    `//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys\n` +
+    `//           above; boxes whose centre is in the region (page-image pixels) on that page are\n` +
+    `//           left out of it. Without a page, every page; without a region, the whole page.\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';
@@ -558,6 +577,12 @@
         const row = document.createElement('div');
         row.style.cssText = 'margin-left:16px;color:' + color[r.status];
         row.textContent = `${mark[r.status]} ${r.short || r.name}${r.todo ? ' (to do: ' + r.todo + ')' : ''}`;
+        if (r.note){
+          const note = document.createElement('div');
+          note.style.cssText = 'margin:0 0 2px 16px;color:#6b7280;font-size:12px;white-space:pre-wrap';
+          note.textContent = r.note;
+          row.appendChild(note);
+        }
         if (r.error && (r.status === 'fail' || r.status === 'todo')){
           const pre = document.createElement('pre');
           pre.style.cssText = 'margin:2px 0 6px 16px;white-space:pre-wrap;color:#444;font-size:12px';

@@ -1,0 +1,427 @@
+<html>
+<head>
+<title>Reproductive Mental Health Referral Form 2017</title>
+<!-- V2 Jan 2025: fixed issue where background images were too tall, causing printing issues. -->
+
+<style type="text/css" media="screen" >
+input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+}
+ .sig {
+	border: 2px dotted blue;
+	color: Black;
+	background-color: white;
+ }
+    /* Drawing the 'gripper' for touch-enabled devices */
+    html.touch #content {
+        float:left;
+        width:92%;
+    }
+    html.touch #scrollgrabber {
+        float:right;
+        width:4%;
+        margin-right:2%;
+        background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+    }
+    html.borderradius #scrollgrabber {
+        border-radius: 1em;
+    }
+ </style>
+
+<style type="text/css" media="print">
+
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	scrollbar-3dlight-color: transparent;
+	scrollbar-3dlight-color: transparent;
+	scrollbar-arrow-color: transparent;
+	scrollbar-base-color: transparent;
+	scrollbar-darkshadow-color: transparent;
+	scrollbar-face-color: transparent;
+	scrollbar-highlight-color: transparent;
+	scrollbar-shadow-color: transparent;
+	scrollbar-track-color: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+.sig {
+	border-style: solid;
+	border-color: transparent;
+	color: Black;
+	background-color: transparent;
+ }
+
+ </style>
+
+<!-- jQuery for greater functionality -->
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script>if (typeof jQuery === 'undefined') {
+	document.write(unescape('%3Cscript%20src%3D%22../js/jquery-1.7.1.min.js%22%3E%3C/script%3E'));
+}
+</script>
+<script>if (typeof jQuery === 'undefined') {
+	document.write(unescape('%3Cscript%20src%3D%22jquery-1.7.1.min.js%22%3E%3C/script%3E'));
+}
+</script>
+<script language="javascript">
+function formPrint(){
+	window.print();
+} 
+</script>
+
+<!-- scripts to confirm closing of window if it hadnt been saved yet -->
+<script language="javascript">
+//keypress events trigger dirty flag
+var needToConfirm = false;
+document.onkeyup=setDirtyFlag;
+function setDirtyFlag(){
+	needToConfirm = true;
+}
+function releaseDirtyFlag(){
+	needToConfirm = false; //Call this function to prevent an alert.
+//this could be called when save button is clicked
+}
+window.onbeforeunload = confirmExit;
+function confirmExit(){
+	if (needToConfirm){
+		 return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+	 }
+}
+</script>
+
+<!-- scripts for Xbox functions -->
+<script language="javascript">
+$(document).ready(function() {
+	  $( ".Xbox" ).click(function() {
+		  var st = $( this ).val();
+		  if (st=="X") {
+			  $( this ).val("");
+		  } else {
+			  $( this ).val("X");
+		  }
+	});
+
+$( ".Xbox" ).keypress(function(event) {
+	  // any key press except tab will constitute a value change to the checkbox
+	  if (event.which != 0){
+		  $( this ).click();
+		  return false;
+		  }
+	});
+
+});
+
+	
+		function Radio_Box(x) {
+	//works to change function of X_boxes to radio_boxes when the id of the radiobox is passed as x and is named in the convention name_X where X appears in the string defined in scales
+		var scales = ["Yes", "No" ];
+		var partA = x.substring(0, x.indexOf("_"));
+		var i = x.substring(x.indexOf("_"));
+		var j = i.substr(1);
+
+		for (var n in scales) {
+			if ( j == scales[n]) {
+				for (var m in scales){
+					if (m != n) { document.getElementById(partA+"_"+scales[m]).value = ''; }
+				}
+			}
+		}
+return false;		
+	}		
+	
+</script>
+
+
+<!-- Xbox styling -->
+<style type="text/css">
+	.box1 {
+		position: absolute;
+		width: 14px;
+		height: 14px;
+		font-size: 14px;
+		border: 1px solid #000000;
+		cursor: pointer;
+		font-weight: bold;
+		text-align: center;
+		background: aquamarine;
+	}
+</style>
+
+    <script language="javascript">
+
+	function parseName() {
+		// Get the name
+		var fullName = document.getElementById("CurrentUser").value;
+
+		// Split the value
+		var splitName = fullName.split(",");
+		var firstName = "";
+		var lastName  = "";
+
+		// Check for last name
+		if(splitName.length >= 1) {
+			lastName = splitName[0].trim();
+		}
+		if(splitName.length >= 2) {
+			firstName = splitName[1].trim();
+		}
+		var First_Last_Name = firstName + " " + lastName;
+
+		// Show the fields on the page
+		document.FormName.Referring.value = "Dr. " + First_Last_Name ;
+	}
+
+
+	function parseName2() {
+		// Get the name
+		var fullName = document.getElementById("MD").value;
+
+		// Split the value
+		var splitName = fullName.split(",");
+		var firstName = "";
+		var lastName  = "";
+
+		// Check for last name
+		if(splitName.length >= 1) {
+			lastName = splitName[0].trim();
+		}
+		if(splitName.length >= 2) {
+			firstName = splitName[1].trim();
+		}
+		var First_Last_Name = firstName + " " + lastName;
+
+		// Show the fields on the page
+		document.FormName.Doctor.value = "Dr. " + First_Last_Name ;
+	}
+
+	function parseName2() {
+		// Get the name
+		var fullName = document.getElementById("MD").value;
+
+		// Split the value
+		var splitName = fullName.split(",");
+		var firstName = "";
+		var lastName  = "";
+
+		// Check for last name
+		if(splitName.length >= 1) {
+			lastName = splitName[0].trim();
+		}
+		if(splitName.length >= 2) {
+			firstName = splitName[1].trim();
+		}
+		var First_Last_Name = firstName + " " + lastName;
+
+		// Show the fields on the page
+		document.FormName.FamilyDoctor.value = "Dr. " + First_Last_Name ;
+	}
+
+
+</script>
+
+<script>
+function onBodyLoad()
+{
+var re = new RegExp( "[?&]" + 'demographic_no' + "=([^&$]*)", "i" );
+var offset=window.opener.location.search.search(re);
+if(offset==-1){
+re = new RegExp( "[?&]" + 'demographicNo' + "=([^&$]*)", "i" );
+offset=window.opener.location.search.search(re);
+  }
+}
+
+
+function consult()
+{
+window.open("../dms/documentReport.jsp?function=demographic&functionid="+RegExp.$1+"&view=consult");
+}
+
+function labGrid()
+{
+window.open("../lab/CumulativeLabValues3.jsp?demographic_no="+RegExp.$1+"");
+}
+
+
+</script>
+
+
+
+<!-- main calendar program -->
+<script type="text/javascript" src="../share/calendar/calendar.js"></script>
+<script type="text/javascript" src="../share/calendar/lang/calendar-en.js"></script>
+<script type="text/javascript" src="../share/calendar/calendar-setup.js"></script>
+<link rel="stylesheet" type="text/css" media="all" href="../share/calendar/calendar.css" title="win2k-cold-1" />
+
+<script type="text/javascript">
+function reImg(){
+// for stand alone development without uploading to OSCAR
+	var strLoc = window.location.href.toLowerCase();
+	if(strLoc.indexOf("https") == -1) {
+		var src1 = document.getElementById("BGImage1").src;
+		document.getElementById("BGImage1").src = src1.replace("$%7Boscar_image_path%7D","");
+		var src2 = document.getElementById("BGImage2").src;
+		document.getElementById("BGImage2").src = src2.replace("$%7Boscar_image_path%7D","");
+	}
+}
+</script>
+
+</head>
+
+
+<body onLoad="reImg();parseName();parseName2();">
+
+
+<form method="post" action="" name="FormName">
+
+<!-- Hidden Inputs -->
+
+<input type="hidden" name="CurrentUser" id="CurrentUser" oscarDB=current_user>
+<input type="hidden" name="MD" id="MD" oscarDB=doctor>
+
+<input name="PatientGender" id="PatientGender" type="hidden" oscarDB=sex>
+
+<!-- End Hidden Inputs -->
+
+<div id="page1" style="position:relative; left:0px; top:0px; width:750px;" class="pagebreak">
+	<img id="BGImage1"  src="${oscar_image_path}RMH_referral_form-1.png" width="750">
+
+<a style="position:absolute; left:290px; top:445px; width:250px; height:21px;" href="http://www.reproductivementalhealth.ca" target="_blank" title="www.reproductivementalhealth.ca"></a>
+
+<input name="first_last_name" id="first_last_name" type="text" class="noborder" style="position:absolute; left:70px; top:587px; width:380px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=first_last_name>
+
+<input name="today" id="today" type="text" class="noborder" style="position:absolute; left:580px; top:587px; width:138px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=today>
+
+<input name="addressline" id="addressline" type="text" class="noborder" style="position:absolute; left:90px; top:640px; width:647px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=addressline>
+
+<input name="phone" id="phone" type="text" class="noborder" style="position:absolute; left:160px; top:704px; width:110px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=phone>
+
+<input name="cell" id="cell" type="text" class="noborder" style="position:absolute; left:324px; top:704px; width:130px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=cell>
+
+<input name="email" id="email" type="text" class="noborder" style="position:absolute; left:515px; top:704px; width:205px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=email>
+
+<input name="PHN" id="PHN" type="text" class="noborder" style="position:absolute; left:110px; top:745px; width:330px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=hin>
+
+<input name="DOB" id="DOB" type="text" class="noborder" style="position:absolute; left:560px; top:745px; width:165px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=dobc>
+
+<input name="Referring" id="Referring" type="text" class="noborder" style="position:absolute; left:190px; top:780px; width:260px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=current_user>
+
+<input name="current_user_ohip_no" id="current_user_ohip_no" type="text" class="noborder" style="position:absolute; left:540px; top:780px; width:179px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=current_user_ohip_no>
+
+<input name="clinic_phone" id="clinic_phone" type="text" class="noborder" style="position:absolute; left:110px; top:823px; width:330px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=clinic_phone>
+
+<input name="clinic_fax" id="clinic_fax" type="text" class="noborder" style="position:absolute; left:515px; top:823px; width:206px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=clinic_fax>
+
+<input name="FamilyDoctor" id="FamilyDoctor" type="text" class="noborder" style="position:absolute; left:150px; top:865px; width:300px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=doctor>
+
+<input name="clinic_phone2" id="clinic_phone2" type="text" class="noborder" style="position:absolute; left:551px; top:865px; width:180px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"  oscarDB=clinic_phone>
+
+<input name="Psychiatrist" id="Psychiatrist" type="text" class="noborder" style="position:absolute; left:359px; top:925px; width:370px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+</div >
+
+<div id="page2" style="position:relative; left:0px; top:0px; width:750px;" class="pagebreak">
+	<img id="BGImage2"  src="${oscar_image_path}RMH_referral_form-2.png" width="750">
+
+<input name="Midwife" id="Midwife" type="text" class="noborder" style="position:absolute; left:86px; top:0px; width:290px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="OBGYN" id="OBGYN" type="text" class="noborder" style="position:absolute; left:455px; top:0px; width:276px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="SocialWorker" id="SocialWorker" type="text" class="noborder" style="position:absolute; left:310px; top:43px; width:427px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="Interpreter_No" id="Interpreter_No" type="text" class="XBox box1" style="left:357px; top:95px;"  onClick="Radio_Box(this.id);">
+
+<input name="Interpreter_Yes" id="Interpreter_Yes" type="text" class="XBox box1" style="left:424px; top:95px;"  onClick="Radio_Box(this.id);">
+
+<input name="Language" id="Language" type="text" class="noborder" style="position:absolute; left:480px; top:90px; width:254px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="Pregnancy" id="Pregnancy" type="text" class="XBox box1" style="left:10px; top:175px;" >
+
+<input name="Weeks" id="Weeks" type="text" class="noborder" style="position:absolute; left:223px; top:171px; width:180px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="m$EDC#value" id="EDC" type="text" class="noborder" style="position:absolute; left:505px; top:171px; width:220px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;"   oscarDB=m$EDC#value>
+
+<input name="Postpartum" id="Postpartum" type="text" class="XBox box1" style="left:10px; top:209px;" >
+
+<input name="DeliveryDate" id="DeliveryDate" type="text" class="noborder" style="position:absolute; left:269px; top:206px; width:479px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="PrePregnancy" id="PrePregnancy" type="text" class="XBox box1" style="left:10px; top:315px;" >
+
+<input name="PregnancyLoss" id="PregnancyLoss" type="text" class="Xbox box1" style="left:10px; top:341px;" >
+
+<input name="DateOfLoss" id="DateOfLoss" type="text" class="noborder" style="position:absolute; left:259px; top:335px; width:150px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="NumberOfWeeks" id="NumberOfWeeks" type="text" class="noborder" style="position:absolute; left:565px; top:335px; width:165px; height:18px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="Infertility" id="Infertility" type="text" class="Xbox box1" style="left:10px; top:363px;" >
+
+<input name="PMS" id="PMS" type="text" class="Xbox box1" style="left:10px; top:384px;" >
+
+<input name="Dpression" id="Dpression" type="text" class="Xbox box1" style="left:325px; top:424px;" >
+
+<input name="Anxiety" id="Anxiety" type="text" class="Xbox box1" style="left:432px; top:424px;" >
+
+<input name="Psychosis" id="Psychosis" type="text" class="Xbox box1" style="left:522px; top:424px;" >
+
+<input name="Mania" id="Mania" type="text" class="Xbox box1" style="left:618px; top:424px;" >
+
+<input name="Substance" id="Substance" type="text" class="Xbox box1" style="left:10px; top:463px;" >
+
+<input name="OtherIssues" id="OtherIssues" type="text" class="Xbox box1" style="left:167px; top:463px;" >
+
+<input name="OtherIssuesName" id="OtherIssuesName" type="text" class="noborder" style="position:absolute; left:235px; top:455px; width:507px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" value="">
+
+<input name="Suicide1" id="Suicide1" type="text" class="Xbox box1" style="left:328px; top:513px;" >
+
+<input name="Aggression" id="Aggression" type="text" class="Xbox box1" style="left:550px; top:513px;" >
+
+<input name="SpecifiyConcerns" id="SpecifiyConcerns" type="text" class="noborder" style="position:absolute; left:113px; top:535px; width:590px; height:21px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; background-color:transparent;" >
+
+<textarea name="PastSymptoms" id="PastSymptoms" class="noborder" style="position:absolute; left:10px; top:630px; width:730px; height:70px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; text-decoration: underline; background-color:transparent;" ></textarea>
+
+<textarea name="MedicalHistory" id="MedicalHistory" class="noborder" style="position:absolute; left:10px; top:720px; width:730px; height:100px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; text-decoration: underline; background-color:transparent;" oscarDB=medical_history></textarea>
+
+<textarea name="CurrentMeds" id="CurrentMeds" class="noborder" style="position:absolute; left:10px; top:850px; width:730px; height:90px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:14px; text-align:left; text-decoration: underline; background-color:transparent;" oscarDB=druglist_line></textarea>
+
+</div >
+
+
+<div class="DoNotPrint" style="position: absolute; top: 1968px; left: 10px;">
+	<table>
+		<tr>
+			<td>
+				<input value="Submit" name="SubmitButton" type="submit">
+				<input value="Reset" name="ResetButton" type="reset">
+				<input value="Print" name="PrintButton" type="button" onClick="window.print()">
+				<input value="Print and Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onClick="window.print();releaseDirtyFlag();setTimeout('SubmitButton.click()',2000);">
+			</td>
+		</tr>
+	</table>
+	
+ 
+ <!-- Copy Left -->
+ 
+<a rel="liscence" href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US" target="blank"><img alt="Creative Commons License" src="http://i.creativecommons.org/l/by-sa/3.0/80x15.png"/></a><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">created Jan 11<sup>th</sup> 2017 by Dr. John Robertson, </span>licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US" target="_blank">GPL</a>. <span style="color:forestgreen;">Please consider supporting  </span> <a  href="https://oscar-emr.com/support-oscar/" target="_blank" >OSCAR EMR Canada</a> <span style="color:forestgreen;"> and/or  </span> <a  href="http://oscarbc.ca/" target="_blank" >OSCAR BC</a><br>
+ </div>
+ </form>
+
+
+<!-- Define Date Calendars -->
+<script type="text/javascript">
+	Calendar.setup( { inputField : "today", ifFormat : "%Y-%m-%d y-m-d",  button : "today" } );
+	Calendar.setup( { inputField : "EDC", ifFormat : "%Y-%m-%d y-m-d",  button : "EDC" } );
+	Calendar.setup( { inputField : "DeliveryDate", ifFormat : "%Y-%m-%d y-m-d",  button : "DeliveryDate" } );
+	Calendar.setup( { inputField : "DateOfLoss", ifFormat : "%Y-%m-%d y-m-d",  button : "DateOfLoss" } );
+</script>
+
+</form>
+
+
+</body>
+</html>

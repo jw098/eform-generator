@@ -136,5 +136,26 @@ reason, so it shows as "to do" rather than as a failure:
 ```
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
-and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once it passes.
-The poorer copies' to-dos are the `todo: '...'` on their lines in `auto-detect.js`.
+and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once
+it passes. The poorer copies' to-dos are the `todo: '...'` on their lines in `auto-detect.js`.
+
+Where a test can't apply to part of a page (no printed tick boxes there, say), the boxes
+in that part can be skipped instead: left out of that one test, while everything else is
+still checked. Each skip names the test (same keys as above), the page, the region as
+[x, y, width, height] in page-image pixels (the same numbers the failures show), and the
+reason. A box is left out when its centre is in the region. Leave out `page` for every page,
+or `region` for the whole page:
+
+```js
+"skip": [
+  {
+    "test": "ticks",
+    "page": 2,
+    "region": [0, 170, 1500, 900],
+    "reason": "no printed tick boxes here, so there are none to find"
+  }
+]
+```
+
+The test's line in the panel then says what it left out, in grey, for example
+`16 tick boxes on page 2 in (0, 170) 1500×900 skipped: no printed tick boxes here, …`.
