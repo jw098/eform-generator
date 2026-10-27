@@ -873,7 +873,7 @@ else if (typeof exports === 'object')
 (() => {
     const DEFAULT_TAGS = [
     'patient_name','first_last_name','patient_nameF','patient_nameL',
-    'sex','dob','dobc2','dob_year','dob_month','dob_day',
+    'sex','dob','dobc','dobc2','dob_year','dob_month','dob_day',
     'patient_id','address','addressline','city','province','postal',
     'phone','phone2','cell','hin','hinc','hinversion','hc_type',
     'current_user','current_user_fname_lname','current_user_ohip_no',
@@ -882,7 +882,8 @@ else if (typeof exports === 'object')
     'clinic_name','clinic_label','clinic_phone','clinic_fax','clinic_email',
     'clinic_addressLine','clinic_addressLineFull','clinic_city','clinic_province','clinic_postal',
     'patient_dob','patient_hin','patient_phone','patient_address','patient_sex',
-    'provider_name','today','today_date','patient_age','label','email'
+    'provider_name','today','today_date','patient_age','label','email',
+    'doctor','medical_history','druglist_line'
   ];
 
   const state = {
@@ -1047,9 +1048,14 @@ else if (typeof exports === 'object')
     if (word('appointment|appt')) return '';                      // not in the patient's chart
     if (word('facility|requisition|requisiton|initials|recorder|signature|lmp|menopause|menarche')) return '';
     if (word('date') && word('signed')) return tag('today');
+    // The patient's own doctor (their MRP), not the referring one
+    if (word('family_doctor|family_physician|family_md|family_dr|gp|mrp')) return tag('doctor');
+    if (/medical_history/.test(n)) return tag('medical_history');
+    // (a field for medications and allergies both isn't the drug list)
+    if (word('medications|current_medications|meds|medication_list') && !/allerg/.test(n)) return tag('druglist_line');
     if (word('referring|physician|doctor|provider|practitioner|md|dr') && !word('patient')){
       // The referring (current) doctor's details, not the patient's
-      if (word('family|gp')) return '';
+      if (word('family|gp')) return tag('doctor');
       if (word('billing|msp|ohip|practitioner_no|billing_no')) return tag('current_user_ohip_no');
       if (word('fax')) return tag('clinic_fax');
       if (word('phone|telephone|tel')) return tag('clinic_phone');
@@ -1060,6 +1066,8 @@ else if (typeof exports === 'object')
       return tag('current_user');
     }
     if (word('billing')) return tag('current_user_ohip_no');
+    if (word('office') && word('fax')) return tag('clinic_fax');
+    if (word('office') && word('phone|telephone|tel')) return tag('clinic_phone');
     if (word('clinic')){
       if (word('fax')) return tag('clinic_fax');
       if (word('phone|telephone|tel')) return tag('clinic_phone');
@@ -1116,6 +1124,21 @@ else if (typeof exports === 'object')
       if (score > bestScore){ bestScore = score; best = tag; }
     });
     return bestScore >= 3 ? best : '';
+  }
+
+  // A tag made more exact by the words printed under the field: "FIRST  MIDDLE  LAST" under a
+  // name is the first name first (OSCAR's patient_name is "Last, First"); "D/M/Y" under a birth
+  // date is day first (OSCAR's dobc; dobc2 is year first)
+  function captionTag(tag, caption){
+    const c = ' ' + caption.toUpperCase() + ' ';
+    const first = c.search(/\b(FIRST|GIVEN)\b/), last = c.search(/\b(LAST|SURNAME)\b/);
+    if (tag === 'patient_name' && first >= 0 && last > first && state.tagCatalog.has('first_last_name')) return 'first_last_name';
+    if (tag === 'dobc2' || tag === 'patient_dob' || tag === 'dob'){
+      const has = (t) => state.tagCatalog.has(t) ? t : tag;
+      if (/\bD{1,2}\s*[\/.\-]?\s*M{1,2}\s*[\/.\-]?\s*Y{1,4}\b/.test(c)) return has('dobc');
+      if (/\bY{1,4}\s*[\/.\-]?\s*M{1,2}\s*[\/.\-]?\s*D{1,2}\b/.test(c)) return has('dobc2');
+    }
+    return tag;
   }
 
   function readAsDataURL(file){
@@ -2877,6 +2900,15 @@ else if (typeof exports === 'object')
 
     // Sections, from headings: lines in capitals that are nobody's label, with no field on their row
     const labelWords = new Set(out.flatMap(f => f._words || []));
+    // The small words printed just under a fill-in line, within its width ("FIRST  MIDDLE  LAST"
+    // under a NAME line): they say what goes on it, and in what order
+    out.forEach(f => {
+      if (f.box || (f.type !== 'text' && f.type !== 'textarea')) return;
+      const bottom = f.y + f.height;
+      const under = free.filter(w => !labelWords.has(w) && w.y0 >= bottom - wh*0.3 && w.y0 - bottom <= wh*1.2 &&
+                                     (w.x0+w.x1)/2 >= f.x && (w.x0+w.x1)/2 <= f.x + f.width);
+      if (under.length) f.caption = phrase(under.sort((a,b) => a.x0-b.x0));
+    });
     const isLabel = (l) => l.words.some(w => [...labelWords].some(u => Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2));
     const heads = read.lines.filter(l => caps(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
                                          !out.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
@@ -3491,8 +3523,23 @@ else if (typeof exports === 'object')
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
         else f.name = box ? `checkbox_${cN++}` : `text_${tN++}`;
         used.add(f.name);
-        if (!box && f.label && !f.oscarTag) f.oscarTag = guessTag(f.name, f.type, f.label);
-        delete f.section;
+        if (!box && f.label && !f.oscarTag){
+          f.oscarTag = guessTag(f.name, f.type, f.label);
+          if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
+        }
+        delete f.section; delete f.caption;
+      });
+      // A phone, fax, address or email that doesn't say whose is the doctor's when the field to
+      // its left on its row is ("OFFICE TEL #: ____  FAX #: ____", "FAMILY DOCTOR: ____  PHONE #: ____")
+      const doctors = new Set(['current_user','current_user_ohip_no','clinic_name','clinic_phone','clinic_fax','clinic_addressLine','doctor']);
+      const writes = found.filter(f => f.type==='text'||f.type==='textarea').sort((a,b) => a.x-b.x);
+      writes.forEach(f => {
+        if (!f.label || !/\b(phone|tel|telephone|fax|e-?mail|address)\b/i.test(f.label) || /\b(home|cell|mobile|patient)\b/i.test(f.label)) return;
+        const prev = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && g.y < f.y + f.height && g.y + g.height > f.y)
+                           .sort((a,b) => (b.x+b.width)-(a.x+a.width))[0];
+        if (prev && doctors.has(prev.oscarTag)){ const t = guessTag('referring ' + f.label, f.type, ''); if (t) f.oscarTag = t; }
+      });
+      found.forEach(f => {
         const dup = state.fields.some(k =>
           samePage(k.page,page) &&
           Math.abs(k.x-f.x)<4 && Math.abs(k.y-f.y)<4 &&

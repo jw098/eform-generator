@@ -52,6 +52,12 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [0, 170, 1500, 900],
         "reason": "no printed tick boxes here (the eForm puts its tick boxes beside the words), so there are none to find"
+      },
+      {
+        "test": "tags",
+        "page": 2,
+        "region": [1000, 330, 480, 70],
+        "reason": "Due Date's m$EDC#value is a measurement tag, which Auto Detect leaves to you"
       }
     ]
   }
