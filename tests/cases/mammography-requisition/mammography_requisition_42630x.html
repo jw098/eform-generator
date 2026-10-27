@@ -1,0 +1,308 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>Mammography requisition</title>
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	overflow: hidden;
+ }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; background:transparent; text-align:center; font-weight:bold; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+function SignForm() {
+  try {
+    var provNum = $('#current_user_id').val();
+    var sig = document.getElementById('signature');
+    if (!sig) return;
+    sig.src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+    $('#signature').on('error', function() {
+      $(this).hide();
+    });
+    sig.alt = provNum;
+  } catch(e){}
+}
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var el = document.getElementById(ids[i]);
+    if (!el) continue;
+    var v = (el.value || '').trim();
+    if (v) return v;
+  }
+  return '';
+}
+function syncFaxNoMirror(){
+  var v = getFaxTargetNo();
+  var h = document.getElementById('faxnumber');
+  if (h) h.value = v;
+}
+function primeFaxNo(){
+  try{
+    var box = document.getElementById('faxNo');
+    if (!box || (box.value && box.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var el = document.getElementById(candidates[i]);
+      if (!el) continue;
+      var v = (el.value || '').trim();
+      if (v){ box.value = v; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var fc = document.getElementById('faxControl');
+    if (fc){
+      fc.style.display = 'inline-block';
+      if (fc.children && fc.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); }, 350);
+}
+</script>
+
+
+</head>
+<body onload="setFaxNo(); primeFaxNo(); syncFaxNoMirror(); SignForm(); checkGender()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}mammography_requisition_42630x_page1.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- billable_to_msp_0 -->
+<input class="xMarkOnly noborder" id="billable_to_msp_0_1000" name="billable_to_msp_0" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:32px; top:159px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- billable_to_icbc_1 -->
+<input class="xMarkOnly noborder" id="billable_to_icbc_1_1001" name="billable_to_icbc_1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:80px; top:159px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- billable_to_wcb_2 -->
+<input class="xMarkOnly noborder" id="billable_to_wcb_2_1002" name="billable_to_wcb_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:132px; top:159px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- billable_to_patient_3 -->
+<input class="xMarkOnly noborder" id="billable_to_patient_3_1003" name="billable_to_patient_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:180px; top:159px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- billable_to_other_4 -->
+<input class="xMarkOnly noborder" id="billable_to_other_4_1004" name="billable_to_other_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:239px; top:159px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gender_m_5 -->
+<input class="xMarkOnly noborder" id="gender_m_5_1005" name="gender_m_5" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:302px; top:248px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gender_f_6 -->
+<input class="xMarkOnly noborder" id="gender_f_6_1006" name="gender_f_6" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:334px; top:248px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- pregnant_yes_7 -->
+<input class="xMarkOnly noborder" id="pregnant_yes_7_1007" name="pregnant_yes_7" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:374px; top:248px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- pregnant_no_8 -->
+<input class="xMarkOnly noborder" id="pregnant_no_8_1008" name="pregnant_no_8" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:414px; top:248px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- diagnostic_mammography_9 -->
+<input class="xMarkOnly noborder" id="diagnostic_mammography_9_1009" name="diagnostic_mammography_9" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:221px; top:302px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ultrasound_10 -->
+<input class="xMarkOnly noborder" id="ultrasound_10_1010" name="ultrasound_10" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:427px; top:302px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- proceed_to_further_imaging_11 -->
+<input class="xMarkOnly noborder" id="proceed_to_further_imaging_11_1011" name="proceed_to_further_imaging_11" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:257px; top:324px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- proceed_to_needle_biopsy_12 -->
+<input class="xMarkOnly noborder" id="proceed_to_needle_biopsy_12_1012" name="proceed_to_needle_biopsy_12" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:257px; top:340px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- call_me_13 -->
+<input class="xMarkOnly noborder" id="call_me_13_1013" name="call_me_13" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:257px; top:357px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- previous_mammograms_yes_14 -->
+<input class="xMarkOnly noborder" id="previous_mammograms_yes_14_1014" name="previous_mammograms_yes_14" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:402px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- previous_mammograms_no_15 -->
+<input class="xMarkOnly noborder" id="previous_mammograms_no_15_1015" name="previous_mammograms_no_15" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:98px; top:402px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- previous_biopsies_surgery_yes_16 -->
+<input class="xMarkOnly noborder" id="previous_biopsies_surgery_yes_16_1016" name="previous_biopsies_surgery_yes_16" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:432px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- previous_biopsies_surgery_no_17 -->
+<input class="xMarkOnly noborder" id="previous_biopsies_surgery_no_17_1017" name="previous_biopsies_surgery_no_17" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:98px; top:432px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hormone_therapy_yes_18 -->
+<input class="xMarkOnly noborder" id="hormone_therapy_yes_18_1018" name="hormone_therapy_yes_18" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:461px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hormone_therapy_no_19 -->
+<input class="xMarkOnly noborder" id="hormone_therapy_no_19_1019" name="hormone_therapy_no_19" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:98px; top:461px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- family_history_yes_20 -->
+<input class="xMarkOnly noborder" id="family_history_yes_20_1020" name="family_history_yes_20" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:490px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- family_history_no_21 -->
+<input class="xMarkOnly noborder" id="family_history_no_21_1021" name="family_history_no_21" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:98px; top:490px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- lump_22 -->
+<input class="xMarkOnly noborder" id="lump_22_1022" name="lump_22" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:564px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- thickening_23 -->
+<input class="xMarkOnly noborder" id="thickening_23_1023" name="thickening_23" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:226px; top:564px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- localized_pain_tenderness_24 -->
+<input class="xMarkOnly noborder" id="localized_pain_tenderness_24_1024" name="localized_pain_tenderness_24" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:396px; top:564px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- nipple_discharge_25 -->
+<input class="xMarkOnly noborder" id="nipple_discharge_25_1025" name="nipple_discharge_25" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:543px; top:564px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- _abnormal_screening_mammogram_26 -->
+<input class="xMarkOnly noborder" id="abnormal_screening_mammogram_26_1026" name="abnormal_screening_mammogram_26" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:582px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- follow_up_of_previous_findings_27 -->
+<input class="xMarkOnly noborder" id="follow_up_of_previous_findings_27_1027" name="follow_up_of_previous_findings_27" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:226px; top:582px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- previous_breast_cancer_28 -->
+<input class="xMarkOnly noborder" id="previous_breast_cancer_28_1028" name="previous_breast_cancer_28" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:396px; top:582px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- breast_prostheses_implants__29 -->
+<input class="xMarkOnly noborder" id="breast_prostheses_implants__29_1029" name="breast_prostheses_implants__29" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:543px; top:582px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- unknown_primary_malignancy_30 -->
+<input class="xMarkOnly noborder" id="unknown_primary_malignancy_30_1030" name="unknown_primary_malignancy_30" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:600px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- first_post_operative_mammography_31 -->
+<input class="xMarkOnly noborder" id="first_post_operative_mammography_31_1031" name="first_post_operative_mammography_31" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:226px; top:600px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- other_specify_32 -->
+<input class="xMarkOnly noborder" id="other_specify_32_1032" name="other_specify_32" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:51px; top:631px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- billable_to_other__33 -->
+<input class="gen_input noborder" id="billable_to_other__33_1033" name="billable_to_other__33" type="text" autocomplete="off" style="position:absolute; left:288px; top:156px; width:157px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- personal_health_number_34 -->
+<input class="gen_input noborder" id="personal_health_number_34_1034" name="personal_health_number_34" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:32px; top:185px; width:252px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- dob_yyyy_mm_dd_35 -->
+<input class="gen_input noborder" id="dob_yyyy_mm_dd_35_1035" name="dob_yyyy_mm_dd_35" oscarDB="dobc2" type="text" autocomplete="off" style="position:absolute; left:290px; top:185px; width:156px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- surname_of_patient_36 -->
+<input class="gen_input noborder" id="surname_of_patient_36_1036" name="surname_of_patient_36" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:32px; top:215px; width:211px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- first_name_and_middle_initial_37 -->
+<input class="gen_input noborder" id="first_name_and_middle_initial_37_1037" name="first_name_and_middle_initial_37" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:243px; top:215px; width:203px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- telephone_include_area_code__38 -->
+<input class="gen_input noborder" id="telephone_include_area_code__38_1038" name="telephone_include_area_code__38" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:32px; top:244px; width:252px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- address_39 -->
+<input class="gen_input noborder" id="address_39_1039" name="address_39" oscarDB="addressline" type="text" autocomplete="off" style="position:absolute; left:32px; top:273px; width:187px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- city_town_40 -->
+<input class="gen_input noborder" id="city_town_40_1040" name="city_town_40" oscarDB="city" type="text" autocomplete="off" style="position:absolute; left:219px; top:273px; width:155px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- postal_code_41 -->
+<input class="gen_input noborder" id="postal_code_41_1041" name="postal_code_41" oscarDB="postal" type="text" autocomplete="off" style="position:absolute; left:374px; top:273px; width:72px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- copy_results_to_42 -->
+<input class="gen_input noborder" id="copy_results_to_42_1042" name="copy_results_to_42" type="text" autocomplete="off" style="position:absolute; left:452px; top:273px; width:265px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- previous_mammograms_date_s__43 -->
+<input class="gen_input noborder" id="previous_mammograms_date_s__43_1043" name="previous_mammograms_date_s__43" type="text" autocomplete="off" style="position:absolute; left:177px; top:399px; width:539px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- previous_biopsies_date_s__44 -->
+<input class="gen_input noborder" id="previous_biopsies_date_s__44_1044" name="previous_biopsies_date_s__44" type="text" autocomplete="off" style="position:absolute; left:177px; top:428px; width:539px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- hormone_therapy_date_s__45 -->
+<input class="gen_input noborder" id="hormone_therapy_date_s__45_1045" name="hormone_therapy_date_s__45" type="text" autocomplete="off" style="position:absolute; left:177px; top:458px; width:539px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- family_history_relationship_46 -->
+<input class="gen_input noborder" id="family_history_relationship_46_1046" name="family_history_relationship_46" type="text" autocomplete="off" style="position:absolute; left:177px; top:487px; width:539px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- lmp_date__47 -->
+<input class="gen_input noborder" id="lmp_date__47_1047" name="lmp_date__47" type="text" autocomplete="off" style="position:absolute; left:101px; top:516px; width:348px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- menopause_age__48 -->
+<input class="gen_input noborder" id="menopause_age__48_1048" name="menopause_age__48" type="text" autocomplete="off" style="position:absolute; left:534px; top:516px; width:183px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- other_specify__49 -->
+<input class="gen_input noborder" id="other_specify__49_1049" name="other_specify__49" type="text" autocomplete="off" style="position:absolute; left:136px; top:624px; width:581px; height:24px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- telephone_requisition_time_50 -->
+<input class="gen_input noborder" id="telephone_requisition_time_50_1050" name="telephone_requisition_time_50" type="text" autocomplete="off" style="position:absolute; left:32px; top:871px; width:114px; height:25px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- initials_of_recorder_51 -->
+<input class="gen_input noborder" id="initials_of_recorder_51_1051" name="initials_of_recorder_51" type="text" autocomplete="off" style="position:absolute; left:152px; top:871px; width:98px; height:25px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_signed_yyyy_mm_dd__52 -->
+<input class="gen_input noborder" id="date_signed_yyyy_mm_dd__52_1052" name="date_signed_yyyy_mm_dd__52" oscarDB="today" type="text" autocomplete="off" style="position:absolute; left:256px; top:871px; width:256px; height:24px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- x_ray_facility_address_53 -->
+<textarea class="gen_input noborder" id="x_ray_facility_address_53_1053" name="x_ray_facility_address_53" style="position:absolute; left:32px; top:91px; width:493px; height:53px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- x_ray_use_only_54 -->
+<textarea class="gen_input noborder" id="x_ray_use_only_54_1054" name="x_ray_use_only_54" style="position:absolute; left:531px; top:91px; width:186px; height:53px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- name_of_physician_msp_practitioner_number_55 -->
+<textarea class="gen_input noborder" id="name_of_physician_msp_practitioner_number_55_1055" name="name_of_physician_msp_practitioner_number_55" oscarDB="current_user_ohip_no" style="position:absolute; left:452px; top:159px; width:265px; height:102px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- please_mark_area_s_of_concern_56 -->
+<textarea class="gen_input noborder" id="please_mark_area_s_of_concern_56_1056" name="please_mark_area_s_of_concern_56" style="position:absolute; left:28px; top:676px; width:694px; height:148px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- signature_of_requesting_physician_57 -->
+<textarea class="gen_input noborder" id="signature_of_requesting_physician_57_1057" name="signature_of_requesting_physician_57" style="position:absolute; left:518px; top:843px; width:199px; height:52px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+
+</form>
+</body>
+</html>

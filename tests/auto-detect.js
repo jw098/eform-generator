@@ -305,37 +305,70 @@
     return out;
   }
 
+  // ----- Reading the cases' files -----
+  // Each case is a folder in tests/cases (its eForm's HTML and page images), listed in
+  // tests/cases/index.js. Served over http(s), the page fetches them. Opened from disk (file://),
+  // the browser won't let it read files by itself (it may show an image, not read its pixels),
+  // so the panel asks for the tests/cases folder and they're read from the files picked.
+  // Either way, getFile('folder/file name') gives the file.
+  const asDataUrl = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+  const fromServer = () => async (path) => {
+    const r = await fetch('tests/cases/' + path.split('/').map(encodeURIComponent).join('/'));
+    if (!r.ok) throw new Error(`tests/cases/${path} is missing`);
+    return r.blob();
+  };
+  const fromFolder = (files) => async (path) => {
+    // (paths in the folder picked start with its own name: "cases/referral-form/page1.png")
+    const f = [...files].find(f => (f.webkitRelativePath || f.name) === path || (f.webkitRelativePath || '').endsWith('/' + path));
+    if (!f) throw new Error(`tests/cases/${path} is missing from the folder chosen`);
+    return f;
+  };
+  async function loadCase(entry, getFile){
+    const html = await (await getFile(`${entry.folder}/${entry.eform}`)).text();
+    const images = {};
+    for (const name of entry.images || []) images[name] = await asDataUrl(await getFile(`${entry.folder}/${name}`));
+    return { name: entry.name || entry.folder, html, images };
+  }
+
+  // ----- Running everything -----
   const results = [];
   let nextPage = 1;                                       // the app page the next case starts on
-  try {
-    await loadScript('tests/cases/index.js');
-    const entries = (window.TEST_CASE_LIST || []).map(e => typeof e === 'string' ? { file: e } : e);
-    for (const entry of entries){
-      try { await loadScript(`tests/cases/${entry.file}.js`); } catch (err) { /* reported below */ }
-      const c = (window.TEST_CASES || {})[entry.file];
-      if (!c){ results.push({ name: entry.file, group: entry.file, short: 'load the case', status: 'fail', error: `tests/cases/${entry.file}.js is missing or holds no case` }); continue; }
-      nextPage += await caseTests(c, entry, nextPage)();
-    }
-    // The variations, one after another on the next page (it shows the last of them)
-    const ref = (window.TEST_CASES || {})[VARIED_CASE];
-    if (ref){
-      const pg = (await eformPages(ref.html, ref.images))[0];
-      VARIED_BOXES = pg.boxes.filter(e => e.kind === 'tick');
-      const base = await loadImage(pg.imgData);
-      for (const v of VARIATIONS){
-        const made = v.make(base);
-        v.fields = await detectOn(nextPage, made.url, `${VARIED_CASE} (${v.name}).png`, { readWords: false }, v === VARIATIONS[VARIATIONS.length-1]);
-        v.map = made.map; v.scale = made.scale;
+  let entries = [];
+  async function runAll(getFile){
+    const loaded = {};
+    try {
+      for (const entry of entries){
+        let c;
+        try { c = await loadCase(entry, getFile); }
+        catch (err){ results.push({ name: entry.name || entry.folder, group: entry.name || entry.folder, short: 'read the case', status: 'fail', error: err.message || String(err) }); continue; }
+        loaded[entry.folder] = c;
+        nextPage += await caseTests(c, entry, nextPage)();
       }
-      nextPage++;
+      // The variations, one after another on the next page (it shows the last of them)
+      const ref = loaded[VARIED_CASE];
+      if (ref){
+        const pg = (await eformPages(ref.html, ref.images))[0];
+        VARIED_BOXES = pg.boxes.filter(e => e.kind === 'tick');
+        const base = await loadImage(pg.imgData);
+        for (const v of VARIATIONS){
+          const made = v.make(base);
+          v.fields = await detectOn(nextPage, made.url, `${VARIED_CASE} (${v.name}).png`, { readWords: false }, v === VARIATIONS[VARIATIONS.length-1]);
+          v.map = made.map; v.scale = made.scale;
+        }
+        nextPage++;
+        variationTests();
+      }
+      results.push(...await runTests(tests));
+    } catch (err) {
+      results.push({ name: 'run the tests', group: 'Setup', short: 'run the tests', status: 'fail', error: err.message || String(err) });
     }
-    variationTests();
-    results.push(...await runTests(tests));
-  } catch (err) {
-    results.push({ name: 'run the tests', group: 'Setup', short: 'run the tests', status: 'fail', error: err.message || String(err) });
+    T.results = results;
+    showAll();
+    render();
+    console.log('Auto Detect tests: ' + summary());
+    results.forEach(r => (r.status === 'fail' ? console.error : console.log)(
+      `${mark[r.status]} ${r.name}${r.todo ? ' # TODO ' + r.todo : ''}${r.error ? '\n  ' + r.error : ''}`));
   }
-  T.results = results;
-  showAll();
 
   // ----- Adding a test case -----
   // From a finished eForm: the package the app downloads (a zip of the HTML and its page
@@ -362,45 +395,50 @@
     }
     if (!html) throw new Error('no eForm HTML among the files picked (choose the eForm package zip, or the .html with its images)');
     if (!Object.keys(images).length) throw new Error('no page images among the files picked');
-    return { name: title || htmlName.replace(/\.[^.]+$/, ''), html, images };
+    return { name: title || htmlName.replace(/\.[^.]+$/, ''), html, images, htmlName };
   }
-  const download = (name, text) => {
+  const download = (name, blob) => {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
+    a.href = URL.createObjectURL(blob);
     a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
-  const caseFileText = (slug, c) =>
-    `// Auto Detect test case: ${c.name.replace(/[\r\n]+/g, ' ')}\n` +
-    `// A finished eForm (its HTML and page images), added with "Add a test case" in the test panel.\n` +
-    `// Auto Detect is checked against its fields: where they are, and their oscarDB tags.\n` +
-    `window.TEST_CASES = window.TEST_CASES || {};\nwindow.TEST_CASES[${JSON.stringify(slug)}] = ${JSON.stringify(c)};\n`;
   const listFileText = (entries) =>
-    `// The Auto Detect test cases: one file each in this folder, tests/cases/<file>.js.\n` +
-    `// todo: a case's tests it doesn't pass yet, reported as "to do" rather than as failures, by\n` +
-    `// key: ticks, fields, extraTicks, extraFields, tags (see tests/README.md).\n` +
+    `// The Auto Detect test cases. Each is a folder here holding a finished eForm: its HTML and its\n` +
+    `// page image(s), as the app's OSCAR package has them (unzip the package into the folder).\n` +
+    `//   name    what the test results call it\n` +
+    `//   folder  its folder in tests/cases\n` +
+    `//   eform   the eForm's HTML file, in that folder\n` +
+    `//   images  its page images, in that folder\n` +
+    `//   todo    (optional) its tests it doesn't pass yet, shown as "to do" rather than failures, by\n` +
+    `//           key: ticks, fields, extraTicks, extraFields, tags (see tests/README.md)\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';
     try {
       const c = await caseFromFiles(files);
-      const list = (window.TEST_CASE_LIST || []).map(e => typeof e === 'string' ? { file: e } : e);
+      const list = window.TEST_CASE_LIST || [];
       let slug = slugOf(c.name);
-      for (let k = 2; list.some(e => e.file === slug); k++) slug = `${slugOf(c.name)}-${k}`;
+      for (let k = 2; list.some(e => e.folder === slug); k++) slug = `${slugOf(c.name)}-${k}`;
       tests = [];
-      nextPage += await caseTests(c, {}, nextPage)();
+      // (shown apart from a case of the same name already run)
+      const shownAs = results.some(r => r.group === c.name) ? { ...c, name: `${c.name} (added)` } : c;
+      nextPage += await caseTests(shownAs, {}, nextPage)();
       results.push(...await runTests(tests));
       T.results = results;
       showAll();
       render();
+      // To keep it: its files in a folder of their own, and the list with it added
+      const eform = c.htmlName || `${slug}.html`, images = Object.keys(c.images);
       const save = document.createElement('div');
       save.style.cssText = 'margin:6px 0;padding:6px 8px;background:#f1f5f9;border-radius:6px';
-      save.append(`"${c.name}" ran as a test case (its results are below). To keep it in the suite, save both of these into the tests/cases folder: `);
-      const b1 = document.createElement('button'), b2 = document.createElement('button');
-      b1.textContent = `${slug}.js`; b2.textContent = 'index.js (the list, with it added)';
-      b1.onclick = () => download(`${slug}.js`, caseFileText(slug, c));
-      b2.onclick = () => download('index.js', listFileText([...list, { file: slug }]));
-      save.append(b1, ' ', b2);
+      save.append(`"${c.name}" ran as a test case (its results are below). To keep it in the suite: make the folder tests/cases/${slug}, put the eForm's files in it (unzip the package there, or save these: `);
+      const fileBtn = (label, make) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => download(label, make()); return b; };
+      save.append(fileBtn(eform, () => new Blob([c.html], { type: 'text/html' })), ' ');
+      images.forEach(name => save.append(fileBtn(name, () => { const [head, b64] = c.images[name].split(','); const bin = atob(b64), a = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: head.slice(5).split(';')[0] }); }), ' '));
+      save.append('), and save this into tests/cases: ');
+      save.append(fileBtn('index.js', () => new Blob([listFileText([...list, { name: c.name, folder: slug, eform, images }])], { type: 'text/javascript' })));
       panel.insertBefore(save, groupsBox);
       note.textContent = '';
     } catch (err) {
@@ -415,10 +453,6 @@
   const summary = () => `${count('pass')} passed, ${count('fail')} failed` +
     (count('todo') ? `, ${count('todo')} to do` : '') +
     (count('todo-passes') ? `, ${count('todo-passes')} to-do now passing (take it off the to-do list)` : '');
-
-  console.log('Auto Detect tests: ' + summary());
-  results.forEach(r => (r.status === 'fail' ? console.error : console.log)(
-    `${mark[r.status]} ${r.name}${r.todo ? ' # TODO ' + r.todo : ''}${r.error ? '\n  ' + r.error : ''}`));
 
   const panel = document.createElement('div');
   panel.id = 'autoDetectTestResults';
@@ -487,4 +521,28 @@
   }
   render();
   document.body.appendChild(panel);
+
+  // ----- Start -----
+  try { await loadScript('tests/cases/index.js'); } catch (err) { /* no cases yet */ }
+  entries = window.TEST_CASE_LIST || [];
+  if (!entries.length || location.protocol !== 'file:'){ title.textContent = 'Auto Detect tests: running…'; await runAll(fromServer()); return; }
+  // From disk: ask for the folder
+  const ask = document.createElement('div');
+  ask.style.cssText = 'margin:6px 0;padding:8px;background:#fef9c3;border-radius:6px';
+  ask.append('To run the test cases, choose the tests/cases folder. (A page opened from disk may show the cases\' images but not read them, so it asks; served over http it reads them itself.) ');
+  const folderBtn = document.createElement('button');
+  folderBtn.textContent = 'Choose the tests/cases folder…';
+  const folder = document.createElement('input');
+  folder.type = 'file'; folder.webkitdirectory = true; folder.multiple = true; folder.hidden = true; folder.id = 'autoDetectCasesFolder';
+  folderBtn.onclick = () => folder.click();
+  folder.onchange = async () => {
+    const files = [...folder.files];
+    if (!files.length) return;
+    ask.remove();
+    title.textContent = 'Auto Detect tests: running…';
+    await runAll(fromFolder(files));
+  };
+  ask.append(folderBtn, folder);
+  panel.insertBefore(ask, groupsBox);
+  title.textContent = 'Auto Detect tests: waiting for the tests/cases folder';
 })();

@@ -4,7 +4,9 @@ These tests check **Auto Detect**, the button in the eForm Mapper that finds the
 and the places to write on a scanned form and suggests their OSCAR tags.
 
 A **test case is a finished eForm**: the eForm HTML and its page image(s), with every box in
-the right place and the right `oscarDB` tag. The tests do what you would do in the app:
+the right place and the right `oscarDB` tag. Each case is a folder in `cases/` holding those
+files as they are (the app's OSCAR package, unzipped), so its images can be opened and looked
+at like any other. The tests do what you would do in the app:
 
 1. put the case's page image(s) in the app and run **Auto Detect**;
 2. build the eForm from what it found with **Build HTML draft**;
@@ -23,6 +25,13 @@ file:///C:/path/to/eForm_Generator_FreeScribe_offline.html#test
 
 If the app is already open, add `#test` and reload. Nothing needs installing; the tests run
 in the browser, inside the app. A run takes about 15 to 20 seconds.
+
+Opened from disk like this, the panel first asks you to **choose the `tests/cases` folder**.
+A page opened from disk may show an image file but isn't allowed to read its pixels, or to
+read other files at all, so it asks for the folder; nothing leaves your computer. If the app
+is served over http instead (for example `python -m http.server` in this folder, then
+`http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test`), it reads the files
+itself and doesn't ask.
 
 ## What is compared
 
@@ -78,10 +87,10 @@ tab in the app, with what Auto Detect found drawn on it.
 2. Open the app with `#test`, click **Add a test case…** in the panel, and pick the zip (or
    the `.html` and its images together). The case runs straight away; its results appear in
    the panel.
-3. The panel then offers two files. Save both into `tests/cases`:
-   - `<name>.js`: the case (the eForm and its images, written out as text, since a page opened
-     from disk can only load scripts);
-   - `index.js`: the list of cases, with the new one added.
+3. To keep it, the panel names a folder for it, for example `tests/cases/my-form`. Make that
+   folder and put the eForm's files in it: unzip the package there, or use the buttons for
+   the `.html` and each image. Then save the `index.js` it offers into `tests/cases` (the list
+   of cases, with the new one added).
 
 From then on it runs with the others.
 
@@ -89,8 +98,8 @@ From then on it runs with the others.
 
 | File | What it is |
 |---|---|
-| `cases/index.js` | The list of test cases, and any to-dos. |
-| `cases/*.js` | One test case each: an eForm and its page images. Made by "Add a test case"; not meant to be read. |
+| `cases/index.js` | The list of test cases: each one's name, folder, eForm file and page images, and any to-dos. |
+| `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s). |
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 
 ## To-dos
@@ -100,7 +109,10 @@ reason, so it shows as "to do" rather than as a failure:
 
 ```js
 {
-  "file": "mammography-requisition",
+  "name": "Mammography requisition",
+  "folder": "mammography-requisition",
+  "eform": "mammography_requisition_42630x.html",
+  "images": ["mammography_requisition_42630x_page1.png"],
   "todo": { "extraFields": "two places that aren't fields" }
 }
 ```

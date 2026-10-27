@@ -1,0 +1,230 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>X-ray requisition</title>
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	overflow: hidden;
+ }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; background:transparent; text-align:center; font-weight:bold; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+function SignForm() {
+  try {
+    var provNum = $('#current_user_id').val();
+    var sig = document.getElementById('signature');
+    if (!sig) return;
+    sig.src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+    $('#signature').on('error', function() {
+      $(this).hide();
+    });
+    sig.alt = provNum;
+  } catch(e){}
+}
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var el = document.getElementById(ids[i]);
+    if (!el) continue;
+    var v = (el.value || '').trim();
+    if (v) return v;
+  }
+  return '';
+}
+function syncFaxNoMirror(){
+  var v = getFaxTargetNo();
+  var h = document.getElementById('faxnumber');
+  if (h) h.value = v;
+}
+function primeFaxNo(){
+  try{
+    var box = document.getElementById('faxNo');
+    if (!box || (box.value && box.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var el = document.getElementById(candidates[i]);
+      if (!el) continue;
+      var v = (el.value || '').trim();
+      if (v){ box.value = v; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var fc = document.getElementById('faxControl');
+    if (fc){
+      fc.style.display = 'inline-block';
+      if (fc.children && fc.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); }, 350);
+}
+</script>
+
+
+</head>
+<body onload="setFaxNo(); primeFaxNo(); syncFaxNoMirror(); SignForm(); checkGender()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:auto;position:relative;width:750px;height:963px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}x_ray_requisition_5m1u0o_page1.png" style="position:absolute;left:0;top:0;width:750px;height:963px;">
+<!-- male_0 -->
+<input class="xMarkOnly noborder" id="male_0_1000" name="male_0" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:551px; top:390px; width:13px; height:13px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- female_1 -->
+<input class="xMarkOnly noborder" id="female_1_1001" name="female_1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:636px; top:390px; width:13px; height:13px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dr_2 -->
+<input class="gen_input noborder" id="dr_2_1002" name="dr_2" oscarDB="current_user" type="text" autocomplete="off" style="position:absolute; left:57px; top:224px; width:274px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- billing__3 -->
+<input class="gen_input noborder" id="billing__3_1003" name="billing__3" oscarDB="current_user_ohip_no" type="text" autocomplete="off" style="position:absolute; left:396px; top:224px; width:149px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_4 -->
+<input class="gen_input noborder" id="date_4_1004" name="date_4" oscarDB="today" type="text" autocomplete="off" style="position:absolute; left:588px; top:224px; width:107px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- clinic_5 -->
+<input class="gen_input noborder" id="clinic_5_1005" name="clinic_5" oscarDB="clinic_name" type="text" autocomplete="off" style="position:absolute; left:76px; top:255px; width:618px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- additional_copy_to_6 -->
+<input class="gen_input noborder" id="additional_copy_to_6_1006" name="additional_copy_to_6" type="text" autocomplete="off" style="position:absolute; left:145px; top:281px; width:550px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_name_last_7 -->
+<input class="gen_input noborder" id="patient_name_last_7_1007" name="patient_name_last_7" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:151px; top:307px; width:180px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_name_first_8 -->
+<input class="gen_input noborder" id="patient_name_first_8_1008" name="patient_name_first_8" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:375px; top:307px; width:320px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- address_9 -->
+<input class="gen_input noborder" id="address_9_1009" name="address_9" oscarDB="addressline" type="text" autocomplete="off" style="position:absolute; left:88px; top:332px; width:456px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- postal_code_10 -->
+<input class="gen_input noborder" id="postal_code_10_1010" name="postal_code_10" oscarDB="postal" type="text" autocomplete="off" style="position:absolute; left:627px; top:332px; width:67px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phone_11 -->
+<input class="gen_input noborder" id="phone_11_1011" name="phone_11" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:79px; top:358px; width:615px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_of_birth_12 -->
+<input class="gen_input noborder" id="date_of_birth_12_1012" name="date_of_birth_12" oscarDB="dobc2" type="text" autocomplete="off" style="position:absolute; left:169px; top:383px; width:375px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- personal_health_number_13 -->
+<input class="gen_input noborder" id="personal_health_number_13_1013" name="personal_health_number_13" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:263px; top:408px; width:431px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- appointment_date_14 -->
+<input class="gen_input noborder" id="appointment_date_14_1014" name="appointment_date_14" type="text" autocomplete="off" style="position:absolute; left:202px; top:434px; width:129px; height:15px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- appointment_time_15 -->
+<input class="gen_input noborder" id="appointment_time_15_1015" name="appointment_time_15" type="text" autocomplete="off" style="position:absolute; left:376px; top:434px; width:318px; height:15px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- doctor_stamp_clinic_stamp_line_16 -->
+<input class="gen_input noborder" id="doctor_stamp_clinic_stamp_line_16_1016" name="doctor_stamp_clinic_stamp_line_16" type="text" autocomplete="off" style="position:absolute; left:35px; top:664px; width:660px; height:25px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- x_ray_examination_requested_17 -->
+<textarea class="gen_input noborder" id="x_ray_examination_requested_17_1017" name="x_ray_examination_requested_17" style="position:absolute; left:33px; top:487px; width:664px; height:76px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- history_and_clinical_findings_18 -->
+<textarea class="gen_input noborder" id="history_and_clinical_findings_18_1018" name="history_and_clinical_findings_18" style="position:absolute; left:33px; top:588px; width:664px; height:73px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+
+</form>
+</body>
+</html>
