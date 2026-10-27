@@ -71,5 +71,46 @@ window.TEST_CASE_LIST = [
         "reason": "Due Date's m$EDC#value is a measurement tag, which Auto Detect leaves to you"
       }
     ]
+  },
+  {
+    "name": "Reproductive Mental Health referral (St. Paul's)",
+    "folder": "sph-reproductive-mental-health",
+    "eform": "SPH_RMH.html",
+    "images": [
+      "RMH_1.png",
+      "RMH_2.png"
+    ],
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [140, 15, 1310, 495],
+        "reason": "the blank top of the page, under a stray mark, taken for a writing area"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [148, 515, 1292, 172],
+        "reason": "the box FOR OFFICE USE ONLY, which the eForm leaves out"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [880, 1015, 560, 70],
+        "reason": "(Cell) is tagged phone: the eForm's script fills it with the second-choice phone"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [745, 540, 590, 50],
+        "reason": "the space under the URGENT REFERRAL text, at the foot of its box"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [230, 935, 640, 60],
+        "reason": "blanks between tick boxes' labels in a table cell"
+      }
+    ]
   }
 ];

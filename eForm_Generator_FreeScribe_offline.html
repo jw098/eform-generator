@@ -883,7 +883,7 @@ else if (typeof exports === 'object')
     'clinic_addressLine','clinic_addressLineFull','clinic_city','clinic_province','clinic_postal',
     'patient_dob','patient_hin','patient_phone','patient_address','patient_sex',
     'provider_name','today','today_date','patient_age','label','email',
-    'doctor','medical_history','druglist_line'
+    'doctor','doctor_ohip_no','medical_history','druglist_line'
   ];
 
   const state = {
@@ -1048,6 +1048,9 @@ else if (typeof exports === 'object')
     if (word('appointment|appt')) return '';                      // not in the patient's chart
     if (word('facility|requisition|requisiton|initials|recorder|signature|lmp|menopause|menarche')) return '';
     if (word('date') && word('signed')) return tag('today');
+    if (word('date') && word('referral|referred')) return tag('today');
+    // A maiden name, and a doctor or date the patient was seen by before, aren't in the chart
+    if (word('maiden|seen')) return '';
     // The patient's own doctor (their MRP), not the referring one
     if (word('family_doctor|family_physician|family_md|family_dr|gp|mrp')) return tag('doctor');
     if (/medical_history/.test(n)) return tag('medical_history');
@@ -1066,6 +1069,7 @@ else if (typeof exports === 'object')
       return tag('current_user');
     }
     if (word('billing')) return tag('current_user_ohip_no');
+    if (word('office') && word('address')) return tag('clinic_addressLine');
     if (word('office') && word('fax')) return tag('clinic_fax');
     if (word('office') && word('phone|telephone|tel')) return tag('clinic_phone');
     if (word('clinic')){
@@ -2883,9 +2887,10 @@ else if (typeof exports === 'object')
           left.push(w);
         }
         left.reverse();
-        // A blank after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE MAMMOGRAPHY"),
-        // unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____")
-        if (left.length && left.every(w => taken.has(w)) && !/:\s*$/.test(left[left.length-1].text)) return;
+        // A blank in a table cell after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE
+        // MAMMOGRAPHY"), unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____"). A
+        // printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____").
+        if (f.box && left.length && left.every(w => taken.has(w)) && !/:\s*$/.test(left[left.length-1].text)) return;
         if (left.length){
           f.label = phrase(left);
           f._words = left;
@@ -3028,7 +3033,53 @@ else if (typeof exports === 'object')
     const ruleDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(line*0.7)));
     const ruleUp = (x, y) => side(x, Math.max(0, y-Math.round(line*0.7)), y-2);
     const fields = [];
+    // A writing area ruled with blank lines ("CURRENT MEDICATIONS" over three lines, or two
+    // columns of them) is one text area. Taken one at a time, each of its lines would close a
+    // "row" with the line above (two lines without sides), a field per line. So first find
+    // them together: lines of the same length, evenly spaced one under the other, with no
+    // sides, blank between them and no label beside them; stacks side by side on the same
+    // lines are one area.
+    const ruled = new Set();
+    {
+      const near = (a, b) => Math.abs(a - b) <= line*0.5;
+      const sideless = (L) => ![L.x1+1, L.x2-1].some(x => ruleUp(x, L.y1));
+      const blank = (xa, xb, ya, yb) => { for (let y=ya; y<=yb; y++) for (let x=xa; x<=xb; x++) if (on(x,y)) return false; return true; };
+      // (no label: hardly any columns of ink just before the line, on its row; a box's side is one or two)
+      const unlabelled = (L) => {
+        const ya = Math.max(0, L.y1 - Math.round(line*0.6)), xa = Math.max(0, L.x1 - Math.round(line*3));
+        let cols = 0;
+        for (let x=xa; x<L.x1-4; x++){ for (let y=ya; y<L.y1-1; y++) if (on(x,y)){ cols++; break; } }
+        return cols <= line*0.3;
+      };
+      const cand = lines.filter(L => sideless(L) && unlabelled(L)), used = new Set(), stacks = [];
+      cand.forEach(L => {
+        if (used.has(L)) return;
+        const st = [L];
+        for (let A = L;;){
+          const B = cand.find(M => !used.has(M) && M !== A && !st.includes(M) && near(M.x1, L.x1) && near(M.x2, L.x2) &&
+                                   M.y1 - A.y2 >= line*0.5 && M.y1 - A.y2 <= line*1.5 && blank(L.x1, L.x2, A.y2 + 2, M.y1 - 2));
+          if (!B) break;
+          st.push(B); A = B;
+        }
+        if (st.length < 2) return;
+        const pitch = st.slice(1).map((M, k) => M.y1 - st[k].y1);
+        if (Math.max(...pitch) - Math.min(...pitch) > line*0.3) return;
+        st.forEach(M => used.add(M));
+        const step = pitch.reduce((a, b) => a + b, 0) / pitch.length;
+        stacks.push({ st, x1: Math.min(...st.map(M => M.x1)), x2: Math.max(...st.map(M => M.x2)), y1: Math.round(st[0].y1 - step*0.9), y2: st[st.length-1].y1 - 2 });
+      });
+      const areas = [];
+      stacks.sort((a, b) => a.x1 - b.x1).forEach(k => {
+        const a = areas.find(a => a.st.length === k.st.length && near(a.y1, k.y1) && near(a.y2, k.y2) && k.x1 > a.x2 && k.x1 - a.x2 <= line*3);
+        if (a){ a.x2 = k.x2; a.st = a.st.concat(k.st); } else areas.push({ ...k });
+      });
+      areas.forEach(a => {
+        a.st.forEach(M => ruled.add(M));
+        fields.push({ page, x: a.x1/s, y: a.y1/s, width: (a.x2-a.x1)/s, height: (a.y2-a.y1)/s, type: 'textarea', name: 'text', oscarTag: '', box: false });
+      });
+    }
     lines.forEach((L, i) => {
+      if (ruled.has(L)) return;
       // The nearest line above that spans most of this one: this line closes a row or a box
       let top = null;
       for (let j=i-1; j>=0; j--){
@@ -3558,10 +3609,20 @@ else if (typeof exports === 'object')
       const doctors = new Set(['current_user','current_user_ohip_no','clinic_name','clinic_phone','clinic_fax','clinic_addressLine','doctor']);
       const writes = found.filter(f => f.type==='text'||f.type==='textarea').sort((a,b) => a.x-b.x);
       writes.forEach(f => {
-        if (!f.label || !/\b(phone|tel|telephone|fax|e-?mail|address)\b/i.test(f.label) || /\b(home|cell|mobile|patient)\b/i.test(f.label)) return;
+        if (!f.label) return;
         const prev = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && g.y < f.y + f.height && g.y + g.height > f.y)
                            .sort((a,b) => (b.x+b.width)-(a.x+a.width))[0];
-        if (prev && doctors.has(prev.oscarTag)){ const t = guessTag('referring ' + f.label, f.type, ''); if (t) f.oscarTag = t; }
+        // The billing number beside the family doctor is theirs ("FAMILY PHYSICIAN: ____  BILLING #: ____")
+        if (prev && prev.oscarTag === 'doctor' && /\b(billing|msp|ohip)\b/i.test(f.label)){ f.oscarTag = state.tagCatalog.has('doctor_ohip_no') ? 'doctor_ohip_no' : ''; return; }
+        if (!/\b(phone|tel|telephone|fax|e-?mail|address)\b/i.test(f.label) || /\b(home|cell|mobile|patient)\b/i.test(f.label)) return;
+        if (prev && doctors.has(prev.oscarTag)){ const t = guessTag('referring ' + f.label, f.type, ''); if (t) f.oscarTag = t; return; }
+        // First on its row, under the family doctor's row ("FAMILY PHYSICIAN: ____" over
+        // "PHONE: ____  FAX: ____"): the family doctor's, whose number OSCAR may well not have
+        if (!prev){
+          const up = writes.filter(g => g !== f && g.y + g.height <= f.y + 4 && f.y - (g.y + g.height) < f.height*1.5 && g.x < f.x + f.width && g.x + g.width > f.x)
+                           .sort((a,b) => (b.y+b.height)-(a.y+a.height))[0];
+          if (up && up.oscarTag === 'doctor') f.oscarTag = '';
+        }
       });
       found.forEach(f => {
         const dup = state.fields.some(k =>
