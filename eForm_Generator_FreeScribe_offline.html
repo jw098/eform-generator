@@ -2699,13 +2699,18 @@ else if (typeof exports === 'object')
       else runs.push({ y1: y, y2: y, most: n });
     }
     const out = [];
+    // The last line of text may have only blank page under it, down to the bottom margin (as
+    // wide as the side margins): a writing area when tall, and when its label ends with a colon
+    // ("CURRENT MEDICATIONS:", checked once the words are read)
+    const margin = Math.max(cx1, w - 1 - cx2);
+    if (runs.length) runs.push({ y1: h - margin, y2: h - margin, most: 0, end: true });
     for (let i=0; i+1<runs.length; i++){
       const A = runs[i], B = runs[i+1];
       // Above: one line of text (not a rule or a box edge); between: a tall blank
       if (A.y2 - A.y1 > line*0.8 || A.most > (cx2-cx1)*0.6) continue;
-      if (B.y1 - A.y2 < line*2.5) continue;
+      if (B.y1 - A.y2 < line*(B.end ? 3 : 2.5)) continue;
       const x1 = cx1, x2 = cx2, y1 = A.y2 + Math.round(line*0.3);
-      let y2 = B.y1 - Math.round(line*0.3);
+      let y2 = B.end ? B.y1 : B.y1 - Math.round(line*0.3);
       // Not over a field already found: end above the first one that starts inside the blank
       let covered = false;
       found.forEach(f => {
@@ -2715,7 +2720,7 @@ else if (typeof exports === 'object')
       });
       if (covered || y2 - y1 < line*1.5) continue;
       out.push({ page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s,
-                 type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '' });
+                 type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(B.end ? { toEnd: true } : {}) });
     }
     return out;
   }
@@ -2895,6 +2900,12 @@ else if (typeof exports === 'object')
         }
       }
       if (section) f.section = section;
+      // A writing area down to the foot of the page is one only under a label ending in a colon
+      if (f.toEnd){
+        delete f.toEnd;
+        const ws = f._words || [];
+        if (!ws.length || !/:\s*$/.test(ws[ws.length-1].text)) return;
+      }
       out.push(f);
     });
 
@@ -2981,11 +2992,24 @@ else if (typeof exports === 'object')
       }
       return n > (yb-ya+1)*bw*0.3;
     };
+    // Underlined words ("Depression" underlined): letters stand on the line along most of its
+    // length, where a fill-in line has blank page above it (its label is to its left). A row's
+    // bottom rule with a full row of text above it has sides rising from its ends; this has none.
+    const underlined = (b) => {
+      if (!capH) return false;
+      const ya = Math.max(0, b.y1 - Math.round(capH*1.1)), yb = b.y1 - 2;
+      if (yb - ya < 3) return false;
+      const up = (x) => { let n = 0; for (let y=ya; y<=yb; y++) if (clean[y*w+x] || (x>0 && clean[y*w+x-1]) || (x<w-1 && clean[y*w+x+1])) n++; return n >= (yb-ya+1)*0.85; };
+      if (up(b.x1+1) && up(b.x2-1)) return false;
+      let cols = 0;
+      for (let x=b.x1; x<=b.x2; x++){ for (let y=ya; y<=yb; y++) if (clean[y*w+x]){ cols++; break; } }
+      return cols >= (b.x2-b.x1+1)*0.5;
+    };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
     const lines = bands.filter(b => (b.x2-b.x1+1) >= minSeg)
                        .map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
-                       .filter(b => !letterTops(b))
+                       .filter(b => !letterTops(b) && !underlined(b))
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     const rowLine = capH ? Math.min(line, Math.max(10, capH*1.6)) : line;
     const on = (x,y) => clean[y*w+x] === 1;
@@ -3527,7 +3551,7 @@ else if (typeof exports === 'object')
           f.oscarTag = guessTag(f.name, f.type, f.label);
           if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
         }
-        delete f.section; delete f.caption;
+        delete f.section; delete f.caption; delete f.toEnd;
       });
       // A phone, fax, address or email that doesn't say whose is the doctor's when the field to
       // its left on its row is ("OFFICE TEL #: ____  FAX #: ____", "FAMILY DOCTOR: ____  PHONE #: ____")
