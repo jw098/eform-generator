@@ -3825,7 +3825,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   // Opening this page with #test at the end of its address runs tests/auto-detect.js (in the
   // tests folder beside this file) against it. Only then is Auto Detect reachable from outside.
   if (location.hash === '#test'){
-    window.eformMapperTest = { state, detectCurrentPage, renderAll };
+    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage };
     const s = document.createElement('script');
     s.src = 'tests/auto-detect.js';
     s.onerror = () => msg('Could not load tests/auto-detect.js: it must sit in a tests folder beside this page.', 'err');

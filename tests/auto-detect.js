@@ -3,9 +3,13 @@
 // Run them by opening the app with #test at the end of its address, e.g.
 //   file:///path/to/eForm_Generator_FreeScribe_offline.html#test
 // (reload the page if you add #test to a page that is already open). The app loads this
-// file, which puts the test page on page 1, runs Auto Detect on it and checks the fields it
-// found against the boxes known to be on the page. Results show in a panel at the top right
-// of the page and in the browser console; the detected fields stay on the page to look at.
+// file, which puts each test page below on a page of its own, runs Auto Detect on it and
+// checks the fields it found against the boxes known to be on the page. Results show in a
+// panel at the top right of the page and in the browser console; the detected fields stay on
+// the pages to look at (use the "Edit Page" tabs).
+//
+// To add a test page: put its PNG in tests/fixtures, make the matching .js beside it (see the
+// top of either fixture .js), and add an entry to PAGES.
 (async () => {
   const T = window.eformMapperTest;
 
@@ -13,32 +17,15 @@
   const POS_TOL = 6;
   const SIZE_TOL = 6;
 
-  // Every tick box on fixtures/referral-form-page1.png (1500x1941), by the top-left of its ☐
-  const CHECKBOXES = [
-    { label: 'Referral to: Dr. (left 1)', x: 103, y: 352 },
-    { label: 'Referral to: Dr. (left 2)', x: 103, y: 377 },
-    { label: 'Referral to: Dr. (left 3)', x: 103, y: 403 },
-    { label: 'Referral to: Dr. (right 1)', x: 763, y: 352 },
-    { label: 'Referral to: Dr. (right 2)', x: 763, y: 377 },
-    { label: 'Referral to: Dr. (right 3)', x: 763, y: 403 },
-    { label: 'Referral to: Other', x: 763, y: 433 },
-    { label: 'Consent: Yes, text', x: 1057, y: 755 },
-    { label: 'Consent: Yes, email', x: 1191, y: 755 },
-    { label: 'Consent: No', x: 1338, y: 755 },
-    { label: 'Urgency: Urgent', x: 103, y: 854 },
-    { label: 'Urgency: Semi-Urgent', x: 345, y: 854 },
-    { label: 'Urgency: Routine', x: 641, y: 854 },
-    { label: 'Type: New Referral', x: 768, y: 854 },
-    { label: 'Type: Follow-up', x: 1109, y: 854 },
-    { label: 'Type: Re-referral', x: 768, y: 884 },
-    { label: 'Type: Revised Referral', x: 1109, y: 884 },
-    { label: 'Type: EPCP Completed', x: 768, y: 917 },
-  ];
-  const CHECKBOX_SIZE = 19;
+  // ----- The test pages -----
+  // checkboxes / text / textareas: what Auto Detect finds there, by top-left corner and size.
+  // Nothing else of those kinds may be found, except a field in one of the `missing` places.
+  // missing: blanks on the page Auto Detect doesn't find yet (reported as todo, not failures).
+  // A field there counts once it lies inside the blank and spans most of it.
 
-  // The "Other: ____" line, the blank value cells of the two tables, and the two large note boxes
+  // Referral form, page 1: tables, tick boxes, and two large note boxes
   const PATIENT_X = 268, PATIENT_W = 469, MD_X = 927, MD_W = 474;
-  const TABLE_ROWS = [
+  const REFERRAL_ROWS = [
     { label: 'Last Name', y: 505, h: 16 },
     { label: 'First Name', y: 531, h: 16 },
     { label: 'Date of Birth / MSP #', y: 558, h: 16 },
@@ -48,16 +35,77 @@
     { label: 'Cell Phone / Clinic Fax', y: 696, h: 16 },
     { label: 'Email / Family MD', y: 722, h: 17 },
   ];
-  const TEXT_FIELDS = [
-    { label: 'Referral to: Other ____', x: 860, y: 420, width: 533, height: 28 },
-    ...TABLE_ROWS.flatMap(r => [
-      { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h },
-      { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h },
-    ]),
-  ];
-  const TEXTAREAS = [
-    { label: 'Past Hx', x: 93, y: 1098, width: 1308, height: 279 },
-    { label: 'Medications/Allergies', x: 93, y: 1413, width: 1308, height: 362 },
+  const box = (label, x, y, size) => ({ label, x, y, width: size, height: size });
+
+  // X-ray requisition: fill-in lines with one, two or three labels on each, two tick boxes,
+  // and two open writing areas under headings. Each line's field sits above the line.
+  const fillIn = (label, x1, x2, lineY) => ({ label, type: 'text', x1, x2, y1: lineY - 45, y2: lineY - 2 });
+
+  const PAGES = [
+    {
+      name: 'Referral form',
+      image: 'referral-form-page1',
+      checkboxes: [
+        box('Referral to: Dr. (left 1)', 103, 352, 19),
+        box('Referral to: Dr. (left 2)', 103, 377, 19),
+        box('Referral to: Dr. (left 3)', 103, 403, 19),
+        box('Referral to: Dr. (right 1)', 763, 352, 19),
+        box('Referral to: Dr. (right 2)', 763, 377, 19),
+        box('Referral to: Dr. (right 3)', 763, 403, 19),
+        box('Referral to: Other', 763, 433, 19),
+        box('Consent: Yes, text', 1057, 755, 19),
+        box('Consent: Yes, email', 1191, 755, 19),
+        box('Consent: No', 1338, 755, 19),
+        box('Urgency: Urgent', 103, 854, 19),
+        box('Urgency: Semi-Urgent', 345, 854, 19),
+        box('Urgency: Routine', 641, 854, 19),
+        box('Type: New Referral', 768, 854, 19),
+        box('Type: Follow-up', 1109, 854, 19),
+        box('Type: Re-referral', 768, 884, 19),
+        box('Type: Revised Referral', 1109, 884, 19),
+        box('Type: EPCP Completed', 768, 917, 19),
+      ],
+      text: [
+        { label: 'Referral to: Other ____', x: 860, y: 420, width: 533, height: 28 },
+        ...REFERRAL_ROWS.flatMap(r => [
+          { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h },
+          { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h },
+        ]),
+      ],
+      textareas: [
+        { label: 'Past Hx', x: 93, y: 1098, width: 1308, height: 279 },
+        { label: 'Medications/Allergies', x: 93, y: 1413, width: 1308, height: 362 },
+      ],
+      missing: [],
+    },
+    {
+      name: 'X-ray requisition',
+      image: 'xray-requisition',
+      checkboxes: [
+        box('Male', 1101, 780, 25),
+        box('Female', 1271, 780, 25),
+      ],
+      text: [
+        { label: 'Clinic', x: 152, y: 510, width: 1236, height: 39 },
+        { label: 'Additional copy to', x: 289, y: 562, width: 1099, height: 39 },
+        { label: 'Patient Name: First', x: 749, y: 613, width: 639, height: 39 },
+        { label: 'Phone', x: 158, y: 715, width: 1230, height: 39 },
+        { label: 'Personal Health Number', x: 526, y: 816, width: 862, height: 39 },
+        { label: 'Appointment: Time', x: 752, y: 868, width: 636, height: 29 },
+        { label: 'Doctor stamp / Clinic stamp line', x: 69, y: 1327, width: 1319, height: 49 },
+      ],
+      textareas: [],
+      // Where a line has more than one label, only the blank after the last one is found today
+      missing: [
+        { row: 'the Dr / Billing # / Date line', blanks: [fillIn('Dr', 105, 670, 505), fillIn('Billing #', 785, 1097, 505), fillIn('Date', 1166, 1388, 505)] },
+        { row: 'Patient Name: Last', blanks: [fillIn('Last', 294, 670, 658)] },
+        { row: 'the Address / Postal Code line', blanks: [fillIn('Address', 168, 1097, 709), fillIn('Postal Code', 1246, 1388, 709)] },
+        { row: 'Date of Birth (before the Male / Female boxes)', blanks: [fillIn('Date of Birth', 329, 1097, 811)] },
+        { row: 'Appointment: Date', blanks: [fillIn('Date', 396, 672, 903)] },
+        { row: 'the X-ray examination requested area', blanks: [{ label: 'X-ray examination requested', type: 'textarea', x1: 65, x2: 1390, y1: 965, y2: 1135 }] },
+        { row: 'the History and clinical findings area', blanks: [{ label: 'History and clinical findings', type: 'textarea', x1: 65, x2: 1390, y1: 1170, y2: 1320 }] },
+      ],
+    },
   ];
 
   // ----- A small test runner -----
@@ -78,27 +126,42 @@
     const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
   });
 
-  // ----- Run Auto Detect on the test page -----
-  let fields = [];
-  async function detect(){
-    await loadScript('tests/fixtures/referral-form-page1.js');
-    const imgData = window.TEST_PAGE_IMAGE, img = await loadImage(imgData);
-    T.state.fields = [];
-    T.state.currentPage = 1;
-    T.state.pages[1] = { imgData, naturalW: img.width, naturalH: img.height, fileName: 'referral-form-page1.png' };
-    document.getElementById('img1').src = imgData;
-    T.renderAll();
-    await T.detectCurrentPage();
-    fields = T.state.fields.slice();
+  // ----- Run Auto Detect on each test page, each on a page of its own -----
+  // Each page starts from no fields at all, and its tests see only what was found on it, so
+  // no page's result depends on another's. Afterwards every page's fields are put back so
+  // they can be looked at on their tabs.
+  async function detectAll(){
+    const all = [];
+    for (let i = 0; i < PAGES.length; i++){
+      const tp = PAGES[i], n = i + 1;
+      await loadScript(`tests/fixtures/${tp.image}.js`);
+      const imgData = (window.TEST_PAGE_IMAGES || {})[tp.image];
+      if (!imgData) throw new Error(`tests/fixtures/${tp.image}.js did not provide the page image`);
+      const img = await loadImage(imgData);
+      T.createPageDOM(n);
+      T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName: tp.image + '.png' };
+      document.getElementById('img' + n).src = imgData;
+      T.state.fields = [];
+      T.setCurrentPage(n);
+      await T.detectCurrentPage();
+      tp.fields = T.state.fields.slice();
+      all.push(...tp.fields);
+    }
+    T.state.fields = all;
+    T.setCurrentPage(1);
   }
 
-  const ofType = (...types) => fields.filter(f => types.includes(f.type));
   const near = (f, e) => Math.abs(f.x - e.x) <= POS_TOL && Math.abs(f.y - e.y) <= POS_TOL &&
     Math.abs(f.width - e.width) <= SIZE_TOL && Math.abs(f.height - e.height) <= SIZE_TOL;
   const show = f => `${f.type} at (${Math.round(f.x)}, ${Math.round(f.y)}) ${Math.round(f.width)}x${Math.round(f.height)}`;
+  // A field fills a blank when it lies inside it (a little slack) and spans most of it
+  const fills = (f, b) => f.type === b.type &&
+    f.x >= b.x1 - 20 && f.x + f.width <= b.x2 + 20 && f.y >= b.y1 - 10 && f.y + f.height <= b.y2 + 10 &&
+    f.width >= (b.x2 - b.x1) * 0.6 && (b.type !== 'textarea' || f.height >= (b.y2 - b.y1) * 0.6);
 
-  // Each expected box is found once, and nothing else of that kind is found
-  function assertMatches(found, expected){
+  // Each expected box is found once, and nothing else of that kind is found (but a field
+  // filling one of the page's `missing` blanks is welcome)
+  function assertMatches(found, expected, blanks){
     const left = [...found];
     const missing = [];
     expected.forEach(e => {
@@ -106,46 +169,59 @@
       if (i < 0) missing.push(e.label); else left.splice(i, 1);
     });
     sameList(missing, [], 'expected fields that were not detected');
-    sameList(left.map(show), [], 'detected fields that are not on the page');
+    sameList(left.filter(f => !blanks.some(b => fills(f, b))).map(show), [], 'detected fields that are not on the page');
   }
 
-  // ----- The tests -----
-  test('detection finds fields, all on page 1', () => {
-    assert(fields.length > 0, 'nothing was detected (see the message under the toolbar)');
-    assert(fields.every(f => Number(f.page) === 1), 'some fields are not on page 1');
-  });
+  // ----- The tests, for each page -----
+  PAGES.forEach(tp => {
+    const fields = () => tp.fields || [];
+    const ofType = (...types) => fields().filter(f => types.includes(f.type));
+    const blanks = tp.missing.flatMap(m => m.blanks);
+    const t = (name, fn, opts) => test(`${tp.name}: ${name}`, fn, opts);
 
-  test('finds every checkbox and nothing else that looks like one', () => {
-    assertMatches(ofType('checkbox', 'xbox'), CHECKBOXES.map(c => ({ ...c, width: CHECKBOX_SIZE, height: CHECKBOX_SIZE })));
-  });
+    t('detection finds fields', () => {
+      assert(fields().length > 0, 'nothing was detected (see the message under the toolbar)');
+    });
 
-  test('checkboxes come out square', () => {
-    ofType('checkbox', 'xbox').forEach(f => assert(Math.abs(f.width - f.height) < 1, `not square: ${show(f)}`));
-  });
+    t('fields get unique names', () => {
+      const names = fields().map(f => f.name);
+      assert(new Set(names).size === names.length, 'some names are repeated');
+    });
 
-  test('finds the "Other: ____" line and the value cells of the patient and referring MD tables', () => {
-    assertMatches(ofType('text'), TEXT_FIELDS);
-  });
+    t('finds every checkbox and nothing else that looks like one', () => {
+      assertMatches(ofType('checkbox', 'xbox'), tp.checkboxes, []);
+    });
 
-  test('finds the Past Hx and Medications/Allergies boxes as multi-line fields', () => {
-    assertMatches(ofType('textarea'), TEXTAREAS);
-  });
+    t('checkboxes come out square', () => {
+      ofType('checkbox', 'xbox').forEach(f => assert(Math.abs(f.width - f.height) < 1, `not square: ${show(f)}`));
+    });
 
-  test('no text field covers a checkbox', () => {
-    const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-    const boxes = ofType('checkbox', 'xbox');
-    ofType('text', 'textarea').forEach(t => boxes.forEach(b => assert(!overlaps(t, b), `${show(t)} covers ${show(b)}`)));
-  });
+    t('finds the single-line fields', () => {
+      assertMatches(ofType('text'), tp.text, blanks);
+    });
 
-  test('fields get unique names', () => {
-    const names = fields.map(f => f.name);
-    assert(new Set(names).size === names.length, 'some names are repeated');
+    t('finds the multi-line fields', () => {
+      assertMatches(ofType('textarea'), tp.textareas, blanks);
+    });
+
+    t('no text field covers a checkbox', () => {
+      const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      const boxes = ofType('checkbox', 'xbox');
+      ofType('text', 'textarea').forEach(f => boxes.forEach(b => assert(!overlaps(f, b), `${show(f)} covers ${show(b)}`)));
+    });
+
+    // Known gaps: on the page but not found yet. Move a row into `text`/`textareas` above
+    // once the detector handles it.
+    tp.missing.forEach(m => t(`finds a field for ${m.row}`, () => {
+      const notFound = m.blanks.filter(b => !fields().some(f => fills(f, b))).map(b => b.label);
+      sameList(notFound, [], 'no field for');
+    }, { todo: 'not detected yet' }));
   });
 
   // ----- Run and report -----
   const results = [];
-  try { await detect(); }
-  catch (err) { results.push({ name: 'run Auto Detect on the test page', status: 'fail', error: err.message || String(err) }); }
+  try { await detectAll(); }
+  catch (err) { results.push({ name: 'run Auto Detect on the test pages', status: 'fail', error: err.message || String(err) }); }
   if (!results.length){
     for (const t of tests){
       try { await t.fn(); results.push({ name: t.name, status: t.todo ? 'todo-passes' : 'pass' }); }
