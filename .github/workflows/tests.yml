@@ -1,12 +1,10 @@
 # Runs the Auto Detect tests (tests/README.md) in the Chrome that GitHub's Ubuntu runners come
 # with, so no browser is downloaded: only Playwright's small npm package, to drive it.
-# The poorer copies run too on a nightly schedule, or when started by hand.
+# The poorer copies run too when it's started by hand (Actions → Run workflow).
 name: Auto Detect tests
 on:
   push:
   pull_request:
-  schedule:
-    - cron: '17 9 * * *'
   workflow_dispatch:
 jobs:
   test:

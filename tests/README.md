@@ -39,8 +39,8 @@ itself and doesn't ask.
 The tests also run on GitHub on each push and pull request
 (`.github/workflows/tests.yml`), in the Chrome that GitHub's runners come with, driven by
 `ci.js`. A failing test fails the run, and its log shows the same expected/actual lines as
-the panel. To-dos don't fail it. The poorer copies run too every night, or when the
-workflow is started by hand (Actions → Auto Detect tests → Run workflow).
+the panel. To-dos don't fail it. The poorer copies run too when the workflow is
+started by hand (Actions → Auto Detect tests → Run workflow).
 
 To run it the same way on your own computer (with Node and Chrome installed):
 
