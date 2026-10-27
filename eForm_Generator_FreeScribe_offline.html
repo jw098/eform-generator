@@ -1103,7 +1103,7 @@ else if (typeof exports === 'object')
       return 'today_date';
     }
     if (word('age|patient_age')) return tag('patient_age');
-    if (/(signature|signed|sig|loadsig)/.test(n)) {
+    if (/(signature|loadsig)/.test(n) || word('sig')) {               // (a date "signed" isn't a signature)
       if (state.tagCatalog.has('current_user_signature_image')) return 'current_user_signature_image';
     }
 
