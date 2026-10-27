@@ -1,0 +1,28 @@
+# Runs the Auto Detect tests (tests/README.md) in the Chrome that GitHub's Ubuntu runners come
+# with, so no browser is downloaded: only Playwright's small npm package, to drive it.
+# The poorer copies run too on a nightly schedule, or when started by hand.
+name: Auto Detect tests
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save playwright@1.47.2
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      - name: Serve the app
+        run: |
+          python3 -m http.server 8000 >/dev/null 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8000/ && break; sleep 1; done
+      - name: Run the tests
+        run: node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" ${{ github.event_name != 'push' && github.event_name != 'pull_request' && '--variations' || '' }}

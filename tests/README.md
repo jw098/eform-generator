@@ -34,6 +34,22 @@ is served over http instead (for example `python -m http.server` in this folder,
 `http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test`), it reads the files
 itself and doesn't ask.
 
+## On GitHub
+
+The tests also run on GitHub on each push and pull request
+(`.github/workflows/tests.yml`), in the Chrome that GitHub's runners come with, driven by
+`ci.js`. A failing test fails the run, and its log shows the same expected/actual lines as
+the panel. To-dos don't fail it. The poorer copies run too every night, or when the
+workflow is started by hand (Actions → Auto Detect tests → Run workflow).
+
+To run it the same way on your own computer (with Node and Chrome installed):
+
+```
+npm install --no-save playwright
+python -m http.server 8000
+node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test"
+```
+
 ## What is compared
 
 Two eForms are compared, page by page:
@@ -123,6 +139,7 @@ From then on it runs with the others.
 | `cases/index.js` | The list of test cases: each one's name, folder, eForm file and page images, and any to-dos. |
 | `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s). |
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
+| `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
 
 ## To-dos
 
