@@ -36,7 +36,7 @@
   ];
   const CHECKBOX_SIZE = 19;
 
-  // The blank value cells of the two tables, and the two large note boxes
+  // The "Other: ____" line, the blank value cells of the two tables, and the two large note boxes
   const PATIENT_X = 268, PATIENT_W = 469, MD_X = 927, MD_W = 474;
   const TABLE_ROWS = [
     { label: 'Last Name', y: 505, h: 16 },
@@ -48,10 +48,13 @@
     { label: 'Cell Phone / Clinic Fax', y: 696, h: 16 },
     { label: 'Email / Family MD', y: 722, h: 17 },
   ];
-  const TEXT_FIELDS = TABLE_ROWS.flatMap(r => [
-    { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h },
-    { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h },
-  ]);
+  const TEXT_FIELDS = [
+    { label: 'Referral to: Other ____', x: 860, y: 420, width: 533, height: 28 },
+    ...TABLE_ROWS.flatMap(r => [
+      { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h },
+      { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h },
+    ]),
+  ];
   const TEXTAREAS = [
     { label: 'Past Hx', x: 93, y: 1098, width: 1308, height: 279 },
     { label: 'Medications/Allergies', x: 93, y: 1413, width: 1308, height: 362 },
@@ -120,7 +123,7 @@
     ofType('checkbox', 'xbox').forEach(f => assert(Math.abs(f.width - f.height) < 1, `not square: ${show(f)}`));
   });
 
-  test('finds the value cells of the patient and referring MD tables', () => {
+  test('finds the "Other: ____" line and the value cells of the patient and referring MD tables', () => {
     assertMatches(ofType('text'), TEXT_FIELDS);
   });
 
@@ -138,12 +141,6 @@
     const names = fields.map(f => f.name);
     assert(new Set(names).size === names.length, 'some names are repeated');
   });
-
-  // Known gap: this is on the page but Auto Detect does not find it yet.
-  // Remove `todo` once the detector handles it.
-  test('finds the "Other: ____" fill-in line', () => {
-    assert(ofType('text').some(f => f.y > 420 && f.y < 455 && f.x > 840 && f.width > 300), 'no field on the line');
-  }, { todo: 'not detected yet' });
 
   // ----- Run and report -----
   const results = [];

@@ -2310,7 +2310,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const capH = textCapHeight(clean, w, h);
     // The tops of a run of bold capitals merge into a "line" with solid letters right under it.
     // The letters touch the line; a row of text that starts below a blank gap (a dense
-    // sentence in the next box down) leaves the rule a real rule.
+    // sentence in the next box down) leaves the rule a real rule, and so does another rule
+    // right under it (a fill-in line just above a box's edge): letters leave gaps, rules don't.
     const letterTops = (b) => {
       if (!capH) return false;
       const ya = b.y2 + 1, yb = Math.min(h-1, b.y2 + Math.round(capH*0.8));
@@ -2320,6 +2321,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         let r = 0;
         for (let x=b.x1; x<=b.x2; x++) if (clean[y*w+x]) r++;
         if (y <= ya+1 && r < bw*0.05) return false;
+        if (r >= bw*0.95) return false;
         n += r;
       }
       return n > (yb-ya+1)*bw*0.3;
@@ -2340,9 +2342,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       for (let y=ya; y<=yb; y++) if (on(x,y) || (x>0 && on(x-1,y)) || (x<w-1 && on(x+1,y))) n++;
       return n >= (yb-ya+1)*0.85;
     };
-    // Does a rule run down (or up) from x on this line, for at least a text line?
-    const ruleDown = (x, y) => rule(x, y+2, Math.min(h-1, y+Math.round(line*0.7)));
-    const ruleUp = (x, y) => rule(x, Math.max(0, y-Math.round(line*0.7)), y-2);
+    // Does a rule run down (or up) from x on this line, for at least a text line? A side rule
+    // is thin, with blank page beside it; ink on both sides is something solid (more rules
+    // stacked under a fill-in line, a shaded bar), not a side.
+    const side = (x, ya, yb) => rule(x, ya, yb) && !(rule(Math.max(1, x-5), ya, yb) && rule(Math.min(w-2, x+5), ya, yb));
+    const ruleDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(line*0.7)));
+    const ruleUp = (x, y) => side(x, Math.max(0, y-Math.round(line*0.7)), y-2);
     const fields = [];
     lines.forEach((L, i) => {
       // The nearest line above that spans most of this one: this line closes a row or a box
@@ -2353,6 +2358,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (overlap(M,L) >= 0.5*(L.x2-L.x1+1)){ top = M; break; }
       }
       let bounded = top && (L.y1 - top.y2) <= line*8;
+      // A line much shorter than the rule above it with no sides rising from its ends is a
+      // fill-in line ("Other: ____") inside a bigger box, not the bottom of a box of its own
+      if (bounded && (L.x2-L.x1) < (top.x2-top.x1)*0.8 && ![L.x1+1, L.x2-1].some(x => ruleUp(x, L.y1))) bounded = false;
       // A tall space counts as one box only when it has sides; otherwise it's blank page
       if (bounded && (L.y1 - top.y2) > line*2.2){
         const sides = [Math.max(L.x1, top.x1)+1, Math.min(L.x2, top.x2)-1];
@@ -2394,7 +2402,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           return first > x1 + cellW*0.5 ? first - Math.round(line*0.3) : x2;
         };
         let f = null;
-        if (lowInk < 0){ const ya = bounded ? y1 : Math.max(y1, floor - Math.round(line)); f = { x1, y1: ya, x2: trim(ya), y2 }; }
+        // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
+        const labelled = () => {
+          const xa = Math.max(0, L.x1 - Math.round(line*2)), ya = Math.max(0, floor - Math.round(rowLine));
+          for (let y=ya; y<=floor; y++) for (let x=xa; x<L.x1-2; x++) if (on(x,y)) return true;
+          return false;
+        };
+        if (lowInk < 0){
+          const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
+          f = { x1, y1: ya, x2: trim(ya), y2 };
+        }
         else if (y2 - lowInk >= line*0.6) f = { x1, y1: lowInk + 3, x2: trim(lowInk + 3), y2 };
         else if (x2 - rightInk >= Math.max(line*2.5, (x2-x1)*0.25) && (!capH || lowInk - highInk <= capH*1.6)){
           // (a one-line label only: a paragraph of instructions leaves no field beside it)
@@ -2624,8 +2641,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const b = bands[i];
           if(sg.y > b.y2+2) break;
           const overlap = Math.max(0, Math.min(b.x2,sg.x2)-Math.max(b.x1,sg.x1)+1);
-          const minW = Math.min(b.x2-b.x1+1, sg.x2-sg.x1+1);
-          if(sg.y<=b.y2+2 && overlap/Math.max(1,minW)>=0.6){
+          // (a short fill-in line just above a box's edge is a line of its own: the two must
+          // be of about the same length to be one thick line)
+          const maxW = Math.max(b.x2-b.x1+1, sg.x2-sg.x1+1);
+          if(sg.y<=b.y2+2 && overlap/Math.max(1,maxW)>=0.6){
             b.y2=sg.y; b.x1=Math.min(b.x1,sg.x1); b.x2=Math.max(b.x2,sg.x2); merged=true; break;
           }
         }
