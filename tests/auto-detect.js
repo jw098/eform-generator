@@ -93,7 +93,7 @@
         const type = (el.getAttribute('type') || '').toLowerCase();
         const tick = type === 'checkbox' || type === 'radio' || /(^|\s)(xbox|xmarkonly)(\s|$)/i.test(el.className || '');
         pg.boxes.push({ kind: tick ? 'tick' : 'write', x: (r.left - b.left)*k, y: (r.top - b.top)*k, width: r.width*k, height: r.height*k,
-                           tag: el.getAttribute('oscardb') || '' });
+                        tag: el.getAttribute('oscardb') || '', id: el.getAttribute('name') || el.id || '' });
       });
       pages.forEach(p => delete p.bg);
       return pages;
@@ -114,7 +114,7 @@
     T.setCurrentPage(n);
     await T.detectCurrentPage(opts);
     onShow.set(n, keep ? T.state.fields.slice() : []);
-    return T.state.fields.map(f => ({ kind: kindOf(f.type), x: f.x, y: f.y, width: f.width, height: f.height, tag: f.oscarTag || '' }));
+    return T.state.fields.map(f => ({ kind: kindOf(f.type), x: f.x, y: f.y, width: f.width, height: f.height, tag: f.oscarTag || '', id: f.name || '' }));
   }
   const showAll = () => { T.state.fields = [...onShow.values()].flat(); T.setCurrentPage(1); };
 
@@ -151,7 +151,9 @@
            Math.abs(a.y - b.y) <= my && Math.abs(a.y + a.height - b.y - b.height) <= my;
   };
   const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + Math.abs(a.width - b.width) + Math.abs(a.height - b.height);
-  const where = (f, withTag = true) => `${f.kind === 'tick' ? 'tick box' : 'field'} at (${Math.round(f.x)}, ${Math.round(f.y)})` +
+  // "field "surname" at (63, 429) 422×33 oscarDB="patient_nameL"": the field's name (or id) in
+  // its eForm, where it is (x, y from the page image's top-left corner), its size, its tag
+  const where = (f, withTag = true) => `${f.kind === 'tick' ? 'tick box' : 'field'}${f.id ? ` "${f.id}"` : ''} at (${Math.round(f.x)}, ${Math.round(f.y)})` +
     (f.kind === 'tick' ? '' : ` ${Math.round(f.width)}×${Math.round(f.height)}`) + (withTag && f.tag ? ` oscarDB="${f.tag}"` : '');
   // Pairs each expected box with the closest found box of its kind within the margin
   function compare(expected, found){

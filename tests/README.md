@@ -73,9 +73,11 @@ A panel appears at the top right with one line per case:
 
 - ✔ green: everything in that case passed.
 - ✘ red: something failed. The line opens by itself, and each failure says what went wrong,
-  for example `field at (63, 546) 374×33: got "addressline", want "address"`, or
-  `not found: tick box at (64, 318)`. Positions are (x, y) from the page image's top-left
-  corner, and width×height, in pixels.
+  for example `field "city_town" at (438, 546) 318×38: got "addressline", want "city"`, or
+  `not found: tick box "msp" at (64, 318)`. Each names the field as its eForm does (its
+  `name`, or its `id`): the test case's eForm for a field not found or with the wrong tag, the
+  eForm built from Auto Detect for one found that shouldn't be. Positions are (x, y) from the
+  page image's top-left corner, and width×height, in pixels.
 - ○ amber, "to do": something Auto Detect doesn't manage yet (see below); not a failure.
 - ★ blue: a to-do that now passes. Take it off the to-do list.
 
