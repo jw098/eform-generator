@@ -46,14 +46,18 @@ What must agree:
 
 - **Where the boxes are.** An actual box matches an expected box of the same kind (tick box,
   or field to write in) when each of its edges is within **10 pixels, or 20% of the box's
-  size** in that direction, whichever is more (pixels of the page image). Each case reports:
+  size** in that direction, whichever is more (pixels of the page image). A field to write in
+  also matches when the two overlap, across and down, by at least **60% of the expected field
+  and 50% of the actual one**: a box a little taller, or set a little higher, over the same
+  line. Each case reports:
   - expected tick boxes and fields with no actual one there;
   - actual tick boxes and fields with no expected one there.
 - **The `oscarDB` tags.** Each matched field's actual tag must be its expected tag (or both
   none).
 
 Names aren't compared; they're only shown, to say which field a failure is about. The
-margin is set at the top of `auto-detect.js` (`MARGIN_PX`, `MARGIN_SHARE`).
+margin and overlap are set at the top of `auto-detect.js` (`MARGIN_PX`, `MARGIN_SHARE`,
+`OVERLAP_EXPECTED`, `OVERLAP_ACTUAL`).
 
 Both eForms are read the same way: laid out by the browser, as OSCAR would show them, with
 their scripts switched off (only the layout counts), and every field measured against the

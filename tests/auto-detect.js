@@ -13,6 +13,10 @@
   // How far a found box may be from the eForm's: each edge within 10 pixels, or within 20% of
   // the box's size in that direction when that is more (in pixels of the page image)
   const MARGIN_PX = 10, MARGIN_SHARE = 0.2;
+  // A found field also matches when, across and down, the two overlap by at least 60% of the
+  // eForm's field and 50% of the found one (a box a little taller, or set a little higher,
+  // over the same line)
+  const OVERLAP_EXPECTED = 0.6, OVERLAP_ACTUAL = 0.5;
 
   // ----- A small test runner -----
   // (group: the panel's heading for a test, a case or the variations; short: its line there)
@@ -151,17 +155,25 @@
     return Math.abs(a.x - b.x) <= mx && Math.abs(a.x + a.width - b.x - b.width) <= mx &&
            Math.abs(a.y - b.y) <= my && Math.abs(a.y + a.height - b.y - b.height) <= my;
   };
+  const overlap = (a0, al, b0, bl) => Math.max(0, Math.min(a0 + al, b0 + bl) - Math.max(a0, b0));
+  // (e: the eForm's box; f: the found one)
+  const overlaps = (e, f) => {
+    const ox = overlap(e.x, e.width, f.x, f.width), oy = overlap(e.y, e.height, f.y, f.height);
+    return ox >= OVERLAP_EXPECTED*e.width && oy >= OVERLAP_EXPECTED*e.height &&
+           ox >= OVERLAP_ACTUAL*f.width && oy >= OVERLAP_ACTUAL*f.height;
+  };
+  const matches = (e, f) => f.kind === e.kind && (close(e, f) || (e.kind !== 'tick' && overlaps(e, f)));
   const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + Math.abs(a.width - b.width) + Math.abs(a.height - b.height);
   // "field "surname" at (63, 429) 422×33 oscarDB="patient_nameL"": the field's name (or id) in
   // its eForm, where it is (x, y from the page image's top-left corner), its size, its tag
   const where = (f, withTag = true) => `${f.kind === 'tick' ? 'tick box' : 'field'}${f.id ? ` "${f.id}"` : ''} at (${Math.round(f.x)}, ${Math.round(f.y)})` +
     (f.kind === 'tick' ? '' : ` ${Math.round(f.width)}×${Math.round(f.height)}`) + (withTag && f.tag ? ` oscarDB="${f.tag}"` : '');
-  // Pairs each expected box with the closest found box of its kind within the margin
+  // Pairs each expected box with the closest found box of its kind that matches it
   function compare(expected, found){
     const left = [...found], pairs = [], missing = [];
     expected.forEach(e => {
       let best = -1;
-      left.forEach((f, i) => { if (f.kind === e.kind && close(e, f) && (best < 0 || distance(e, f) < distance(e, left[best]))) best = i; });
+      left.forEach((f, i) => { if (matches(e, f) && (best < 0 || distance(e, f) < distance(e, left[best]))) best = i; });
       if (best < 0) missing.push(e); else pairs.push([e, left.splice(best, 1)[0]]);
     });
     return { pairs, missing, extra: left, found };
