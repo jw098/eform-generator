@@ -34,9 +34,20 @@ window.TEST_CASE_LIST = [
     "images": [
       "mammography_requisition_42630x_page1.png"
     ],
-    "todo": {
-      "extraFields": "two places that aren't fields (beside the PRESENT COMPLAINT heading, and above the bottom boxes)"
-    }
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [740, 1070, 720, 50],
+        "reason": "the blank beside the PRESENT COMPLAINT heading: fine as a field"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [50, 1656, 980, 74],
+        "reason": "the blank above the bottom boxes: fine as a field"
+      }
+    ]
   },
   {
     "name": "Reproductive Mental Health referral",
