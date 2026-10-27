@@ -20,8 +20,10 @@
   // ----- The test pages -----
   // checkboxes / text / textareas: what Auto Detect finds there, by top-left corner and size.
   // Nothing else of those kinds may be found, except a field in one of the `missing` places.
-  // missing: blanks on the page Auto Detect doesn't find yet (reported as todo, not failures).
-  // A field there counts once it lies inside the blank and spans most of it.
+  // missing: blanks on the page Auto Detect doesn't find yet (reported as todo, not failures),
+  // as { row: 'what it is', blanks: [{ label, type: 'text' | 'textarea', x1, x2, y1, y2 }] }.
+  // A field there counts once it lies inside the blank and spans most of it. When the
+  // detector finds them, move them into text / textareas with their exact positions.
 
   // Referral form, page 1: tables, tick boxes, and two large note boxes
   const PATIENT_X = 268, PATIENT_W = 469, MD_X = 927, MD_W = 474;
@@ -36,10 +38,6 @@
     { label: 'Email / Family MD', y: 722, h: 17 },
   ];
   const box = (label, x, y, size) => ({ label, x, y, width: size, height: size });
-
-  // X-ray requisition: fill-in lines with one, two or three labels on each, two tick boxes,
-  // and two open writing areas under headings. Each line's field sits above the line.
-  const fillIn = (label, x1, x2, lineY) => ({ label, type: 'text', x1, x2, y1: lineY - 45, y2: lineY - 2 });
 
   const PAGES = [
     {
@@ -79,6 +77,9 @@
       missing: [],
     },
     {
+      // Fill-in lines with one, two or three labels on each, two tick boxes, and two open
+      // writing areas under headings. Each line's field sits above the line (higher on the
+      // top line, which has blank page above it).
       name: 'X-ray requisition',
       image: 'xray-requisition',
       checkboxes: [
@@ -86,25 +87,27 @@
         box('Female', 1271, 780, 25),
       ],
       text: [
+        { label: 'Dr', x: 113, y: 448, width: 548, height: 51 },
+        { label: 'Billing #', x: 791, y: 448, width: 297, height: 51 },
+        { label: 'Date', x: 1175, y: 448, width: 213, height: 51 },
         { label: 'Clinic', x: 152, y: 510, width: 1236, height: 39 },
         { label: 'Additional copy to', x: 289, y: 562, width: 1099, height: 39 },
+        { label: 'Patient Name: Last', x: 302, y: 613, width: 360, height: 39 },
         { label: 'Patient Name: First', x: 749, y: 613, width: 639, height: 39 },
+        { label: 'Address', x: 176, y: 663, width: 912, height: 39 },
+        { label: 'Postal Code', x: 1254, y: 663, width: 134, height: 39 },
         { label: 'Phone', x: 158, y: 715, width: 1230, height: 39 },
+        { label: 'Date of Birth', x: 337, y: 766, width: 750, height: 39 },
         { label: 'Personal Health Number', x: 526, y: 816, width: 862, height: 39 },
+        { label: 'Appointment: Date', x: 404, y: 868, width: 258, height: 29 },
         { label: 'Appointment: Time', x: 752, y: 868, width: 636, height: 29 },
         { label: 'Doctor stamp / Clinic stamp line', x: 69, y: 1327, width: 1319, height: 49 },
       ],
-      textareas: [],
-      // Where a line has more than one label, only the blank after the last one is found today
-      missing: [
-        { row: 'the Dr / Billing # / Date line', blanks: [fillIn('Dr', 105, 670, 505), fillIn('Billing #', 785, 1097, 505), fillIn('Date', 1166, 1388, 505)] },
-        { row: 'Patient Name: Last', blanks: [fillIn('Last', 294, 670, 658)] },
-        { row: 'the Address / Postal Code line', blanks: [fillIn('Address', 168, 1097, 709), fillIn('Postal Code', 1246, 1388, 709)] },
-        { row: 'Date of Birth (before the Male / Female boxes)', blanks: [fillIn('Date of Birth', 329, 1097, 811)] },
-        { row: 'Appointment: Date', blanks: [fillIn('Date', 396, 672, 903)] },
-        { row: 'the X-ray examination requested area', blanks: [{ label: 'X-ray examination requested', type: 'textarea', x1: 65, x2: 1390, y1: 965, y2: 1135 }] },
-        { row: 'the History and clinical findings area', blanks: [{ label: 'History and clinical findings', type: 'textarea', x1: 65, x2: 1390, y1: 1170, y2: 1320 }] },
+      textareas: [
+        { label: 'X-ray examination requested', x: 65, y: 973, width: 1327, height: 152 },
+        { label: 'History and clinical findings', x: 65, y: 1176, width: 1327, height: 146 },
       ],
+      missing: [],
     },
   ];
 

@@ -2277,6 +2277,49 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return results;
   }
 
+  // ===== Open writing areas (added by FreeScribe) =====
+  // A heading such as "HISTORY AND CLINICAL FINDINGS:" with blank page under it and more of the
+  // form below: the blank is where the answer is written, though nothing is drawn around it.
+  // Looks across the width of the form's rules; the page's top and bottom margins don't count
+  // (nothing above or below them), and a box's sides are ink on every row, so boxes, which the
+  // lines already give fields for, never look blank. Stops short of fields already found.
+  function blankAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
+    const line = Math.max(18, p.naturalH*0.026) * s;
+    const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
+    if (!rules.length) return [];
+    const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2));
+    // Rows with ink between the form's left and right edges, grouped into runs
+    const runs = [];
+    for (let y=0; y<h; y++){
+      let n = 0;
+      for (let x=cx1; x<=cx2; x++) if (clean[y*w+x]) n++;
+      if (n < 2) continue;
+      const r = runs[runs.length-1];
+      if (r && y - r.y2 <= 3){ r.y2 = y; r.most = Math.max(r.most, n); }
+      else runs.push({ y1: y, y2: y, most: n });
+    }
+    const out = [];
+    for (let i=0; i+1<runs.length; i++){
+      const A = runs[i], B = runs[i+1];
+      // Above: one line of text (not a rule or a box edge); between: a tall blank
+      if (A.y2 - A.y1 > line*0.8 || A.most > (cx2-cx1)*0.6) continue;
+      if (B.y1 - A.y2 < line*2.5) continue;
+      const x1 = cx1, x2 = cx2, y1 = A.y2 + Math.round(line*0.3);
+      let y2 = B.y1 - Math.round(line*0.3);
+      // Not over a field already found: end above the first one that starts inside the blank
+      let covered = false;
+      found.forEach(f => {
+        const fx1 = f.x*s, fx2 = (f.x+f.width)*s, fy1 = f.y*s, fy2 = (f.y+f.height)*s;
+        if (fx2 < x1 || fx1 > x2 || fy2 < y1 || fy1 > y2) return;
+        if (fy1 <= y1) covered = true; else y2 = Math.min(y2, Math.round(fy1) - 4);
+      });
+      if (covered || y2 - y1 < line*1.5) continue;
+      out.push({ page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s,
+                 type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '' });
+    }
+    return out;
+  }
+
   // Typical height of the page's printed capitals, in canvas px (0 when it can't be told):
   // the median height of letter-sized blobs of ink.
   function textCapHeight(clean, w, h){
@@ -2401,7 +2444,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           for (let x=x1; x<=x2 && first < 0; x++) for (let y=ya; y<=y2; y++) if (on(x,y)){ first = x; break; }
           return first > x1 + cellW*0.5 ? first - Math.round(line*0.3) : x2;
         };
-        let f = null;
+        const fs = [];
         // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
         const labelled = () => {
           const xa = Math.max(0, L.x1 - Math.round(line*2)), ya = Math.max(0, floor - Math.round(rowLine));
@@ -2410,18 +2453,38 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         };
         if (lowInk < 0){
           const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
-          f = { x1, y1: ya, x2: trim(ya), y2 };
+          fs.push({ x1, y1: ya, x2: trim(ya), y2 });
         }
-        else if (y2 - lowInk >= line*0.6) f = { x1, y1: lowInk + 3, x2: trim(lowInk + 3), y2 };
-        else if (x2 - rightInk >= Math.max(line*2.5, (x2-x1)*0.25) && (!capH || lowInk - highInk <= capH*1.6)){
+        else if (y2 - lowInk >= line*0.6) fs.push({ x1, y1: lowInk + 3, x2: trim(lowInk + 3), y2 });
+        else if (!capH || lowInk - highInk <= capH*1.6){
           // (a one-line label only: a paragraph of instructions leaves no field beside it)
-          // Label on the left of the row: the field is the blank part to its right
-          f = { x1: rightInk + Math.round(line*0.3), y1: Math.max(y1, y2 - Math.round(line)), x2, y2 };
+          // Labels on the row ("Dr: ____ Billing #: ____ Date: ____"): a field in each wide blank
+          // after a label. A lone colon set apart from its label stays with the label.
+          const groups = [];
+          for (let x=x1; x<=x2; x++){
+            let ink = false;
+            for (let y=highInk; y<=lowInk && !ink; y++) if (on(x,y)) ink = true;
+            if (!ink) continue;
+            const g = groups[groups.length-1];
+            if (g && x - g.x2 <= Math.max(3, (capH || line)*0.6)) g.x2 = x; else groups.push({ x1: x, x2: x });
+          }
+          const labels = [], speck = capH ? capH*0.5 : line*0.15;
+          groups.forEach(g => {
+            const prev = labels[labels.length-1];
+            if (prev && g.x2 - g.x1 < speck) prev.x2 = g.x2; else labels.push({ ...g });
+          });
+          const ya = Math.max(y1, y2 - Math.round(line));
+          labels.forEach((g, j) => {
+            const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(line*0.3) : x2;
+            if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2 });
+          });
         }
-        if (!f || f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < (bounded ? rowLine : line)*0.4) continue;
-        const tall = (f.y2 - f.y1) > line*1.8;
-        fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
-                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '' });
+        fs.forEach(f => {
+          if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < (bounded ? rowLine : line)*0.4) return;
+          const tall = (f.y2 - f.y1) > line*1.8;
+          fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
+                        type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '' });
+        });
       }
     });
     return fields;
@@ -2657,6 +2720,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       // bottoms of bold words, table rules under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
       textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p).forEach(f => newFields.push(f));
+      // Open writing areas under a heading, with no line or box around them
+      blankAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
 
       // Connected component pass for checkboxes.
       const visited = new Uint8Array(w*h);
