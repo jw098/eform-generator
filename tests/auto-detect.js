@@ -1,19 +1,10 @@
-// Tests for Auto Detect (the box/field detector in eForm_Generator_FreeScribe_offline.html).
+// Runs the Auto Detect tests: the machinery only. What is on each test page, and what Auto
+// Detect should make of it, is in tests/pages.js; tests/README.md explains how it all works.
 //
-// Run them by opening the app with #test at the end of its address, e.g.
-//   file:///path/to/eForm_Generator_FreeScribe_offline.html#test
-// (reload the page if you add #test to a page that is already open). The app loads this
-// file, which puts each test page below on a page of its own, runs Auto Detect on it and
-// checks the fields it found against the boxes known to be on the page. Results show in a
-// panel at the top right of the page and in the browser console; the detected fields stay on
-// the pages to look at (use the "Edit Page" tabs). Reading the printed words (for names, tags
-// and tick-box labels) takes a few seconds a page; in a browser that can't run the embedded OCR
-// (no WebAssembly SIMD) only the tag and label tests fail. After the pages come variations of
-// the referral page (resized, blurred, speckled, tilted, faxed, faint, ticked by hand) that
-// check tick boxes alone; the next "Edit Page" tab shows the last of them.
-//
-// To add a test page: put its PNG in tests/fixtures, make the matching .js beside it (see the
-// top of either fixture .js), and add an entry to PAGES.
+// The app loads this file when opened with #test at the end of its address. It puts each test
+// page on a page of its own in the app, runs Auto Detect there, and checks what was found
+// against tests/pages.js; then it runs Auto Detect on poorer copies of the referral page
+// (tick boxes only). Results show in a panel at the top right and in the browser console.
 (async () => {
   const T = window.eformMapperTest;
 
@@ -21,106 +12,10 @@
   const POS_TOL = 6;
   const SIZE_TOL = 6;
 
-  // ----- The test pages -----
-  // checkboxes / text / textareas: what Auto Detect finds there, by top-left corner and size,
-  // with the tag it should suggest for each text field ('' for none: a wrong tag fills the
-  // wrong patient data into the form; a list when either tag will do) and the printed label
-  // it should read beside each tick box.
-  // Nothing else of those kinds may be found, except a field in one of the `missing` places.
-  // missing: blanks on the page Auto Detect doesn't find yet (reported as todo, not failures),
-  // as { row: 'what it is', blanks: [{ label, type: 'text' | 'textarea', x1, x2, y1, y2 }] }.
-  // A field there counts once it lies inside the blank and spans most of it. When the
-  // detector finds them, move them into text / textareas with their exact positions.
-
-  // Referral form, page 1: tables, tick boxes, and two large note boxes
-  const PATIENT_X = 268, PATIENT_W = 469, MD_X = 927, MD_W = 474;
-  const REFERRAL_ROWS = [
-    { label: 'Last Name', y: 505, h: 16, patient: 'patient_nameL', md: '' },
-    { label: 'First Name', y: 531, h: 16, patient: 'patient_nameF', md: '' },
-    { label: 'Date of Birth / MSP #', y: 558, h: 16, patient: ['dobc2', 'dob'], md: 'current_user_ohip_no' },
-    { label: 'PHN # / Clinic Name', y: 585, h: 16, patient: 'hin', md: 'clinic_name' },
-    { label: 'Address', y: 611, h: 47, patient: ['addressline', 'address'], md: 'clinic_addressLine' },
-    { label: 'Home Phone / Clinic Phone', y: 668, h: 17, patient: 'phone', md: 'clinic_phone' },
-    { label: 'Cell Phone / Clinic Fax', y: 696, h: 16, patient: 'cell', md: 'clinic_fax' },
-    { label: 'Email / Family MD', y: 722, h: 17, patient: 'email', md: '' },
-  ];
-  const box = (label, x, y, size, printed) => ({ label, x, y, width: size, height: size, printed });
-
-  const PAGES = [
-    {
-      name: 'Referral form',
-      image: 'referral-form-page1',
-      checkboxes: [
-        box('Referral to: Dr. (left 1)', 103, 352, 19, 'Dr.'),
-        box('Referral to: Dr. (left 2)', 103, 377, 19, 'Dr.'),
-        box('Referral to: Dr. (left 3)', 103, 403, 19, 'Dr.'),
-        box('Referral to: Dr. (right 1)', 763, 352, 19, 'Dr.'),
-        box('Referral to: Dr. (right 2)', 763, 377, 19, 'Dr.'),
-        box('Referral to: Dr. (right 3)', 763, 403, 19, 'Dr.'),
-        box('Referral to: Other', 763, 433, 19, 'Other'),
-        box('Consent: Yes, text', 1057, 755, 19, 'Yes, text'),
-        box('Consent: Yes, email', 1191, 755, 19, 'Yes, email'),
-        box('Consent: No', 1338, 755, 19, 'No'),
-        box('Urgency: Urgent', 103, 854, 19, 'Urgent'),
-        box('Urgency: Semi-Urgent', 345, 854, 19, 'Semi-Urgent'),
-        box('Urgency: Routine', 641, 854, 19, 'Routine'),
-        box('Type: New Referral', 768, 854, 19, 'New Referral'),
-        box('Type: Follow-up', 1109, 854, 19, 'Follow-up'),
-        box('Type: Re-referral', 768, 884, 19, 'Re-referral'),
-        box('Type: Revised Referral', 1109, 884, 19, 'Revised Referral'),
-        box('Type: EPCP Completed', 768, 917, 19, 'Enhanced Primary Care Pathways (EPCP) Completed'),
-      ],
-      text: [
-        { label: 'Referral to: Other ____', x: 860, y: 420, width: 533, height: 28, tag: '' },
-        ...REFERRAL_ROWS.flatMap(r => [
-          { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h, tag: r.patient },
-          { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h, tag: r.md },
-        ]),
-      ],
-      textareas: [
-        { label: 'Past Hx', x: 93, y: 1098, width: 1308, height: 279, tag: '' },
-        { label: 'Medications/Allergies', x: 93, y: 1413, width: 1308, height: 362, tag: '' },
-      ],
-      missing: [],
-    },
-    {
-      // Fill-in lines with one, two or three labels on each, two tick boxes, and two open
-      // writing areas under headings. Each line's field sits above the line (higher on the
-      // top line, which has blank page above it).
-      name: 'X-ray requisition',
-      image: 'xray-requisition',
-      checkboxes: [
-        box('Male', 1101, 780, 25, 'Male'),
-        box('Female', 1271, 780, 25, 'Female'),
-      ],
-      text: [
-        { label: 'Dr', x: 113, y: 448, width: 548, height: 51, tag: 'current_user' },
-        { label: 'Billing #', x: 791, y: 448, width: 297, height: 51, tag: 'current_user_ohip_no' },
-        { label: 'Date', x: 1175, y: 448, width: 213, height: 51, tag: 'today' },
-        { label: 'Clinic', x: 152, y: 510, width: 1236, height: 39, tag: 'clinic_name' },
-        { label: 'Additional copy to', x: 289, y: 562, width: 1099, height: 39, tag: '' },
-        { label: 'Patient Name: Last', x: 302, y: 613, width: 360, height: 39, tag: 'patient_nameL' },
-        { label: 'Patient Name: First', x: 749, y: 613, width: 639, height: 39, tag: 'patient_nameF' },
-        { label: 'Address', x: 176, y: 663, width: 912, height: 39, tag: ['address', 'addressline'] },
-        { label: 'Postal Code', x: 1254, y: 663, width: 134, height: 39, tag: 'postal' },
-        { label: 'Phone', x: 158, y: 715, width: 1230, height: 39, tag: 'phone' },
-        { label: 'Date of Birth', x: 337, y: 766, width: 750, height: 39, tag: ['dobc2', 'dob'] },
-        { label: 'Personal Health Number', x: 526, y: 816, width: 862, height: 39, tag: 'hin' },
-        { label: 'Appointment: Date', x: 404, y: 868, width: 258, height: 29, tag: '' },
-        { label: 'Appointment: Time', x: 752, y: 868, width: 636, height: 29, tag: '' },
-        { label: 'Doctor stamp / Clinic stamp line', x: 69, y: 1327, width: 1319, height: 49, tag: '' },
-      ],
-      textareas: [
-        { label: 'X-ray examination requested', x: 65, y: 973, width: 1327, height: 152, tag: '' },
-        { label: 'History and clinical findings', x: 65, y: 1176, width: 1327, height: 146, tag: '' },
-      ],
-      missing: [],
-    },
-  ];
-
   // ----- A small test runner -----
   const tests = [];
-  const test = (name, fn, opts = {}) => tests.push({ name, fn, todo: opts.todo });
+  // (group: the panel's heading for it, a page or the variations; short: its line under that)
+  const test = (name, fn, opts = {}) => tests.push({ name, fn, todo: opts.todo, group: opts.group || '', short: opts.short || name });
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const sameList = (actual, expected, message) => {
     if (JSON.stringify(actual) !== JSON.stringify(expected))
@@ -135,6 +30,13 @@
   const loadImage = (src) => new Promise((res, rej) => {
     const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
   });
+
+  // ----- The test pages (tests/pages.js), in the shape the tests below use -----
+  await loadScript('tests/pages.js');
+  const PAGES = window.TEST_PAGES.map(p => ({
+    name: p.name, image: p.image, checkboxes: p.tickBoxes, text: p.lines, textareas: p.areas,
+    missing: (p.notYet || []).map(n => ({ row: n.what, blanks: n.blanks })),
+  }));
 
   // ----- Run Auto Detect on each test page, each on a page of its own -----
   // Each page starts from no fields at all, and its tests see only what was found on it, so
@@ -200,7 +102,7 @@
     const fields = () => tp.fields || [];
     const ofType = (...types) => fields().filter(f => types.includes(f.type));
     const blanks = tp.missing.flatMap(m => m.blanks);
-    const t = (name, fn, opts) => test(`${tp.name}: ${name}`, fn, opts);
+    const t = (name, fn, opts = {}) => test(`${tp.name}: ${name}`, fn, { ...opts, group: tp.name, short: name });
 
     t('detection finds fields', () => {
       assert(fields().length > 0, 'nothing was detected (see the message under the toolbar)');
@@ -354,13 +256,14 @@
       });
       return { missed, extra: left };
     };
+    const group = 'Poorer copies of the referral form (tick boxes only)';
     test(`Referral form, ${v.name}: finds every tick box`, () => {
       const { missed } = matched();
       if (missed.length) throw new Error(`found ${VARIED.checkboxes.length - missed.length} of ${VARIED.checkboxes.length}; missed:\n  ${missed.join('\n  ')}`);
-    }, { todo: v.todo });
+    }, { todo: v.todo, group, short: `${v.name}: finds every tick box` });
     test(`Referral form, ${v.name}: finds no tick box that isn't there`, () => {
       sameList(matched().extra.map(show), [], 'tick boxes that are not on the page');
-    });
+    }, { group, short: `${v.name}: finds no tick box that isn't there` });
   });
 
   // ----- Run and report -----
@@ -369,16 +272,17 @@
   catch (err) { results.push({ name: 'run Auto Detect on the test pages', status: 'fail', error: err.message || String(err) }); }
   if (!results.length){
     for (const t of tests){
-      try { await t.fn(); results.push({ name: t.name, status: t.todo ? 'todo-passes' : 'pass' }); }
-      catch (err) { results.push({ name: t.name, status: t.todo ? 'todo' : 'fail', error: err.message, todo: t.todo }); }
+      const r = { name: t.name, group: t.group, short: t.short };
+      try { await t.fn(); results.push({ ...r, status: t.todo ? 'todo-passes' : 'pass' }); }
+      catch (err) { results.push({ ...r, status: t.todo ? 'todo' : 'fail', error: err.message, todo: t.todo }); }
     }
   }
   T.results = results;
 
   const count = (s) => results.filter(r => r.status === s).length;
   const summary = `${count('pass')} passed, ${count('fail')} failed` +
-    (count('todo') ? `, ${count('todo')} todo` : '') +
-    (count('todo-passes') ? `, ${count('todo-passes')} todo now passing (remove its todo)` : '');
+    (count('todo') ? `, ${count('todo')} to do` : '') +
+    (count('todo-passes') ? `, ${count('todo-passes')} to-do now passing (remove its todo)` : '');
   const mark = { pass: '✔', fail: '✘', todo: '○', 'todo-passes': '★' };
   const color = { pass: '#15803d', fail: '#b91c1c', todo: '#a16207', 'todo-passes': '#1d4ed8' };
 
@@ -399,17 +303,38 @@
   close.onclick = () => panel.remove();
   head.appendChild(close);
   panel.appendChild(head);
-  results.forEach(r => {
-    const row = document.createElement('div');
-    row.style.color = color[r.status];
-    row.textContent = `${mark[r.status]} ${r.name}${r.todo ? ' (todo: ' + r.todo + ')' : ''}`;
-    if (r.error && (r.status === 'fail' || r.status === 'todo')){
-      const pre = document.createElement('pre');
-      pre.style.cssText = 'margin:2px 0 6px 16px;white-space:pre-wrap;color:#444;font-size:12px';
-      pre.textContent = r.error;
-      row.appendChild(pre);
-    }
-    panel.appendChild(row);
+  const hint = document.createElement('div');
+  hint.style.cssText = 'color:#555;font-size:12px;margin-bottom:6px';
+  hint.textContent = 'Click a line to open it. Each test page is on its own "Edit Page" tab, with what Auto Detect found drawn on it. How the tests work: tests/README.md.';
+  panel.appendChild(hint);
+  // One line per page (and one for the variations), opened when something in it fails or is to do
+  const groups = [];
+  results.forEach(r => { let g = groups.find(g => g.name === r.group); if (!g) groups.push(g = { name: r.group, results: [] }); g.results.push(r); });
+  groups.forEach(g => {
+    const n = (st) => g.results.filter(r => r.status === st).length;
+    const box = document.createElement('details');
+    box.open = n('fail') > 0 || n('todo-passes') > 0;
+    box.style.margin = '2px 0';
+    const sum = document.createElement('summary');
+    const worst = n('fail') ? 'fail' : n('todo-passes') ? 'todo-passes' : n('todo') ? 'todo' : 'pass';
+    sum.style.cssText = 'cursor:pointer;font-weight:600;color:' + color[worst];
+    sum.textContent = `${mark[worst]} ${g.name || 'Setup'}: ${n('pass') + n('todo-passes')} of ${g.results.length} passed` +
+      (n('fail') ? `, ${n('fail')} failed` : '') + (n('todo') ? `, ${n('todo')} to do` : '');
+    box.appendChild(sum);
+    g.results.forEach(r => {
+      const row = document.createElement('div');
+      row.style.cssText = 'margin-left:16px;color:' + color[r.status];
+      row.textContent = `${mark[r.status]} ${r.short || r.name}${r.todo ? ' (to do: ' + r.todo + ')' : ''}`;
+      if (r.error && (r.status === 'fail' || r.status === 'todo')){
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'margin:2px 0 6px 16px;white-space:pre-wrap;color:#444;font-size:12px';
+        // (for a to-do, just how far it got: "found 6 of 18")
+        pre.textContent = r.status === 'todo' ? r.error.split('\n')[0].replace(/;?\s*missed:$/, '') : r.error;
+        row.appendChild(pre);
+      }
+      box.appendChild(row);
+    });
+    panel.appendChild(box);
   });
   document.body.appendChild(panel);
 })();

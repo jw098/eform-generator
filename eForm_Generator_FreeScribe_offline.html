@@ -1045,6 +1045,8 @@ else if (typeof exports === 'object')
     const word = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(n);
     const tag = (t) => state.tagCatalog.has(t) ? t : '';
     if (word('appointment|appt')) return '';                      // not in the patient's chart
+    if (word('facility|requisition|requisiton|initials|recorder|signature|lmp|menopause|menarche')) return '';
+    if (word('date') && word('signed')) return tag('today');
     if (word('referring|physician|doctor|provider|practitioner|md|dr') && !word('patient')){
       // The referring (current) doctor's details, not the patient's
       if (word('family|gp')) return '';
@@ -1066,6 +1068,7 @@ else if (typeof exports === 'object')
     }
     if (word('phn|personal_health_number|health_number|care_card|carecard')) return tag('hin');
     if (word('postal|postal_code|zip')) return tag('postal');
+    if (word('city|town')) return tag('city');
     if (word('last|surname')) return tag('patient_nameL');
     if (word('first|given')) return tag('patient_nameF');
     if (norm(label) === 'date') return tag('today');
@@ -1099,7 +1102,7 @@ else if (typeof exports === 'object')
       if (state.tagCatalog.has('today')) return 'today';
       return 'today_date';
     }
-    if (/(age|patient_age)/.test(n)) return 'patient_age';
+    if (word('age|patient_age')) return tag('patient_age');
     if (/(signature|signed|sig|loadsig)/.test(n)) {
       if (state.tagCatalog.has('current_user_signature_image')) return 'current_user_signature_image';
     }
@@ -2717,12 +2720,17 @@ else if (typeof exports === 'object')
         "self.fetch=function(u){if(String(u).endsWith('eng.traineddata.gz')){const r=atob(self.__engGz),a=new Uint8Array(r.length);" +
         "for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return Promise.resolve(new Response(a));}return __fetch.apply(this,arguments);};\n";
       const src = URL.createObjectURL(new Blob([shim, core, '\n', worker], { type: 'application/javascript' }));
-      return Tesseract.createWorker('eng', 1, { workerPath: src, workerBlobURL: false, langPath: 'embedded', cacheMethod: 'none', gzip: true });
+      const ocr = await Tesseract.createWorker('eng', 1, { workerPath: src, workerBlobURL: false, langPath: 'embedded', cacheMethod: 'none', gzip: true });
+      // A form's labels are scattered words, not paragraphs: read it as sparse text, which
+      // misses fewer of them ("CITY/TOWN" between ADDRESS and POSTAL CODE)
+      await ocr.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
+      return ocr;
     })().catch(err => { console.warn('Could not start reading words:', err); return null; });
     return ocrWorkerReady;
   }
   // The page's printed words and lines, or null when they can't be read
-  async function readPageWords(imgData){
+  // boxes: tick boxes found on the page, rubbed out too (OCR reads a box's edge as a letter: "Jves")
+  async function readPageWords(imgData, boxes = []){
     const ocr = await ensureOcrWorker();
     if (!ocr) return null;
     try {
@@ -2752,6 +2760,8 @@ else if (typeof exports === 'object')
       }
       for (let i=0, j=0; i<wipe.length; i++, j+=4) if (wipe[i]){ px[j] = px[j+1] = px[j+2] = 255; }
       ctx.putImageData(id, 0, 0);
+      ctx.fillStyle = '#fff';
+      boxes.forEach(b => ctx.fillRect((b.x-2)*k, (b.y-2)*k, (b.width+4)*k, (b.height+4)*k));
       const { data } = await ocr.recognize(c);
       const box = (o, b) => ({ ...o, x0: b.x0/k, y0: b.y0/k, x1: b.x1/k, y1: b.y1/k });
       return { words: data.words.map(w => box({ text: w.text }, w.bbox)),
@@ -2763,12 +2773,23 @@ else if (typeof exports === 'object')
   }
 
   // Each field's printed label, from the page's words (positions in page-image pixels).
-  // A text field's label is the phrase just left of it on its row ("Patient Name Last:"), or
-  // else the line just above it (a heading over a writing area). A tick box's label is the
-  // words just right of it ("Yes, email"). A text field's section is the nearest ALL-CAPS
-  // heading above it ("REFERRING MD") or at the start of its row ("APPOINTMENT:"), so a
-  // "Last Name" under REFERRING MD isn't taken for the patient's.
-  function labelFields(fields, read){
+  // A tick box's label is the words just right of it ("Yes, email"); those words are then
+  // nobody else's. A text field's label is, in order of preference:
+  //  - the words just above it in the same cell, with no rule between ("PERSONAL HEALTH
+  //    NUMBER" printed in the corner of its box), only those over the field itself. When they
+  //    are several labels spread along it ("SURNAME OF PATIENT ... FIRST NAME"), the field is
+  //    split into one per label;
+  //  - else the phrase just left of it on its row ("Patient Name Last:").
+  // A text field's section is the nearest ALL-CAPS heading above it ("REFERRING MD"), over its
+  // own column, or one at the start of its row ("APPOINTMENT:"), so a "Last Name" under
+  // REFERRING MD isn't taken for the patient's. A heading has no fields on its row and isn't
+  // any field's label (on a form printed in capitals, most lines are labels). A label that
+  // starts with a heading of its own ("PRESENT COMPLAINT (Please ...") has no section, nor does
+  // one in capitals other than a short code ("MSP", "PHN"): on such forms the lines above are
+  // the rows above.
+  // ruleAcross(x1, x2, y1, y2): is there a rule across x1..x2 somewhere between y1 and y2?
+  // Returns the fields, with any split ones replaced by their parts.
+  function labelFields(fields, read, ruleAcross){
     const hasLetters = (t) => /[A-Za-z]/.test(t);
     const caps = (t) => { const l = t.replace(/[^A-Za-z]/g, ''); return l.length >= 3 && l.replace(/[^A-Z]/g, '').length >= l.length*0.8; };
     const boxes = fields.filter(f => f.type === 'checkbox' || f.type === 'xbox');
@@ -2776,58 +2797,97 @@ else if (typeof exports === 'object')
     const words = read.words.filter(w => hasLetters(w.text) && !inBox(w));
     const wh = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
     const phrase = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
-    fields.forEach(f => {
-      const fy1 = f.y, fy2 = f.y + f.height;
-      const onRow = (w) => { const cy = (w.y0+w.y1)/2; return cy >= fy1 - wh*0.3 && cy <= fy2 + wh*0.4; };
-      if (f.type === 'checkbox' || f.type === 'xbox'){
-        const right = f.x + f.width;
-        const nextBox = Math.min(Infinity, ...boxes.filter(b => b !== f && Math.abs(b.y - f.y) < f.height && b.x > right).map(b => b.x));
-        // (OCR often reads the box and the word beside it as one word: "[No")
-        const row = words.filter(w => onRow(w) && w.x0 >= f.x - 2 && w.x1 > right + 2 && w.x1 <= nextBox).sort((a,b) => a.x0-b.x0);
-        const got = [];
-        for (const w of row){
-          const end = got.length ? got[got.length-1].x1 : right;
-          if (w.x0 - end > wh*(got.length ? 1.5 : 3)) break;
-          got.push(w);
-        }
-        if (got.length) f.label = phrase(got);
-        return;
-      }
-      // Left of it on its row: the nearest phrase, words no further apart than a few letters
-      const row = words.filter(w => onRow(w) && w.x1 <= f.x + 6).sort((a,b) => b.x1-a.x1);
+    const onRow = (f, w) => { const cy = (w.y0+w.y1)/2; return cy >= f.y - wh*0.3 && cy <= f.y + f.height + wh*0.4; };
+
+    // Tick boxes first
+    const taken = new Set();
+    boxes.forEach(f => {
+      const right = f.x + f.width;
+      const nextBox = Math.min(Infinity, ...boxes.filter(b => b !== f && Math.abs(b.y - f.y) < f.height && b.x > right).map(b => b.x));
+      // (OCR often reads the box and the word beside it as one word: "[No")
+      const row = words.filter(w => onRow(f, w) && w.x0 >= f.x - 2 && w.x1 > right + 2 && w.x1 <= nextBox).sort((a,b) => a.x0-b.x0);
       const got = [];
       for (const w of row){
-        const start = got.length ? got[got.length-1].x0 : f.x;
-        if (start - w.x1 > (got.length ? wh*2.5 : Math.max(wh*8, 300))) break;
+        const end = got.length ? got[got.length-1].x1 : right;
+        if (w.x0 - end > wh*(got.length ? 1.5 : 3)) break;
         got.push(w);
       }
-      got.reverse();
-      let section = '';
-      if (got.length){
-        // A heading word ending the phrase at the row's start ("APPOINTMENT:  Date:") is its section
-        const before = row.filter(w => w.x1 < got[0].x0 && got[0].x0 - w.x1 <= wh*6 && caps(w.text));
-        if (before.length) section = phrase(before.sort((a,b) => a.x0-b.x0));
-        f.label = phrase(got);
-      } else {
-        // Else the line just above it
-        const above = read.lines.filter(l => hasLetters(l.text) && l.y1 <= fy1 + 4 && fy1 - l.y1 <= wh*3 &&
-                                              l.x1 > f.x && l.x0 < f.x + f.width).sort((a,b) => b.y1-a.y1);
-        if (above.length) f.label = phrase([{ text: above[0].text }]);
+      if (got.length){ f.label = phrase(got); got.forEach(w => taken.add(w)); }
+    });
+    const free = words.filter(w => !taken.has(w));
+
+    const out = [];
+    fields.forEach(f => {
+      if (f.type === 'checkbox' || f.type === 'xbox'){ out.push(f); return; }
+      const fy1 = f.y, fx2 = f.x + f.width;
+      // Just above, in the same cell
+      let above = [];
+      // (starting over the field: the end of a longer line to the left, "MENSTRUAL HISTORY", isn't its label)
+      const over = free.filter(w => w.y1 <= fy1 + 2 && fy1 - w.y1 <= wh*2.5 && w.x0 >= f.x - wh && w.x0 < fx2);
+      if (over.length){
+        const bottom = Math.max(...over.map(w => w.y1));
+        above = over.filter(w => bottom - w.y1 < wh*0.6).sort((a,b) => a.x0-b.x0);
+        if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
-      // (a label that is itself a heading, "X-RAY EXAMINATION REQUESTED", has no section)
-      if (!f.label || (caps(f.label) && f.label.split(/\s+/).length >= 3) || section){ if (section) f.section = section; return; }
-      // The nearest heading above (ALL CAPS, 6 letters or more), taking only its words over the
-      // label and field: two tables side by side read as one line ("PATIENT INFORMATION
-      // REFERRING MD") and each column has its own heading
-      const x0 = got.length ? got[0].x0 : f.x, x1 = f.x + f.width;
-      const heads = read.lines.filter(l => caps(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && l.y1 <= fy1 + 2)
-                              .sort((a,b) => b.y1-a.y1);
+      let left = [], section = '';
+      if (above.length){
+        const groups = [];
+        above.forEach(w => { const g = groups[groups.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wh*3) g.push(w); else groups.push([w]); });
+        const cuts = groups.map((g, j) => j ? g[0].x0 - 4 : f.x);
+        if (f.type === 'text' && groups.length > 1 && cuts.every((c, j) => (j+1 < cuts.length ? cuts[j+1] : fx2) - c >= wh*3)){
+          groups.forEach((g, j) => out.push({ ...f, x: cuts[j], width: (j+1 < cuts.length ? cuts[j+1] : fx2) - cuts[j], label: phrase(g), _words: g }));
+          return;
+        }
+        f.label = phrase(above);
+        f._words = above;
+      } else {
+        // Else left of it on its row: the nearest phrase, words no further apart than a few
+        // letters (a tick box's words too: "☐ Other: ____" is the box's label and the line's)
+        const row = words.filter(w => onRow(f, w) && w.x1 <= f.x + 6).sort((a,b) => b.x1-a.x1);
+        for (const w of row){
+          const start = left.length ? left[left.length-1].x0 : f.x;
+          if (start - w.x1 > (left.length ? wh*2.5 : Math.max(wh*8, 300))) break;
+          if (boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x + b.width <= start + 2)) break;   // not across a tick box
+          left.push(w);
+        }
+        left.reverse();
+        // A blank after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE MAMMOGRAPHY"),
+        // unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____")
+        if (left.length && left.every(w => taken.has(w)) && !/:\s*$/.test(left[left.length-1].text)) return;
+        if (left.length){
+          f.label = phrase(left);
+          f._words = left;
+          // A heading word ending the phrase at the row's start ("APPOINTMENT:  Date:") is its section
+          const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wh*6 && caps(w.text) && !taken.has(w) &&
+                                         !boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x <= left[0].x0));
+          if (before.length) section = phrase(before.sort((a,b) => a.x0-b.x0));
+        }
+      }
+      if (section) f.section = section;
+      out.push(f);
+    });
+
+    // Sections, from headings: lines in capitals that are nobody's label, with no field on their row
+    const labelWords = new Set(out.flatMap(f => f._words || []));
+    const isLabel = (l) => l.words.some(w => [...labelWords].some(u => Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2));
+    const heads = read.lines.filter(l => caps(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
+                                         !out.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
+    out.forEach(f => {
+      const ws = f._words; delete f._words;
+      if (f.section || !f.label || f.type === 'checkbox' || f.type === 'xbox' || /^[A-Z][A-Z\s]{5,}/.test(f.label)) return;
+      if (caps(f.label) && f.label.replace(/[^A-Za-z]/g, '').length > 4) return;
+      // The nearest heading above the label, taking only its words over the label and field: two
+      // tables side by side read as one line ("PATIENT INFORMATION REFERRING MD"), each its own
+      const x0 = Math.min(f.x, ...ws.map(w => w.x0)), top = Math.min(f.y, ...ws.map(w => w.y0)), x1 = f.x + f.width;
       for (const l of heads){
-        const over = l.words.filter(w => hasLetters(w.text) && !/[a-z]/.test(w.text) && w.x1 > x0 && w.x0 < x1);
-        if (over.length){ f.section = phrase(over); break; }
+        if (l.y1 > top + 2) continue;
+        const words = l.words.filter(w => hasLetters(w.text) && !/[a-z]/.test(w.text) && w.x1 > x0 && w.x0 < x1);
+        if (words.length){ f.section = phrase(words); break; }
       }
     });
+    return out;
   }
+
 
   // Typical height of the page's printed capitals, in canvas px (0 when it can't be told):
   // the median height of letter-sized blobs of ink.
@@ -2937,15 +2997,37 @@ else if (typeof exports === 'object')
       for (let k=0; k<cuts.length-1; k++){
         const x1 = cuts[k] + 3, x2 = cuts[k+1] - 3;
         if (x2 - x1 < line*1.2) continue;
-        const y1 = ceil + 1, y2 = floor - 1;
+        // A cell the row's top rule doesn't reach over is a taller box beside the row (a "Name of
+        // physician" box beside several rows of a table): its own top is the first rule above
+        // that spans it, when its sides run up to it
+        let cellCeil = ceil;
+        if (bounded && overlap(top, { x1, x2 }) < (x2-x1+1)*0.5){
+          for (let j=i-1; j>=0; j--){
+            const M = lines[j];
+            if (M.y2 >= top.y1 || overlap(M, { x1, x2 }) < (x2-x1+1)*0.5) continue;
+            if (L.y1 - M.y2 <= line*8 && rule(x1-3, M.y2+2, L.y1-2) && rule(x2+3, M.y2+2, L.y1-2)) cellCeil = M.y2 + 2;
+            break;
+          }
+        }
+        const y1 = cellCeil + 1, y2 = floor - 1;
         // Where the printed label ends: its lowest row and its right-most column. Rows with only
         // small marks (a tick box at the end of the row) don't count as label rows.
         const cellW = x2 - x1 + 1;
         let lowInk = -1, rightInk = -1, highInk = -1;
+        const blocks = [];                                 // lines of label text, top to bottom
         for (let y=y1; y<=y2; y++){
           let n = 0, last = -1;
           for (let x=x1; x<=x2; x++) if (on(x,y)){ n++; last = x; }
-          if (n >= 2 && n > cellW*0.03){ if (highInk < 0) highInk = y; lowInk = y; if (last > rightInk) rightInk = last; }
+          if (n >= 2 && n > cellW*0.03){
+            if (highInk < 0) highInk = y; lowInk = y; if (last > rightInk) rightInk = last;
+            const b = blocks[blocks.length-1];
+            if (b && y - b.y2 <= 2){ b.y2 = y; b.most = Math.max(b.most, n); b.right = Math.max(b.right, last); }
+            else blocks.push({ y1: y, y2: y, most: n, right: last });
+          }
+        }
+        // Faint marks under the label (the YYYY | MM | DD ticks at the foot of a date box) aren't label
+        if (blocks.length > 1 && blocks.slice(1).every(b => b.most < blocks[0].most*0.3 && b.most < line*0.5)){
+          highInk = blocks[0].y1; lowInk = blocks[0].y2; rightInk = blocks[0].right; blocks.length = 1;
         }
         // Stop short of marks left in the blank part (tick boxes at the right end)
         const trim = (ya) => {
@@ -2964,15 +3046,25 @@ else if (typeof exports === 'object')
           const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
         }
-        else if (y2 - lowInk >= line*0.6) fs.push({ x1, y1: lowInk + 3, x2: trim(lowInk + 3), y2 });
-        else if (!capH || lowInk - highInk <= capH*1.6){
-          // (a one-line label only: a paragraph of instructions leaves no field beside it)
+        else if (y2 - lowInk >= line*0.6){
+          // (below any ink right under the label: its descenders, "stamp)")
+          let ya = lowInk + 3;
+          const inkAt = (y) => { for (let x=x1; x<=x2; x++) if (on(x,y)) return true; return false; };
+          while (ya < y2 - line*0.6 && inkAt(ya)) ya++;
+          fs.push({ x1, y1: ya, x2: trim(ya), y2 });
+        }
+        else if (!capH || lowInk - highInk <= capH*1.6 || (blocks.length > 1 && blocks[blocks.length-1].y2 - blocks[blocks.length-1].y1 <= capH*1.6)){
           // Labels on the row ("Dr: ____ Billing #: ____ Date: ____"): a field in each wide blank
           // after a label. A lone colon set apart from its label stays with the label.
+          // With more than one line of text (a paragraph of instructions leaves no field beside
+          // it), only the last line, and only when it has several labels spaced along it
+          // ("MENSTRUAL HISTORY" over "LMP (DATE): ____ MENOPAUSE (AGE): ____").
+          const several = capH && lowInk - highInk > capH*1.6;
+          const hi = several ? blocks[blocks.length-1].y1 : highInk, lo = several ? blocks[blocks.length-1].y2 : lowInk;
           const groups = [];
           for (let x=x1; x<=x2; x++){
             let ink = false;
-            for (let y=highInk; y<=lowInk && !ink; y++) if (on(x,y)) ink = true;
+            for (let y=hi; y<=lo && !ink; y++) if (on(x,y)) ink = true;
             if (!ink) continue;
             const g = groups[groups.length-1];
             if (g && x - g.x2 <= Math.max(3, (capH || line)*0.6)) g.x2 = x; else groups.push({ x1: x, x2: x });
@@ -2982,7 +3074,9 @@ else if (typeof exports === 'object')
             const prev = labels[labels.length-1];
             if (prev && g.x2 - g.x1 < speck) prev.x2 = g.x2; else labels.push({ ...g });
           });
-          const ya = Math.max(y1, y2 - Math.round(line));
+          // (in the line under a heading: below the heading, and a bullet "▪" isn't a label)
+          const ya = Math.max(y1, y2 - Math.round(line), several ? blocks[blocks.length-2].y2 + 3 : 0);
+          if (several && labels.filter(g => g.x2 - g.x1 >= (capH || line*0.3)).length < 2) labels.length = 0;
           labels.forEach((g, j) => {
             const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(line*0.3) : x2;
             if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2 });
@@ -3355,10 +3449,19 @@ else if (typeof exports === 'object')
 
       // Name each field after its printed label and suggest its tag (tick boxes get no tag:
       // an OSCAR tag on a tick box fills nothing useful)
-      const found = [...newFields, ...dedupCb];
+      let found = [...newFields, ...dedupCb];
       msg('Reading the page\'s words to name the fields…', 'small');
-      const read = opts.readWords === false ? null : await readPageWords(p.imgData);
-      if (read) labelFields(found, read);
+      const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
+      // Is there a rule across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
+      const ruleAcross = (x1, x2, y1, y2) => {
+        const a = Math.max(0, Math.round(x1*s)), z = Math.min(w-1, Math.round(x2*s));
+        for (let y=Math.max(0, Math.round(y1*s)); y<=Math.min(h-1, Math.round(y2*s)); y++){
+          let n = 0; for (let x=a; x<=z; x++) if (clean[y*w+x]) n++;
+          if (n >= (z-a+1)*0.8) return true;
+        }
+        return false;
+      };
+      if (read) found = labelFields(found, read, ruleAcross);
 
       pushUndo();
       const before = getPageFields(page).length;
