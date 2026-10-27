@@ -4,8 +4,14 @@ These tests check **Auto Detect**, the button in the eForm Mapper that finds the
 and the places to write on a scanned form and suggests their OSCAR tags.
 
 A **test case is a finished eForm**: the eForm HTML and its page image(s), with every box in
-the right place and the right `oscarDB` tag. The tests run Auto Detect on the page image and
-compare what it found with the eForm.
+the right place and the right `oscarDB` tag. The tests do what you would do in the app:
+
+1. put the case's page image(s) in the app and run **Auto Detect**;
+2. build the eForm from what it found with **Build HTML draft**;
+3. compare that eForm with the case's eForm.
+
+So they check the whole way from page image to eForm: finding the boxes, tagging them, and
+writing them into the eForm's HTML.
 
 ## Running them
 
@@ -20,7 +26,7 @@ in the browser, inside the app. A run takes about 15 to 20 seconds.
 
 ## What is compared
 
-For each page of each case, the eForm's fields are compared with what Auto Detect found:
+For each page of each case, the case's eForm is compared with the one built from Auto Detect:
 
 - **Where the boxes are.** A found box matches an eForm box of the same kind (tick box, or
   place to write) when each of its edges is within **10 pixels, or 20% of the box's size**
@@ -33,9 +39,10 @@ For each page of each case, the eForm's fields are compared with what Auto Detec
 Names don't matter. The margin is set at the top of `auto-detect.js` (`MARGIN_PX`,
 `MARGIN_SHARE`).
 
-The eForm is laid out by the browser, as OSCAR would show it, with its scripts switched off:
-only the layout counts. So boxes sized by the eForm's CSS (a class for tick boxes) are
-measured at their real size, whatever made the eForm. Within it:
+Both eForms are read the same way: laid out by the browser, as OSCAR would show them, with
+their scripts switched off (only the layout counts), and every field measured against the
+page image. So boxes sized by an eForm's CSS (a class for tick boxes) are measured at their
+real size, whatever made the eForm. Within an eForm:
 
 - **Pages:** each `<img>` whose id starts with `BGImage` is a page. It shows the image its
   `src` names, or the one a script puts there (`changeImage("page.png", "BGImage")`), or else

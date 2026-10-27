@@ -2,10 +2,11 @@
 // tests/cases; tests/README.md explains how it all works.
 //
 // The app loads this file when opened with #test at the end of its address. For each test
-// case (an eForm and its page images) it puts each page in the app, runs Auto Detect there and
-// compares what was found with the eForm's own fields: where the boxes are, and their oscarDB
-// tags (not their names). Then it runs Auto Detect on poorer copies of the referral form (tick
-// boxes only). Results show in a panel at the top right, which can also add a test case.
+// case (an eForm and its page images) it puts each page in the app, runs Auto Detect there,
+// builds the eForm from what was found ("Build HTML draft"), and compares that eForm with the
+// case's: where the boxes are, and their oscarDB tags (not their names). Then it runs Auto
+// Detect on poorer copies of the referral form (tick boxes only). Results show in a panel at
+// the top right, which can also add a test case.
 (async () => {
   const T = window.eformMapperTest;
 
@@ -34,11 +35,11 @@
 
   // ----- Test cases: finished eForms -----
   // A case is { name, html, images: { 'file name.png': 'data:image/png;base64,...' } }: the
-  // eForm's HTML and the page images it shows. Its expected boxes are the eForm's fields where
-  // the browser lays them out: the eForm is rendered in a hidden frame with its scripts off
-  // (only its layout counts), each page's background image put in, and every visible field
-  // measured against it, so its CSS (a class giving tick boxes their size), margins and
-  // offsets all count, whatever made the eForm.
+  // eForm's HTML and the page images it shows. The case's eForm and the one the app builds
+  // from Auto Detect's fields are read the same way, where the browser lays their fields out:
+  // the eForm is rendered in a hidden frame with its scripts off (only its layout counts), each
+  // page's background image put in, and every visible field measured against it, so its CSS
+  // (a class giving tick boxes their size), margins and offsets all count, whatever made it.
   //  - Background images: those with an id starting BGImage (else every image showing one of
   //    the case's images). Each shows the image its src names, or else the one a script puts
   //    there ("changeImage('page.png', 'BGImage')"), or else the largest image not yet used.
@@ -47,7 +48,9 @@
   //    inputs with an Xbox or xMarkOnly class. Each field's tag is its oscarDB attribute.
   const kindOf = (type) => (type === 'checkbox' || type === 'xbox') ? 'tick' : 'write';
   const fileOf = (src) => decodeURIComponent(String(src).split(/[?#]/)[0].split(/[\/}=]/).pop());
-  async function casePages(c){
+  // An eForm's pages: [{ n, file, imgData, boxes: [{ kind, x, y, width, height, tag }] }]
+  async function eformPages(html, images){
+    const c = { html, images };
     const frame = document.createElement('iframe');
     frame.setAttribute('sandbox', 'allow-same-origin');   // its layout, without running its scripts
     frame.style.cssText = 'position:absolute;left:-20000px;top:0;width:1600px;height:30000px;border:0;visibility:hidden';
@@ -73,7 +76,7 @@
         if (!file) throw new Error(`no image for ${bg.id || 'a background image'}`);
         used.add(file);
         await new Promise(res => { bg.onload = bg.onerror = res; bg.src = c.images[file]; });
-        pages.push({ n: pages.length + 1, file, imgData: c.images[file], bg, expected: [] });
+        pages.push({ n: pages.length + 1, file, imgData: c.images[file], bg, boxes: [] });
       }
       const fields = [...doc.querySelectorAll('input, textarea, select')].filter(el => {
         const type = (el.getAttribute('type') || '').toLowerCase();
@@ -89,7 +92,7 @@
         const b = pg.bg.getBoundingClientRect(), k = pg.bg.naturalWidth / b.width;
         const type = (el.getAttribute('type') || '').toLowerCase();
         const tick = type === 'checkbox' || type === 'radio' || /(^|\s)(xbox|xmarkonly)(\s|$)/i.test(el.className || '');
-        pg.expected.push({ kind: tick ? 'tick' : 'write', x: (r.left - b.left)*k, y: (r.top - b.top)*k, width: r.width*k, height: r.height*k,
+        pg.boxes.push({ kind: tick ? 'tick' : 'write', x: (r.left - b.left)*k, y: (r.top - b.top)*k, width: r.width*k, height: r.height*k,
                            tag: el.getAttribute('oscardb') || '' });
       });
       pages.forEach(p => delete p.bg);
@@ -115,6 +118,31 @@
   }
   const showAll = () => { T.state.fields = [...onShow.values()].flat(); T.setCurrentPage(1); };
 
+  // The eForm the app builds ("Build HTML draft") from what Auto Detect found on `count` pages
+  // of the app from page `first` on, as { html, images } to read like a case's eForm. The draft
+  // is built from those pages alone: the app's pages and fields are swapped for them meanwhile.
+  function draftOf(first, count){
+    const keep = { pages: T.state.pages, fields: T.state.fields, current: T.state.currentPage };
+    const pages = {}, fields = [];
+    for (let i = 0; i < count; i++){
+      pages[i+1] = keep.pages[first+i];
+      (onShow.get(first+i) || []).forEach(f => fields.push({ ...f, page: i+1 }));
+    }
+    try {
+      T.state.pages = pages; T.state.fields = fields; T.state.currentPage = 1;
+      const html = T.buildExportHtml();
+      // The draft names each page's image; give it the pages' images under those names
+      const doc = new DOMParser().parseFromString(html, 'text/html'), images = {};
+      for (let i = 1; i <= count; i++){
+        const bg = doc.getElementById('BGImage' + i);
+        if (bg) images[fileOf(bg.getAttribute('src') || '')] = pages[i].imgData;
+      }
+      return { html, images };
+    } finally {
+      T.state.pages = keep.pages; T.state.fields = keep.fields; T.state.currentPage = keep.current;
+    }
+  }
+
   // ----- Comparing found boxes with the eForm's -----
   const close = (a, b) => {
     const mx = Math.max(MARGIN_PX, MARGIN_SHARE*Math.max(a.width, b.width));
@@ -137,14 +165,18 @@
   }
 
   // A case's tests; returns the function that runs Auto Detect on its pages (from page
-  // firstPage of the app on) and resolves to how many pages it used
+  // firstPage of the app on), builds the eForm from what it found, compares that with the
+  // case's eForm, and resolves to how many pages it used
   function caseTests(c, entry, firstPage){
     const todo = entry.todo || {};
     let pages = null, error = null;
     const run = async () => {
       try {
-        pages = await casePages(c);
-        for (const pg of pages) pg.result = compare(pg.expected, await detectOn(firstPage + pg.n - 1, pg.imgData, pg.file));
+        pages = await eformPages(c.html, c.images);
+        for (const pg of pages) await detectOn(firstPage + pg.n - 1, pg.imgData, pg.file);
+        const draft = draftOf(firstPage, pages.length);
+        const built = await eformPages(draft.html, draft.images);
+        pages.forEach(pg => { pg.result = compare(pg.boxes, (built[pg.n - 1] || { boxes: [] }).boxes); });
       } catch (err) { error = err; }
       return pages ? pages.length : 1;
     };
@@ -287,8 +319,8 @@
     // The variations, one after another on the next page (it shows the last of them)
     const ref = (window.TEST_CASES || {})[VARIED_CASE];
     if (ref){
-      const pg = (await casePages(ref))[0];
-      VARIED_BOXES = pg.expected.filter(e => e.kind === 'tick');
+      const pg = (await eformPages(ref.html, ref.images))[0];
+      VARIED_BOXES = pg.boxes.filter(e => e.kind === 'tick');
       const base = await loadImage(pg.imgData);
       for (const v of VARIATIONS){
         const made = v.make(base);
