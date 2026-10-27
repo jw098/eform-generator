@@ -282,7 +282,7 @@
     return { url: png(c), map, scale: 1 };
   };
   const VARIATIONS = [
-    { name: 'half size (scanned at half the resolution)', make: resized(0.5), todo: 'not all found yet' },
+    { name: 'half size (scanned at half the resolution)', make: resized(0.5), todo: 'one not found yet (17 of 18)' },
     { name: '0.7× size', make: resized(0.7) },
     { name: '1.5× size', make: resized(1.5) },
     { name: '2× size', make: resized(2) },
@@ -296,7 +296,7 @@
     { name: 'tilted 1°', make: tilted(1) },
     { name: 'tilted 2.5°', make: tilted(2.5) },
     { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }),
-      todo: 'not all found yet' },
+      todo: 'the fax drops the thin, light left side of some boxes, leaving "⊐"; taking three-sided shapes for boxes takes letters too' },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
     { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img) => {
         const c = drawn(img), ctx = c.getContext('2d');

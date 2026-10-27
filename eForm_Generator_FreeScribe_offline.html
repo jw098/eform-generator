@@ -3333,8 +3333,11 @@ else if (typeof exports === 'object')
     const fillMax = Number($('fillMax').value) || 0.93;
     try {
       const img = await loadImage(p.imgData);
-      const maxDim = 1600;
-      const s = Math.min(1, maxDim / Math.max(img.width, img.height));
+      // Detect on the page at most 1600 pixels on its long side. A small page (under 1200,
+      // scanned at a low resolution) is enlarged to that, up to twice its size, so its tick
+      // boxes' thin sides don't break up; the smoothing would only blur a page near that size.
+      const maxDim = 1600, longSide = Math.max(img.width, img.height);
+      const s = longSide < 1200 ? Math.min(2, maxDim / longSide) : Math.min(1, maxDim / longSide);
       const w = Math.max(1, Math.round(img.width * s));
       const h = Math.max(1, Math.round(img.height * s));
 
@@ -3343,6 +3346,7 @@ else if (typeof exports === 'object')
       const ctx = c.getContext('2d', { willReadFrequently: true });
       ctx.fillStyle = '#fff';
       ctx.fillRect(0,0,w,h);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
       // Straighten a tilted scan first (added by FreeScribe): rules that run slightly downhill
       // break into pieces and tables fall apart. Fields are turned back onto the page at the end.
       const skew = estimateSkew(img);
