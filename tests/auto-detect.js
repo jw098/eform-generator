@@ -4,9 +4,9 @@
 // The app loads this file when opened with #test at the end of its address. For each test
 // case (an eForm and its page images) it puts each page in the app, runs Auto Detect there,
 // builds the eForm from what was found ("Build HTML draft"), and compares that eForm with the
-// case's: where the boxes are, and their oscarDB tags (not their names). Then it runs Auto
-// Detect on poorer copies of the referral form (tick boxes only). Results show in a panel at
-// the top right, which can also add a test case.
+// case's: where the boxes are, and their oscarDB tags (not their names). Results show in a
+// panel at the top right, which can also add a test case, and run Auto Detect on poorer copies
+// of the referral form (tick boxes only) when asked.
 (async () => {
   const T = window.eformMapperTest;
 
@@ -167,13 +167,14 @@
   // A case's tests; returns the function that runs Auto Detect on its pages (from page
   // firstPage of the app on), builds the eForm from what it found, compares that with the
   // case's eForm, and resolves to how many pages it used
-  function caseTests(c, entry, firstPage){
+  // (onPage(n, of): told before each page is processed, for the panel's progress line)
+  function caseTests(c, entry, firstPage, onPage = () => {}){
     const todo = entry.todo || {};
     let pages = null, error = null;
     const run = async () => {
       try {
         pages = await eformPages(c.html, c.images);
-        for (const pg of pages) await detectOn(firstPage + pg.n - 1, pg.imgData, pg.file);
+        for (const pg of pages){ onPage(pg.n, pages.length); await detectOn(firstPage + pg.n - 1, pg.imgData, pg.file); }
         const draft = draftOf(firstPage, pages.length);
         const built = await eformPages(draft.html, draft.images);
         pages.forEach(pg => { pg.result = compare(pg.boxes, (built[pg.n - 1] || { boxes: [] }).boxes); });
@@ -334,40 +335,65 @@
   const results = [];
   let nextPage = 1;                                       // the app page the next case starts on
   let entries = [];
+  const loaded = {};                                     // folder -> case, once read
+  const progress = (text) => { title.textContent = 'Auto Detect tests: ' + text; };
   async function runAll(getFile){
-    const loaded = {};
     try {
-      for (const entry of entries){
-        let c;
-        try { c = await loadCase(entry, getFile); }
-        catch (err){ results.push({ name: entry.name || entry.folder, group: entry.name || entry.folder, short: 'read the case', status: 'fail', error: err.message || String(err) }); continue; }
-        loaded[entry.folder] = c;
-        nextPage += await caseTests(c, entry, nextPage)();
+      // Read every case first, to know how many pages there are to process
+      const cases = [];
+      for (const [i, entry] of entries.entries()){
+        progress(`reading test case ${i + 1} of ${entries.length}…`);
+        try {
+          const c = await loadCase(entry, getFile);
+          cases.push({ c, entry, pages: (await eformPages(c.html, c.images)).length });
+          loaded[entry.folder] = c;
+        } catch (err){ results.push({ name: entry.name || entry.folder, group: entry.name || entry.folder, short: 'read the case', status: 'fail', error: err.message || String(err) }); }
       }
-      // The variations, one after another on the next page (it shows the last of them)
-      const ref = loaded[VARIED_CASE];
-      if (ref){
-        const pg = (await eformPages(ref.html, ref.images))[0];
-        VARIED_BOXES = pg.boxes.filter(e => e.kind === 'tick');
-        const base = await loadImage(pg.imgData);
-        for (const v of VARIATIONS){
-          const made = v.make(base);
-          v.fields = await detectOn(nextPage, made.url, `${VARIED_CASE} (${v.name}).png`, { readWords: false }, v === VARIATIONS[VARIATIONS.length-1]);
-          v.map = made.map; v.scale = made.scale;
-        }
-        nextPage++;
-        variationTests();
+      const total = cases.reduce((n, k) => n + k.pages, 0);
+      let done = 0;
+      for (const { c, entry } of cases){
+        nextPage += await caseTests(c, entry, nextPage, (n, of) =>
+          progress(`running… processing page ${++done} of ${total} (${c.name}${of > 1 ? `, page ${n}` : ''})`))();
       }
+      progress('checking the results…');
       results.push(...await runTests(tests));
     } catch (err) {
       results.push({ name: 'run the tests', group: 'Setup', short: 'run the tests', status: 'fail', error: err.message || String(err) });
     }
+    finished();
+    if (loaded[VARIED_CASE]) panel.insertBefore(copiesBox, groupsBox);
+  }
+  // After a run: results on the board, in the panel and in the console
+  function finished(){
     T.results = results;
     showAll();
     render();
     console.log('Auto Detect tests: ' + summary());
     results.forEach(r => (r.status === 'fail' ? console.error : console.log)(
       `${mark[r.status]} ${r.name}${r.todo ? ' # TODO ' + r.todo : ''}${r.error ? '\n  ' + r.error : ''}`));
+  }
+
+  // The poorer copies, when asked for (they take a while): one after another on the next page
+  // of the app, which shows the last of them afterwards
+  async function runCopies(){
+    try {
+      const pg = (await eformPages(loaded[VARIED_CASE].html, loaded[VARIED_CASE].images))[0];
+      VARIED_BOXES = pg.boxes.filter(e => e.kind === 'tick');
+      const base = await loadImage(pg.imgData);
+      for (const [i, v] of VARIATIONS.entries()){
+        progress(`poorer copies: processing ${i + 1} of ${VARIATIONS.length} (${v.name})…`);
+        const made = v.make(base);
+        v.fields = await detectOn(nextPage, made.url, `${VARIED_CASE} (${v.name}).png`, { readWords: false }, i === VARIATIONS.length - 1);
+        v.map = made.map; v.scale = made.scale;
+      }
+      nextPage++;
+      tests = [];
+      variationTests();
+      results.push(...await runTests(tests));
+    } catch (err) {
+      results.push({ name: 'run the poorer copies', group: 'Poorer copies of the referral form (tick boxes only)', short: 'run them', status: 'fail', error: err.message || String(err) });
+    }
+    finished();
   }
 
   // ----- Adding a test case -----
@@ -423,7 +449,7 @@
       tests = [];
       // (shown apart from a case of the same name already run)
       const shownAs = results.some(r => r.group === c.name) ? { ...c, name: `${c.name} (added)` } : c;
-      nextPage += await caseTests(shownAs, {}, nextPage)();
+      nextPage += await caseTests(shownAs, {}, nextPage, (n, of) => progress(`running the new case… processing page ${n} of ${of}`))();
       results.push(...await runTests(tests));
       T.results = results;
       showAll();
@@ -484,6 +510,16 @@
   adder.append(addBtn, picker, note);
   const groupsBox = document.createElement('div');
   panel.append(head, hint, adder, groupsBox);
+  const copiesBox = document.createElement('div');
+  copiesBox.style.cssText = 'margin:6px 0';
+  const copiesBtn = document.createElement('button');
+  copiesBtn.textContent = 'Also test poorer copies';
+  copiesBtn.title = 'Tick boxes on 15 poorer copies of the referral form: resized, blurred, faxed, ticked by hand…';
+  const copiesNote = document.createElement('span');
+  copiesNote.style.cssText = 'margin-left:8px;color:#555;font-size:12px';
+  copiesNote.textContent = 'checks tick boxes on poor scans; takes about 8 seconds';
+  copiesBtn.onclick = async () => { copiesBox.remove(); await runCopies(); };
+  copiesBox.append(copiesBtn, copiesNote);
 
   // One line per case (and one for the variations), opened when something in it fails
   function render(){
@@ -525,7 +561,7 @@
   // ----- Start -----
   try { await loadScript('tests/cases/index.js'); } catch (err) { /* no cases yet */ }
   entries = window.TEST_CASE_LIST || [];
-  if (!entries.length || location.protocol !== 'file:'){ title.textContent = 'Auto Detect tests: running…'; await runAll(fromServer()); return; }
+  if (!entries.length || location.protocol !== 'file:'){ await runAll(fromServer()); return; }
   // From disk: ask for the folder
   const ask = document.createElement('div');
   ask.style.cssText = 'margin:6px 0;padding:8px;background:#fef9c3;border-radius:6px';
@@ -539,7 +575,6 @@
     const files = [...folder.files];
     if (!files.length) return;
     ask.remove();
-    title.textContent = 'Auto Detect tests: running…';
     await runAll(fromFolder(files));
   };
   ask.append(folderBtn, folder);

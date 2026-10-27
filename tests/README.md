@@ -24,7 +24,8 @@ file:///C:/path/to/eForm_Generator_FreeScribe_offline.html#test
 ```
 
 If the app is already open, add `#test` and reload. Nothing needs installing; the tests run
-in the browser, inside the app. A run takes about 15 to 20 seconds.
+in the browser, inside the app. A run takes about 10 seconds; the panel's title says what it
+is doing ("processing page 2 of 3").
 
 Opened from disk like this, the panel first asks you to **choose the `tests/cases` folder**.
 A page opened from disk may show an image file but isn't allowed to read its pixels, or to
@@ -60,9 +61,11 @@ real size, whatever made the eForm. Within an eForm:
   and anything inside a `DoNotPrint` block.
 - **Tick boxes:** checkboxes, radio buttons, and inputs with an `Xbox` or `xMarkOnly` class.
 
-Then, on poorer copies of the referral form made in the browser (resized as if scanned at
-another resolution, blurred, speckled, rough JPEG, tilted, faxed, printed faint, ticked by
-hand), every tick box must be found and nothing else taken for one.
+**Also test poorer copies** (a button in the panel, after a run) checks tick boxes on 15
+poorer copies of the referral form made in the browser: resized as if scanned at another
+resolution, blurred, speckled, rough JPEG, tilted, faxed, printed faint, ticked by hand. On
+each, every tick box must be found and nothing else taken for one. It takes about 8 seconds
+more, so it only runs when asked: use it when changing how tick boxes are found.
 
 ## Reading the results
 
