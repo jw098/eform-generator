@@ -1,6 +1,6 @@
 # Runs the Auto Detect tests (tests/README.md) in the Chrome that GitHub's Ubuntu runners come
 # with, so no browser is downloaded: only Playwright's small npm package, to drive it.
-# The poorer copies run too when it's started by hand (Actions → Run workflow).
+# Each run also tests the poorer copies of the referral form (--variations).
 name: Auto Detect tests
 on:
   push:
@@ -23,4 +23,4 @@ jobs:
           python3 -m http.server 8000 >/dev/null 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8000/ && break; sleep 1; done
       - name: Run the tests
-        run: node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" ${{ github.event_name != 'push' && github.event_name != 'pull_request' && '--variations' || '' }}
+        run: node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" --variations

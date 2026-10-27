@@ -39,16 +39,18 @@ itself and doesn't ask.
 The tests also run on GitHub on each push and pull request
 (`.github/workflows/tests.yml`), in the Chrome that GitHub's runners come with, driven by
 `ci.js`. A failing test fails the run, and its log shows the same expected/actual lines as
-the panel. To-dos don't fail it. The poorer copies run too when the workflow is
-started by hand (Actions → Auto Detect tests → Run workflow).
+the panel. To-dos don't fail it. Each run tests the poorer copies too. To run it again
+by hand: Actions → Auto Detect tests → Run workflow.
 
 To run it the same way on your own computer (with Node and Chrome installed):
 
 ```
 npm install --no-save playwright
 python -m http.server 8000
-node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test"
+node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" --variations
 ```
+
+(Leave out `--variations` to skip the poorer copies.)
 
 ## What is compared
 
