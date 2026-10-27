@@ -358,9 +358,9 @@
           <button id="btnPresetLines" class="btn btn-small" title="Text input lines only, skip checkbox detection">Lines only</button>
         </div>
         <div class="grid3">
-          <label>Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
-          <label>Max checkbox px<input id="maxCb" type="number" value="32" min="8" max="100"/></label>
-          <label>Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
+          <label title="In pixels on a page 1500 px across; scaled with the page">Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
+          <label title="In pixels on a page 1500 px across; scaled with the page">Max checkbox px<input id="maxCb" type="number" value="32" min="8" max="100"/></label>
+          <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
         </div>
         <div class="grid3" style="margin-top:8px">
           <label>Line min % width<input id="lineMinPct" type="number" value="8" min="2" max="40" step="0.5"/></label>
@@ -3041,7 +3041,8 @@ else if (typeof exports === 'object')
     return Math.abs(best) >= 0.12 ? best*Math.PI/180 : 0;
   }
 
-  async function detectCurrentPage(){
+  // opts.readWords: false skips reading the page's words (the tests' checkbox-only runs)
+  async function detectCurrentPage(opts = {}){
     const page = state.currentPage, p = state.pages[page];
     if (!p.imgData || !p.naturalW) { msg('Upload page image first.', 'warn'); return; }
     const fromPdf = await pdfFormFields(page);
@@ -3194,8 +3195,12 @@ else if (typeof exports === 'object')
       const stack = [];
       const cb = [];
 
-      const minNat = Math.max(4, minCb);
-      const maxNat = maxCb + tolCb;
+      // The size settings are for a page 1500 pixels across its short side (what the PDF
+      // converter makes by default); they grow and shrink with the page, so a box keeps the
+      // same size relative to the page whatever resolution it was scanned at
+      const perPage = Math.min(img.width, img.height) / 1500;
+      const minNat = Math.max(4, minCb * perPage);
+      const maxNat = (maxCb + tolCb) * perPage;
       for(let y0=0;y0<h;y0++){
         for(let x0=0;x0<w;x0++){
           const st = y0*w+x0;
@@ -3307,7 +3312,7 @@ else if (typeof exports === 'object')
       // an OSCAR tag on a tick box fills nothing useful)
       const found = [...newFields, ...dedupCb];
       msg('Reading the page\'s words to name the fields…', 'small');
-      const read = await readPageWords(p.imgData);
+      const read = opts.readWords === false ? null : await readPageWords(p.imgData);
       if (read) labelFields(found, read);
 
       pushUndo();
@@ -3335,13 +3340,13 @@ else if (typeof exports === 'object')
 
       const added = getPageFields(page).length - before;
       renderAll();
-      const unread = read ? '' : ' (The page\'s words couldn\'t be read in this browser, so fields have plain names and no tags.)';
+      const unread = read || opts.readWords === false ? '' : ' (The page\'s words couldn\'t be read in this browser, so fields have plain names and no tags.)';
       msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + unread, added>0 ? 'ok' : 'warn');
     } catch(err) {
       msg('Detection failed: ' + (err.message || err), 'err');
     }
   }
-  $('btnDetect').addEventListener('click', detectCurrentPage);
+  $('btnDetect').addEventListener('click', () => detectCurrentPage());
 
 
   function toPercent(v,total){ return (total ? (v/total*100) : 0).toFixed(3); }

@@ -8,7 +8,9 @@
 // panel at the top right of the page and in the browser console; the detected fields stay on
 // the pages to look at (use the "Edit Page" tabs). Reading the printed words (for names, tags
 // and tick-box labels) takes a few seconds a page; in a browser that can't run the embedded OCR
-// (no WebAssembly SIMD) only the tag and label tests fail.
+// (no WebAssembly SIMD) only the tag and label tests fail. After the pages come variations of
+// the referral page (resized, blurred, speckled, tilted, faxed, faint, ticked by hand) that
+// check tick boxes alone; the next "Edit Page" tab shows the last of them.
 //
 // To add a test page: put its PNG in tests/fixtures, make the matching .js beside it (see the
 // top of either fixture .js), and add an entry to PAGES.
@@ -138,22 +140,35 @@
   // Each page starts from no fields at all, and its tests see only what was found on it, so
   // no page's result depends on another's. Afterwards every page's fields are put back so
   // they can be looked at on their tabs.
+  // Put an image on page n of the app and run Auto Detect on it, from no fields at all
+  async function detectOn(n, imgData, fileName, opts){
+    const img = await loadImage(imgData);
+    T.createPageDOM(n);
+    T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName };
+    document.getElementById('img' + n).src = imgData;
+    T.state.fields = [];
+    T.setCurrentPage(n);
+    await T.detectCurrentPage(opts);
+    return T.state.fields.slice();
+  }
+
   async function detectAll(){
     const all = [];
     for (let i = 0; i < PAGES.length; i++){
-      const tp = PAGES[i], n = i + 1;
+      const tp = PAGES[i];
       await loadScript(`tests/fixtures/${tp.image}.js`);
       const imgData = (window.TEST_PAGE_IMAGES || {})[tp.image];
       if (!imgData) throw new Error(`tests/fixtures/${tp.image}.js did not provide the page image`);
-      const img = await loadImage(imgData);
-      T.createPageDOM(n);
-      T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName: tp.image + '.png' };
-      document.getElementById('img' + n).src = imgData;
-      T.state.fields = [];
-      T.setCurrentPage(n);
-      await T.detectCurrentPage();
-      tp.fields = T.state.fields.slice();
+      tp.fields = await detectOn(i + 1, imgData, tp.image + '.png');
       all.push(...tp.fields);
+    }
+    // Variations, one after another on the next page (it shows the last one afterwards)
+    const base = await loadImage(window.TEST_PAGE_IMAGES[VARIED.image]);
+    for (const v of VARIATIONS){
+      const made = v.make(base);
+      v.fields = await detectOn(PAGES.length + 1, made.url, `${VARIED.image} (${v.name}).png`, { readWords: false });
+      v.map = made.map; v.scale = made.scale;
+      if (v === VARIATIONS[VARIATIONS.length-1]) all.push(...v.fields);
     }
     T.state.fields = all;
     T.setCurrentPage(1);
@@ -253,6 +268,101 @@
     }, { todo: 'not detected yet' }));
   });
 
+  // ----- Variations of the referral page: tick boxes on poorer copies -----
+  // Each copy is made here from the referral page (no extra image files): resized as if
+  // scanned at another resolution, blurred, speckled, saved as a rough JPEG, tilted, turned
+  // into a fax, printed faint, or with boxes ticked by hand. Auto Detect runs on each
+  // (without reading words) and must find all 18 tick boxes and nothing else. A copy it can't
+  // handle yet is a todo whose message says how many it found.
+  const VARIED = PAGES[0];
+  const canvasFor = (w, h) => { const c = document.createElement('canvas'); c.width = Math.round(w); c.height = Math.round(h); return c; };
+  // Draw the page at k times its size (white behind it)
+  const drawn = (img, k = 1) => {
+    const c = canvasFor(img.width*k, img.height*k), ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  };
+  // Change each pixel's grey level
+  const eachGrey = (c, fn) => {
+    const ctx = c.getContext('2d'), d = ctx.getImageData(0, 0, c.width, c.height), px = d.data;
+    for (let i=0, j=0; j<px.length; i++, j+=4){ const v = fn(Math.round(0.299*px[j] + 0.587*px[j+1] + 0.114*px[j+2]), i); px[j] = px[j+1] = px[j+2] = v; }
+    ctx.putImageData(d, 0, 0); return c;
+  };
+  // Gaussian blur of the grey levels (sigma in pixels), the same in every browser
+  const blurred = (c, sigma) => {
+    const r = Math.ceil(sigma*3), k = []; let sum = 0;
+    for (let i=-r; i<=r; i++){ const v = Math.exp(-i*i/(2*sigma*sigma)); k.push(v); sum += v; }
+    const W = c.width, H = c.height, a = new Float32Array(W*H), b = new Float32Array(W*H);
+    eachGrey(c, (v, i) => { a[i] = v; return v; });
+    for (let y=0; y<H; y++) for (let x=0; x<W; x++){ let t = 0; for (let i=-r; i<=r; i++) t += k[i+r]*a[y*W + Math.min(W-1, Math.max(0, x+i))]; b[y*W+x] = t/sum; }
+    for (let y=0; y<H; y++) for (let x=0; x<W; x++){ let t = 0; for (let i=-r; i<=r; i++) t += k[i+r]*b[Math.min(H-1, Math.max(0, y+i))*W + x]; a[y*W+x] = t/sum; }
+    return eachGrey(c, (v, i) => Math.round(a[i]));
+  };
+  // Repeatable random numbers, so a speckled copy is the same every run
+  const random = (seed) => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const png = (c) => c.toDataURL('image/png');
+  const same = (k = 1) => (x, y) => [x*k, y*k];
+  const resized = (k) => (img) => ({ url: png(drawn(img, k)), map: same(k), scale: k });
+  const tilted = (deg) => (img) => {
+    // Turned anticlockwise about the middle, as a crooked scan
+    const a = deg*Math.PI/180, c = drawn(img), ctx = c.getContext('2d'), cx = c.width/2, cy = c.height/2;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.translate(cx, cy); ctx.rotate(-a); ctx.translate(-cx, -cy); ctx.drawImage(img, 0, 0);
+    const map = (x, y) => { const dx = x-cx, dy = y-cy; return [cx + dx*Math.cos(a) + dy*Math.sin(a), cy - dx*Math.sin(a) + dy*Math.cos(a)]; };
+    return { url: png(c), map, scale: 1 };
+  };
+  const VARIATIONS = [
+    { name: 'half size (scanned at half the resolution)', make: resized(0.5), todo: 'not all found yet' },
+    { name: '0.7× size', make: resized(0.7) },
+    { name: '1.5× size', make: resized(1.5) },
+    { name: '2× size', make: resized(2) },
+    { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
+    { name: '3× size', make: resized(3) },
+    { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }), todo: 'not all found yet' },
+    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }), todo: 'not all found yet' },
+    { name: 'speckled (1% of pixels)', make: (img) => { const rnd = random(1);
+        return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; }, todo: 'not all found yet' },
+    { name: 'rough JPEG (quality 30)', make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
+    { name: 'tilted 1°', make: tilted(1) },
+    { name: 'tilted 2.5°', make: tilted(2.5) },
+    { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }),
+      todo: 'not all found yet' },
+    { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
+    { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img) => {
+        const c = drawn(img), ctx = c.getContext('2d');
+        ctx.strokeStyle = '#000'; ctx.lineCap = 'round';
+        VARIED.checkboxes.forEach((b, i) => {
+          const { x, y } = b; ctx.beginPath();
+          if (i % 3 === 0){ ctx.lineWidth = 2; ctx.moveTo(x+4, y+4); ctx.lineTo(x+15, y+15); ctx.moveTo(x+15, y+4); ctx.lineTo(x+4, y+15); }
+          else if (i % 3 === 1){ ctx.lineWidth = 3; ctx.moveTo(x+3, y+9); ctx.lineTo(x+8, y+16); ctx.lineTo(x+24, y-8); }
+          ctx.stroke();
+        });
+        return { url: png(c), map: same(), scale: 1 };
+      }, todo: 'ticked boxes are not found yet' },
+  ];
+
+  VARIATIONS.forEach(v => {
+    const boxes = () => (v.fields || []).filter(f => f.type === 'checkbox' || f.type === 'xbox');
+    // Each box found once, by its centre (within 8 pixels at the page's own size)
+    const matched = () => {
+      const left = [...boxes()], missed = [];
+      VARIED.checkboxes.forEach(e => {
+        const [X, Y] = v.map(e.x + e.width/2, e.y + e.height/2);
+        const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*v.scale);
+        if (i < 0) missed.push(e.label); else left.splice(i, 1);
+      });
+      return { missed, extra: left };
+    };
+    test(`Referral form, ${v.name}: finds every tick box`, () => {
+      const { missed } = matched();
+      if (missed.length) throw new Error(`found ${VARIED.checkboxes.length - missed.length} of ${VARIED.checkboxes.length}; missed:\n  ${missed.join('\n  ')}`);
+    }, { todo: v.todo });
+    test(`Referral form, ${v.name}: finds no tick box that isn't there`, () => {
+      sameList(matched().extra.map(show), [], 'tick boxes that are not on the page');
+    });
+  });
+
   // ----- Run and report -----
   const results = [];
   try { await detectAll(); }
@@ -293,7 +403,7 @@
     const row = document.createElement('div');
     row.style.color = color[r.status];
     row.textContent = `${mark[r.status]} ${r.name}${r.todo ? ' (todo: ' + r.todo + ')' : ''}`;
-    if (r.error && r.status === 'fail'){
+    if (r.error && (r.status === 'fail' || r.status === 'todo')){
       const pre = document.createElement('pre');
       pre.style.cssText = 'margin:2px 0 6px 16px;white-space:pre-wrap;color:#444;font-size:12px';
       pre.textContent = r.error;
