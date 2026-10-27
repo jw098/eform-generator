@@ -2775,13 +2775,17 @@ else if (typeof exports === 'object')
   // Each field's printed label, from the page's words (positions in page-image pixels).
   // A tick box's label is the words just right of it ("Yes, email"); those words are then
   // nobody else's. A text field's label is, in order of preference:
-  //  - the words just above it in the same cell, with no rule between ("PERSONAL HEALTH
-  //    NUMBER" printed in the corner of its box), only those over the field itself. When they
-  //    are several labels spread along it ("SURNAME OF PATIENT ... FIRST NAME"), the field is
-  //    split into one per label;
-  //  - else the phrase just left of it on its row ("Patient Name Last:").
+  //  - in a box of its own (f.box: rules above, below and down both sides), the words just above
+  //    it in the box, with no rule between ("PERSONAL HEALTH NUMBER" printed in the corner of
+  //    its box), only those over the field itself. When they are several labels spread along it
+  //    ("SURNAME OF PATIENT ... FIRST NAME"), the field is split into one per label;
+  //  - else the phrase just left of it on its row ("Patient Name Last:"). On a form of fill-in
+  //    lines the words above a field are the row above's ("FIRST MIDDLE LAST" printed under the
+  //    Name line), so they're not taken there;
+  //  - else, with nothing to its left, the line just above it (a heading over a writing area).
   // A text field's section is the nearest ALL-CAPS heading above it ("REFERRING MD"), over its
-  // own column, or one at the start of its row ("APPOINTMENT:"), so a "Last Name" under
+  // own column, when it's in a box (a table's column); or one at the start of its row
+  // ("APPOINTMENT:"), so a "Last Name" under
   // REFERRING MD isn't taken for the patient's. A heading has no fields on its row and isn't
   // any field's label (on a form printed in capitals, most lines are labels). A label that
   // starts with a heading of its own ("PRESENT COMPLAINT (Please ...") has no section, nor does
@@ -2820,7 +2824,7 @@ else if (typeof exports === 'object')
     fields.forEach(f => {
       if (f.type === 'checkbox' || f.type === 'xbox'){ out.push(f); return; }
       const fy1 = f.y, fx2 = f.x + f.width;
-      // Just above, in the same cell
+      // Just above, with no rule between
       let above = [];
       // (starting over the field: the end of a longer line to the left, "MENSTRUAL HISTORY", isn't its label)
       const over = free.filter(w => w.y1 <= fy1 + 2 && fy1 - w.y1 <= wh*2.5 && w.x0 >= f.x - wh && w.x0 < fx2);
@@ -2830,7 +2834,7 @@ else if (typeof exports === 'object')
         if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
       let left = [], section = '';
-      if (above.length){
+      if (above.length && f.box){
         const groups = [];
         above.forEach(w => { const g = groups[groups.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wh*3) g.push(w); else groups.push([w]); });
         const cuts = groups.map((g, j) => j ? g[0].x0 - 4 : f.x);
@@ -2861,6 +2865,10 @@ else if (typeof exports === 'object')
           const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wh*6 && caps(w.text) && !taken.has(w) &&
                                          !boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x <= left[0].x0));
           if (before.length) section = phrase(before.sort((a,b) => a.x0-b.x0));
+        } else if (above.length){
+          // Nothing to its left either: the line just above (a heading over a writing area)
+          f.label = phrase(above);
+          f._words = above;
         }
       }
       if (section) f.section = section;
@@ -2875,6 +2883,9 @@ else if (typeof exports === 'object')
     out.forEach(f => {
       const ws = f._words; delete f._words;
       if (f.section || !f.label || f.type === 'checkbox' || f.type === 'xbox' || /^[A-Z][A-Z\s]{5,}/.test(f.label)) return;
+      // (only in a box: on a form of fill-in lines, a line in capitals above is the row above's
+      // captions, "STREET NAME" under the Address line, not a heading over this field)
+      if (!f.box) return;
       if (caps(f.label) && f.label.replace(/[^A-Za-z]/g, '').length > 4) return;
       // The nearest heading above the label, taking only its words over the label and field: two
       // tables side by side read as one line ("PATIENT INFORMATION REFERRING MD"), each its own
@@ -3082,11 +3093,15 @@ else if (typeof exports === 'object')
             if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2 });
           });
         }
+        // In a box of its own: a rule above and below, and rules down both sides (a table cell, a
+        // box on a form). Two fill-in lines one above the other have no sides; there the words
+        // above a field are the row above's, not its label.
+        const box = bounded && rule(x1 - 3, y1, y2) && rule(x2 + 3, y1, y2);
         fs.forEach(f => {
           if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < (bounded ? rowLine : line)*0.4) return;
           const tall = (f.y2 - f.y1) > line*1.8;
           fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
-                        type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '' });
+                        type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box });
         });
       }
     });
