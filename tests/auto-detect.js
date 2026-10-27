@@ -46,6 +46,7 @@
     { label: 'Address', y: 611, h: 47 },
     { label: 'Home Phone / Clinic Phone', y: 668, h: 17 },
     { label: 'Cell Phone / Clinic Fax', y: 696, h: 16 },
+    { label: 'Email / Family MD', y: 722, h: 17 },
   ];
   const TEXT_FIELDS = TABLE_ROWS.flatMap(r => [
     { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h },
@@ -120,7 +121,6 @@
   });
 
   test('finds the value cells of the patient and referring MD tables', () => {
-    // The Email / Family MD row is not found yet (see the todo below), so it is left out here
     assertMatches(ofType('text'), TEXT_FIELDS);
   });
 
@@ -139,13 +139,8 @@
     assert(new Set(names).size === names.length, 'some names are repeated');
   });
 
-  // Known gaps: these are on the page but Auto Detect does not find them yet.
-  // Remove `todo` once the detector handles them.
-  test('finds the Email / Family MD row (last row of the tables)', () => {
-    [{ x: PATIENT_X, y: 722, width: PATIENT_W, height: 16 }, { x: MD_X, y: 722, width: MD_W, height: 16 }]
-      .forEach(e => assert(ofType('text').some(f => near(f, e)), `no field at (${e.x}, ${e.y})`));
-  }, { todo: 'not detected yet' });
-
+  // Known gap: this is on the page but Auto Detect does not find it yet.
+  // Remove `todo` once the detector handles it.
   test('finds the "Other: ____" fill-in line', () => {
     assert(ofType('text').some(f => f.y > 420 && f.y < 455 && f.x > 840 && f.width > 300), 'no field on the line');
   }, { todo: 'not detected yet' });

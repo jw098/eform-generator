@@ -2308,13 +2308,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
     const capH = textCapHeight(clean, w, h);
-    // The tops of a run of bold capitals merge into a "line" with solid letters right under it
+    // The tops of a run of bold capitals merge into a "line" with solid letters right under it.
+    // The letters touch the line; a row of text that starts below a blank gap (a dense
+    // sentence in the next box down) leaves the rule a real rule.
     const letterTops = (b) => {
       if (!capH) return false;
       const ya = b.y2 + 1, yb = Math.min(h-1, b.y2 + Math.round(capH*0.8));
+      const bw = b.x2-b.x1+1;
       let n = 0;
-      for (let y=ya; y<=yb; y++) for (let x=b.x1; x<=b.x2; x++) if (clean[y*w+x]) n++;
-      return n > (yb-ya+1)*(b.x2-b.x1+1)*0.3;
+      for (let y=ya; y<=yb; y++){
+        let r = 0;
+        for (let x=b.x1; x<=b.x2; x++) if (clean[y*w+x]) r++;
+        if (y <= ya+1 && r < bw*0.05) return false;
+        n += r;
+      }
+      return n > (yb-ya+1)*bw*0.3;
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
