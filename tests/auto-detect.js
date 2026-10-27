@@ -319,7 +319,7 @@
     { name: '2× size', make: resized(2) },
     { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
     { name: '3× size', make: resized(3) },
-    { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }), todo: 'not all found yet' },
+    { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
     { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }), todo: 'not all found yet' },
     { name: 'speckled (1% of pixels)', make: (img) => { const rnd = random(1);
         return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; }, todo: 'not all found yet' },
@@ -339,7 +339,7 @@
           ctx.stroke();
         });
         return { url: png(c), map: same(), scale: 1 };
-      }, todo: 'ticked boxes are not found yet' },
+      }, todo: 'not all found yet' },
   ];
 
   VARIATIONS.forEach(v => {

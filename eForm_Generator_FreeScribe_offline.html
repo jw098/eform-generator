@@ -2342,9 +2342,25 @@ else if (typeof exports === 'object')
   // side's band, and a P's bowl with its stem looks like a square. A printed tick box has four
   // straight sides meeting in square corners, a (nearly) empty inside, and nothing touching it
   // from outside.
-  function isRealBox(clean,w,h,x1,y1,x2,y2){
+  // How much of a box's inside (inside its outline band) is ink, on the grey image: darker than
+  // halfway between the box's darkest pixel and the paper. A blurred outline's halo is lighter
+  // than that and doesn't count, as it does on the ink map (which takes soft edges for ink);
+  // a tick or a cross still counts.
+  function inkInside(gray,w,x1,y1,x2,y2,band){
+    let lo = 255, hi = 0;
+    for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (hi - lo < 40) return 0;
+    const mid = (lo + hi) / 2, ix1 = x1+band, iy1 = y1+band, ix2 = x2-band, iy2 = y2-band;
+    if (ix2 < ix1 || iy2 < iy1) return 0;
+    let n = 0;
+    for (let y=iy1; y<=iy2; y++) for (let x=ix1; x<=ix2; x++) if (gray[y*w+x] < mid) n++;
+    return n / ((ix2-ix1+1)*(iy2-iy1+1));
+  }
+
+  function isRealBox(clean,w,h,x1,y1,x2,y2,gray){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
-    if (sz < 5 || x1 < 2 || y1 < 2 || x2 >= w-2 || y2 >= h-2) return false;
+    // (under 7 pixels a small letter such as e or o can't be told from a box)
+    if (sz < 7 || x1 < 2 || y1 < 2 || x2 >= w-2 || y2 >= h-2) return false;
     const band = Math.max(1, Math.round(sz*0.14));
     const on = (x,y) => clean[y*w+x] === 1;
     // Longest unbroken stretch along a side (single-pixel gaps allowed), as a share of its length
@@ -2370,8 +2386,35 @@ else if (typeof exports === 'object')
     // Inside: empty, or a tick / cross at most
     const ix1=x1+band+1, iy1=y1+band+1, ix2=x2-band-1, iy2=y2-band-1;
     if (ix2 > ix1 && iy2 > iy1){
-      const inner = countOnInRect(clean,w,h,ix1,iy1,ix2,iy2) / ((ix2-ix1+1)*(iy2-iy1+1));
-      if (inner > 0.35) return false;
+      // (on the grey image, where a blurred outline's halo doesn't count, at most 60%; and on the
+      // ink map, which fills the gaps between letters merged into one blob, not all of it)
+      const inMap = countOnInRect(clean,w,h,ix1,iy1,ix2,iy2) / ((ix2-ix1+1)*(iy2-iy1+1));
+      const inner = gray ? inkInside(gray,w,x1,y1,x2,y2,band+1) : inMap;
+      if (inner > 0.6 || inMap > 0.95) return false;
+      // A bar straight across the middle third, joining both sides, makes a B, E, 8 or H; a tick
+      // or a cross runs at a slant. Looked for on the grey image when there is one (the ink map
+      // thickens a cross's arms into a bar), bridging a pixel or two where a B's bowls meet.
+      let mid = 128;
+      if (gray){ let lo = 255, hi = 0; for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; } mid = (lo + hi) / 2; }
+      const ink = gray ? (x,y) => gray[y*w+x] < mid : on;
+      const slack = Math.max(1, Math.round(bw*0.08));
+      for (let y=Math.ceil(y1+bh/3); y<=Math.floor(y2-bh/3); y++){
+        let run = 0, gap = 0;
+        for (let x=x1+1; x<=x2-1; x++){
+          if (ink(x,y)){ run += 1 + gap; gap = 0; if (run >= bw-2) return false; }
+          else if (run && gap < slack) gap++;
+          else { run = 0; gap = 0; }
+        }
+      }
+      // ... and the same down the middle: a stroke from top to bottom (the i in a word read as a box)
+      for (let x=Math.ceil(x1+bw/3); x<=Math.floor(x2-bw/3); x++){
+        let run = 0, gap = 0;
+        for (let y=y1+1; y<=y2-1; y++){
+          if (ink(x,y)){ run += 1 + gap; gap = 0; if (run >= bh-2) return false; }
+          else if (run && gap < slack) gap++;
+          else { run = 0; gap = 0; }
+        }
+      }
     }
     // Nothing joined on from outside (a P's stem below its bowl, the next letter of a word)
     const limit = Math.max(1, Math.round(sz*0.12));
@@ -3241,8 +3284,8 @@ else if (typeof exports === 'object')
             }
           }
           const ringDen = ringOn / Math.max(1, ringPix);
-          const innerDen = innerOn / Math.max(1, innerPix);
-          const fillDen = count / Math.max(1, bw*bh);
+          const innerDen = inkInside(gray,w,minx,miny,maxx,maxy,ring);
+          const fillDen = inkInside(gray,w,minx,miny,maxx,maxy,0);
 
           const edgeCov = edgeCoverage(clean,w,h,minx,miny,maxx,maxy,Math.max(1,ring));
           const minSideCov = sideCov; // stronger rectangle requirement, helps reject P/A holes
@@ -3259,7 +3302,7 @@ else if (typeof exports === 'object')
           if(innerDen > innerMax) continue;
           if(fillDen < fillMin || fillDen > fillMax) continue;
 
-          if(!round && !isRealBox(clean,w,h,minx,miny,maxx,maxy)) continue;
+          if(!round && !isRealBox(clean,w,h,minx,miny,maxx,maxy,gray)) continue;
 
           // classify as xbox if interior has significant marks.
           const type = 'checkbox';
@@ -3277,8 +3320,10 @@ else if (typeof exports === 'object')
       // Robust for thin-border PDF checkboxes that don't form a single connected component.
       const minSzPx = Math.max(4, Math.round(minNat * s));
       const maxSzPx = Math.round(maxNat * s);
-      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, sideCov, innerMax,
-        (x1,y1,x2,y2) => isRealBox(clean, w, h, x1, y1, x2, y2));
+      // (isRealBox judges the inside, on the grey image as well: the ink map's inside test here
+      // would turn away a box with a thick tick in it)
+      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, sideCov, Math.max(innerMax, 0.95),
+        (x1,y1,x2,y2) => isRealBox(clean, w, h, x1, y1, x2, y2, gray));
       rectCandidates.forEach(r => {
         const bw = r.x2-r.x1+1, bh = r.y2-r.y1+1;
         const wNat = bw/s, hNat = bh/s;
