@@ -6,7 +6,9 @@
 // file, which puts each test page below on a page of its own, runs Auto Detect on it and
 // checks the fields it found against the boxes known to be on the page. Results show in a
 // panel at the top right of the page and in the browser console; the detected fields stay on
-// the pages to look at (use the "Edit Page" tabs).
+// the pages to look at (use the "Edit Page" tabs). Reading the printed words (for names, tags
+// and tick-box labels) takes a few seconds a page; in a browser that can't run the embedded OCR
+// (no WebAssembly SIMD) only the tag and label tests fail.
 //
 // To add a test page: put its PNG in tests/fixtures, make the matching .js beside it (see the
 // top of either fixture .js), and add an entry to PAGES.
@@ -18,7 +20,10 @@
   const SIZE_TOL = 6;
 
   // ----- The test pages -----
-  // checkboxes / text / textareas: what Auto Detect finds there, by top-left corner and size.
+  // checkboxes / text / textareas: what Auto Detect finds there, by top-left corner and size,
+  // with the tag it should suggest for each text field ('' for none: a wrong tag fills the
+  // wrong patient data into the form; a list when either tag will do) and the printed label
+  // it should read beside each tick box.
   // Nothing else of those kinds may be found, except a field in one of the `missing` places.
   // missing: blanks on the page Auto Detect doesn't find yet (reported as todo, not failures),
   // as { row: 'what it is', blanks: [{ label, type: 'text' | 'textarea', x1, x2, y1, y2 }] }.
@@ -28,51 +33,51 @@
   // Referral form, page 1: tables, tick boxes, and two large note boxes
   const PATIENT_X = 268, PATIENT_W = 469, MD_X = 927, MD_W = 474;
   const REFERRAL_ROWS = [
-    { label: 'Last Name', y: 505, h: 16 },
-    { label: 'First Name', y: 531, h: 16 },
-    { label: 'Date of Birth / MSP #', y: 558, h: 16 },
-    { label: 'PHN # / Clinic Name', y: 585, h: 16 },
-    { label: 'Address', y: 611, h: 47 },
-    { label: 'Home Phone / Clinic Phone', y: 668, h: 17 },
-    { label: 'Cell Phone / Clinic Fax', y: 696, h: 16 },
-    { label: 'Email / Family MD', y: 722, h: 17 },
+    { label: 'Last Name', y: 505, h: 16, patient: 'patient_nameL', md: '' },
+    { label: 'First Name', y: 531, h: 16, patient: 'patient_nameF', md: '' },
+    { label: 'Date of Birth / MSP #', y: 558, h: 16, patient: ['dobc2', 'dob'], md: 'current_user_ohip_no' },
+    { label: 'PHN # / Clinic Name', y: 585, h: 16, patient: 'hin', md: 'clinic_name' },
+    { label: 'Address', y: 611, h: 47, patient: ['addressline', 'address'], md: 'clinic_addressLine' },
+    { label: 'Home Phone / Clinic Phone', y: 668, h: 17, patient: 'phone', md: 'clinic_phone' },
+    { label: 'Cell Phone / Clinic Fax', y: 696, h: 16, patient: 'cell', md: 'clinic_fax' },
+    { label: 'Email / Family MD', y: 722, h: 17, patient: 'email', md: '' },
   ];
-  const box = (label, x, y, size) => ({ label, x, y, width: size, height: size });
+  const box = (label, x, y, size, printed) => ({ label, x, y, width: size, height: size, printed });
 
   const PAGES = [
     {
       name: 'Referral form',
       image: 'referral-form-page1',
       checkboxes: [
-        box('Referral to: Dr. (left 1)', 103, 352, 19),
-        box('Referral to: Dr. (left 2)', 103, 377, 19),
-        box('Referral to: Dr. (left 3)', 103, 403, 19),
-        box('Referral to: Dr. (right 1)', 763, 352, 19),
-        box('Referral to: Dr. (right 2)', 763, 377, 19),
-        box('Referral to: Dr. (right 3)', 763, 403, 19),
-        box('Referral to: Other', 763, 433, 19),
-        box('Consent: Yes, text', 1057, 755, 19),
-        box('Consent: Yes, email', 1191, 755, 19),
-        box('Consent: No', 1338, 755, 19),
-        box('Urgency: Urgent', 103, 854, 19),
-        box('Urgency: Semi-Urgent', 345, 854, 19),
-        box('Urgency: Routine', 641, 854, 19),
-        box('Type: New Referral', 768, 854, 19),
-        box('Type: Follow-up', 1109, 854, 19),
-        box('Type: Re-referral', 768, 884, 19),
-        box('Type: Revised Referral', 1109, 884, 19),
-        box('Type: EPCP Completed', 768, 917, 19),
+        box('Referral to: Dr. (left 1)', 103, 352, 19, 'Dr.'),
+        box('Referral to: Dr. (left 2)', 103, 377, 19, 'Dr.'),
+        box('Referral to: Dr. (left 3)', 103, 403, 19, 'Dr.'),
+        box('Referral to: Dr. (right 1)', 763, 352, 19, 'Dr.'),
+        box('Referral to: Dr. (right 2)', 763, 377, 19, 'Dr.'),
+        box('Referral to: Dr. (right 3)', 763, 403, 19, 'Dr.'),
+        box('Referral to: Other', 763, 433, 19, 'Other'),
+        box('Consent: Yes, text', 1057, 755, 19, 'Yes, text'),
+        box('Consent: Yes, email', 1191, 755, 19, 'Yes, email'),
+        box('Consent: No', 1338, 755, 19, 'No'),
+        box('Urgency: Urgent', 103, 854, 19, 'Urgent'),
+        box('Urgency: Semi-Urgent', 345, 854, 19, 'Semi-Urgent'),
+        box('Urgency: Routine', 641, 854, 19, 'Routine'),
+        box('Type: New Referral', 768, 854, 19, 'New Referral'),
+        box('Type: Follow-up', 1109, 854, 19, 'Follow-up'),
+        box('Type: Re-referral', 768, 884, 19, 'Re-referral'),
+        box('Type: Revised Referral', 1109, 884, 19, 'Revised Referral'),
+        box('Type: EPCP Completed', 768, 917, 19, 'Enhanced Primary Care Pathways (EPCP) Completed'),
       ],
       text: [
-        { label: 'Referral to: Other ____', x: 860, y: 420, width: 533, height: 28 },
+        { label: 'Referral to: Other ____', x: 860, y: 420, width: 533, height: 28, tag: '' },
         ...REFERRAL_ROWS.flatMap(r => [
-          { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h },
-          { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h },
+          { label: `Patient: ${r.label}`, x: PATIENT_X, y: r.y, width: PATIENT_W, height: r.h, tag: r.patient },
+          { label: `Referring MD: ${r.label}`, x: MD_X, y: r.y, width: MD_W, height: r.h, tag: r.md },
         ]),
       ],
       textareas: [
-        { label: 'Past Hx', x: 93, y: 1098, width: 1308, height: 279 },
-        { label: 'Medications/Allergies', x: 93, y: 1413, width: 1308, height: 362 },
+        { label: 'Past Hx', x: 93, y: 1098, width: 1308, height: 279, tag: '' },
+        { label: 'Medications/Allergies', x: 93, y: 1413, width: 1308, height: 362, tag: '' },
       ],
       missing: [],
     },
@@ -83,29 +88,29 @@
       name: 'X-ray requisition',
       image: 'xray-requisition',
       checkboxes: [
-        box('Male', 1101, 780, 25),
-        box('Female', 1271, 780, 25),
+        box('Male', 1101, 780, 25, 'Male'),
+        box('Female', 1271, 780, 25, 'Female'),
       ],
       text: [
-        { label: 'Dr', x: 113, y: 448, width: 548, height: 51 },
-        { label: 'Billing #', x: 791, y: 448, width: 297, height: 51 },
-        { label: 'Date', x: 1175, y: 448, width: 213, height: 51 },
-        { label: 'Clinic', x: 152, y: 510, width: 1236, height: 39 },
-        { label: 'Additional copy to', x: 289, y: 562, width: 1099, height: 39 },
-        { label: 'Patient Name: Last', x: 302, y: 613, width: 360, height: 39 },
-        { label: 'Patient Name: First', x: 749, y: 613, width: 639, height: 39 },
-        { label: 'Address', x: 176, y: 663, width: 912, height: 39 },
-        { label: 'Postal Code', x: 1254, y: 663, width: 134, height: 39 },
-        { label: 'Phone', x: 158, y: 715, width: 1230, height: 39 },
-        { label: 'Date of Birth', x: 337, y: 766, width: 750, height: 39 },
-        { label: 'Personal Health Number', x: 526, y: 816, width: 862, height: 39 },
-        { label: 'Appointment: Date', x: 404, y: 868, width: 258, height: 29 },
-        { label: 'Appointment: Time', x: 752, y: 868, width: 636, height: 29 },
-        { label: 'Doctor stamp / Clinic stamp line', x: 69, y: 1327, width: 1319, height: 49 },
+        { label: 'Dr', x: 113, y: 448, width: 548, height: 51, tag: 'current_user' },
+        { label: 'Billing #', x: 791, y: 448, width: 297, height: 51, tag: 'current_user_ohip_no' },
+        { label: 'Date', x: 1175, y: 448, width: 213, height: 51, tag: 'today' },
+        { label: 'Clinic', x: 152, y: 510, width: 1236, height: 39, tag: 'clinic_name' },
+        { label: 'Additional copy to', x: 289, y: 562, width: 1099, height: 39, tag: '' },
+        { label: 'Patient Name: Last', x: 302, y: 613, width: 360, height: 39, tag: 'patient_nameL' },
+        { label: 'Patient Name: First', x: 749, y: 613, width: 639, height: 39, tag: 'patient_nameF' },
+        { label: 'Address', x: 176, y: 663, width: 912, height: 39, tag: ['address', 'addressline'] },
+        { label: 'Postal Code', x: 1254, y: 663, width: 134, height: 39, tag: 'postal' },
+        { label: 'Phone', x: 158, y: 715, width: 1230, height: 39, tag: 'phone' },
+        { label: 'Date of Birth', x: 337, y: 766, width: 750, height: 39, tag: ['dobc2', 'dob'] },
+        { label: 'Personal Health Number', x: 526, y: 816, width: 862, height: 39, tag: 'hin' },
+        { label: 'Appointment: Date', x: 404, y: 868, width: 258, height: 29, tag: '' },
+        { label: 'Appointment: Time', x: 752, y: 868, width: 636, height: 29, tag: '' },
+        { label: 'Doctor stamp / Clinic stamp line', x: 69, y: 1327, width: 1319, height: 49, tag: '' },
       ],
       textareas: [
-        { label: 'X-ray examination requested', x: 65, y: 973, width: 1327, height: 152 },
-        { label: 'History and clinical findings', x: 65, y: 1176, width: 1327, height: 146 },
+        { label: 'X-ray examination requested', x: 65, y: 973, width: 1327, height: 152, tag: '' },
+        { label: 'History and clinical findings', x: 65, y: 1176, width: 1327, height: 146, tag: '' },
       ],
       missing: [],
     },
@@ -205,6 +210,33 @@
 
     t('finds the multi-line fields', () => {
       assertMatches(ofType('textarea'), tp.textareas, blanks);
+    });
+
+    // From the printed words beside each field (read with OCR)
+    t('suggests the right tag for each text field, and none where none fits', () => {
+      const wrong = [];
+      [...tp.text, ...tp.textareas].filter(e => e.tag !== undefined).forEach(e => {
+        const f = fields().find(f => f.type !== 'checkbox' && near(f, e));
+        if (!f) return;                                   // (reported by the tests above)
+        const want = [].concat(e.tag), got = f.oscarTag || '';
+        if (!want.includes(got)) wrong.push(`${e.label}: got ${got ? `"${got}"` : 'no tag'}, want ${want.map(t => t ? `"${t}"` : 'no tag').join(' or ')}`);
+      });
+      sameList(wrong, [], 'wrong tags');
+    });
+
+    t('tick boxes get no tag', () => {
+      const tagged = ofType('checkbox', 'xbox').filter(f => f.oscarTag).map(f => `${show(f)}: "${f.oscarTag}"`);
+      sameList(tagged, [], 'tagged tick boxes');
+    });
+
+    t('reads the label printed beside each tick box', () => {
+      const letters = (t) => String(t || '').toLowerCase().replace(/[^a-z]/g, '');
+      const wrong = [];
+      tp.checkboxes.filter(e => e.printed).forEach(e => {
+        const f = fields().find(f => f.type === 'checkbox' && near(f, e));
+        if (f && letters(f.label) !== letters(e.printed)) wrong.push(`${e.label}: read "${f.label || ''}", want "${e.printed}"`);
+      });
+      sameList(wrong, [], 'wrong labels');
     });
 
     t('no text field covers a checkbox', () => {
