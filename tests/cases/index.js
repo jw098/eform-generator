@@ -203,10 +203,9 @@ window.TEST_CASE_LIST = [
       "CL489_Pg3.png"
     ],
     "todo": {
-      "tags": "the patient's FIRST NAME, LAST NAME and DATE OF BIRTH, labelled in small capitals at the top of their cells, get no tag; the blank after ARE YOU THE PATIENT'S REGULAR PRACTITIONER? is tagged current_user",
       "fields": "the DEGREE/GRADE cells on page 2: their two-line label leaves only a small blank, which isn't found",
       "ticks": "three Yes boxes at the left edge on page 2, each just under a numbered question, aren't found",
-      "extraFields": "blanks beside two questions on page 1, small blanks in the DEGREE/GRADE cells on page 2, and the open page under Return To on page 3 are taken for fields",
+      "extraFields": "blanks beside questions (two on page 1, one on page 2), small blanks in the DEGREE/GRADE cells on page 2, and the open page under Return To on page 3 are taken for fields",
       "extraTicks": "the lat of Bilat. on page 2 is taken for a tick box"
     },
     "skip": [
@@ -239,6 +238,18 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "region": [35, 425, 505, 30],
         "reason": "the eForm takes the practitioner's FIRST NAME and LAST NAME cells as one field, which its script fills"
+      },
+      {
+        "test": "fields",
+        "page": 2,
+        "region": [35, 1018, 780, 32],
+        "reason": "the eForm splits the one ANTICIPATED DATE OF FULL RECOVERY blank into a date and a note"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [35, 1018, 780, 32],
+        "reason": "the eForm splits the one ANTICIPATED DATE OF FULL RECOVERY blank into a date and a note"
       },
       {
         "test": "extraFields",

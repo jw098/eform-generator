@@ -1052,6 +1052,9 @@ else if (typeof exports === 'object')
   // A label written as a tag's own name ("current_user_id") keeps that tag.
   function guessTag(name='', type='text', label='', owner=''){
     if (type === 'signature') return '';                          // (a signature is its type, not a tag)
+    // (a question asks for an answer, not the details it names: "ARE YOU THE PATIENT'S REGULAR
+    // PRACTITIONER?")
+    if (/\?\s*$/.test(label)) return '';
     if (/_/.test(label) && state.tagCatalog.has(label.trim())) return label.trim();
     const words = (v) => String(v || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? words(name).replace(/_\d+$/, '') : '';
@@ -1121,8 +1124,9 @@ else if (typeof exports === 'object')
     if (tag === 'patient_name' && first >= 0 && last > first && state.tagCatalog.has('first_last_name')) return 'first_last_name';
     if (tag === 'dobc2' || tag === 'dob'){
       const has = (t) => state.tagCatalog.has(t) ? t : tag;
-      if (/\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b/.test(c)) return has('dobc');
-      if (/\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b/.test(c)) return has('dobc2');
+      // (or just its start, which OCR reads more surely than the rest: "(dd/merenyy yy)")
+      if (/\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b|\bD{1,2}\s*[\/.\-]\s*M/.test(c)) return has('dobc');
+      if (/\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b|\bY{2,4}\s*[\/.\-]\s*M/.test(c)) return has('dobc2');
     }
     return tag;
   }
@@ -1161,16 +1165,22 @@ else if (typeof exports === 'object')
       ps.forEach(p => parts.push({ words: p, text: p.map(w => w.text).join(' '), x0: p[0].x0, x1: p[p.length-1].x1,
                                    y0: Math.min(...p.map(w => w.y0)), y1: Math.max(...p.map(w => w.y1)) }));
     });
+    // (a heading in capitals alone on its row of the page heads everything under it, not just
+    // its own column: "PATIENT INFORMATION" over a row of FIRST NAME | LAST NAME | DATE OF BIRTH;
+    // "PATIENT INFORMATION   REFERRING MD" side by side each head their own. A label ending with
+    // a colon isn't a heading: "APPOINTMENT:  ____ / ____")
+    const heads = (p) => capsText(p.text, 6) && !/:\s*$/.test(p.text) && !parts.some(q => q !== p && q.y0 < p.y1 && q.y1 > p.y0);
     const extent = (f) => { const lw = f._words || []; return { x0: Math.min(f.x, ...lw.map(w => w.x0)), top: Math.min(f.y, ...lw.map(w => w.y0)) }; };
     const owner = new Map();
     // (within a box: what lies inside it)
     const inside = (box, r) => !box || (r.x0 >= box.x0 - 2 && r.x1 <= box.x1 + 2 && r.y0 >= box.y0 - 2 && r.y1 <= box.y1 + 2);
     const rect = (g) => ({ x0: g.x, x1: g.x + g.width, y0: g.y, y1: g.y + g.height });
-    // What is just above: the nearest text over its column, a field's label (that field's owner)
-    // or a short line naming someone (a sentence of instructions doesn't count)
+    // What is just above: the nearest text over its column (or a heading over the whole width),
+    // a field's label (that field's owner) or a short line naming someone (a sentence of
+    // instructions doesn't count)
     const up = (f, box) => {
       const { x0, top } = extent(f);
-      const above = parts.filter(p => p.y1 <= top + 2 && p.x0 < f.x + f.width && p.x1 > x0 && inside(box, p)).sort((a,b) => b.y1 - a.y1);
+      const above = parts.filter(p => p.y1 <= top + 2 && ((p.x0 < f.x + f.width && p.x1 > x0) || heads(p)) && inside(box, p)).sort((a,b) => b.y1 - a.y1);
       for (const p of above){
         const g = p.words.map(fieldOfWord).find(g => g && g !== f);
         if (g){ if (owner.get(g)) return owner.get(g); continue; }
@@ -2958,11 +2968,13 @@ else if (typeof exports === 'object')
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
       // Rub out the form's rules first: words in table cells touch them, and OCR reads a rule
-      // beside a letter as part of it. Letter strokes are far shorter than a rule.
+      // beside a letter as part of it ("[" for DATE beside a cell's side). Letter strokes are far
+      // shorter than a rule: a rule is at least 3% of the page's width (on a small page, the
+      // sides of a one-line table row)
       const W = c.width, H = c.height, id = ctx.getImageData(0, 0, W, H), px = id.data;
       const dark = new Uint8Array(W*H);
       for (let i=0, j=0; i<dark.length; i++, j+=4) dark[i] = (0.299*px[j] + 0.587*px[j+1] + 0.114*px[j+2]) < 160 ? 1 : 0;
-      const run = Math.round(Math.max(40, img.width*0.03) * k), wipe = new Uint8Array(W*H);
+      const run = Math.round(img.width*0.03 * k), wipe = new Uint8Array(W*H);
       for (let y=0; y<H; y++) for (let x=0; x<W; ){
         if (!dark[y*W+x]){ x++; continue; }
         const s = x; while (x<W && dark[y*W+x]) x++;
@@ -3064,8 +3076,9 @@ else if (typeof exports === 'object')
       const fy1 = f.y, fx2 = f.x + f.width;
       // Just above, with no rule between
       let above = [];
-      // (starting over the field: the end of a longer line to the left, "MENSTRUAL HISTORY", isn't its label)
-      const over = free.filter(w => w.y1 <= fy1 + 2 && fy1 - w.y1 <= wh*2.5 && w.x0 >= f.x - wh && w.x0 < fx2);
+      // (starting over the field: the end of a longer line to the left, "MENSTRUAL HISTORY", isn't its label;
+      // mostly above its top: OCR's box can reach a little lower than the letters, "FIRST NAME")
+      const over = free.filter(w => (w.y0 + w.y1)/2 <= fy1 && fy1 - w.y1 <= wh*2.5 && w.x0 >= f.x - wh && w.x0 < fx2);
       if (over.length){
         const bottom = Math.max(...over.map(w => w.y1));
         above = over.filter(w => bottom - w.y1 < wh*0.6).sort((a,b) => a.x0-b.x0);
