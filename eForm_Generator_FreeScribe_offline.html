@@ -1130,7 +1130,7 @@ else if (typeof exports === 'object')
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
     writes.forEach(f => (f._lw || []).forEach(w => labelOf.set(w, f)));
-    const fieldOfWord = (w) => { for (const [u, f] of labelOf) if (Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2) return f; return null; };
+    const fieldOfWord = (w) => labelOf.get(w) || null;
     // The page's text in pieces: a line split where its words are far apart (two labels on a row,
     // or headings side by side)
     const parts = [];
@@ -2786,7 +2786,7 @@ else if (typeof exports === 'object')
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
     // The phrase a word ends: the words before it on its line, close together
     const phraseOf = (wd) => {
-      const l = read.lines.find(l => l.words.some(u => Math.abs(u.x0 - wd.x0) < 2 && Math.abs(u.y0 - wd.y0) < 2));
+      const l = read.lines.find(l => l.words.includes(wd));
       if (!l) return [wd];
       const ws = l.words.filter(u => u.x1 <= wd.x1 + 1).sort((a,b) => a.x0 - b.x0), got = [wd];
       for (let i = ws.length - 2; i >= 0; i--){
@@ -2906,9 +2906,10 @@ else if (typeof exports === 'object')
       ctx.fillStyle = '#fff';
       boxes.forEach(b => ctx.fillRect((b.x-2)*k, (b.y-2)*k, (b.width+4)*k, (b.height+4)*k));
       const { data } = await ocr.recognize(c);
+      // (a line's words are the page's words themselves, so a word can be looked up by itself)
       const box = (o, b) => ({ ...o, x0: b.x0/k, y0: b.y0/k, x1: b.x1/k, y1: b.y1/k });
-      return { words: data.words.map(w => box({ text: w.text }, w.bbox)),
-               lines: data.lines.map(l => box({ text: l.text.trim(), words: l.words.map(w => box({ text: w.text }, w.bbox)) }, l.bbox)) };
+      const lines = data.lines.map(l => box({ text: l.text.trim(), words: l.words.map(w => box({ text: w.text }, w.bbox)) }, l.bbox));
+      return { words: lines.flatMap(l => l.words), lines };
     } catch (err) {
       console.warn('Could not read the page\'s words:', err);
       return null;
@@ -3066,7 +3067,7 @@ else if (typeof exports === 'object')
                                      (w.x0+w.x1)/2 >= f.x && (w.x0+w.x1)/2 <= f.x + f.width);
       if (under.length) f.caption = phraseText(under.sort((a,b) => a.x0-b.x0));
     });
-    const isLabel = (l) => l.words.some(w => [...labelWords].some(u => Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2));
+    const isLabel = (l) => l.words.some(w => labelWords.has(w));
     const heads = read.lines.filter(l => capsText(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
                                          !fields.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
     fields.forEach(f => {
