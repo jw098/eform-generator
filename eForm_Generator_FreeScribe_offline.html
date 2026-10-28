@@ -1148,10 +1148,11 @@ else if (typeof exports === 'object')
   }
 
   // ===== Whose details a field holds (added by FreeScribe) =====
-  // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. The page does: it is
-  // in blocks (a box, or a section under a heading), and a block holds one person's details,
-  // which its words give away ("Referring MD", "Signature", "PHN", "Date of birth"). Going down
-  // a block row by row, a label naming someone ("Family Physician:") starts their rows.
+  // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. A field whose label
+  // doesn't takes the owner of what is just left of it on its row ("OFFICE PHONE: ____  FAX: ____"),
+  // or else of what is just above it ("Referring MD" over "Printed name: ____"), the patient's
+  // when nothing says. A table cell looks up first: its column's header says whose, and the cell
+  // to its left can be another table's ("PATIENT | REFERRING MD" side by side).
   //  - patient: the field keeps its tag (the patient's is what a bare label gets);
   //  - referring clinician (current_user): the clinic's phone, fax and address, the user's email
   //    and billing number;
@@ -1187,51 +1188,56 @@ else if (typeof exports === 'object')
   }
   function fieldOwners(found, read){
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
-    const labelWords = found.flatMap(f => f._lw || []);
-    const isLabel = (w) => labelWords.some(u => Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2);
-    // Headings: short lines that are nobody's label and have no field on their row. Words far
-    // apart on one line are headings side by side, each over the page from it to the next.
-    const heads = [];
+    const labelOf = new Map();                               // a label's word -> its field
+    writes.forEach(f => (f._lw || []).forEach(w => labelOf.set(w, f)));
+    const fieldOfWord = (w) => { for (const [u, f] of labelOf) if (Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2) return f; return null; };
+    // The page's text in pieces: a line split where its words are far apart (two labels on a row,
+    // or headings side by side)
+    const parts = [];
     read.lines.forEach(l => {
       const ws = l.words.filter(w => /[A-Za-z]/.test(w.text)).sort((a,b) => a.x0 - b.x0);
-      if (!ws.length || ws.length > 8 || ws.some(isLabel)) return;
-      if (found.some(f => f.y < l.y1 && f.y + f.height > l.y0)) return;
-      // (nor a field's caption, printed just under it and within its width: "FIRST  MIDDLE  LAST"
-      // under a Name line)
-      const lh = l.y1 - l.y0;
-      if (writes.some(f => l.y0 >= f.y + f.height - 4 && l.y0 - (f.y + f.height) <= lh*1.5 && l.x0 >= f.x - lh && l.x1 <= f.x + f.width + lh)) return;
-      const gap = Math.max(...ws.map(w => w.y1 - w.y0))*3, parts = [];
-      ws.forEach(w => { const p = parts[parts.length-1]; if (p && w.x0 - p[p.length-1].x1 <= gap) p.push(w); else parts.push([w]); });
-      parts.forEach((p, i) => heads.push({ x0: p[0].x0, x1: i+1 < parts.length ? parts[i+1][0].x0 : Infinity, y1: Math.max(...p.map(w => w.y1)),
-                                           owner: ownerCue(p.map(w => w.text).join(' ')) }));
+      if (!ws.length) return;
+      const gap = Math.max(...ws.map(w => w.y1 - w.y0))*3, ps = [];
+      ws.forEach(w => { const p = ps[ps.length-1]; if (p && w.x0 - p[p.length-1].x1 <= gap) p.push(w); else ps.push([w]); });
+      ps.forEach(p => parts.push({ words: p, text: p.map(w => w.text).join(' '), x0: p[0].x0, x1: p[p.length-1].x1,
+                                   y0: Math.min(...p.map(w => w.y0)), y1: Math.max(...p.map(w => w.y1)) }));
     });
-    // Each field's block: the nearest heading above it, over where its row (its label) starts
-    const blocks = new Map();
-    writes.forEach(f => {
-      const lw = f._lw || [];
-      const x0 = Math.min(f.x, ...lw.map(w => w.x0)), top = Math.min(f.y, ...lw.map(w => w.y0));
-      const h = heads.filter(h => h.y1 <= top + 2 && x0 >= h.x0 - 20 && x0 < h.x1).sort((a,b) => b.y1 - a.y1)[0] || null;
-      if (!blocks.has(h)) blocks.set(h, []);
-      blocks.get(h).push(f);
+    const extent = (f) => { const lw = f._lw || []; return { x0: Math.min(f.x, ...lw.map(w => w.x0)), top: Math.min(f.y, ...lw.map(w => w.y0)) }; };
+    const owner = new Map();
+    // What is just above: the nearest text over its column, a field's label (that field's owner)
+    // or a short line naming someone (a sentence of instructions doesn't count)
+    const up = (f) => {
+      const { x0, top } = extent(f);
+      const above = parts.filter(p => p.y1 <= top + 2 && p.x0 < f.x + f.width && p.x1 > x0).sort((a,b) => b.y1 - a.y1);
+      for (const p of above){
+        const g = p.words.map(fieldOfWord).find(g => g && g !== f);
+        if (g){ if (owner.get(g)) return owner.get(g); continue; }
+        if (p.words.length <= 6){ const o = ownerCue(p.text); if (o) return o; }
+      }
+      return '';
+    };
+    // What is just left: the field before it on its row
+    const left = (f) => {
+      const cy = f.y + f.height/2;
+      const g = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2)
+                      .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
+      return g ? owner.get(g) || '' : '';
+    };
+    // Row by row from the top, each left to right, so what is left of and above a field is settled first
+    const rows = [];
+    writes.slice().sort((a,b) => (a.y + a.height/2) - (b.y + b.height/2)).forEach(f => {
+      const r = rows[rows.length-1], cy = f.y + f.height/2;
+      if (r && Math.abs(cy - r.cy) < Math.max(r.h, f.height)/2) r.fs.push(f); else rows.push({ cy, h: f.height, fs: [f] });
     });
-    blocks.forEach((fs, h) => {
-      // The block's owner: its heading's words count most, then its fields' labels
-      const score = {};
-      if (h && h.owner) score[h.owner] = 3;
-      fs.forEach(f => { const o = ownerCue(f.label); if (o) score[o] = (score[o] || 0) + 1; });
-      let owner = '', best = 0;
-      Object.entries(score).forEach(([o, n]) => { if (n > best){ best = n; owner = o; } else if (n === best) owner = ''; });
-      // Row by row down the block, left to right: a label naming someone starts their fields
-      fs.sort((a,b) => (a.y + a.height/2) - (b.y + b.height/2));
-      const rows = [];
-      fs.forEach(f => { const r = rows[rows.length-1], cy = f.y + f.height/2; if (r && Math.abs(cy - r.cy) < Math.max(r.h, f.height)/2) r.fs.push(f); else rows.push({ cy, h: f.height, fs: [f] }); });
-      rows.forEach(r => r.fs.sort((a,b) => a.x - b.x).forEach(f => {
+    rows.flatMap(r => r.fs.sort((a,b) => a.x - b.x))
+      .forEach(f => {
         const own = ownerCue(f.label);
-        if (own){ owner = own; return; }                          // (its label says whose: its tag stands)
+        if (own){ owner.set(f, own); return; }                    // (its label says whose: its tag stands)
+        const o = (f.box ? up(f) || left(f) : left(f) || up(f)) || 'patient';
+        owner.set(f, o);
         const kind = detailKind(f.label);
-        if (kind && (owner === 'clinician' || owner === 'family' || owner === 'office')) f.oscarTag = ownerTag(owner, kind, f.label);
-      }));
-    });
+        if (kind && o !== 'patient') f.oscarTag = ownerTag(o, kind, f.label);
+      });
   }
 
   function readAsDataURL(file){
