@@ -192,5 +192,54 @@ window.TEST_CASE_LIST = [
         "reason": "DEPARTMENT USE: filled in by the imaging department"
       }
     ]
+  },
+  {
+    "name": "ICBC GP Standard Medical Report (CL489)",
+    "folder": "icbc-cl489",
+    "eform": "CL489.html",
+    "images": [
+      "CL489_Pg1.png",
+      "CL489_Pg2.png",
+      "CL489_Pg3.png"
+    ],
+    "todo": {
+      "tags": "the patient's FIRST NAME, LAST NAME and DATE OF BIRTH, labelled in small capitals at the top of their cells, get no tag; the blank after ARE YOU THE PATIENT'S REGULAR PRACTITIONER? is tagged current_user",
+      "fields": "the DEGREE/GRADE cells on page 2: their two-line label leaves only a small blank, which isn't found",
+      "ticks": "three Yes boxes at the left edge on page 2, each just under a numbered question, aren't found",
+      "extraFields": "the grey section heading bars (INVOICE INFORMATION, SUBJECTIVE, DIAGNOSIS...) are taken for fields, as are blanks beside questions and the open page under Return To on page 3",
+      "extraTicks": "the lat of Bilat. on page 2 is taken for a tick box"
+    },
+    "skip": [
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [35, 195, 780, 70],
+        "reason": "the invoice fields' e$last#... references (the last value saved) and the payee name the eForm's script fills: no standard tags to expect"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [35, 260, 785, 65],
+        "reason": "the eForm takes both PAYEE ADDRESS rows as one field; Auto Detect's one field per row is as good"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [35, 260, 785, 65],
+        "reason": "the eForm takes both PAYEE ADDRESS rows as one field; Auto Detect's one field per row is as good"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [35, 425, 505, 30],
+        "reason": "the eForm takes the practitioner's FIRST NAME and LAST NAME cells as one field, which its script fills"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [35, 425, 505, 30],
+        "reason": "the eForm takes the practitioner's FIRST NAME and LAST NAME cells as one field, which its script fills"
+      }
+    ]
   }
 ];
