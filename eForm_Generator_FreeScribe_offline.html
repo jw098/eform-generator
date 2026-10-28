@@ -1035,101 +1035,72 @@ else if (typeof exports === 'object')
     .replace(/'/g,'&#39;');
   const GENERIC_NAME_RE = /^(gen_inputid\d+|page\d+_\d+|field_\d+|input\d+|checkbox\d*)$/i;
 
-  function guessTag(name='', type='text', label=''){
-    if (type === 'signature') return 'current_user_signature_image';
-    const n = norm(name + ' ' + label);
-    if (!n) return '';
-    if (state.tagCatalog.has(n)) return n;
-    // Whole words of the name (which carries the field's section, e.g. "referring_md_last_name")
-    // and its label: these come first, as the broader rules below mistake "Clinic Name" for the
-    // patient's name and "Clinic Phone" for the patient's phone
-    const word = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(n);
-    const tag = (t) => state.tagCatalog.has(t) ? t : '';
-    if (word('appointment|appt')) return '';                      // not in the patient's chart
-    if (word('facility|requisition|requisiton|initials|recorder|signature|lmp|menopause|menarche')) return '';
-    if (word('date') && word('signed')) return tag('today');
-    if (word('date') && word('referral|referred')) return tag('today');
-    // A maiden name, and a doctor or date the patient was seen by before, aren't in the chart
-    if (word('maiden|seen')) return '';
-    // The patient's own doctor (their MRP), not the referring one
-    if (word('family_doctor|family_physician|family_md|family_dr|gp|mrp')) return tag('doctor');
-    if (/medical_history/.test(n)) return tag('medical_history');
-    // (a field for medications and allergies both isn't the drug list)
-    if (word('medications|current_medications|meds|medication_list') && !/allerg/.test(n)) return tag('druglist_line');
-    if (word('referring|physician|doctor|provider|practitioner|md|dr') && !word('patient')){
-      // The referring (current) doctor's details, not the patient's
-      if (word('family|gp')) return tag('doctor');
-      if (word('billing|msp|ohip|practitioner_no|billing_no')) return tag('current_user_ohip_no');
-      if (word('fax')) return tag('clinic_fax');
-      if (word('phone|telephone|tel')) return tag('clinic_phone');
-      if (word('address')) return tag('clinic_addressLine');
-      if (word('clinic|office')) return tag('clinic_name');
-      if (word('email')) return tag('current_user_email');
-      if (word('last|first|surname|given|name')) return '';
-      return tag('current_user');
-    }
-    if (word('billing')) return tag('current_user_ohip_no');
-    if (word('office') && word('address')) return tag('clinic_addressLine');
-    if (word('office') && word('fax')) return tag('clinic_fax');
-    if (word('office') && word('phone|telephone|tel')) return tag('clinic_phone');
-    if (word('clinic')){
-      if (word('fax')) return tag('clinic_fax');
-      if (word('phone|telephone|tel')) return tag('clinic_phone');
-      if (word('address')) return tag('clinic_addressLine');
-      return tag('clinic_name');
-    }
-    // ("Email address" is an email, not an address)
-    if (word('email|e_mail')) return tag('email');
-    if (word('phn|personal_health_number|health_number|care_card|carecard')) return tag('hin');
-    if (word('postal|postal_code|zip')) return tag('postal');
-    if (word('city|town')) return tag('city');
-    if (word('last|surname')) return tag('patient_nameL');
-    if (word('first|given')) return tag('patient_nameF');
-    if (norm(label) === 'date') return tag('today');
-    if (word('clinical')) return '';                             // "clinical findings" is not the clinic
-    if (/(patient_)?name|full_name|first_last_name|lastname|surname|firstname|given_name/.test(n)) return 'patient_name';
-    if (/(dob|date_of_birth|birth_date|birthdate|dobc2)/.test(n)) return state.tagCatalog.has('dobc2') ? 'dobc2' : 'patient_dob';
-    if (/(hin|health_card|health_insurance|ohip|version_code|hinversion)/.test(n)){
-      if (/version/.test(n) && state.tagCatalog.has('hinversion')) return 'hinversion';
-      return state.tagCatalog.has('hin') ? 'hin' : 'patient_hin';
-    }
-    if (/(address|street|city|postal|zip|addressline)/.test(n)){
-      if (state.tagCatalog.has('addressline')) return 'addressline';
-      return 'patient_address';
-    }
-    if (word('phone|telephone|tel|cell|mobile|phone_no|phone_number')){   // (as words: not the "tel" in "platelets")
-      if (/cell|mobile/.test(n) && state.tagCatalog.has('cell')) return 'cell';
-      return state.tagCatalog.has('phone') ? 'phone' : 'patient_phone';
-    }
-    if (/(email|mail)/.test(n) && state.tagCatalog.has('email')) return 'email';
-    if (/(sex|gender|male|female|m_f)/.test(n) || (type==='checkbox' && /(male|female|m|f)/.test(n))) {
-      return state.tagCatalog.has('sex') ? 'sex' : 'patient_sex';
-    }
-    if (/(provider|physician|doctor|dr_name|mrp|current_user)/.test(n)){
-      if (state.tagCatalog.has('current_user')) return 'current_user';
-      return 'provider_name';
-    }
-    if (/(clinic.*fax|fax.*clinic)/.test(n)) return state.tagCatalog.has('clinic_fax') ? 'clinic_fax' : '';
-    if (/(clinic.*phone|phone.*clinic)/.test(n)) return state.tagCatalog.has('clinic_phone') ? 'clinic_phone' : '';
-    if (word('clinic|office')) return tag('clinic_name');           // (a site to book at isn't the clinic)
-    if (/(today|current_date|form_date|date_today|visit_date)/.test(n)) {
-      if (state.tagCatalog.has('today')) return 'today';
-      return 'today_date';
-    }
-    if (word('age|patient_age')) return word('diagnosis|dx|onset') ? '' : tag('age');   // (the age at diagnosis isn't today's)
-    if (/(signature|loadsig)/.test(n) || word('sig')) {               // (a date "signed" isn't a signature)
-      if (state.tagCatalog.has('current_user_signature_image')) return 'current_user_signature_image';
-    }
-
-    let best = ''; let bestScore = 0;
-    state.tagCatalog.forEach(tag => {
-      const t = norm(tag); if (!t) return;
-      let score = 0;
-      if (word(t)) score += 5;                          // (as a whole word: "age" isn't in "images")
-      t.split('_').forEach(tok => { if (tok.length >= 3 && n.includes(tok)) score += 1; });
-      if (score > bestScore){ bestScore = score; best = tag; }
-    });
-    return bestScore >= 3 ? best : '';
+  // A field's tag, in two steps: what it asks for, from the whole words of its label (askedFor),
+  // and whose it is, from its label ("Referring Physician", "Family Doctor", "Home phone") or
+  // else from the page (owner, from fieldOwners), else the patient's. TAG_FOR gives the tag.
+  // The words are the field's name when it has one made from its label (with its section and the
+  // rest of its words: "APPOINTMENT Date", "TELEPHONE REQUISITION TIME"), else its label. A label
+  // written as a tag's own name ("current_user_id") keeps that tag.
+  function guessTag(name='', type='text', label='', owner=''){
+    if (type === 'signature') return state.tagCatalog.has('current_user_signature_image') ? 'current_user_signature_image' : '';
+    if (/_/.test(label) && state.tagCatalog.has(label.trim())) return label.trim();
+    const words = (v) => String(v || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? words(name).replace(/_\d+$/, '') : '';
+    const t = fromName || words(label);
+    if (!t) return '';
+    const kind = askedFor(t);
+    if (!kind) return '';
+    const who = ownerCue(t.replace(/_/g, ' ')) || owner || 'patient';
+    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
+    return state.tagCatalog.has(tag) ? tag : '';
+  }
+  // The tag for what a field asks for, by whose it is (the same whoever's for "any")
+  const TAG_FOR = {
+    any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name' },
+    patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
+                 workPhone: 'phone2', email: 'email', address: 'addressline', city: 'city', province: 'province', postal: 'postal',
+                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'current_user_ohip_no' },
+    clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax', email: 'current_user_email',
+                 address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
+                 number: 'current_user_ohip_no' },
+    family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (OSCAR may well not have their phone, fax or address)
+    office:    {}                                                // ("FOR OFFICE USE ONLY": the receiving office fills these in)
+  };
+  // What a field asks for, from the whole words of its label (norm()'d: words joined by "_").
+  // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral");
+  // any other is the date of something else ("Date of loss", "LMP (date)", "Date seen"), and an
+  // age is the patient's only when it is just "Age" ("Age at diagnosis", "Menopause (age)").
+  function askedFor(t){
+    const w = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(t);
+    // (not in the chart, or not the patient's own: an appointment, a maiden name, a doctor or
+    // date the patient was seen by before, the facility, who initials or signs)
+    if (w('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|time|hours')) return '';
+    if (w('email|e_mail')) return 'email';
+    if (w('fax')) return 'fax';
+    if (w('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return w('version') ? 'hinVersion' : 'hin';
+    if (w('version_code')) return 'hinVersion';
+    if (w('msp|billing|ohip')) return 'number';
+    if (w('dob|date_of_birth|birth_date|birthdate')) return 'dob';
+    if (w('cell|mobile')) return 'cell';
+    if (w('work_phone|business_phone')) return 'workPhone';
+    if (w('phone|telephone|tel')) return 'phone';
+    if (w('postal|postal_code|zip')) return 'postal';
+    if (w('city|town')) return 'city';
+    if (w('province')) return 'province';
+    if (w('address|street')) return 'address';
+    if (w('sex|gender')) return 'sex';
+    if (w('clinic')) return 'clinic';
+    if (/^(date|today|todays_date|current_date|form_date)$/.test(t) || (w('date') && w('signed|referral|referred|request|requested|today|todays'))) return 'today';
+    if (/^(patient_)?age$/.test(t)) return 'age';
+    if (w('date|age')) return '';
+    if (/medical_history/.test(t)) return 'history';
+    if (w('medications|meds|medication_list')) return /allerg/.test(t) ? '' : 'meds';   // (with allergies, not the drug list)
+    if (w('last|surname')) return 'lastName';
+    if (w('first|given')) return 'firstName';
+    if (w('middle')) return '';
+    // a name, or the person themselves ("Referring Physician: ____", "Family Doctor: ____")
+    if (w('name|physician|doctor|md|dr|provider|practitioner|gp|mrp|referring')) return 'name';
+    return '';
   }
 
   // A tag made more exact by the words printed under the field, or in its label: "FIRST  MIDDLE  LAST" under a
@@ -1154,12 +1125,9 @@ else if (typeof exports === 'object')
   // when nothing says. In a bordered box, it looks only inside the box, and is the patient's
   // when nothing there says (a box of the referring doctor's details is headed so). A table cell looks up first: its column's header says whose, and the cell
   // to its left can be another table's ("PATIENT | REFERRING MD" side by side).
-  //  - patient: the field keeps its tag (the patient's is what a bare label gets);
-  //  - referring clinician (current_user): the clinic's phone, fax and address, the user's email
-  //    and billing number;
-  //  - family doctor (doctor, the patient's MRP): their name and billing number; OSCAR may well
-  //    not have their phone, fax or address, so those get no tag;
-  //  - the receiving office ("FOR OFFICE USE ONLY"): no tags.
+  // The owner is the patient, the referring clinician (current_user), the family doctor (doctor,
+  // the patient's MRP) or the receiving office ("FOR OFFICE USE ONLY"); guessTag turns it into
+  // the tag (TAG_FOR).
   const OWNER_CUES = [
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk)\b/],
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
@@ -1167,26 +1135,7 @@ else if (typeof exports === 'object')
     ['patient', /\b(patients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
   ];
   const ownerCue = (text) => { const t = String(text || '').toLowerCase(); for (const [o, re] of OWNER_CUES) if (re.test(t)) return o; return ''; };
-  // What a label asks for, of the details that belong to someone
-  const detailKind = (label) => {
-    const t = String(label || '').toLowerCase();
-    if (/\b(time|date|hours?)\b/.test(t)) return '';           // ("TELEPHONE REQUISITION TIME" is a time)
-    if (/e-?mail/.test(t)) return 'email';
-    if (/\bfax\b/.test(t)) return 'fax';
-    if (/\b(phone|tel|telephone)\b/.test(t)) return 'phone';
-    if (/\baddress\b/.test(t)) return 'address';
-    if (/\b(msp|billing|ohip)\b/.test(t)) return 'number';
-    if (/\bname\b/.test(t)) return 'name';
-    return '';
-  };
-  function ownerTag(owner, kind, label){
-    const has = (t) => state.tagCatalog.has(t) ? t : '';
-    const part = /\b(last|first|surname|given|middle)\b/i.test(label);     // (a name in parts has no tag of its own here)
-    if (owner === 'clinician') return { name: part ? '' : has('current_user'), phone: has('clinic_phone'), fax: has('clinic_fax'),
-                                        address: has('clinic_addressLine'), email: has('current_user_email'), number: has('current_user_ohip_no') }[kind];
-    if (owner === 'family') return { name: part ? '' : has('doctor'), number: has('doctor_ohip_no') }[kind] || '';
-    return '';
-  }
+  // Returns each text field's owner (a Map).
   function fieldOwners(found, read, boxOf){
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
@@ -1236,16 +1185,14 @@ else if (typeof exports === 'object')
     rows.flatMap(r => r.fs.sort((a,b) => a.x - b.x))
       .forEach(f => {
         const own = ownerCue(f.label);
-        if (own){ owner.set(f, own); return; }                    // (its label says whose: its tag stands)
+        if (own){ owner.set(f, own); return; }                    // (its label says whose)
         // In a box, only what is inside it ("Referring MD" heading the box), and the patient's when
         // nothing there says; a table cell (a box holding just its label) looks at the page around it
         const look = (box) => f.box ? up(f, box) || left(f, box) : left(f, box) || up(f, box);
         const box = !f.box && boxOf ? boxOf(extent(f).x0, f) : null;
-        const o = (box ? look(box) : look(null)) || 'patient';
-        owner.set(f, o);
-        const kind = detailKind(f.label);
-        if (kind && o !== 'patient') f.oscarTag = ownerTag(o, kind, f.label);
+        owner.set(f, (box ? look(box) : look(null)) || 'patient');
       });
+    return owner;
   }
 
   function readAsDataURL(file){
@@ -3932,13 +3879,19 @@ else if (typeof exports === 'object')
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
         else f.name = box ? `checkbox_${cN++}` : `text_${tN++}`;
         used.add(f.name);
-        if (!box && f.label && !f.oscarTag){
-          f.oscarTag = guessTag(f.name, f.type, f.label);
-          // (the date order or name order printed under the line, or in the label: "Date of birth (dd/mm/yyyy)")
+        delete f.section; delete f.toEnd;
+      });
+      // Whose details each field is: the patient's, the referring clinician's, the family doctor's,
+      // or the receiving office's; then its tag, made more exact by the date or name order printed
+      // under the line or in the label ("Date of birth (dd/mm/yyyy)", "FIRST  MIDDLE  LAST")
+      const owners = read ? fieldOwners(found, read, boxOf) : new Map();
+      found.forEach(f => {
+        if (f.type !== 'checkbox' && f.type !== 'xbox' && f.label && !f.oscarTag){
+          f.oscarTag = guessTag(f.name, f.type, f.label, owners.get(f));
           if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
           f.oscarTag = captionTag(f.oscarTag, f.label);
         }
-        delete f.section; delete f.caption; delete f.toEnd;
+        delete f.caption;
       });
       // A bare "Date" beside a value on its row that OSCAR doesn't fill is that value's date
       // ("INR: ____  Date: ____"), not today's; beside the doctor's details ("Billing #: ____
@@ -3950,9 +3903,6 @@ else if (typeof exports === 'object')
                           .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
         if (prev && !prev.oscarTag) f.oscarTag = '';
       });
-      // Whose details each name, phone, fax, address, email or billing number is: the patient's,
-      // the referring clinician's, the family doctor's, or the receiving office's
-      if (read) fieldOwners(found, read, boxOf);
       found.forEach(f => { delete f._lw; });
       found.forEach(f => {
         const dup = state.fields.some(k =>
