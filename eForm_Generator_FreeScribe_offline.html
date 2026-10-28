@@ -1111,7 +1111,7 @@ else if (typeof exports === 'object')
     }
     if (/(clinic.*fax|fax.*clinic)/.test(n)) return state.tagCatalog.has('clinic_fax') ? 'clinic_fax' : '';
     if (/(clinic.*phone|phone.*clinic)/.test(n)) return state.tagCatalog.has('clinic_phone') ? 'clinic_phone' : '';
-    if (/(clinic|office|site|facility)/.test(n)) return state.tagCatalog.has('clinic_addressline') ? 'clinic_addressline' : 'clinic_name';
+    if (word('clinic|office')) return tag('clinic_name');           // (a site to book at isn't the clinic)
     if (/(today|current_date|form_date|date_today|visit_date)/.test(n)) {
       if (state.tagCatalog.has('today')) return 'today';
       return 'today_date';
@@ -1125,7 +1125,7 @@ else if (typeof exports === 'object')
     state.tagCatalog.forEach(tag => {
       const t = norm(tag); if (!t) return;
       let score = 0;
-      if (n.includes(t)) score += 5;
+      if (word(t)) score += 5;                          // (as a whole word: "age" isn't in "images")
       t.split('_').forEach(tok => { if (tok.length >= 3 && n.includes(tok)) score += 1; });
       if (score > bestScore){ bestScore = score; best = tag; }
     });
