@@ -607,6 +607,10 @@
       groupsBox.appendChild(box);
     });
   }
+  // The machinery, for tests/show.js (which draws a case's expected and actual boxes). With
+  // window.eformMapperTestNoRun set before this file loads, it stops here: no tests, no panel.
+  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare };
+  if (window.eformMapperTestNoRun) return;
   render();
   document.body.appendChild(panel);
 

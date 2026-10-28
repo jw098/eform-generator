@@ -86,6 +86,17 @@ PW_CHANNEL= node tests/snapshot.js "http://localhost:8000/eForm_Generator_FreeSc
 diff before.txt after.txt
 ```
 
+To see a case page's expected and actual boxes (matched as the tests match them: green
+matched, red missing, orange extra, magenta tags that differ, grey skipped), as a PNG and a
+list:
+
+```
+PW_CHANNEL= node tests/show.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" tests/cases/referral-form/referral_form_3c1x42_page1.png out.png
+```
+
+`show.js` uses the tests' own machinery (`T.harness` in `tests/auto-detect.js`, which stops
+before running the tests when `window.eformMapperTestNoRun` is set), so the two always agree.
+
 ## Style
 
 - Match the existing code: compact JavaScript, short local names, small arrow helpers.

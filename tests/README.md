@@ -143,6 +143,7 @@ From then on it runs with the others.
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 | `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
 | `snapshot.js` | Prints exactly what Auto Detect finds on each case's images (no margin), to compare before and after a change that shouldn't change it. |
+| `show.js` | Draws one case page with its expected and actual boxes, matched as the tests match them (skips in grey), and saves it as a PNG: `node tests/show.js <app url#test> tests/cases/<folder>/<image> [out.png]`. |
 
 ## To-dos
 
