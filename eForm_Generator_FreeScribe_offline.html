@@ -363,7 +363,7 @@
           <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
         </div>
         <div class="grid3" style="margin-top:8px">
-          <label>Line min % width<input id="lineMinPct" type="number" value="8" min="2" max="40" step="0.5"/></label>
+          <label>Line min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
           <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
           <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
         </div>
@@ -882,7 +882,7 @@ else if (typeof exports === 'object')
     'clinic_name','clinic_label','clinic_phone','clinic_fax','clinic_email',
     'clinic_addressLine','clinic_addressLineFull','clinic_city','clinic_province','clinic_postal',
     'patient_dob','patient_hin','patient_phone','patient_address','patient_sex',
-    'provider_name','today','today_date','patient_age','label','email',
+    'provider_name','today','today_date','age','label','email',
     'doctor','doctor_ohip_no','medical_history','druglist_line'
   ];
 
@@ -1078,6 +1078,8 @@ else if (typeof exports === 'object')
       if (word('address')) return tag('clinic_addressLine');
       return tag('clinic_name');
     }
+    // ("Email address" is an email, not an address)
+    if (word('email|e_mail')) return tag('email');
     if (word('phn|personal_health_number|health_number|care_card|carecard')) return tag('hin');
     if (word('postal|postal_code|zip')) return tag('postal');
     if (word('city|town')) return tag('city');
@@ -1114,7 +1116,7 @@ else if (typeof exports === 'object')
       if (state.tagCatalog.has('today')) return 'today';
       return 'today_date';
     }
-    if (word('age|patient_age')) return tag('patient_age');
+    if (word('age|patient_age')) return word('diagnosis|dx|onset') ? '' : tag('age');   // (the age at diagnosis isn't today's)
     if (/(signature|loadsig)/.test(n) || word('sig')) {               // (a date "signed" isn't a signature)
       if (state.tagCatalog.has('current_user_signature_image')) return 'current_user_signature_image';
     }
@@ -1130,7 +1132,7 @@ else if (typeof exports === 'object')
     return bestScore >= 3 ? best : '';
   }
 
-  // A tag made more exact by the words printed under the field: "FIRST  MIDDLE  LAST" under a
+  // A tag made more exact by the words printed under the field, or in its label: "FIRST  MIDDLE  LAST" under a
   // name is the first name first (OSCAR's patient_name is "Last, First"); "D/M/Y" under a birth
   // date is day first (OSCAR's dobc; dobc2 is year first)
   function captionTag(tag, caption){
@@ -1139,8 +1141,8 @@ else if (typeof exports === 'object')
     if (tag === 'patient_name' && first >= 0 && last > first && state.tagCatalog.has('first_last_name')) return 'first_last_name';
     if (tag === 'dobc2' || tag === 'patient_dob' || tag === 'dob'){
       const has = (t) => state.tagCatalog.has(t) ? t : tag;
-      if (/\bD{1,2}\s*[\/.\-]?\s*M{1,2}\s*[\/.\-]?\s*Y{1,4}\b/.test(c)) return has('dobc');
-      if (/\bY{1,4}\s*[\/.\-]?\s*M{1,2}\s*[\/.\-]?\s*D{1,2}\b/.test(c)) return has('dobc2');
+      if (/\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b/.test(c)) return has('dobc');
+      if (/\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b/.test(c)) return has('dobc2');
     }
     return tag;
   }
@@ -2410,6 +2412,21 @@ else if (typeof exports === 'object')
     const left   = straight(bh, i => rowHas(y1+i, x1, x1+band-1));
     const right  = straight(bh, i => rowHas(y1+i, x2-band+1, x2));
     if (Math.min(top,bottom,left,right) < 0.85) return false;
+    // The same on the grey image: the ink map's soft edges can close a small gap (the bottom of
+    // a bold n, between its stems), which on the grey image stays paper. Ink there is anything a
+    // fifth of the way from the paper to the box's darkest pixel (a thin side prints light).
+    if (gray){
+      let lo = 255, hi = 0;
+      for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      if (hi - lo >= 40){
+        const paper = hi - (hi - lo)*0.2, dark = (x,y) => gray[y*w+x] < paper;
+        const colDark = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(dark(x,y)) return true; return false; };
+        const rowDark = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(dark(x,y)) return true; return false; };
+        const g = [straight(bw, i => colDark(x1+i, y1, y1+band-1)), straight(bw, i => colDark(x1+i, y2-band+1, y2)),
+                   straight(bh, i => rowDark(y1+i, x1, x1+band-1)), straight(bh, i => rowDark(y1+i, x2-band+1, x2))];
+        if (Math.min(...g) < 0.6) return false;
+      }
+    }
     // Square corners: ink right at each corner (an O's curve leaves its corners empty)
     const corner = (cx,cy) => countOnInRect(clean,w,h,cx,cy,cx+band-1,cy+band-1) > 0;
     if (!(corner(x1,y1) && corner(x2-band+1,y1) && corner(x1,y2-band+1) && corner(x2-band+1,y2-band+1))) return false;
@@ -2540,10 +2557,10 @@ else if (typeof exports === 'object')
 
   async function applyDetectPreset(name){
     const presets = {
-      standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, sideCov:0.40, ringMin:0.12, ringMax:0.98, innerMax:0.78, fillMin:0.06, fillMax:0.93, lineMinPct:8  },
-      small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, sideCov:0.30, ringMin:0.08, ringMax:0.98, innerMax:0.85, fillMin:0.04, fillMax:0.95, lineMinPct:8  },
-      large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, sideCov:0.50, ringMin:0.20, ringMax:0.98, innerMax:0.70, fillMin:0.08, fillMax:0.90, lineMinPct:8  },
-      lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, sideCov:0.40, ringMin:0.12, ringMax:0.98, innerMax:0.78, fillMin:0.06, fillMax:0.93, lineMinPct:8  },
+      standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, sideCov:0.40, ringMin:0.12, ringMax:0.98, innerMax:0.78, fillMin:0.06, fillMax:0.93, lineMinPct:7.5},
+      small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, sideCov:0.30, ringMin:0.08, ringMax:0.98, innerMax:0.85, fillMin:0.04, fillMax:0.95, lineMinPct:7.5},
+      large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, sideCov:0.50, ringMin:0.20, ringMax:0.98, innerMax:0.70, fillMin:0.08, fillMax:0.90, lineMinPct:7.5},
+      lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, sideCov:0.40, ringMin:0.12, ringMax:0.98, innerMax:0.78, fillMin:0.06, fillMax:0.93, lineMinPct:7.5},
     };
     const p = presets[name]; if (!p) return;
     const set = (id,v) => { const el=$(''+id); if(el) el.value = String(v); };
@@ -2967,7 +2984,8 @@ else if (typeof exports === 'object')
       const bw = maxx-minx+1, bh = maxy-miny+1;
       if (bh >= 5 && bh <= h*0.03 && bw <= bh*1.5) hs.push(bh);
     }
-    if (hs.length < 30) return 0;
+    // (a page whose letters mostly run together into words still has a few on their own)
+    if (hs.length < 15) return 0;
     hs.sort((a,b) => a-b);
     return hs[hs.length >> 1];
   }
@@ -3099,7 +3117,11 @@ else if (typeof exports === 'object')
       // Only the top edge of a box or table (its sides start here and go down, not up): no field above it
       const ends = [L.x1+1, L.x2-1];
       if (!bounded && ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1))) return;
-      const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25));
+      // (an open fill-in line's space stops under the nearest line above it, over any part of it:
+      // that line is the row above's, "Age at diagnosis: ____" over "Other: ____", and its words
+      // aren't this line's label)
+      const above = bounded ? null : lines.filter(M => M.y2 < L.y1 - 2 && overlap(M, L) > 0).sort((a,b) => b.y2 - a.y2)[0];
+      const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25), above ? above.y2 + 2 : 0);
       const floor = L.y1 - 2;
       if (floor - ceil < (bounded ? rowLine : line)*0.45) return;
       // Columns: split at vertical rules inside a bounded row
@@ -3160,7 +3182,18 @@ else if (typeof exports === 'object')
           for (let y=ya; y<=floor; y++) for (let x=xa; x<L.x1-2; x++) if (on(x,y)) return true;
           return false;
         };
-        if (lowInk < 0){
+        // A fill-in line with its label on its own row ("Other: ____") is that row only, when the
+        // row is blank over the line, whatever is printed higher up (the row of tick boxes above)
+        const ownRow = !bounded && lowInk >= 0 && labelled() && (() => {
+          const ya = Math.max(y1, floor - Math.round(rowLine*0.6));
+          for (let y=ya; y<=y2; y++) for (let x=x1; x<=x2; x++) if (on(x,y)) return false;
+          return true;
+        })();
+        if (ownRow){
+          const ya = Math.max(y1, floor - Math.round(rowLine));
+          fs.push({ x1, y1: ya, x2: trim(ya), y2 });
+        }
+        else if (lowInk < 0){
           const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
         }
@@ -3322,7 +3355,7 @@ else if (typeof exports === 'object')
     const maxCb = Number($('maxCb').value) || 32;
     const tolCb = Number($('tolCb').value) || 8;
     const targetCb = Math.round((minCb + maxCb) / 2);
-    const lineMinPct = Number($('lineMinPct').value) || 8;
+    const lineMinPct = Number($('lineMinPct').value) || 7.5;
     const darkBias = Number($('darkBias').value) || 8;
     const gradMult = Number($('gradMult').value) || 0.9;
     const sideCov = Number($('sideCov').value) || 0.52;
@@ -3604,7 +3637,9 @@ else if (typeof exports === 'object')
         used.add(f.name);
         if (!box && f.label && !f.oscarTag){
           f.oscarTag = guessTag(f.name, f.type, f.label);
+          // (the date order or name order printed under the line, or in the label: "Date of birth (dd/mm/yyyy)")
           if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
+          f.oscarTag = captionTag(f.oscarTag, f.label);
         }
         delete f.section; delete f.caption; delete f.toEnd;
       });
