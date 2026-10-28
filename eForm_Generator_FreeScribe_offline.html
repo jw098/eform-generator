@@ -2701,126 +2701,82 @@ else if (typeof exports === 'object')
     return results;
   }
 
-  // ===== Open writing areas =====
-  // A heading such as "HISTORY AND CLINICAL FINDINGS:" with blank page under it and more of the
-  // form below: the blank is where the answer is written, though nothing is drawn around it.
-  // Looks across the width of the form's rules; the page's top and bottom margins don't count
-  // (nothing above or below them), and a box's sides are ink on every row, so boxes, which the
-  // lines already give fields for, never look blank. Stops short of fields already found.
-  function blankAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
-    const line = Math.max(18, p.naturalH*0.026) * s;
-    const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
-    if (!rules.length) return [];
-    const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2));
-    // Rows with ink between the form's left and right edges, grouped into runs
-    const runs = [];
-    for (let y=0; y<h; y++){
+  // A side rule at x (give or take a couple of pixels) from row ya to yb: ink within a pixel of
+  // it in nearly every row. A box's sides, a table's dividers.
+  function sideRule(clean, w, h, x, ya, yb){
+    if (yb - ya < 4) return false;
+    for (const xx of [x, x-1, x+1, x-2, x+2]){
+      if (xx < 0 || xx >= w) continue;
       let n = 0;
-      for (let x=cx1; x<=cx2; x++) if (clean[y*w+x]) n++;
-      if (n < 2) continue;
-      const r = runs[runs.length-1];
-      if (r && y - r.y2 <= 3){ r.y2 = y; r.most = Math.max(r.most, n); }
-      else runs.push({ y1: y, y2: y, most: n });
+      for (let y=Math.max(0,ya); y<=Math.min(h-1,yb); y++) if (clean[y*w+xx] || (xx > 0 && clean[y*w+xx-1]) || (xx < w-1 && clean[y*w+xx+1])) n++;
+      if (n >= (yb-ya+1)*0.85) return true;
     }
-    const out = [];
-    // The last line of text may have only blank page under it, down to the bottom margin (as
-    // wide as the side margins): a writing area when tall, and when its label ends with a colon
-    // ("CURRENT MEDICATIONS:", checked once the words are read)
-    const margin = Math.max(cx1, w - 1 - cx2);
-    if (runs.length) runs.push({ y1: h - margin, y2: h - margin, most: 0, end: true });
-    for (let i=0; i+1<runs.length; i++){
-      const A = runs[i], B = runs[i+1];
-      // Above: one line of text (not a rule or a box edge); between: a tall blank
-      if (A.y2 - A.y1 > line*0.8 || A.most > (cx2-cx1)*0.6) continue;
-      if (B.y1 - A.y2 < line*(B.end ? 3 : 2.5)) continue;
-      const x1 = cx1, x2 = cx2, y1 = A.y2 + Math.round(line*0.3);
-      let y2 = B.end ? B.y1 : B.y1 - Math.round(line*0.3);
-      // Not over a field already found: end above the first one that starts inside the blank
-      let covered = false;
-      found.forEach(f => {
-        const fx1 = f.x*s, fx2 = (f.x+f.width)*s, fy1 = f.y*s, fy2 = (f.y+f.height)*s;
-        if (fx2 < x1 || fx1 > x2 || fy2 < y1 || fy1 > y2) return;
-        if (fy1 <= y1) covered = true; else y2 = Math.min(y2, Math.round(fy1) - 4);
-      });
-      if (covered || y2 - y1 < line*1.5) continue;
-      out.push({ page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s,
-                 type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(B.end ? { toEnd: true } : {}) });
-    }
-    return out;
+    return false;
   }
 
-  // Open writing areas inside a table's cells: a cell is two rules one over the other, joined by
-  // sides; its largest empty part is a writing area when it starts at the cell's left, under the
-  // cell's label, and is at least a line tall and half the cell wide ("EXAM(s) REQUESTED:" over a blank beside the
-  // Priority list, "PERTINENT HISTORY / MEDICATIONS:" over the rest of its cell). Fields already
-  // found there take its place.
-  function cellAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
+  // ===== Open writing areas =====
+  // Blank page under a label, with nothing drawn to write on, in a container: a table's cell
+  // (two rules, one over the other, joined by sides), or the form itself (between its rules'
+  // ends; the page's margins don't count). A writing area is a run of rows blank from the
+  // container's left across most of it (half a cell, all of the form), tall enough, right under
+  // a label: ink just above it in the container that isn't a rule ("PERTINENT HISTORY /
+  // MEDICATIONS:" over the rest of its cell, "EXAM(s) REQUESTED:" over a blank beside the
+  // Priority list, "HISTORY AND CLINICAL FINDINGS:" over open page). Fields already found count
+  // as ink. One that runs down to the foot of the page is one only under a label ending with a
+  // colon (checked once the words are read).
+  function areaFields(clean, w, h, s, bands, minSeg, page, p, found){
     const line = Math.max(18, p.naturalH*0.026) * s;
     const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg).sort((a,b) => a.y1 - b.y1);
-    const on = (x,y) => clean[y*w+x] === 1;
-    const side = (x, ya, yb) => {
-      for (const xx of [x, x-1, x+1, x-2, x+2]){
-        if (xx < 0 || xx >= w) continue;
-        let n = 0; for (let y=ya; y<=yb; y++) if (on(xx,y)) n++;
-        if (n >= (yb-ya+1)*0.9) return true;
-      }
-      return false;
-    };
-    const cells = [], seen = new Set();
+    if (!rules.length) return [];
+    // Ink, or a field already found
+    const taken = Uint8Array.from(clean);
+    const take = (f) => { for (let y=Math.max(0, Math.round(f.y*s)); y<=Math.min(h-1, Math.round((f.y+f.height)*s)); y++) taken.fill(1, y*w + Math.max(0, Math.round(f.x*s)), y*w + Math.min(w, Math.round((f.x+f.width)*s) + 1)); };
+    found.forEach(take);
+    // The containers: the form, then each cell
+    const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2)), margin = Math.max(cx1, w - 1 - cx2);
+    const boxes = [{ x1: cx1, x2: cx2, y1: 0, y2: h - 1 - margin, form: true }];
     rules.forEach((A, i) => {
-      // the next rule below over the same stretch, at least a couple of lines down
+      // the next rule below over the same stretch, at least a couple of lines down, and the sides
+      // joining them, left to right: each pair next to each other is a cell
       for (let j=i+1; j<rules.length; j++){
         const B = rules[j];
         const x1 = Math.max(A.x1, B.x1), x2 = Math.min(A.x2, B.x2);
         if (B.y1 - A.y2 < line*1.5 || x2 - x1 < line*3) continue;
-        // the sides that join them, left to right: each pair next to each other is a cell
         const xs = [];
-        for (let x=x1; x<=x2; x++) if (side(x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
+        for (let x=x1; x<=x2; x++) if (sideRule(clean, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
         for (let k=0; k+1<xs.length; k++){
-          const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 }, key = [c.x1, c.x2, c.y1, c.y2].join();
-          if (c.x2 - c.x1 >= line*3 && !seen.has(key)){ seen.add(key); cells.push(c); }
+          const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 };
+          if (c.x2 - c.x1 >= line*3 && !boxes.some(o => o.x1 === c.x1 && o.x2 === c.x2 && o.y1 === c.y1)) boxes.push(c);
         }
         break;
       }
     });
-    const out = [], g = Math.max(2, Math.round(line*0.12));            // (a coarse grid, a few pixels a square)
-    cells.forEach(c => {
-      const cols = Math.floor((c.x2 - c.x1 + 1) / g), rows = Math.floor((c.y2 - c.y1 + 1) / g);
-      if (cols < 2 || rows < 2) return;
-      const ink = (cx, cy) => { for (let y=c.y1+cy*g; y<c.y1+(cy+1)*g; y++) for (let x=c.x1+cx*g; x<c.x1+(cx+1)*g; x++) if (on(x,y)) return true; return false; };
-      // The largest empty rectangle (on the grid) from the cell's left, row by row with a histogram
-      // of empty heights
-      const hist = new Array(cols).fill(0);
-      let best = null;
-      for (let r=0; r<rows; r++){
-        for (let k=0; k<cols; k++) hist[k] = ink(k, r) ? 0 : hist[k] + 1;
-        const st = [];
-        for (let k=0; k<=cols; k++){
-          const hk = k < cols ? hist[k] : 0;
-          let start = k;
-          while (st.length && st[st.length-1].h >= hk){
-            const t = st.pop(), area = t.h*(k - t.start);
-            if (t.h && t.start === 0 && (!best || area > best.area)) best = { area, x0: t.start, x1: k, y0: r - t.h + 1, y1: r + 1 };
-            start = t.start;
-          }
-          st.push({ start, h: hk });
+    const out = [];
+    boxes.forEach(c => {
+      const cw = c.x2 - c.x1 + 1, wide = c.form ? cw : cw*0.5, tall = line*(c.form ? 2.5 : 1.1), pad = c.form ? Math.round(line*0.3) : 2;
+      // (blank page from the left, in row y)
+      const blank = (y) => { let x = c.x1; while (x <= c.x2 && !taken[y*w+x]) x++; return x - c.x1; };
+      // (a label just above: ink in the container, below any rule across it)
+      const label = (y) => {
+        for (let yy=y-1; yy>=Math.max(c.y1, y - Math.round(line*0.8)); yy--){
+          let n = 0; for (let x=c.x1; x<=c.x2; x++) if (clean[yy*w+x]) n++;
+          if (n > cw*0.6) return false;
+          if (n) return true;
         }
+        return false;
+      };
+      let run = null;
+      for (let y=c.y1; y<=c.y2 + 1; y++){
+        const r = y <= c.y2 ? blank(y) : 0;
+        if (r >= wide - 1){ if (run) { run.y2 = y; run.r = Math.min(run.r, r); } else run = { y1: y, y2: y, r }; continue; }
+        if (run && run.y2 - run.y1 + 1 >= tall && label(run.y1)){
+          const toEnd = c.form && run.y2 >= c.y2;
+          const y1 = run.y1 + pad, y2 = run.y2 - (toEnd ? 0 : pad), x1 = c.x1 + (c.form ? 0 : pad), x2 = c.x1 + run.r - 1 - (c.form ? 0 : pad);
+          const f = { page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s, type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(toEnd ? { toEnd: true } : {}) };
+          out.push(f); take(f);
+        }
+        run = null;
       }
-      if (!best) return;
-      const x1 = c.x1 + best.x0*g, x2 = c.x1 + best.x1*g - 1, y1 = c.y1 + best.y0*g, y2 = c.y1 + best.y1*g - 1;
-      // (at least a line tall, and most of the cell's width: a blank beside an indented list isn't one)
-      if (x2 - x1 < Math.max(line*3, (c.x2 - c.x1)*0.5) || y2 - y1 < line*1.1) return;
-      // under the cell's label: ink just above it, inside the cell
-      let label = false;
-      for (let y=Math.max(c.y1, y1 - Math.round(line*0.8)); y<y1 && !label; y++) for (let x=x1; x<=x2; x++) if (on(x,y)){ label = true; break; }
-      if (!label) return;
-      const f = { page, x: (x1 + 2)/s, y: (y1 + 2)/s, width: (x2 - x1 - 4)/s, height: (y2 - y1 - 4)/s, type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '' };
-      // (not where a field has been found already)
-      const covered = found.some(g => {
-        const ox = Math.max(0, Math.min(f.x + f.width, g.x + g.width) - Math.max(f.x, g.x)), oy = Math.max(0, Math.min(f.y + f.height, g.y + g.height) - Math.max(f.y, g.y));
-        return ox*oy > Math.min(f.width*f.height, g.width*g.height)*0.2;
-      });
-      if (!covered) out.push(f);
     });
     return out;
   }
@@ -3185,12 +3141,7 @@ else if (typeof exports === 'object')
     const on = (x,y) => clean[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
     // A vertical rule at x between rows ya..yb (dark in nearly every row, allowing a pixel either side)
-    const rule = (x, ya, yb) => {
-      if (yb - ya < 4) return false;
-      let n = 0;
-      for (let y=ya; y<=yb; y++) if (on(x,y) || (x>0 && on(x-1,y)) || (x<w-1 && on(x+1,y))) n++;
-      return n >= (yb-ya+1)*0.85;
-    };
+    const rule = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb);
     // Does a rule run down (or up) from x on this line, for at least a text line? A side rule
     // is thin, with blank page beside it; ink on both sides is something solid (more rules
     // stacked under a fill-in line, a shaded bar), not a side.
@@ -3620,10 +3571,9 @@ else if (typeof exports === 'object')
       // bottoms of bold words, table rules under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
       textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p).forEach(f => newFields.push(f));
-      // Open writing areas under a heading, with no line or box around them
-      blankAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
-      // ... and inside a table's cells, beside other things on the same rows
-      cellAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
+      // Open writing areas under a heading, with no line or box around them, on the page or in a
+      // table's cells
+      areaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
 
       // Connected component pass for checkboxes.
       const visited = new Uint8Array(w*h);
@@ -3743,14 +3693,7 @@ else if (typeof exports === 'object')
       // and below that span it, joined by sides down from both ends of the top one (page-image
       // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
       const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
-      const sideDown = (x, ya, yb) => {
-        for (const dx of [0, -2, 2]){
-          const xx = x + dx; if (xx < 0 || xx >= w) continue;
-          let n = 0; for (let y=ya; y<=yb; y++) if (clean[y*w+xx] || (xx > 0 && clean[y*w+xx-1]) || (xx < w-1 && clean[y*w+xx+1])) n++;
-          if (n >= (yb-ya+1)*0.9) return true;
-        }
-        return false;
-      };
+      const sideDown = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb);
       const boxOf = (x0, f) => {
         const a = x0*s, z = (f.x + f.width)*s, top = f.y*s, bottom = (f.y + f.height)*s;
         const spans = (b) => b.x1 <= a + 3 && b.x2 >= z - 3;
