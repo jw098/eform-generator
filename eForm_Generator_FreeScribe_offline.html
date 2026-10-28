@@ -2702,105 +2702,190 @@ else if (typeof exports === 'object')
   }
 
   // ===== Open writing areas =====
-  // Blank page where a label asks for an answer, with no line or box drawn for it:
-  //  - under a label on a line of its own, within its container, down to the next print, rule or
-  //    field. In a box (side rules running down either side of the label), from the box's side
-  //    across to the first print, when the label is at the box's left and the blank is at least
-  //    half across and a line tall ("PERTINENT HISTORY / MEDICATIONS:" over the rest of its box,
-  //    "EXAM(s) REQUESTED:" over a blank beside the Priority list); else right across the form,
-  //    a line and a half tall ("HISTORY AND CLINICAL FINDINGS:" over open page), and down to the
-  //    foot of the page only under a label ending with a colon;
-  //  - else, after a label ending with a colon, the blank page right after it on its row ("INR:
-  //    ______  Date: ______", "Date of Birth: ______  M ☐"), up to the next print, when it is at
-  //    least a few letters wide; when the blank also goes on down, under the label and beside it,
-  //    for more than a line ("Address:" over room for two lines), the field takes that too.
-  // Not where a field was found already. A label is a phrase of words close together on a line,
-  // not a sentence ("... if one of the following is present:"); a tick box's label ("☐ Other:")
-  // has no area under it, and a heading in capitals ("REASON FOR REFERRAL:") none after it.
-  // left, right: the form's edges (its rules' furthest ends), in page-image pixels.
-  function openFields(read, clean, w, h, s, page, found, left, right, p){
+  // A heading such as "HISTORY AND CLINICAL FINDINGS:" with blank page under it and more of the
+  // form below: the blank is where the answer is written, though nothing is drawn around it.
+  // Looks across the width of the form's rules; the page's top and bottom margins don't count
+  // (nothing above or below them), and a box's sides are ink on every row, so boxes, which the
+  // lines already give fields for, never look blank. Stops short of fields already found.
+  function blankAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
+    const line = Math.max(18, p.naturalH*0.026) * s;
+    const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
+    if (!rules.length) return [];
+    const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2));
+    // Rows with ink between the form's left and right edges, grouped into runs
+    const runs = [];
+    for (let y=0; y<h; y++){
+      let n = 0;
+      for (let x=cx1; x<=cx2; x++) if (clean[y*w+x]) n++;
+      if (n < 2) continue;
+      const r = runs[runs.length-1];
+      if (r && y - r.y2 <= 3){ r.y2 = y; r.most = Math.max(r.most, n); }
+      else runs.push({ y1: y, y2: y, most: n });
+    }
+    const out = [];
+    // The last line of text may have only blank page under it, down to the bottom margin (as
+    // wide as the side margins): a writing area when tall, and when its label ends with a colon
+    // ("CURRENT MEDICATIONS:", checked once the words are read)
+    const margin = Math.max(cx1, w - 1 - cx2);
+    if (runs.length) runs.push({ y1: h - margin, y2: h - margin, most: 0, end: true });
+    for (let i=0; i+1<runs.length; i++){
+      const A = runs[i], B = runs[i+1];
+      // Above: one line of text (not a rule or a box edge); between: a tall blank
+      if (A.y2 - A.y1 > line*0.8 || A.most > (cx2-cx1)*0.6) continue;
+      if (B.y1 - A.y2 < line*(B.end ? 3 : 2.5)) continue;
+      const x1 = cx1, x2 = cx2, y1 = A.y2 + Math.round(line*0.3);
+      let y2 = B.end ? B.y1 : B.y1 - Math.round(line*0.3);
+      // Not over a field already found: end above the first one that starts inside the blank
+      let covered = false;
+      found.forEach(f => {
+        const fx1 = f.x*s, fx2 = (f.x+f.width)*s, fy1 = f.y*s, fy2 = (f.y+f.height)*s;
+        if (fx2 < x1 || fx1 > x2 || fy2 < y1 || fy1 > y2) return;
+        if (fy1 <= y1) covered = true; else y2 = Math.min(y2, Math.round(fy1) - 4);
+      });
+      if (covered || y2 - y1 < line*1.5) continue;
+      out.push({ page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s,
+                 type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(B.end ? { toEnd: true } : {}) });
+    }
+    return out;
+  }
+
+  // Open writing areas inside a table's cells: a cell is two rules one over the other, joined by
+  // sides; its largest empty part is a writing area when it starts at the cell's left, under the
+  // cell's label, and is at least a line tall and half the cell wide ("EXAM(s) REQUESTED:" over a blank beside the
+  // Priority list, "PERTINENT HISTORY / MEDICATIONS:" over the rest of its cell). Fields already
+  // found there take its place.
+  function cellAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
+    const line = Math.max(18, p.naturalH*0.026) * s;
+    const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg).sort((a,b) => a.y1 - b.y1);
+    const on = (x,y) => clean[y*w+x] === 1;
+    const side = (x, ya, yb) => {
+      for (const xx of [x, x-1, x+1, x-2, x+2]){
+        if (xx < 0 || xx >= w) continue;
+        let n = 0; for (let y=ya; y<=yb; y++) if (on(xx,y)) n++;
+        if (n >= (yb-ya+1)*0.9) return true;
+      }
+      return false;
+    };
+    const cells = [], seen = new Set();
+    rules.forEach((A, i) => {
+      // the next rule below over the same stretch, at least a couple of lines down
+      for (let j=i+1; j<rules.length; j++){
+        const B = rules[j];
+        const x1 = Math.max(A.x1, B.x1), x2 = Math.min(A.x2, B.x2);
+        if (B.y1 - A.y2 < line*1.5 || x2 - x1 < line*3) continue;
+        // the sides that join them, left to right: each pair next to each other is a cell
+        const xs = [];
+        for (let x=x1; x<=x2; x++) if (side(x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
+        for (let k=0; k+1<xs.length; k++){
+          const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 }, key = [c.x1, c.x2, c.y1, c.y2].join();
+          if (c.x2 - c.x1 >= line*3 && !seen.has(key)){ seen.add(key); cells.push(c); }
+        }
+        break;
+      }
+    });
+    const out = [], g = Math.max(2, Math.round(line*0.12));            // (a coarse grid, a few pixels a square)
+    cells.forEach(c => {
+      const cols = Math.floor((c.x2 - c.x1 + 1) / g), rows = Math.floor((c.y2 - c.y1 + 1) / g);
+      if (cols < 2 || rows < 2) return;
+      const ink = (cx, cy) => { for (let y=c.y1+cy*g; y<c.y1+(cy+1)*g; y++) for (let x=c.x1+cx*g; x<c.x1+(cx+1)*g; x++) if (on(x,y)) return true; return false; };
+      // The largest empty rectangle (on the grid) from the cell's left, row by row with a histogram
+      // of empty heights
+      const hist = new Array(cols).fill(0);
+      let best = null;
+      for (let r=0; r<rows; r++){
+        for (let k=0; k<cols; k++) hist[k] = ink(k, r) ? 0 : hist[k] + 1;
+        const st = [];
+        for (let k=0; k<=cols; k++){
+          const hk = k < cols ? hist[k] : 0;
+          let start = k;
+          while (st.length && st[st.length-1].h >= hk){
+            const t = st.pop(), area = t.h*(k - t.start);
+            if (t.h && t.start === 0 && (!best || area > best.area)) best = { area, x0: t.start, x1: k, y0: r - t.h + 1, y1: r + 1 };
+            start = t.start;
+          }
+          st.push({ start, h: hk });
+        }
+      }
+      if (!best) return;
+      const x1 = c.x1 + best.x0*g, x2 = c.x1 + best.x1*g - 1, y1 = c.y1 + best.y0*g, y2 = c.y1 + best.y1*g - 1;
+      // (at least a line tall, and most of the cell's width: a blank beside an indented list isn't one)
+      if (x2 - x1 < Math.max(line*3, (c.x2 - c.x1)*0.5) || y2 - y1 < line*1.1) return;
+      // under the cell's label: ink just above it, inside the cell
+      let label = false;
+      for (let y=Math.max(c.y1, y1 - Math.round(line*0.8)); y<y1 && !label; y++) for (let x=x1; x<=x2; x++) if (on(x,y)){ label = true; break; }
+      if (!label) return;
+      const f = { page, x: (x1 + 2)/s, y: (y1 + 2)/s, width: (x2 - x1 - 4)/s, height: (y2 - y1 - 4)/s, type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '' };
+      // (not where a field has been found already)
+      const covered = found.some(g => {
+        const ox = Math.max(0, Math.min(f.x + f.width, g.x + g.width) - Math.max(f.x, g.x)), oy = Math.max(0, Math.min(f.y + f.height, g.y + g.height) - Math.max(f.y, g.y));
+        return ox*oy > Math.min(f.width*f.height, g.width*g.height)*0.2;
+      });
+      if (!covered) out.push(f);
+    });
+    return out;
+  }
+
+  // Fields after a label that ends with a colon, where nothing is printed to write on: the blank
+  // page right after it on its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐"),
+  // up to the next ink, when it is at least a few letters wide. When the blank also goes on
+  // down, under the label and beside it, for more than a line ("Address:" over room for two
+  // lines), the field takes that too. Not where a field was found already, nor after a heading
+  // over a writing area found just below it ("EXAM(s) REQUESTED:").
+  function colonFields(read, clean, w, h, s, page, found, right){
     const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
-    const line = Math.max(18, p.naturalH*0.026);
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
+    // The phrase a word ends: the words before it on its line, close together
+    const phraseOf = (wd) => {
+      const l = read.lines.find(l => l.words.some(u => Math.abs(u.x0 - wd.x0) < 2 && Math.abs(u.y0 - wd.y0) < 2));
+      if (!l) return [wd];
+      const ws = l.words.filter(u => u.x1 <= wd.x1 + 1).sort((a,b) => a.x0 - b.x0), got = [wd];
+      for (let i = ws.length - 2; i >= 0; i--){
+        if (got[0].x0 - ws[i].x1 > (wd.y1 - wd.y0)*2) break;
+        got.unshift(ws[i]);
+      }
+      return got;
+    };
     // (overlapping a found field by more than a sliver)
     const overlaps = (a, b) => {
       const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
       return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
     };
-    // The labels: each line's words, split where they're far apart
-    const phrases = [];
-    read.lines.forEach(l => {
-      const ws = l.words.filter(u => /[A-Za-z]/.test(u.text) || /^#+:$/.test(u.text)).sort((a,b) => a.x0 - b.x0);
-      const n = phrases.length;
-      ws.forEach((u, k) => {
-        const ph = phrases[phrases.length-1];
-        if (k && u.x0 - ws[k-1].x1 <= (u.y1 - u.y0)*2) ph.push(u); else phrases.push([u]);
-      });
-      if (phrases.length === n + 1) phrases[n].alone = true;
-    });
-    // The page's foot: as far up from the bottom as the form's side margins
-    const foot = h - Math.max(left*s, w - right*s);
-    // Under the label
-    const under = (ph, wd, th, fields) => {
-      const ya = Math.round((Math.max(...ph.map(u => u.y1)) + th*0.3)*s), x0 = Math.round(ph[0].x0*s);
-      // Its container: the box between the side rules either side of it, or the form
-      let tall = Math.round(line*1.1*s);
-      const sideAt = (x) => { let n = 0; for (let y=ya; y<ya+tall; y++) if (on(x,y) || on(x-1,y) || on(x+1,y)) n++; return n >= tall*0.9; };
-      let sl = x0 - 2, sr = Math.round(wd.x1*s) + 2;
-      while (sl >= left*s - 3 && !sideAt(sl)) sl--;
-      while (sr <= right*s + 3 && !sideAt(sr)) sr++;
-      const box = sl >= left*s - 3 && sr <= right*s + 3;
-      if (box && x0 - sl > line*s) return null;
-      if (!box) tall = Math.round(line*1.5*s);
-      const xa = box ? sl + 3 : Math.round(left*s), xz = box ? sr - 3 : Math.round(right*s);
-      // (the blank rows down from the label in column x, canvas px, stopping at fields)
-      const depth = (x, most) => {
-        const fx = x/s, floor = Math.min(foot, ...fields.filter(g => g.x <= fx && g.x + g.width >= fx && (g.y + g.height)*s > ya).map(g => Math.round(g.y*s) - 2));
-        let y = ya; while (y < floor && y - ya < most && !on(x, y)) y++;
-        return y - ya;
-      };
-      let xr = xa, d = depth(xa, h);
-      while (d >= tall && xr + 1 < xz){ const e = depth(xr + 1, d); if (e < tall) break; d = Math.min(d, e); xr++; }
-      if (d < tall || xr - xa < (box ? Math.max(line*3*s, (xz - xa)*0.5) : xz - xa - 2)) return null;
-      // (down to the foot of the page only under a label ending with a colon)
-      if (ya + d >= foot && !/:$/.test(wd.text)) return null;
-      return { page, x: xa/s + 2, y: ya/s, width: (xr - xa)/s - 4, height: d/s - th*0.3, type: d > line*1.8*s ? 'textarea' : 'text', name: 'text', oscarTag: '' };
-    };
-    // After the label, on its row
-    const after = (ph, wd, th, fields) => {
-      const yt = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
+    const out = [];
+    // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
+    read.words.filter(wd => /:$/.test(wd.text) && (/[A-Za-z]/.test(wd.text) || /^#+:$/.test(wd.text))).forEach(wd => {
+      const th = wd.y1 - wd.y0;                                  // the text's height
+      if (th < 4) return;
+      // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
+      // if required:", a sentence's second line)
+      const ph = phraseOf(wd);
+      if (ph.length > 6 || (ph.length >= 3 && /^[a-z]/.test(ph[0].text))) return;
+      // (nor a heading in capitals: "REASON FOR REFERRAL:")
+      if (ph.length >= 3 && ph.every(u => !/[a-z]/.test(u.text))) return;
+      const ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
       const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (on(x,y)) return true; return false; };
-      const ahead = fields.filter(g => g.x > wd.x1 && Math.min(g.y + g.height, wd.y1) - Math.max(g.y, wd.y0) >= th*0.5).map(g => g.x - 2);
-      const xa = Math.round((wd.x1 + th*0.3)*s), xz = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*s));
+      // the blank after it on its row, up to the next ink or field found, and no further than the
+      // form's right edge
+      const ahead = found.concat(out).filter(g => g.x > wd.x1 && Math.min(g.y + g.height, wd.y1) - Math.max(g.y, wd.y0) >= th*0.5).map(g => g.x - 2);
+      const xa = Math.round((wd.x1 + th*0.3)*s), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*s));
       let xb = xa;
-      while (xb < xz && !inkCol(xb + 1, yt, yb)) xb++;
+      while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
       const x1 = xa/s + th*0.2, x2 = xb/s - th*0.4;
-      if (x2 - x1 < th*4) return null;
+      if (x2 - x1 < th*4) return;
       let f = { page, x: x1, y: wd.y0 - th*0.3, width: x2 - x1, height: th*1.6, type: 'text', name: 'text', oscarTag: '' };
-      // room for more lines below it, under the label and beside it, down to the next print (or
-      // a field below it)
-      const la = Math.round(ph[0].x0*s), lb = Math.round(x2*s);
-      let yc = Math.round(Math.max(...ph.map(u => u.y1))*s) + 1;     // (below the whole label: "If yes" hangs lower)
+      // room for more lines below it, under the label and beside it, down to the next ink
+      const la = Math.round(wd.x0*s), lb = Math.round(x2*s);
+      let yc = yb + 1;
       const rowBlank = (y) => { for (let x=la; x<=lb; x++) if (on(x,y)) return false; return true; };
-      const floor = Math.min(h - 1, ...fields.filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > x1).map(g => Math.round(g.y*s) - 2));
+      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*s) - 2));
       while (yc < floor && rowBlank(yc + 1)) yc++;
       if (yc/s - wd.y1 > th*2.5) f = { ...f, height: yc/s - th*0.4 - f.y, type: 'textarea' };
+      if (found.concat(out).some(g => overlaps(f, g))) return;
       // (a heading over options: tick boxes on the next row, "Related Medical Issues:")
-      if (ticks.some(b => b.y > wd.y1 - 2 && b.y - wd.y1 < th*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return null;
-      return f;
-    };
-    const out = [];
-    phrases.forEach(ph => {
-      const wd = ph[ph.length-1], th = wd.y1 - wd.y0;     // its last word, and the text's height
-      if (th < 4) return;
-      const caps = ph.every(u => !/[a-z]/.test(u.text));
-      // (not a sentence: "... if one of the following is present:", "limited treatment, if required:")
-      if ((ph.length > 6 && !caps) || (ph.length >= 3 && /^[a-z]/.test(ph[0].text))) return;
-      // (a tick box's label is no heading over an area: "☐ Other: ____")
-      const option = ticks.some(b => Math.abs((b.y + b.height/2) - (wd.y0 + wd.y1)/2) < th && b.x + b.width <= ph[0].x0 + 2 && ph[0].x0 - (b.x + b.width) < th*2);
-      const fields = found.concat(out);
-      const f = (ph.alone && !option && under(ph, wd, th, fields)) || (/:$/.test(wd.text) && !(ph.length >= 3 && caps) && after(ph, wd, th, fields));
-      if (f && !fields.some(g => overlaps(f, g))) out.push(f);
+      if (ticks.some(b => b.y > wd.y1 - 2 && b.y - wd.y1 < th*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return;
+      // (a writing area just below, starting where the label does: the label is its heading)
+      if (found.some(g => (g.type === 'text' || g.type === 'textarea') && g.height > th*2 && g.y >= wd.y1 - 2 && g.y - wd.y1 < th*1.5 &&
+                          Math.abs(g.x - ph[0].x0) < th*2 && g.x + g.width > f.x)) return;
+      out.push(f);
     });
     return out;
   }
@@ -2991,6 +3076,12 @@ else if (typeof exports === 'object')
         }
       }
       if (ownColon) f._ownColon = true;
+      // A writing area down to the foot of the page is one only under a label ending in a colon
+      if (f.toEnd){
+        delete f.toEnd;
+        const ws = f._words || [];
+        if (!ws.length || !/:\s*$/.test(ws[ws.length-1].text)) return;
+      }
       out.push(f);
     });
 
@@ -3056,15 +3147,12 @@ else if (typeof exports === 'object')
   }
 
   // ===== Text fields from lines (added by FreeScribe) =====
-  function textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p, read, boxes){
+  function textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p){
     const line = Math.max(18, p.naturalH*0.026) * s;          // one written line, in canvas px
     const maxThick = Math.max(3, Math.round(h*0.012));
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
     const capH = textCapHeight(clean, w, h);
-    // The page's words and tick boxes, in canvas px
-    const words = (read ? read.words : []).filter(o => /[A-Za-z0-9]/.test(o.text)).map(o => ({ x0: o.x0*s, x1: o.x1*s, y0: o.y0*s, y1: o.y1*s }));
-    const ticks = boxes.map(b => ({ x0: b.x*s, x1: (b.x+b.width)*s, y0: b.y*s, y1: (b.y+b.height)*s }));
     // Is this band really a line? Words drawn as one: an underline has letters standing just
     // above it along most of its length, and the tops of a run of bold capitals merge into a
     // "line" with the letters hanging right under it. (The row touching the band is skipped: a
@@ -3087,17 +3175,11 @@ else if (typeof exports === 'object')
       const tall = Math.round(capH*1.1);
       return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => run(b.x1+1, ya, yb) && run(b.x2-1, ya, yb));
     };
-    // (nor is a band through printed words: the tops of a line of small letters)
-    const inWords = (b) => {
-      let n = 0;
-      words.forEach(o => { if (o.y0 < b.y1 && o.y1 > b.y2) n += Math.max(0, Math.min(o.x1, b.x2) - Math.max(o.x0, b.x1)); });
-      return n >= (b.x2-b.x1+1)*0.5;
-    };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
     const lines = bands.filter(b => (b.x2-b.x1+1) >= minSeg)
                        .map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
-                       .filter(b => isLine(b) && !inWords(b))
+                       .filter(isLine)
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     const rowLine = capH ? Math.min(line, Math.max(10, capH*1.6)) : line;
     const on = (x,y) => clean[y*w+x] === 1;
@@ -3222,55 +3304,84 @@ else if (typeof exports === 'object')
           }
         }
         const y1 = cellCeil + 1, y2 = floor - 1;
-        // What's printed in it: words and tick boxes
-        const inside = (o) => { const cx = (o.x0+o.x1)/2, cy = (o.y0+o.y1)/2; return cx >= x1 && cx <= x2 && cy >= y1 && cy <= y2; };
-        const ws = words.concat(ticks).filter(inside);
-        // Stop short of what's printed in the blank part's right half (tick boxes at the row's end)
+        // Where the printed label ends: its lowest row and its right-most column. Rows with only
+        // small marks (a tick box at the end of the row) don't count as label rows.
+        const cellW = x2 - x1 + 1;
+        let lowInk = -1, rightInk = -1, highInk = -1;
+        const blocks = [];                                 // lines of label text, top to bottom
+        for (let y=y1; y<=y2; y++){
+          let n = 0, last = -1;
+          for (let x=x1; x<=x2; x++) if (on(x,y)){ n++; last = x; }
+          if (n >= 2 && n > cellW*0.03){
+            if (highInk < 0) highInk = y; lowInk = y; if (last > rightInk) rightInk = last;
+            const b = blocks[blocks.length-1];
+            if (b && y - b.y2 <= 2){ b.y2 = y; b.most = Math.max(b.most, n); b.right = Math.max(b.right, last); }
+            else blocks.push({ y1: y, y2: y, most: n, right: last });
+          }
+        }
+        // Faint marks under the label (the YYYY | MM | DD ticks at the foot of a date box) aren't label
+        if (blocks.length > 1 && blocks.slice(1).every(b => b.most < blocks[0].most*0.3 && b.most < line*0.5)){
+          highInk = blocks[0].y1; lowInk = blocks[0].y2; rightInk = blocks[0].right; blocks.length = 1;
+        }
+        // Stop short of marks left in the blank part (tick boxes at the right end)
         const trim = (ya) => {
-          const first = Math.min(x2 + 1, ...ws.filter(o => o.y1 > ya && o.y0 < y2 && o.x0 > x1 + (x2-x1)*0.5).map(o => o.x0));
-          return first <= x2 ? first - Math.round(line*0.3) : x2;
+          let first = -1;
+          for (let x=x1; x<=x2 && first < 0; x++) for (let y=ya; y<=y2; y++) if (on(x,y)){ first = x; break; }
+          return first > x1 + cellW*0.5 ? first - Math.round(line*0.3) : x2;
         };
         const fs = [];
-        if (!ws.length){
-          // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
-          const labelled = words.some(o => o.x1 < L.x1 && L.x1 - o.x1 < line*2 && o.y1 > floor - rowLine && o.y0 < floor);
-          const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled ? rowLine : line));
+        // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
+        const labelled = () => {
+          const xa = Math.max(0, L.x1 - Math.round(line*2)), ya = Math.max(0, floor - Math.round(rowLine));
+          for (let y=ya; y<=floor; y++) for (let x=xa; x<L.x1-2; x++) if (on(x,y)) return true;
+          return false;
+        };
+        if (lowInk < 0){
+          const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
-        } else {
-          // Its lines of words, top to bottom
-          const rows = [];
-          [...ws].sort((a,b) => a.y0 - b.y0).forEach(o => {
-            const r = rows[rows.length-1];
-            if (r && (o.y0+o.y1)/2 < r.y1) { r.ws.push(o); r.y1 = Math.max(r.y1, o.y1); } else rows.push({ ws: [o], y0: o.y0, y1: o.y1 });
-          });
-          const last = rows[rows.length-1];
-          if (y2 - last.y1 >= line*0.5){
-            // Room under the label
-            const ya = Math.round(last.y1) + 3;
-            fs.push({ x1, y1: ya, x2: trim(ya), y2 });
-          } else {
-            // Labels on the row ("Dr: ____ Billing #: ____ Date: ____"): a field in each wide blank
-            // after a label. Under more lines of text (a paragraph of instructions leaves no field
-            // beside it), only when there are several such labels ("MENSTRUAL HISTORY" over
-            // "LMP (DATE): ____ MENOPAUSE (AGE): ____").
-            const ya = Math.max(y1, y2 - Math.round(line), rows.length > 1 ? Math.round(rows[rows.length-2].y1) + 3 : 0);
-            const row = last.ws.sort((a,b) => a.x0 - b.x0), gaps = [];
-            row.forEach((o, k) => {
-              const end = k+1 < row.length ? row[k+1].x0 - line*0.3 : x2;
-              if (end - o.x1 >= line*2.5) gaps.push({ x1: Math.round(o.x1 + line*0.3), y1: ya, x2: Math.round(end), y2 });
-            });
-            if (rows.length === 1 || gaps.length >= 2) fs.push(...gaps);
+        }
+        else if (y2 - lowInk >= line*0.6){
+          // (below any ink right under the label: its descenders, "stamp)")
+          let ya = lowInk + 3;
+          const inkAt = (y) => { for (let x=x1; x<=x2; x++) if (on(x,y)) return true; return false; };
+          while (ya < y2 - line*0.6 && inkAt(ya)) ya++;
+          fs.push({ x1, y1: ya, x2: trim(ya), y2 });
+        }
+        else if (!capH || lowInk - highInk <= capH*1.6 || (blocks.length > 1 && blocks[blocks.length-1].y2 - blocks[blocks.length-1].y1 <= capH*1.6)){
+          // Labels on the row ("Dr: ____ Billing #: ____ Date: ____"): a field in each wide blank
+          // after a label. A lone colon set apart from its label stays with the label.
+          // With more than one line of text (a paragraph of instructions leaves no field beside
+          // it), only the last line, and only when it has several labels spaced along it
+          // ("MENSTRUAL HISTORY" over "LMP (DATE): ____ MENOPAUSE (AGE): ____").
+          const several = capH && lowInk - highInk > capH*1.6;
+          const hi = several ? blocks[blocks.length-1].y1 : highInk, lo = several ? blocks[blocks.length-1].y2 : lowInk;
+          const groups = [];
+          for (let x=x1; x<=x2; x++){
+            let ink = false;
+            for (let y=hi; y<=lo && !ink; y++) if (on(x,y)) ink = true;
+            if (!ink) continue;
+            const g = groups[groups.length-1];
+            if (g && x - g.x2 <= Math.max(3, (capH || line)*0.6)) g.x2 = x; else groups.push({ x1: x, x2: x });
           }
+          const labels = [], speck = capH ? capH*0.5 : line*0.15;
+          groups.forEach(g => {
+            const prev = labels[labels.length-1];
+            if (prev && g.x2 - g.x1 < speck) prev.x2 = g.x2; else labels.push({ ...g });
+          });
+          // (in the line under a heading: below the heading, and a bullet "▪" isn't a label)
+          const ya = Math.max(y1, y2 - Math.round(line), several ? blocks[blocks.length-2].y2 + 3 : 0);
+          if (several && labels.filter(g => g.x2 - g.x1 >= (capH || line*0.3)).length < 2) labels.length = 0;
+          labels.forEach((g, j) => {
+            const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(line*0.3) : x2;
+            if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2 });
+          });
         }
         // In a box of its own: a rule above and below, and rules down both sides (a table cell, a
         // box on a form). Two fill-in lines one above the other have no sides; there the words
         // above a field are the row above's, not its label.
         const box = bounded && rule(x1 - 3, y1, y2) && rule(x2 + 3, y1, y2);
-        // (and blank page: not a shaded heading bar, nor print the words missed, nor a fill-in line)
-        const inkShare = (f) => { let n = 0; for (let y=f.y1; y<=f.y2; y++) for (let x=f.x1; x<=f.x2; x++) if (on(x,y)) n++; return n / ((f.x2-f.x1+1)*(f.y2-f.y1+1)); };
         fs.forEach(f => {
-          if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4 || inkShare(f) > 0.02 ||
-              lines.some(M => M !== L && M.y1 > f.y1 && M.y1 < f.y2 && overlap(M, f) > (f.x2-f.x1)*0.3)) return;
+          if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
           const tall = (f.y2 - f.y1) > line*1.8;
           fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
                         type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box });
@@ -3503,6 +3614,17 @@ else if (typeof exports === 'object')
         if(!merged) bands.push({x1:sg.x1,x2:sg.x2,y1:sg.y,y2:sg.y});
       });
 
+      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
+      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
+      // under its printed label. Lines with words sitting on them (underlined headings, the
+      // bottoms of bold words, table rules under column headings) give no field, a table row
+      // gives one field per column, and the top edge of a box gives none of its own.
+      textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p).forEach(f => newFields.push(f));
+      // Open writing areas under a heading, with no line or box around them
+      blankAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
+      // ... and inside a table's cells, beside other things on the same rows
+      cellAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
+
       // Connected component pass for checkboxes.
       const visited = new Uint8Array(w*h);
       const stack = [];
@@ -3587,31 +3709,21 @@ else if (typeof exports === 'object')
         if(!dup) dedupCb.push(cand);
       });
 
-      // Back onto the tilted page: turn each field's centre by the page's tilt
-      const W = w/s, H = h/s, cs = Math.cos(skew), sn = Math.sin(skew);
-      const tilt = (f) => {
-        const cx = f.x + f.width/2 - W/2, cy = f.y + f.height/2 - H/2;
-        return { ...f, x: cx*cs - cy*sn + W/2 - f.width/2, y: cx*sn + cy*cs + H/2 - f.height/2 };
-      };
-      const flatCb = dedupCb.slice();
-      if (skew) dedupCb.forEach((f, k) => { dedupCb[k] = tilt(f); });
-
-      // The page's words, read first: the fields are placed beside and under them
-      msg('Reading the page\'s words…', 'small');
-      const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
-
-      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
-      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
-      // under its printed label. Lines with words sitting on them (underlined headings, the
-      // bottoms of bold words, table rules under column headings) give no field, a table row
-      // gives one field per column, and the top edge of a box gives none of its own.
-      textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p, read, flatCb).forEach(f => newFields.push(f));
-
-      if (skew) newFields.forEach((f, k) => { newFields[k] = tilt(f); });
+      if (skew){
+        // Back onto the tilted page: turn each field's centre by the page's tilt
+        const W = w/s, H = h/s, cs = Math.cos(skew), sn = Math.sin(skew);
+        [...newFields, ...dedupCb].forEach(f => {
+          const cx = f.x + f.width/2 - W/2, cy = f.y + f.height/2 - H/2;
+          f.x = cx*cs - cy*sn + W/2 - f.width/2;
+          f.y = cx*sn + cy*cs + H/2 - f.height/2;
+        });
+      }
 
       // Name each field after its printed label and suggest its tag (tick boxes get no tag:
       // an OSCAR tag on a tick box fills nothing useful)
       let found = [...newFields, ...dedupCb];
+      msg('Reading the page\'s words to name the fields…', 'small');
+      const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
       // Is there a rule across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
       const ruleAcross = (x1, x2, y1, y2) => {
         const a = Math.max(0, Math.round(x1*s)), z = Math.min(w-1, Math.round(x2*s));
@@ -3621,11 +3733,10 @@ else if (typeof exports === 'object')
         }
         return false;
       };
-      // Blank page under a label, or after one ending with a colon, with no line to write on
+      // A label ending with a colon and blank page after it, with no line to write on: a field there
       if (read){
-        const edges = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
-        const left = edges.length ? Math.min(...edges.map(b => b.x1))/s : 0, right = edges.length ? Math.max(...edges.map(b => b.x2))/s : w/s;
-        found = found.concat(openFields(read, clean, w, h, s, page, found, left, right, p));
+        const right = bands.length ? Math.max(...bands.map(b => b.x2))/s : w/s;   // (the form's right edge: its rules' furthest end)
+        found = found.concat(colonFields(read, clean, w, h, s, page, found, right));
       }
       if (read) found = labelFields(found, read, ruleAcross);
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
@@ -3666,7 +3777,7 @@ else if (typeof exports === 'object')
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
         else f.name = box ? `checkbox_${cN++}` : `text_${tN++}`;
         used.add(f.name);
-        delete f.section;
+        delete f.section; delete f.toEnd;
       });
       // Whose details each field is: the patient's, the referring clinician's, the family doctor's,
       // or the receiving office's; then its tag, made more exact by the date or name order printed
