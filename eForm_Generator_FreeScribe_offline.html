@@ -1151,8 +1151,8 @@ else if (typeof exports === 'object')
   // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. A field whose label
   // doesn't takes the owner of what is just left of it on its row ("OFFICE PHONE: ____  FAX: ____"),
   // or else of what is just above it ("Referring MD" over "Printed name: ____"), the patient's
-  // when nothing says. In a bordered box, it looks inside the box first, then at the rest of
-  // the page. A table cell looks up first: its column's header says whose, and the cell
+  // when nothing says. In a bordered box, it looks only inside the box, and is the patient's
+  // when nothing there says (a box of the referring doctor's details is headed so). A table cell looks up first: its column's header says whose, and the cell
   // to its left can be another table's ("PATIENT | REFERRING MD" side by side).
   //  - patient: the field keeps its tag (the patient's is what a bare label gets);
   //  - referring clinician (current_user): the clinic's phone, fax and address, the user's email
@@ -1237,10 +1237,11 @@ else if (typeof exports === 'object')
       .forEach(f => {
         const own = ownerCue(f.label);
         if (own){ owner.set(f, own); return; }                    // (its label says whose: its tag stands)
-        // In a box, what is inside it first ("Referring MD" heading the box); then the rest of the page
+        // In a box, only what is inside it ("Referring MD" heading the box), and the patient's when
+        // nothing there says; a table cell (a box holding just its label) looks at the page around it
         const look = (box) => f.box ? up(f, box) || left(f, box) : left(f, box) || up(f, box);
-        const box = boxOf ? boxOf(extent(f).x0, f) : null;
-        const o = (box && look(box)) || look(null) || 'patient';
+        const box = !f.box && boxOf ? boxOf(extent(f).x0, f) : null;
+        const o = (box ? look(box) : look(null)) || 'patient';
         owner.set(f, o);
         const kind = detailKind(f.label);
         if (kind && o !== 'patient') f.oscarTag = ownerTag(o, kind, f.label);
