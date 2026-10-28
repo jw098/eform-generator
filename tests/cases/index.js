@@ -204,7 +204,6 @@ window.TEST_CASE_LIST = [
     ],
     "todo": {
       "fields": "the DEGREE/GRADE cells on page 2: their two-line label leaves only a small blank, which isn't found",
-      "ticks": "three Yes boxes at the left edge on page 2, each just under a numbered question, aren't found",
       "extraFields": "blanks beside questions (two on page 1, one on page 2), small blanks in the DEGREE/GRADE cells on page 2, and the open page under Return To on page 3 are taken for fields",
       "extraTicks": "the lat of Bilat. on page 2 is taken for a tick box"
     },

@@ -2539,7 +2539,12 @@ else if (typeof exports === 'object')
         }
       }
     }
-    // Nothing joined on from outside (a P's stem below its bowl, the next letter of a word)
+    // Nothing joined on from outside (a P's stem below its bowl, the next letter of a word). A
+    // rule the box sits against, at its left or right, doesn't count: a straight line just
+    // outside that side, running on well past both its ends (a table's side right beside
+    // "☐ Yes"), when the side itself ends at the box's corners (not the corner of a table's cell,
+    // with letters under its rule taken for the rest of a box). Above or below, a line under a
+    // box is far more often a fill-in line under letters ("Carecard: ____"), so it still counts.
     const limit = Math.max(1, Math.round(sz*0.12));
     let t=0, b=0, l=0, r=0;
     for(let x=x1;x<=x2;x++){
@@ -2550,7 +2555,15 @@ else if (typeof exports === 'object')
       if(on(x1,y) && on(x1-1,y) && on(x1-2,y)) l++;
       if(on(x2,y) && on(x2+1,y) && on(x2+2,y)) r++;
     }
-    return t <= limit && b <= limit && l <= limit && r <= limit;
+    const reach = Math.max(2, Math.round(sz*0.6)), near = Math.max(3, Math.round(sz*0.4));
+    const colRule = (x) => x >= 1 && x < w-1 && sideRule(clean, w, h, x, y1 - reach, y2 + reach, 0.85, 0);
+    // (a side at x, with the outside towards step: -1 left, 1 right)
+    const ruleBeside = (x, step) => {
+      for (let k=0; k<band; k++) if (colRule(x - step*k)) return false;            // (the side is a rule itself)
+      for (let k=1; k<=near; k++) if (colRule(x + step*k)) return true;
+      return false;
+    };
+    return t <= limit && b <= limit && (l <= limit || ruleBeside(x1, -1)) && (r <= limit || ruleBeside(x2, 1));
   }
 
   // A round option button: a thin, unbroken ring with an empty middle and empty corners,
