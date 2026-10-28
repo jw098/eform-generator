@@ -37,15 +37,26 @@ Known exceptions in the code, still to be fixed:
 
 ## Auto Detect, in order (`detectCurrentPage`)
 
-1. A fillable PDF's own form fields, when the page came from one (`pdfFormFields`); else:
-2. The picture: straighten (`estimateSkew`), make an ink map (`clean`) and find the rules (`bands`).
-3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
-   ruled writing areas), then open writing areas under a label (`areaFields`).
-4. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
-5. Pass 2, with the words OCR reads (`readPageWords`): fields after a colon (`colonFields`),
-   each field's label (`labelFields`), the fields the labels split or rule out
-   (`fieldsFromLabels`), captions and section headings (`sectionFields`).
-6. Names from the labels, then tags (`tagFields`: `fieldOwners` → `guessTag` / `askedFor` /
+A fillable PDF's own form fields are taken as they are, when the page came from one
+(`pdfFormFields`). Otherwise Auto Detect works from the picture, in two passes.
+
+**Pass 1: the picture only, no OCR.** It must not rely on OCR: it finds the fields from the
+ink alone, so it works where the words can't be read (no WebAssembly SIMD, no workers) and
+in the tests' tick-box-only runs (`readWords: false`). Never move a call to
+`readPageWords`, or anything using its words, into pass 1.
+1. Straighten (`estimateSkew`), make an ink map (`clean`) and find the rules (`bands`).
+2. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
+   ruled writing areas), then open writing areas under a label (`areaFields`). A "label" here
+   is ink, not words.
+3. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
+
+**Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
+pass 1 found and is skipped when the words can't be read (fields then keep plain names and
+no tags).
+4. Fields after a colon (`colonFields`), each field's label (`labelFields`), the fields the
+   labels split or rule out (`fieldsFromLabels`), captions and section headings
+   (`sectionFields`).
+5. Names from the labels, then tags (`tagFields`: `fieldOwners` → `guessTag` / `askedFor` /
    `TAG_FOR` → `captionTag`).
 
 The pass-2 steps pass what they learn on the fields themselves (`box`, `_words`, `_split`…);
