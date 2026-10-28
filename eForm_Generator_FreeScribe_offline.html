@@ -1155,7 +1155,7 @@ else if (typeof exports === 'object')
       for (const p of above){
         const g = p.words.map(fieldOfWord).find(g => g && g !== f);
         if (g){ if (owner.get(g)) return owner.get(g); continue; }
-        if (p.words.length <= 6){ const o = ownerCue(p.text); if (o) return o; }
+        if (!isSentence(p.words)){ const o = ownerCue(p.text); if (o) return o; }
       }
       return '';
     };
@@ -2696,17 +2696,23 @@ else if (typeof exports === 'object')
     return results;
   }
 
-  // A side rule at x (give or take a couple of pixels) from row ya to yb: ink within a pixel of
-  // it in nearly every row. A box's sides, a table's dividers.
-  function sideRule(clean, w, h, x, ya, yb){
+  // A side rule at x (give or take `shift` pixels) from row ya to yb: ink within a pixel of it
+  // in at least `share` of the rows (nearly every row). A box's sides, a table's dividers; with
+  // share 1 and no shift, a divider running unbroken from rule to rule.
+  function sideRule(clean, w, h, x, ya, yb, share = 0.85, shift = 2){
     if (yb - ya < 4) return false;
-    for (const xx of [x, x-1, x+1, x-2, x+2]){
+    for (const xx of [x, x-1, x+1, x-2, x+2].slice(0, 1 + shift*2)){
       if (xx < 0 || xx >= w) continue;
       let n = 0;
       for (let y=Math.max(0,ya); y<=Math.min(h-1,yb); y++) if (clean[y*w+xx] || (xx > 0 && clean[y*w+xx-1]) || (xx < w-1 && clean[y*w+xx+1])) n++;
-      if (n >= (yb-ya+1)*0.85) return true;
+      if (n >= (yb-ya+1)*share) return true;
     }
     return false;
+  }
+  // Two rules, T over B, joined by side rules at xa and xb (a box, a table's row or cell): the
+  // sides are looked for from `gap` pixels under T to `gap` pixels over B
+  function joinedBySides(clean, w, h, T, B, xa, xb, gap){
+    return sideRule(clean, w, h, xa, T.y2 + gap, B.y1 - gap) && sideRule(clean, w, h, xb, T.y2 + gap, B.y1 - gap);
   }
 
   // ===== Open writing areas =====
@@ -2808,9 +2814,9 @@ else if (typeof exports === 'object')
       // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
       // if required:", a sentence's second line)
       const ph = phraseOf(wd);
-      if (ph.length > 6 || (ph.length >= 3 && /^[a-z]/.test(ph[0].text))) return;
+      if (isSentence(ph)) return;
       // (nor a heading in capitals: "REASON FOR REFERRAL:")
-      if (ph.length >= 3 && ph.every(u => !/[a-z]/.test(u.text))) return;
+      if (ph.length >= 3 && capsText(phraseText(ph))) return;
       const ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
       const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (on(x,y)) return true; return false; };
       // the blank after it on its row, up to the next ink or field found, and no further than the
@@ -2919,7 +2925,14 @@ else if (typeof exports === 'object')
   // ===== Pass 2: the page's words =====
   // Shared by the steps below (positions in page-image pixels)
   const hasLetters = (t) => /[A-Za-z]/.test(t);
-  const capsText = (t) => { const l = t.replace(/[^A-Za-z]/g, ''); return l.length >= 3 && l.replace(/[^A-Z]/g, '').length >= l.length*0.8; };
+  // Text in capitals, a heading's: at least `min` letters, nearly all capitals ("REFERRING MD")
+  const capsText = (t, min = 3) => { const l = t.replace(/[^A-Za-z]/g, ''); return l.length >= min && l.replace(/[^A-Z]/g, '').length >= l.length*0.8; };
+  // A label that is a heading or starts with one ("PRESENT COMPLAINT (Please ..."), other than a
+  // short code in capitals ("MSP", "PHN")
+  const headingLabel = (t) => /^[A-Z][A-Z\s]{5,}/.test(t) || capsText(t, 5);
+  // Words that make a sentence, not a label: more than six, or several starting in lower case
+  // ("... if one of the following is present:", a sentence's second line)
+  const isSentence = (ws) => ws.length > 6 || (ws.length >= 3 && /^[a-z]/.test(ws[0].text));
   const phraseText = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
   const endsWithColon = (ws) => !!(ws && ws.length && /:\s*$/.test(ws[ws.length-1].text));
   // The page's words that could be labels (with letters, not inside a tick box), and their
@@ -3068,7 +3081,7 @@ else if (typeof exports === 'object')
       if (under.length) f.caption = phraseText(under.sort((a,b) => a.x0-b.x0));
     });
     const isLabel = (l) => l.words.some(w => labelWords.has(w));
-    const heads = read.lines.filter(l => capsText(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
+    const heads = read.lines.filter(l => capsText(l.text, 6) && !isLabel(l) &&
                                          !fields.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
     fields.forEach(f => {
       const ws = f._words; delete f._words;
@@ -3076,11 +3089,10 @@ else if (typeof exports === 'object')
       f._lw = ws || null;
       // (a label of its own on its row, ending with a colon, says all: "Copies of report to:")
       if (f._ownColon){ delete f._ownColon; return; }
-      if (f.section || !f.label || /^[A-Z][A-Z\s]{5,}/.test(f.label)) return;
+      if (f.section || !f.label || headingLabel(f.label)) return;
       // (only in a box: on a form of fill-in lines, a line in capitals above is the row above's
       // captions, "STREET NAME" under the Address line, not a heading over this field)
       if (!f.box) return;
-      if (capsText(f.label) && f.label.replace(/[^A-Za-z]/g, '').length > 4) return;
       // The nearest heading above the label, taking only its words over the label and field: two
       // tables side by side read as one line ("PATIENT INFORMATION REFERRING MD"), each its own
       const x0 = Math.min(f.x, ...ws.map(w => w.x0)), top = Math.min(f.y, ...ws.map(w => w.y0)), x1 = f.x + f.width;
@@ -3138,11 +3150,7 @@ else if (typeof exports === 'object')
         return n >= (b.x2-b.x1+1)*0.5;
       };
       if (!crowded(b.y1 - Math.round(capH*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
-      const run = (x, ya, yb) => {
-        let n = 0;
-        for (let y=Math.max(0,ya); y<=Math.min(h-1,yb); y++) if (clean[y*w+x] || (x>0 && clean[y*w+x-1]) || (x<w-1 && clean[y*w+x+1])) n++;
-        return n >= (yb-ya+1)*0.85;
-      };
+      const run = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb, 0.85, 0);
       const tall = Math.round(capH*1.1);
       return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => run(b.x1+1, ya, yb) && run(b.x2-1, ya, yb));
     };
@@ -3229,7 +3237,7 @@ else if (typeof exports === 'object')
       let bounded = false;
       if (top && (L.y1 - top.y2) <= line*8){
         const xa = Math.max(L.x1, top.x1) + 1, xb = Math.min(L.x2, top.x2) - 1;
-        bounded = (rule(xa, top.y2+2, L.y1-2) && rule(xb, top.y2+2, L.y1-2)) ||
+        bounded = joinedBySides(clean, w, h, top, L, xa, xb, 2) ||
                   (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2);
       }
       // Only the top edge of a box or table (its sides start here and go down, not up): no field above it
@@ -3247,7 +3255,7 @@ else if (typeof exports === 'object')
       const cuts = [L.x1];
       if (bounded){
         // A divider runs unbroken from rule to rule; a letter's stem in a short row leaves a gap
-        const divider = (x) => { for (let y=top.y2; y<=L.y1; y++) if (!(on(x,y) || on(x-1,y) || on(x+1,y))) return false; return true; };
+        const divider = (x) => sideRule(clean, w, h, x, top.y2, L.y1, 1, 0);
         for (let x=L.x1+3; x<L.x2-3; x++){
           if (divider(x)){ cuts.push(x); x += 3; }
         }
@@ -3264,7 +3272,7 @@ else if (typeof exports === 'object')
           for (let j=i-1; j>=0; j--){
             const M = lines[j];
             if (M.y2 >= top.y1 || overlap(M, { x1, x2 }) < (x2-x1+1)*0.5) continue;
-            if (L.y1 - M.y2 <= line*8 && rule(x1-3, M.y2+2, L.y1-2) && rule(x2+3, M.y2+2, L.y1-2)) cellCeil = M.y2 + 2;
+            if (L.y1 - M.y2 <= line*8 && joinedBySides(clean, w, h, M, L, x1-3, x2+3, 2)) cellCeil = M.y2 + 2;
             break;
           }
         }
@@ -3712,7 +3720,6 @@ else if (typeof exports === 'object')
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
       // and below that span it, joined by sides down from both ends of the top one (page-image
       // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
-      const sideDown = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb);
       const boxOf = (x0, f) => {
         const a = x0*s, z = (f.x + f.width)*s, top = f.y*s, bottom = (f.y + f.height)*s;
         const spans = (b) => b.x1 <= a + 3 && b.x2 >= z - 3;
@@ -3720,7 +3727,7 @@ else if (typeof exports === 'object')
         const bots = bands.filter(b => b.y1 > bottom - 2 && spans(b)).sort((p,q) => p.y1 - q.y1).slice(0, 8);
         for (const T of tops) for (const B of bots){
           if (B.y1 - T.y2 < 4) continue;
-          if (sideDown(T.x1 + 1, T.y2 + 1, B.y1 - 1) && sideDown(T.x2 - 1, T.y2 + 1, B.y1 - 1))
+          if (joinedBySides(clean, w, h, T, B, T.x1 + 1, T.x2 - 1, 1))
             return { x0: T.x1/s, x1: T.x2/s, y0: T.y1/s, y1: B.y2/s };
         }
         return null;
