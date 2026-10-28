@@ -122,18 +122,6 @@ window.TEST_CASE_LIST = [
     ],
     "skip": [
       {
-        "test": "fields",
-        "page": 1,
-        "region": [1040, 540, 410, 60],
-        "reason": "First name: found, but as tall as the Appointment Date line above it"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [1040, 500, 410, 100],
-        "reason": "First name, found as tall as the Appointment Date line above it"
-      },
-      {
         "test": "extraFields",
         "page": 1,
         "region": [810, 775, 330, 60],

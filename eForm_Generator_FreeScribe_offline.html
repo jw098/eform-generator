@@ -2896,7 +2896,8 @@ else if (typeof exports === 'object')
       return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
     };
     const out = [];
-    read.words.filter(wd => /:$/.test(wd.text) && /[A-Za-z]/.test(wd.text)).forEach(wd => {
+    // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
+    read.words.filter(wd => /:$/.test(wd.text) && (/[A-Za-z]/.test(wd.text) || /^#+:$/.test(wd.text))).forEach(wd => {
       const th = wd.y1 - wd.y0;                                  // the text's height
       if (th < 4) return;
       // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
@@ -3306,23 +3307,29 @@ else if (typeof exports === 'object')
         fields.push({ page, x: a.x1/s, y: a.y1/s, width: (a.x2-a.x1)/s, height: (a.y2-a.y1)/s, type: 'textarea', name: 'text', oscarTag: '', box: false });
       });
     }
+    // The form's margins: where its rules start and end. A rule running from one to the other is
+    // a page-wide rule (a table drawn without sides, "Dr: ____ Billing #: ____" between two such
+    // rules); a fill-in line starts after its label, in from the margin.
+    const marginL = Math.min(...lines.map(L => L.x1)), marginR = Math.max(...lines.map(L => L.x2));
+    const pageWide = (L) => L.x1 - marginL <= line*1.5 && marginR - L.x2 <= line*1.5;
     lines.forEach((L, i) => {
       if (ruled.has(L)) return;
-      // The nearest line above that spans most of this one: this line closes a row or a box
+      // The nearest line above that spans most of this one
       let top = null;
       for (let j=i-1; j>=0; j--){
         const M = lines[j];
         if (M.y2 >= L.y1-2) continue;
         if (overlap(M,L) >= 0.5*(L.x2-L.x1+1)){ top = M; break; }
       }
-      let bounded = top && (L.y1 - top.y2) <= line*8;
-      // A line much shorter than the rule above it with no sides rising from its ends is a
-      // fill-in line ("Other: ____") inside a bigger box, not the bottom of a box of its own
-      if (bounded && (L.x2-L.x1) < (top.x2-top.x1)*0.8 && ![L.x1+1, L.x2-1].some(x => ruleUp(x, L.y1))) bounded = false;
-      // A tall space counts as one box only when it has sides; otherwise it's blank page
-      if (bounded && (L.y1 - top.y2) > line*2.2){
-        const sides = [Math.max(L.x1, top.x1)+1, Math.min(L.x2, top.x2)-1];
-        if (!sides.every(x => rule(x, top.y2+2, L.y1-2))) bounded = false;
+      // A row (a table's, a box) is the space between two lines joined by sides at both ends of
+      // what they share, or between two page-wide rules a row apart. Any other line is a fill-in
+      // line: two lines one over the other without sides ("Name: ____" over "Address: ____", a
+      // line over a box's edge) are no row.
+      let bounded = false;
+      if (top && (L.y1 - top.y2) <= line*8){
+        const xa = Math.max(L.x1, top.x1) + 1, xb = Math.min(L.x2, top.x2) - 1;
+        bounded = (rule(xa, top.y2+2, L.y1-2) && rule(xb, top.y2+2, L.y1-2)) ||
+                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2);
       }
       // Only the top edge of a box or table (its sides start here and go down, not up): no field above it
       const ends = [L.x1+1, L.x2-1];
@@ -3333,10 +3340,8 @@ else if (typeof exports === 'object')
       const above = bounded ? null : lines.filter(M => M.y2 < L.y1 - 2 && overlap(M, L) > 0).sort((a,b) => b.y2 - a.y2)[0];
       const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25), above ? above.y2 + 2 : 0);
       const floor = L.y1 - 2;
-      // (a fill-in line close under a rule, "PHN ____" just under a box's top edge, has only a
-      // table row's height to it, like a row between two rules)
-      const hemmed = bounded || (above && ceil === above.y2 + 2);
-      if (floor - ceil < (hemmed ? rowLine : line)*0.45) return;
+      // (any field is at least most of a table row's height: "PHN ____" just under a box's top edge)
+      if (floor - ceil < rowLine*0.45) return;
       // Columns: split at vertical rules inside a bounded row
       const cuts = [L.x1];
       if (bounded){
@@ -3395,18 +3400,7 @@ else if (typeof exports === 'object')
           for (let y=ya; y<=floor; y++) for (let x=xa; x<L.x1-2; x++) if (on(x,y)) return true;
           return false;
         };
-        // A fill-in line with its label on its own row ("Other: ____") is that row only, when the
-        // row is blank over the line, whatever is printed higher up (the row of tick boxes above)
-        const ownRow = !bounded && lowInk >= 0 && labelled() && (() => {
-          const ya = Math.max(y1, floor - Math.round(rowLine*0.6));
-          for (let y=ya; y<=y2; y++) for (let x=x1; x<=x2; x++) if (on(x,y)) return false;
-          return true;
-        })();
-        if (ownRow){
-          const ya = Math.max(y1, floor - Math.round(rowLine));
-          fs.push({ x1, y1: ya, x2: trim(ya), y2 });
-        }
-        else if (lowInk < 0){
+        if (lowInk < 0){
           const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
         }
@@ -3451,7 +3445,7 @@ else if (typeof exports === 'object')
         // above a field are the row above's, not its label.
         const box = bounded && rule(x1 - 3, y1, y2) && rule(x2 + 3, y1, y2);
         fs.forEach(f => {
-          if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < (hemmed ? rowLine : line)*0.4) return;
+          if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
           const tall = (f.y2 - f.y1) > line*1.8;
           fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
                         type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box });
