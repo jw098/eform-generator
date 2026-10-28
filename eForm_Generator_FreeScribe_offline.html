@@ -2852,7 +2852,9 @@ else if (typeof exports === 'object')
   // cell's label, and is at least a line tall and half the cell wide ("EXAM(s) REQUESTED:" over a blank beside the
   // Priority list, "PERTINENT HISTORY / MEDICATIONS:" over the rest of its cell). Fields already
   // found there take its place.
-  function cellAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
+  // A table's cells: two rules one over the other (at least a line and a half apart), joined by
+  // sides; each pair of sides next to each other bounds a cell (canvas pixels, inside its rules)
+  function tableCells(clean, w, h, s, bands, minSeg, p){
     const line = Math.max(18, p.naturalH*0.026) * s;
     const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg).sort((a,b) => a.y1 - b.y1);
     const on = (x,y) => clean[y*w+x] === 1;
@@ -2881,6 +2883,13 @@ else if (typeof exports === 'object')
         break;
       }
     });
+    return cells;
+  }
+
+  function cellAreaFields(clean, w, h, s, bands, minSeg, page, p, found){
+    const line = Math.max(18, p.naturalH*0.026) * s;
+    const on = (x,y) => clean[y*w+x] === 1;
+    const cells = tableCells(clean, w, h, s, bands, minSeg, p);
     const out = [], g = Math.max(2, Math.round(line*0.12));            // (a coarse grid, a few pixels a square)
     cells.forEach(c => {
       const cols = Math.floor((c.x2 - c.x1 + 1) / g), rows = Math.floor((c.y2 - c.y1 + 1) / g);
@@ -2923,65 +2932,111 @@ else if (typeof exports === 'object')
     return out;
   }
 
-  // Fields after a label that ends with a colon, where nothing is printed to write on: the blank
-  // page right after it on its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐"),
-  // up to the next ink, when it is at least a few letters wide. When the blank also goes on
-  // down, under the label and beside it, for more than a line ("Address:" over room for two
-  // lines), the field takes that too. Not where a field was found already, nor after a heading
-  // over a writing area found just below it ("EXAM(s) REQUESTED:").
-  function colonFields(read, clean, w, h, s, page, found, right){
+  // Fields after a label where nothing is printed to write on: the blank page right after it on
+  // its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐", "Height ____ Weight ____"),
+  // up to the next ink or field, when it is at least a few letters wide. A label is a phrase that
+  //  - ends with a colon;
+  //  - or is one of the common labels (LABEL_WORDS: "Name", "PHN", "Height", "G P A" ...);
+  //  - or is a short phrase in a table cell with blank space after it, when the cell has no
+  //    field yet and the cell just right of it isn't empty (that cell would be the field).
+  // Not a tick box's label, a caption under a field, a heading (over a writing area or a row of
+  // tick boxes, or in capitals of three words or more) or the end of a sentence. When the blank
+  // also goes on down for more than a line ("Address:" over room for two lines), the field takes
+  // that too.
+  const LABEL_WORDS = new Set(['name', 'first name', 'last name', 'surname', 'given name', 'given names', 'middle name', 'full name',
+    'patient name', 'patient\'s name', 'phn', 'hin', 'health number', 'personal health number', 'care card', 'carecard', 'care card number',
+    'dob', 'd.o.b', 'date of birth', 'birth date', 'birthdate', 'address', 'street', 'city', 'town', 'province', 'postal code', 'zip',
+    'phone', 'phone #', 'telephone', 'tel', 'home phone', 'cell', 'cell phone', 'mobile', 'work phone', 'fax', 'email', 'e-mail',
+    'email address', 'gender', 'sex', 'language', 'age', 'lmp', 'g', 'p', 'a', 'gpa', 'height', 'weight', 'ht', 'wt', 'bmi',
+    'date', 'time', 'signature', 'msp', 'msp #', 'msp no', 'billing', 'billing #', 'billing no']);
+  // Options are answers, not labels: "Pt diabetic   Yes   No"
+  const OPTION_WORDS = new Set(['yes', 'no', 'y', 'n', 'm', 'f', 'male', 'female', 'n/a', 'na', 'unknown']);
+  function labelGapFields(read, clean, w, h, s, page, found, right, cells){
     const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
-    // The phrase a word ends: the words before it on its line, close together
-    const phraseOf = (wd) => {
-      const l = read.lines.find(l => l.words.some(u => Math.abs(u.x0 - wd.x0) < 2 && Math.abs(u.y0 - wd.y0) < 2));
-      if (!l) return [wd];
-      const ws = l.words.filter(u => u.x1 <= wd.x1 + 1).sort((a,b) => a.x0 - b.x0), got = [wd];
-      for (let i = ws.length - 2; i >= 0; i--){
-        if (got[0].x0 - ws[i].x1 > (wd.y1 - wd.y0)*2) break;
-        got.unshift(ws[i]);
-      }
-      return got;
-    };
+    const writes = found.filter(g => g.type === 'text' || g.type === 'textarea');
     // (overlapping a found field by more than a sliver)
     const overlaps = (a, b) => {
       const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
       return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
     };
+    const inside = (c, x, y) => x >= c.x1 && x <= c.x2 && y >= c.y1 && y <= c.y2;
+    // The page's phrases: each line split where its words are far apart
+    const phrases = [];
+    read.lines.forEach(l => {
+      const ws = l.words.filter(u => u.text.trim()).sort((a,b) => a.x0 - b.x0);
+      ws.forEach(u => { const p = phrases[phrases.length-1]; if (p && p.line === l && u.x0 - p.ws[p.ws.length-1].x1 <= (u.y1 - u.y0)*2) p.ws.push(u); else phrases.push({ line: l, ws: [u] }); });
+    });
     const out = [];
-    read.words.filter(wd => /:$/.test(wd.text) && /[A-Za-z]/.test(wd.text)).forEach(wd => {
-      const th = wd.y1 - wd.y0;                                  // the text's height
-      if (th < 4) return;
+    phrases.forEach(({ ws: ph }) => {
+      const wd = ph[ph.length-1], th = wd.y1 - wd.y0;             // its last word; the text's height
+      if (th < 4 || !/[A-Za-z]/.test(ph.map(u => u.text).join(''))) return;
+      const text = ph.map(u => u.text).join(' ').toLowerCase().replace(/[\s:#?.*]+$/, '').replace(/\s+/g, ' ').trim();
+      const colon = /:$/.test(wd.text), listed = LABEL_WORDS.has(text);
+      const cy = (wd.y0 + wd.y1)/2;
+      const cell = !colon && !listed ? cells.find(c => inside(c, ph[0].x0, cy) && inside(c, wd.x1, cy)) : null;
+      if (!colon && !listed && !cell) return;
       // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
-      // if required:", a sentence's second line)
-      const ph = phraseOf(wd);
+      // if required:", a sentence's second line; nor a heading in capitals: "REASON FOR REFERRAL:")
       if (ph.length > 6 || (ph.length >= 3 && /^[a-z]/.test(ph[0].text))) return;
-      // (nor a heading in capitals: "REASON FOR REFERRAL:")
       if (ph.length >= 3 && ph.every(u => !/[a-z]/.test(u.text))) return;
+      if (cell && (ph.length > 4 || /[.,;!?]$/.test(wd.text) || ph.every(u => !/[a-z]/.test(u.text)) || text.replace(/[^a-z]/g, '').length < 3)) return;
+      if (OPTION_WORDS.has(text)) return;
+      // (nor a tick box's label: a tick box just before it on its row)
+      if (ticks.some(b => Math.abs((b.y + b.height/2) - cy) < th && b.x + b.width <= ph[0].x0 + 2 && ph[0].x0 - (b.x + b.width) < th*2.5)) return;
+      // (nor a caption under a field: "Date   Time   Doctor" under the appointment's lines)
+      if (!colon && writes.some(g => g.y + g.height >= ph[0].y0 - th*2 && g.y + g.height <= ph[0].y0 + th*0.5 && g.x <= ph[0].x0 + th && g.x + g.width >= wd.x1 - th)) return;
+      // In a cell: the cell just right of it, when it has a field or is empty, is the field
+      // ("| MSP # | ____ |"); and a cell with a field already needs no other
+      const home = cell || cells.find(c => inside(c, ph[0].x0, cy) && inside(c, wd.x1, cy));
+      // (a label's own cell holds just its row: a cell of several rows is a section, "Pt diabetic
+      // ... LMP ... Height Weight", whose neighbour is another section)
+      const labelCell = home && !read.words.some(u => inside(home, (u.x0 + u.x1)/2, (u.y0 + u.y1)/2) && Math.abs((u.y0 + u.y1)/2 - cy) > th);
+      if (home && labelCell){
+        const next = cells.find(c => c !== home && Math.abs(c.x1 - home.x2) < th*1.5 && c.y1 < cy && c.y2 > cy);
+        if (next && (writes.some(g => inside(next, g.x + g.width/2, g.y + g.height/2)) || !read.words.some(u => inside(next, (u.x0 + u.x1)/2, (u.y0 + u.y1)/2)))) return;
+      }
+      if (home && !colon && writes.some(g => inside(home, g.x + g.width/2, g.y + g.height/2) && Math.abs((g.y + g.height/2) - cy) < th*1.5)) return;
       const ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
       const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (on(x,y)) return true; return false; };
       // the blank after it on its row, up to the next ink or field found, and no further than the
-      // form's right edge
+      // form's right edge (or its cell's)
       const ahead = found.concat(out).filter(g => g.x > wd.x1 && Math.min(g.y + g.height, wd.y1) - Math.max(g.y, wd.y0) >= th*0.5).map(g => g.x - 2);
-      const xa = Math.round((wd.x1 + th*0.3)*s), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*s));
+      const xa = Math.round((wd.x1 + th*0.3)*s), xr = Math.min(w - 1, Math.round(Math.min(right, cell ? cell.x2 : Infinity, ...ahead)*s));
       let xb = xa;
       while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
       const x1 = xa/s + th*0.2, x2 = xb/s - th*0.4;
-      if (x2 - x1 < th*4) return;
+      if (x2 - x1 < th*(listed ? 3 : 4)) return;
+      // (nor the padding before its field: a field on its row just after the blank, past the cell's
+      // side, "| MSP # | ____ |"; nor before its options: "Pt diabetic   Yes   No")
+      if (writes.some(g => g.x >= xb/s - 2 && g.x - xb/s < th*2 && g.height < th*3 && Math.abs((g.y + g.height/2) - cy) < th)) return;
+      const nextWord = read.words.filter(u => u.x0 >= xb/s - 2 && Math.abs((u.y0 + u.y1)/2 - cy) < th*0.6).sort((a,b) => a.x0 - b.x0)[0];
+      // (a label with a colon asks for a value whatever follows: "Date of Birth: ____  M ☐ F ☐")
+      if (!colon && nextWord && nextWord.x0 - xb/s < th*2 && OPTION_WORDS.has(nextWord.text.toLowerCase().replace(/[^a-z/]/g, ''))) return;
+      // (not up to the label's own colon set apart from it: "Personal Health Number      :": the ink
+      // that ends the blank is a narrow mark with blank page after it)
+      if (xb < xr){
+        let xe = xb + 1; while (xe < w - 1 && inkCol(xe + 1, ya, yb)) xe++;
+        let xg = xe + 1; while (xg < w - 1 && xg - xe <= th*s && !inkCol(xg, ya, yb)) xg++;
+        // (a colon stays within the text's height; a box's side runs on through it, above and below)
+        const k = Math.round(th*0.6*s), cols = [...Array(xe - xb).keys()].map(i => xb + 1 + i);
+        const within = !(cols.some(x => inkCol(x, Math.max(0, ya - k), ya - 2)) && cols.some(x => inkCol(x, yb + 2, Math.min(h - 1, yb + k))));
+        if (xe - xb <= th*0.4*s && xg - xe > th*s && within) return;
+      }
       let f = { page, x: x1, y: wd.y0 - th*0.3, width: x2 - x1, height: th*1.6, type: 'text', name: 'text', oscarTag: '' };
       // room for more lines below it, under the label and beside it, down to the next ink
       const la = Math.round(wd.x0*s), lb = Math.round(x2*s);
       let yc = yb + 1;
       const rowBlank = (y) => { for (let x=la; x<=lb; x++) if (on(x,y)) return false; return true; };
-      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*s) - 2));
+      const floor = Math.min(h - 1, cell ? Math.round(cell.y2*s) : h, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*s) - 2));
       while (yc < floor && rowBlank(yc + 1)) yc++;
       if (yc/s - wd.y1 > th*2.5) f = { ...f, height: yc/s - th*0.4 - f.y, type: 'textarea' };
       if (found.concat(out).some(g => overlaps(f, g))) return;
       // (a heading over options: tick boxes on the next row, "Related Medical Issues:")
       if (ticks.some(b => b.y > wd.y1 - 2 && b.y - wd.y1 < th*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return;
       // (a writing area just below, starting where the label does: the label is its heading)
-      if (found.some(g => (g.type === 'text' || g.type === 'textarea') && g.height > th*2 && g.y >= wd.y1 - 2 && g.y - wd.y1 < th*1.5 &&
-                          Math.abs(g.x - ph[0].x0) < th*2 && g.x + g.width > f.x)) return;
+      if (writes.some(g => g.height > th*2 && g.y >= wd.y1 - 2 && g.y - wd.y1 < th*1.5 && Math.abs(g.x - ph[0].x0) < th*2 && g.x + g.width > f.x)) return;
+      f._why = colon ? 'colon' : listed ? 'listed' : 'cell';
       out.push(f);
     });
     return out;
@@ -3888,10 +3943,12 @@ else if (typeof exports === 'object')
         }
         return false;
       };
-      // A label ending with a colon and blank page after it, with no line to write on: a field there
+      // A label (ending with a colon, a common one, or in a cell) with blank page after it, and no
+      // line to write on: a field there
       if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/s : w/s;   // (the form's right edge: its rules' furthest end)
-        found = found.concat(colonFields(read, clean, w, h, s, page, found, right));
+        const cells = tableCells(clean, w, h, s, bands, minSeg, p).map(c => ({ x1: c.x1/s, x2: c.x2/s, y1: c.y1/s, y2: c.y2/s }));
+        found = found.concat(labelGapFields(read, clean, w, h, s, page, found, right, cells));
       }
       if (read) found = labelFields(found, read, ruleAcross);
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
