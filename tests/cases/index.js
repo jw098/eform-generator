@@ -183,7 +183,7 @@ window.TEST_CASE_LIST = [
         "test": "fields",
         "page": 1,
         "region": [100, 462, 200, 58],
-        "reason": "P and Height: the page's small print reads wrong (P as =, Height not at all); LMP, G, A and Weight are found"
+        "reason": "LMP, G, P, A, Height, Weight: blanks after labels with no colon, and no lines"
       },
       {
         "test": "extraFields",
