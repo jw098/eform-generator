@@ -206,7 +206,7 @@ window.TEST_CASE_LIST = [
       "tags": "the patient's FIRST NAME, LAST NAME and DATE OF BIRTH, labelled in small capitals at the top of their cells, get no tag; the blank after ARE YOU THE PATIENT'S REGULAR PRACTITIONER? is tagged current_user",
       "fields": "the DEGREE/GRADE cells on page 2: their two-line label leaves only a small blank, which isn't found",
       "ticks": "three Yes boxes at the left edge on page 2, each just under a numbered question, aren't found",
-      "extraFields": "the grey section heading bars (INVOICE INFORMATION, SUBJECTIVE, DIAGNOSIS...) are taken for fields, as are blanks beside questions and the open page under Return To on page 3",
+      "extraFields": "blanks beside two questions on page 1, small blanks in the DEGREE/GRADE cells on page 2, and the open page under Return To on page 3 are taken for fields",
       "extraTicks": "the lat of Bilat. on page 2 is taken for a tick box"
     },
     "skip": [
@@ -239,6 +239,84 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "region": [35, 425, 505, 30],
         "reason": "the eForm takes the practitioner's FIRST NAME and LAST NAME cells as one field, which its script fills"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [146, 168, 674, 26],
+        "reason": "the blank after the INVOICE INFORMATION heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [146, 333, 674, 25],
+        "reason": "the blank after the PATIENT INFORMATION heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [177, 398, 642, 26],
+        "reason": "the blank after the PRACTITIONER INFORMATION heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [99, 497, 721, 25],
+        "reason": "the blank after the SUBJECTIVE heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [204, 723, 616, 26],
+        "reason": "the blank after the RELEVANT PRE-ACCIDENT HISTORY heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [109, 865, 712, 26],
+        "reason": "the blank after the WORK STATUS heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [117, 52, 700, 26],
+        "reason": "the blank after the PHYSICAL EXAM heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [106, 248, 715, 34],
+        "reason": "the blank after the Diagnosis heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [389, 278, 428, 25],
+        "reason": "the blank after the PRIMARY DIAGNOSIS heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [431, 329, 386, 26],
+        "reason": "the blank after the OTHER DIAGNOSIS heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [279, 478, 542, 35],
+        "reason": "the blank after the Recommended Care Plan Treatment heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [698, 510, 120, 27],
+        "reason": "the blank after the RECOMMENDED PRE-APPROVED TREATMENT(S) heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [132, 699, 684, 26],
+        "reason": "the blank after the TREATMENT NOTES heading, on its heading bar"
       }
     ]
   }
