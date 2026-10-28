@@ -3364,6 +3364,7 @@ else if (typeof exports === 'object')
         }
       }
       cuts.push(L.x2);
+      const cells = [];                                    // (the row's cells, placed once all are read)
       for (let k=0; k<cuts.length-1; k++){
         const x1 = cuts[k] + 3, x2 = cuts[k+1] - 3;
         if (x2 - x1 < line*1.2) continue;
@@ -3406,6 +3407,7 @@ else if (typeof exports === 'object')
           return first > x1 + cellW*0.5 ? first - Math.round(line*0.3) : x2;
         };
         const fs = [];
+        let below = null;                                  // (the top of a field under its label)
         // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
         const labelled = () => {
           const xa = Math.max(0, L.x1 - Math.round(line*2)), ya = Math.max(0, floor - Math.round(rowLine));
@@ -3422,6 +3424,7 @@ else if (typeof exports === 'object')
           const inkAt = (y) => { for (let x=x1; x<=x2; x++) if (on(x,y)) return true; return false; };
           while (ya < y2 - line*0.6 && inkAt(ya)) ya++;
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
+          below = ya;
         }
         else if (!capH || lowInk - highInk <= capH*1.6 || (blocks.length > 1 && blocks[blocks.length-1].y2 - blocks[blocks.length-1].y1 <= capH*1.6)){
           // Labels on the row ("Dr: ____ Billing #: ____ Date: ____"): a field in each wide blank
@@ -3456,13 +3459,26 @@ else if (typeof exports === 'object')
         // box on a form). Two fill-in lines one above the other have no sides; there the words
         // above a field are the row above's, not its label.
         const box = bounded && rule(x1 - 3, y1, y2) && rule(x2 + 3, y1, y2);
-        fs.forEach(f => {
-          if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
-          const tall = (f.y2 - f.y1) > line*1.8;
-          fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
-                        type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box });
-        });
+        cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box });
       }
+      // In a table row whose cells have their label at the top and their field under it
+      // ("DIAGNOSIS | ICD 9 CODE"), a cell whose label starts as high but runs on into that
+      // space, a line or two of small print with only a narrow blank beside it ("DEGREE/GRADE"
+      // over "(WAD, SPRAIN, STRAIN)"), has its field there too, across the cell: its later line
+      // is a note. (Not a label over a row of tick boxes, "ORIENTATION" over "☐ Left ☐ Right",
+      // which is taller.)
+      if (bounded) cells.forEach(c => {
+        if (c.below != null || c.lowInk < 0 || c.x2 - c.rightInk >= c.cellW*0.5) return;
+        const sib = cells.find(b => b.below != null && Math.abs(b.highInk - c.highInk) <= (b.lowInk - b.highInk)*0.5 && c.lowInk >= b.below &&
+                                    c.lowInk - c.highInk <= (b.lowInk - b.highInk)*2.5);
+        if (sib) c.fs = [{ x1: c.x1, y1: sib.below, x2: c.trim(sib.below), y2: c.y2 }];
+      });
+      cells.forEach(c => c.fs.forEach(f => {
+        if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
+        const tall = (f.y2 - f.y1) > line*1.8;
+        fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
+                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box });
+      }));
     });
     return fields;
   }

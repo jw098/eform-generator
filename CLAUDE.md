@@ -103,6 +103,14 @@ before running the tests when `window.eformMapperTestNoRun` is set), so the two 
 - Comments are plain English that say what a rule is for, with the printed text that shows it
   in quotes ("Referring Physician: ____", "☐ OTHER, SPECIFY: ____"). Keep them up to date when
   a rule changes.
-- Prefer one shared test over another copy with its own thresholds. A new exception for one
-  form should be a last resort; check it against every case.
+- Field detection and tagging rules must be general: a rule says something true of forms in
+  general (how a table row is laid out, what a heading looks like), not of the one form in
+  front of you. Don't add a rule that names a form's words, a special case for one layout, or
+  a stack of exceptions to make one case pass. If a fix needs exceptions to stop it breaking
+  other forms, the rule is probably the wrong one: look for the general fact instead.
+- Prefer one shared test over another copy with its own thresholds, and size thresholds
+  against the page (its rules, its printed text), not fixed pixel counts.
+- Check every rule change against every case: an exact snapshot before and after
+  (`tests/snapshot.js`), and every difference explained. Where a form can't be handled yet,
+  leave a to-do in its test case rather than an exception in the code.
 - Commit messages: a short summary of what changed, in the same plain style as the comments.
