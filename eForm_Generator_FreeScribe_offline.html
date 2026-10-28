@@ -1151,7 +1151,8 @@ else if (typeof exports === 'object')
   // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. A field whose label
   // doesn't takes the owner of what is just left of it on its row ("OFFICE PHONE: ____  FAX: ____"),
   // or else of what is just above it ("Referring MD" over "Printed name: ____"), the patient's
-  // when nothing says. A table cell looks up first: its column's header says whose, and the cell
+  // when nothing says. In a bordered box, it looks inside the box first, then at the rest of
+  // the page. A table cell looks up first: its column's header says whose, and the cell
   // to its left can be another table's ("PATIENT | REFERRING MD" side by side).
   //  - patient: the field keeps its tag (the patient's is what a bare label gets);
   //  - referring clinician (current_user): the clinic's phone, fax and address, the user's email
@@ -1186,7 +1187,7 @@ else if (typeof exports === 'object')
     if (owner === 'family') return { name: part ? '' : has('doctor'), number: has('doctor_ohip_no') }[kind] || '';
     return '';
   }
-  function fieldOwners(found, read){
+  function fieldOwners(found, read, boxOf){
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
     writes.forEach(f => (f._lw || []).forEach(w => labelOf.set(w, f)));
@@ -1204,11 +1205,14 @@ else if (typeof exports === 'object')
     });
     const extent = (f) => { const lw = f._lw || []; return { x0: Math.min(f.x, ...lw.map(w => w.x0)), top: Math.min(f.y, ...lw.map(w => w.y0)) }; };
     const owner = new Map();
+    // (within a box: what lies inside it)
+    const inside = (box, r) => !box || (r.x0 >= box.x0 - 2 && r.x1 <= box.x1 + 2 && r.y0 >= box.y0 - 2 && r.y1 <= box.y1 + 2);
+    const rect = (g) => ({ x0: g.x, x1: g.x + g.width, y0: g.y, y1: g.y + g.height });
     // What is just above: the nearest text over its column, a field's label (that field's owner)
     // or a short line naming someone (a sentence of instructions doesn't count)
-    const up = (f) => {
+    const up = (f, box) => {
       const { x0, top } = extent(f);
-      const above = parts.filter(p => p.y1 <= top + 2 && p.x0 < f.x + f.width && p.x1 > x0).sort((a,b) => b.y1 - a.y1);
+      const above = parts.filter(p => p.y1 <= top + 2 && p.x0 < f.x + f.width && p.x1 > x0 && inside(box, p)).sort((a,b) => b.y1 - a.y1);
       for (const p of above){
         const g = p.words.map(fieldOfWord).find(g => g && g !== f);
         if (g){ if (owner.get(g)) return owner.get(g); continue; }
@@ -1217,9 +1221,9 @@ else if (typeof exports === 'object')
       return '';
     };
     // What is just left: the field before it on its row
-    const left = (f) => {
+    const left = (f, box) => {
       const cy = f.y + f.height/2;
-      const g = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2)
+      const g = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2 && inside(box, rect(g)))
                       .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
       return g ? owner.get(g) || '' : '';
     };
@@ -1233,7 +1237,10 @@ else if (typeof exports === 'object')
       .forEach(f => {
         const own = ownerCue(f.label);
         if (own){ owner.set(f, own); return; }                    // (its label says whose: its tag stands)
-        const o = (f.box ? up(f) || left(f) : left(f) || up(f)) || 'patient';
+        // In a box, what is inside it first ("Referring MD" heading the box); then the rest of the page
+        const look = (box) => f.box ? up(f, box) || left(f, box) : left(f, box) || up(f, box);
+        const box = boxOf ? boxOf(extent(f).x0, f) : null;
+        const o = (box && look(box)) || look(null) || 'patient';
         owner.set(f, o);
         const kind = detailKind(f.label);
         if (kind && o !== 'patient') f.oscarTag = ownerTag(o, kind, f.label);
@@ -3714,6 +3721,30 @@ else if (typeof exports === 'object')
         return false;
       };
       if (read) found = labelFields(found, read, ruleAcross);
+      // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
+      // and below that span it, joined by sides down from both ends of the top one (page-image
+      // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
+      const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
+      const sideDown = (x, ya, yb) => {
+        for (const dx of [0, -2, 2]){
+          const xx = x + dx; if (xx < 0 || xx >= w) continue;
+          let n = 0; for (let y=ya; y<=yb; y++) if (clean[y*w+xx] || (xx > 0 && clean[y*w+xx-1]) || (xx < w-1 && clean[y*w+xx+1])) n++;
+          if (n >= (yb-ya+1)*0.9) return true;
+        }
+        return false;
+      };
+      const boxOf = (x0, f) => {
+        const a = x0*s, z = (f.x + f.width)*s, top = f.y*s, bottom = (f.y + f.height)*s;
+        const spans = (b) => b.x1 <= a + 3 && b.x2 >= z - 3;
+        const tops = rules.filter(b => b.y2 < top && spans(b)).sort((p,q) => q.y2 - p.y2).slice(0, 8);
+        const bots = rules.filter(b => b.y1 > bottom - 2 && spans(b)).sort((p,q) => p.y1 - q.y1).slice(0, 8);
+        for (const T of tops) for (const B of bots){
+          if (B.y1 - T.y2 < 4) continue;
+          if (sideDown(T.x1 + 1, T.y2 + 1, B.y1 - 1) && sideDown(T.x2 - 1, T.y2 + 1, B.y1 - 1))
+            return { x0: T.x1/s, x1: T.x2/s, y0: T.y1/s, y1: B.y2/s };
+        }
+        return null;
+      };
 
       pushUndo();
       const before = getPageFields(page).length;
@@ -3738,7 +3769,7 @@ else if (typeof exports === 'object')
       });
       // Whose details each name, phone, fax, address, email or billing number is: the patient's,
       // the referring clinician's, the family doctor's, or the receiving office's
-      if (read) fieldOwners(found, read);
+      if (read) fieldOwners(found, read, boxOf);
       found.forEach(f => { delete f._lw; });
       found.forEach(f => {
         const dup = state.fields.some(k =>
