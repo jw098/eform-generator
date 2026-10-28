@@ -3154,51 +3154,33 @@ else if (typeof exports === 'object')
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
     const capH = textCapHeight(clean, w, h);
-    // The tops of a run of bold capitals merge into a "line" with solid letters right under it.
-    // The letters touch the line; a row of text that starts below a blank gap (a dense
-    // sentence in the next box down) leaves the rule a real rule, and so does another rule
-    // right under it (a fill-in line just above a box's edge): letters leave gaps, rules don't.
-    // A box's top edge: sides run down from both its ends. Letter tops never have them, nor does
-    // an underline; a box's top edge can still have letters right under it ("PHN" in its corner)
-    // and a row of words right on top of it.
-    const boxTop = (b) => {
-      if (!capH) return false;
-      const yb = Math.min(h-1, b.y2 + Math.round(capH*1.5));
-      const down = (x) => { let n = 0; for (let y=b.y2+1; y<=yb; y++) if (clean[y*w+x] || (x > 0 && clean[y*w+x-1]) || (x < w-1 && clean[y*w+x+1])) n++; return n >= (yb - b.y2)*0.85; };
-      return down(b.x1 + 1) && down(b.x2 - 1);
-    };
-    const letterTops = (b) => {
-      if (!capH || boxTop(b)) return false;
-      const ya = b.y2 + 1, yb = Math.min(h-1, b.y2 + Math.round(capH*0.8));
-      const bw = b.x2-b.x1+1;
-      let n = 0;
-      for (let y=ya; y<=yb; y++){
-        let r = 0;
-        for (let x=b.x1; x<=b.x2; x++) if (clean[y*w+x]) r++;
-        if (y <= ya+1 && r < bw*0.05) return false;
-        if (r >= bw*0.95) return false;
-        n += r;
-      }
-      return n > (yb-ya+1)*bw*0.3;
-    };
-    // Underlined words ("Depression" underlined): letters stand on the line along most of its
-    // length, where a fill-in line has blank page above it (its label is to its left). A row's
-    // bottom rule with a full row of text above it has sides rising from its ends; this has none.
-    const underlined = (b) => {
-      if (!capH || boxTop(b)) return false;
-      const ya = Math.max(0, b.y1 - Math.round(capH*1.1)), yb = b.y1 - 2;
-      if (yb - ya < 3) return false;
-      const up = (x) => { let n = 0; for (let y=ya; y<=yb; y++) if (clean[y*w+x] || (x>0 && clean[y*w+x-1]) || (x<w-1 && clean[y*w+x+1])) n++; return n >= (yb-ya+1)*0.85; };
-      if (up(b.x1+1) && up(b.x2-1)) return false;
-      let cols = 0;
-      for (let x=b.x1; x<=b.x2; x++){ for (let y=ya; y<=yb; y++) if (clean[y*w+x]){ cols++; break; } }
-      return cols >= (b.x2-b.x1+1)*0.5;
+    // Is this band really a line? Words drawn as one: an underline has letters standing just
+    // above it along most of its length, and the tops of a run of bold capitals merge into a
+    // "line" with the letters hanging right under it. (The row touching the band is skipped: a
+    // line's soft edge.) A box's edge or a table row's rule can have words as close, but has
+    // sides running up or down from both its ends.
+    const isLine = (b) => {
+      if (!capH) return true;
+      const crowded = (ya, yb) => {
+        ya = Math.max(0, ya); yb = Math.min(h-1, yb);
+        let n = 0;
+        for (let x=b.x1; x<=b.x2; x++) for (let y=ya; y<=yb; y++) if (clean[y*w+x]) { n++; break; }
+        return n >= (b.x2-b.x1+1)*0.5;
+      };
+      if (!crowded(b.y1 - Math.round(capH*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
+      const run = (x, ya, yb) => {
+        let n = 0;
+        for (let y=Math.max(0,ya); y<=Math.min(h-1,yb); y++) if (clean[y*w+x] || (x>0 && clean[y*w+x-1]) || (x<w-1 && clean[y*w+x+1])) n++;
+        return n >= (yb-ya+1)*0.85;
+      };
+      const tall = Math.round(capH*1.1);
+      return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => run(b.x1+1, ya, yb) && run(b.x2-1, ya, yb));
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
     const lines = bands.filter(b => (b.x2-b.x1+1) >= minSeg)
                        .map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
-                       .filter(b => !letterTops(b) && !underlined(b))
+                       .filter(isLine)
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     const rowLine = capH ? Math.min(line, Math.max(10, capH*1.6)) : line;
     const on = (x,y) => clean[y*w+x] === 1;
