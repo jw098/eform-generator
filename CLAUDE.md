@@ -28,12 +28,13 @@ page's section headings, not tags.) To list them:
 python3 -c "import csv; print('\n'.join(r[1] for r in csv.reader(open('CodingAgentContext/standard-eform-tags.csv', encoding='utf-8-sig')) if r[0].strip() == '12'))"
 ```
 
-Known exceptions in the code, still to be fixed:
-- `TAG_FOR.clinician.email` is `current_user_email` (version 15).
-- `DEFAULT_TAGS` (the app's starting tag list) also has `hc_type`, `current_user_email`,
-  `current_user_fax` (version 15) and `current_user_signature_image`, `clinic_email`,
-  `patient_dob`, `patient_hin`, `patient_phone`, `patient_address`, `patient_sex`,
-  `today_date` (not in the file).
+In the code: `DEFAULT_TAGS` (the tags offered to start with) and `TAG_FOR` (what Auto Detect
+suggests) hold only version 12's tags. `REMOVED_TAGS` lists the other tags the app used to
+offer; they are kept out of the tag list from any source, and a saved session's field loses
+one. Where version 12 has no tag for something (a clinician's email), the field gets none.
+A signature is a field type (`signature`, exported as OSCAR's signature stamp), not a tag.
+A test case's expected tags follow the same rule. (OSCAR measurement references such as
+`m$EDC#value` aren't standard tags, and Auto Detect doesn't suggest them.)
 
 ## Auto Detect, in order (`detectCurrentPage`)
 
