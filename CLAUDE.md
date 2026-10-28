@@ -13,7 +13,27 @@ package). **Auto Detect** finds the tick boxes and the places to write, and sugg
   megabytes). The app's own code starts around line 900.
 - `tests/`: the Auto Detect tests (see `tests/README.md`). Each case in `tests/cases/` is a
   finished eForm and its page image(s).
-- `CodingAgentContext/standard-eform-tags.csv`: OSCAR's standard eForm tags.
+- `CodingAgentContext/standard-eform-tags.csv`: OSCAR's standard eForm tags, with the OSCAR
+  version each came in (see "Tags" below).
+
+## Tags
+
+Only the **OSCAR version 12** tags count: the rows of `standard-eform-tags.csv` whose
+`Oscar Version` is `12` (105 tags). Tags from later versions (`15`, `15b803`, `19`…) and tags
+not in the file don't exist for this project: Auto Detect must never suggest one, and a new
+rule or list of tags must use only version 12's. (The rows with no version are the source
+page's section headings, not tags.) To list them:
+
+```
+python3 -c "import csv; print('\n'.join(r[1] for r in csv.reader(open('CodingAgentContext/standard-eform-tags.csv', encoding='utf-8-sig')) if r[0].strip() == '12'))"
+```
+
+Known exceptions in the code, still to be fixed:
+- `TAG_FOR.clinician.email` is `current_user_email` (version 15).
+- `DEFAULT_TAGS` (the app's starting tag list) also has `hc_type`, `current_user_email`,
+  `current_user_fax` (version 15) and `current_user_signature_image`, `clinic_email`,
+  `patient_dob`, `patient_hin`, `patient_phone`, `patient_address`, `patient_sex`,
+  `today_date` (not in the file).
 
 ## Auto Detect, in order (`detectCurrentPage`)
 
