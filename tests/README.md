@@ -142,6 +142,7 @@ From then on it runs with the others.
 | `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s). |
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 | `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
+| `snapshot.js` | Prints exactly what Auto Detect finds on each case's images (no margin), to compare before and after a change that shouldn't change it. |
 
 ## To-dos
 
