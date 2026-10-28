@@ -367,16 +367,6 @@
           <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
           <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
         </div>
-        <div class="grid3" style="margin-top:8px">
-          <label>Min side coverage<input id="sideCov" type="number" value="0.40" min="0.1" max="1" step="0.01"/></label>
-          <label>Ring density min<input id="ringMin" type="number" value="0.12" min="0.01" max="1" step="0.01"/></label>
-          <label>Ring density max<input id="ringMax" type="number" value="0.98" min="0.05" max="1" step="0.01"/></label>
-        </div>
-        <div class="grid3" style="margin-top:8px">
-          <label>Inner density max<input id="innerMax" type="number" value="0.78" min="0.01" max="1" step="0.01"/></label>
-          <label>Fill density min<input id="fillMin" type="number" value="0.06" min="0" max="1" step="0.01"/></label>
-          <label>Fill density max<input id="fillMax" type="number" value="0.93" min="0.01" max="1" step="0.01"/></label>
-        </div>
       </div>
     </details>
 
@@ -997,7 +987,7 @@ else if (typeof exports === 'object')
     msg('Undid last action.', 'ok');
   }
 
-  const TUNING_IDS = ['minCb','targetCb','tolCb','lineMinPct','darkBias','gradMult','sideCov','ringMin','ringMax','innerMax','fillMin','fillMax'];
+  const TUNING_IDS = ['minCb','targetCb','tolCb','lineMinPct','darkBias','gradMult'];
   function getTuning(){
     const out = {};
     TUNING_IDS.forEach(id => {
@@ -2384,42 +2374,9 @@ else if (typeof exports === 'object')
     return n;
   }
 
-  function edgeCoverage(clean,w,h,minx,miny,maxx,maxy,th){
-    // Fraction of positions along each edge that have at least one "on" pixel in a thin band.
-    let topHit=0, bottomHit=0, leftHit=0, rightHit=0;
-    const bw = maxx-minx+1, bh = maxy-miny+1;
-    for(let x=minx;x<=maxx;x++){
-      let t=false,b=false;
-      for(let y=miny;y<Math.min(h,miny+th);y++){ if(clean[y*w+x]){ t=true; break; } }
-      for(let y=Math.max(0,maxy-th+1);y<=maxy;y++){ if(clean[y*w+x]){ b=true; break; } }
-      if(t) topHit++; if(b) bottomHit++;
-    }
-    for(let y=miny;y<=maxy;y++){
-      let l=false,r=false;
-      for(let x=minx;x<Math.min(w,minx+th);x++){ if(clean[y*w+x]){ l=true; break; } }
-      for(let x=Math.max(0,maxx-th+1);x<=maxx;x++){ if(clean[y*w+x]){ r=true; break; } }
-      if(l) leftHit++; if(r) rightHit++;
-    }
-    return {
-      top: topHit/Math.max(1,bw),
-      bottom: bottomHit/Math.max(1,bw),
-      left: leftHit/Math.max(1,bh),
-      right: rightHit/Math.max(1,bh),
-    };
-  }
-
-  function cornerPresence(clean,w,h,minx,miny,maxx,maxy,cs){
-    // Require ink near each corner to avoid circles/letter holes being classified as boxes.
-    const c1 = countOnInRect(clean,w,h,minx,miny,minx+cs-1,miny+cs-1);
-    const c2 = countOnInRect(clean,w,h,maxx-cs+1,miny,maxx,miny+cs-1);
-    const c3 = countOnInRect(clean,w,h,minx,maxy-cs+1,minx+cs-1,maxy);
-    const c4 = countOnInRect(clean,w,h,maxx-cs+1,maxy-cs+1,maxx,maxy);
-    return [c1,c2,c3,c4];
-  }
-
-  // ===== Stricter tick-box test (added by FreeScribe) =====
-  // Letters such as O, D, P, B and 0 pass the looser checks above: an O's curve covers each
-  // side's band, and a P's bowl with its stem looks like a square. A printed tick box has four
+  // ===== Tick-box test (added by FreeScribe) =====
+  // Letters such as O, D, P, B and 0 look box-like: an O's curve covers each side's band, and
+  // a P's bowl with its stem looks like a square. A printed tick box has four
   // straight sides meeting in square corners, a (nearly) empty inside, and nothing touching it
   // from outside.
   // How much of a box's inside (inside its outline band) is ink, on the grey image: darker than
@@ -2605,17 +2562,15 @@ else if (typeof exports === 'object')
 
   async function applyDetectPreset(name){
     const presets = {
-      standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, sideCov:0.40, ringMin:0.12, ringMax:0.98, innerMax:0.78, fillMin:0.06, fillMax:0.93, lineMinPct:7.5},
-      small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, sideCov:0.30, ringMin:0.08, ringMax:0.98, innerMax:0.85, fillMin:0.04, fillMax:0.95, lineMinPct:7.5},
-      large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, sideCov:0.50, ringMin:0.20, ringMax:0.98, innerMax:0.70, fillMin:0.08, fillMax:0.90, lineMinPct:7.5},
-      lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, sideCov:0.40, ringMin:0.12, ringMax:0.98, innerMax:0.78, fillMin:0.06, fillMax:0.93, lineMinPct:7.5},
+      standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
+      small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, lineMinPct:7.5},
+      large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
+      lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
     };
     const p = presets[name]; if (!p) return;
     const set = (id,v) => { const el=$(''+id); if(el) el.value = String(v); };
     set('minCb',p.minCb); set('maxCb',p.maxCb); set('tolCb',p.tolCb);
-    set('darkBias',p.darkBias); set('gradMult',p.gradMult); set('sideCov',p.sideCov);
-    set('ringMin',p.ringMin); set('ringMax',p.ringMax); set('innerMax',p.innerMax);
-    set('fillMin',p.fillMin); set('fillMax',p.fillMax); set('lineMinPct',p.lineMinPct);
+    set('darkBias',p.darkBias); set('gradMult',p.gradMult); set('lineMinPct',p.lineMinPct);
     msg('Preset "' + name + '" applied. Run Auto Detect to use it.', 'ok');
   }
   if ($('btnPresetStandard')) $('btnPresetStandard').addEventListener('click', ()=>applyDetectPreset('standard'));
@@ -3565,12 +3520,6 @@ else if (typeof exports === 'object')
     const lineMinPct = Number($('lineMinPct').value) || 7.5;
     const darkBias = Number($('darkBias').value) || 8;
     const gradMult = Number($('gradMult').value) || 0.9;
-    const sideCov = Number($('sideCov').value) || 0.52;
-    const ringMin = Number($('ringMin').value) || 0.18;
-    const ringMax = Number($('ringMax').value) || 0.98;
-    const innerMax = Number($('innerMax').value) || 0.78;
-    const fillMin = Number($('fillMin').value) || 0.06;
-    const fillMax = Number($('fillMax').value) || 0.93;
     try {
       const img = await loadImage(p.imgData);
       // Detect on the page at most 1600 pixels on its long side. A small page (under 1200,
@@ -3736,34 +3685,8 @@ else if (typeof exports === 'object')
           const aspect = wNat / Math.max(1e-6, hNat);
           if(aspect < 0.82 || aspect > 1.22) continue;
 
-          const ring = Math.max(1, Math.round(Math.min(bw,bh)*0.15));
-          let ringOn=0, ringPix=0, innerOn=0, innerPix=0;
-          for(let yy=miny;yy<=maxy;yy++){
-            for(let xx=minx;xx<=maxx;xx++){
-              const isRing = (xx < minx+ring || xx > maxx-ring || yy < miny+ring || yy > maxy-ring);
-              if(isRing){ ringPix++; if(clean[yy*w+xx]) ringOn++; }
-              else { innerPix++; if(clean[yy*w+xx]) innerOn++; }
-            }
-          }
-          const ringDen = ringOn / Math.max(1, ringPix);
-          const innerDen = inkInside(gray,w,minx,miny,maxx,maxy,ring);
-          const fillDen = inkInside(gray,w,minx,miny,maxx,maxy,0);
-
-          const edgeCov = edgeCoverage(clean,w,h,minx,miny,maxx,maxy,Math.max(1,ring));
-          const minSideCov = sideCov; // stronger rectangle requirement, helps reject P/A holes
-          if(edgeCov.top < minSideCov || edgeCov.bottom < minSideCov || edgeCov.left < minSideCov || edgeCov.right < minSideCov) continue;
-
-          // Round option buttons (○) are real fields too; squares need ink at their corners
+          // Round option buttons (○) are real fields too; anything else must pass isRealBox
           const round = isRealCircle(clean,w,h,minx,miny,maxx,maxy);
-          const cs = Math.max(1, Math.round(Math.min(bw,bh)*0.18));
-          const corners = cornerPresence(clean,w,h,minx,miny,maxx,maxy,cs);
-          const cornerMin = Math.max(1, Math.floor(cs*cs*0.06));
-          if(!round && corners.some(v => v < cornerMin)) continue;
-
-          if(ringDen < ringMin || ringDen > ringMax) continue;
-          if(innerDen > innerMax) continue;
-          if(fillDen < fillMin || fillDen > fillMax) continue;
-
           if(!round && !isRealBox(clean,w,h,minx,miny,maxx,maxy,gray)) continue;
 
           // classify as xbox if interior has significant marks.
@@ -3784,7 +3707,7 @@ else if (typeof exports === 'object')
       const maxSzPx = Math.round(maxNat * s);
       // (isRealBox judges the inside, on the grey image as well: the ink map's inside test here
       // would turn away a box with a thick tick in it)
-      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, sideCov, Math.max(innerMax, 0.95),
+      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, 0.40, 0.95,
         (x1,y1,x2,y2) => isRealBox(clean, w, h, x1, y1, x2, y2, gray));
       rectCandidates.forEach(r => {
         const bw = r.x2-r.x1+1, bh = r.y2-r.y1+1;
@@ -4810,10 +4733,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       1,0,0,1,
       1,1,1,1
     ]);
-    const ec = edgeCoverage(testArr,4,4,0,0,3,3,1);
-    console.assert(ec.top>=1 && ec.bottom>=1 && ec.left>=1 && ec.right>=1, 'edgeCoverage box');
-    const crn = cornerPresence(testArr,4,4,0,0,3,3,1);
-    console.assert(crn.length===4 && crn.every(v=>v>=1), 'corner presence');
     console.assert(countOnInRect(testArr,4,4,0,0,3,3)===12, 'countOnInRect');
     console.assert(parseTagText('a\nb,c;d').length===4, 'parseTagText');
     console.assert(normalizeTag(' Patient Name ')==='Patient_Name', 'normalizeTag');
@@ -5020,7 +4939,7 @@ The tool has two separate surfaces with different dependencies:
 
 ### Not a dependency
 - **Fonts:** the CSS lists `Inter, Segoe UI, Arial` and `ui-monospace, SFMono-Regular, Menlo`. None of these are downloaded; they render only if already installed on the machine. No attribution is needed.
-- **Field detection** (`detectCurrentPage`, `rectScan`, `edgeCoverage`, `cornerPresence`): original code using standard image-processing techniques (adaptive threshold, gradient map, flood-fill connected components, run-length line finding). No third-party code or model.
+- **Field detection** (`detectCurrentPage`, `rectScan`, `isRealBox`): original code using standard image-processing techniques (adaptive threshold, gradient map, flood-fill connected components, run-length line finding). No third-party code or model.
 - No `fetch`, analytics, `localStorage` or other network calls beyond the CDN script loads.
 
 ---
