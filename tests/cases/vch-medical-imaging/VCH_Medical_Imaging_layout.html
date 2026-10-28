@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>VCH Medical Imaging Requisition (layout from the page)</title>
+<!-- The test case's expected boxes for VCH_Medical_Imaging_2010_Pg1.png, placed from the printed page:
+     a field on each line, box or labelled blank to write in, and a tick box on each printed box.
+     Options with no printed box (X-Ray, CT, Nurse, Routine, Yes/No ...) have none; the
+     DEPARTMENT USE section and the label space are left out. -->
+<style>body{margin:0} .f{position:absolute;box-sizing:border-box;border:0;padding:0;margin:0} .Xbox{position:absolute;box-sizing:border-box;width:12px;height:12px;border:1px solid #000;padding:0;margin:0}</style>
+</head>
+<body>
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="position:relative;">
+<img id="BGImage1" src="VCH_Medical_Imaging_2010_Pg1.png" style="position:relative; left:0px; top:0px;">
+<input name="specify_site" id="specify_site" type="text" class="f" style="left:255px; top:84px; width:155px; height:15px;">
+<input name="appointment_date" id="appointment_date" type="text" class="f" style="left:540px; top:84px; width:163px; height:15px;">
+<input name="appointment_time" id="appointment_time" type="text" class="f" style="left:753px; top:84px; width:77px; height:15px;">
+<input name="phn" id="phn" type="text" class="f" style="left:134px; top:105px; width:136px; height:15px;" oscarDB=hin>
+<input name="icbc" id="icbc" type="text" class="f" style="left:316px; top:105px; width:139px; height:15px;">
+<input name="wcb" id="wcb" type="text" class="f" style="left:134px; top:127px; width:136px; height:15px;">
+<input name="other_insurance" id="other_insurance" type="text" class="f" style="left:316px; top:127px; width:139px; height:15px;">
+<input name="name" id="name" type="text" class="f" style="left:149px; top:149px; width:306px; height:15px;" oscarDB=patient_name>
+<textarea name="address" id="address" class="f" style="left:104px; top:186px; width:351px; height:30px;" oscarDB=addressline></textarea>
+<input name="tel" id="tel" type="text" class="f" style="left:132px; top:215px; width:143px; height:15px;" oscarDB=phone>
+<input name="tel_other" id="tel_other" type="text" class="f" style="left:318px; top:215px; width:137px; height:15px;">
+<input name="date_of_birth" id="date_of_birth" type="text" class="f" style="left:180px; top:240px; width:190px; height:15px;" oscarDB=dobc2>
+<input name="previous_images_location" id="previous_images_location" type="text" class="f" style="left:274px; top:264px; width:181px; height:15px;">
+<textarea name="exams_requested" id="exams_requested" class="f" style="left:104px; top:304px; width:640px; height:38px;"></textarea>
+<input name="lmp" id="lmp" type="text" class="f" style="left:134px; top:467px; width:165px; height:15px;">
+<input name="g" id="g" type="text" class="f" style="left:115px; top:484px; width:45px; height:15px;">
+<input name="p" id="p" type="text" class="f" style="left:180px; top:484px; width:45px; height:15px;">
+<input name="a" id="a" type="text" class="f" style="left:245px; top:484px; width:50px; height:15px;">
+<input name="height" id="height" type="text" class="f" style="left:150px; top:501px; width:45px; height:15px;">
+<input name="weight" id="weight" type="text" class="f" style="left:245px; top:501px; width:50px; height:15px;">
+<textarea name="previous_contrast_reaction" id="previous_contrast_reaction" class="f" style="left:104px; top:537px; width:195px; height:88px;"></textarea>
+<textarea name="pertinent_history_medications" id="pertinent_history_medications" class="f" style="left:306px; top:412px; width:527px; height:212px;"></textarea>
+<textarea name="copies_of_report_to" id="copies_of_report_to" class="f" style="left:225px; top:630px; width:608px; height:22px;"></textarea>
+<input name="egfr" id="egfr" type="text" class="f" style="left:210px; top:716px; width:90px; height:16px;">
+<input name="egfr_date" id="egfr_date" type="text" class="f" style="left:375px; top:716px; width:95px; height:16px;">
+<input name="creatinine" id="creatinine" type="text" class="f" style="left:210px; top:741px; width:90px; height:16px;">
+<input name="creatinine_date" id="creatinine_date" type="text" class="f" style="left:375px; top:741px; width:95px; height:16px;">
+<input name="inr" id="inr" type="text" class="f" style="left:128px; top:781px; width:90px; height:16px;">
+<input name="inr_date" id="inr_date" type="text" class="f" style="left:305px; top:781px; width:95px; height:16px;">
+<input name="platelets" id="platelets" type="text" class="f" style="left:172px; top:800px; width:90px; height:16px;">
+<input name="platelets_date" id="platelets_date" type="text" class="f" style="left:305px; top:800px; width:95px; height:16px;">
+<input name="bx_egfr" id="bx_egfr" type="text" class="f" style="left:140px; top:819px; width:90px; height:16px;">
+<input name="bx_egfr_date" id="bx_egfr_date" type="text" class="f" style="left:305px; top:819px; width:95px; height:16px;">
+<input name="bx_creatinine" id="bx_creatinine" type="text" class="f" style="left:165px; top:838px; width:90px; height:16px;">
+<input name="bx_creatinine_date" id="bx_creatinine_date" type="text" class="f" style="left:305px; top:838px; width:95px; height:16px;">
+<input name="anticoagulant_medications" id="anticoagulant_medications" type="text" class="f" style="left:588px; top:800px; width:245px; height:16px;">
+<input name="any_site" id="any_site" type="text" class="Xbox" style="left:135px; top:88px;">
+<input name="male" id="male" type="text" class="Xbox" style="left:398px; top:243px;">
+<input name="female" id="female" type="text" class="Xbox" style="left:437px; top:243px;">
+<input name="anticoagulant_yes" id="anticoagulant_yes" type="text" class="Xbox" style="left:756px; top:781px;">
+<input name="anticoagulant_no" id="anticoagulant_no" type="text" class="Xbox" style="left:796px; top:781px;">
+</div>
+</form>
+</body>
+</html>

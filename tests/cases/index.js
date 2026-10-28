@@ -170,5 +170,75 @@ window.TEST_CASE_LIST = [
         "reason": "the medications text areas, which the eForm leaves untagged"
       }
     ]
+  },
+  {
+    "name": "Medical imaging requisition (VCH)",
+    "folder": "vch-medical-imaging",
+    "eform": "VCH_Medical_Imaging_layout.html",
+    "images": [
+      "VCH_Medical_Imaging_2010_Pg1.png"
+    ],
+    "skip": [
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [100, 182, 360, 38],
+        "reason": "Address: a blank under its label, with no line or box to find"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [175, 236, 200, 24],
+        "reason": "Date of Birth: a blank after its label, with no line"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [100, 462, 200, 58],
+        "reason": "LMP, G, P, A, Height, Weight: blanks after their labels, with no lines"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [200, 710, 280, 52],
+        "reason": "the eGFR and Creatinine values and dates: blanks after their labels, with no lines"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [120, 776, 290, 82],
+        "reason": "the INR, Platelets, eGFR and Creatinine values and dates: blanks after their labels, with no lines"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [580, 795, 260, 26],
+        "reason": "If yes please list medications: a blank after its label, with no line"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [460, 150, 380, 80],
+        "reason": "the space for the medical imaging label"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [440, 330, 330, 32],
+        "reason": "a blank beside Physician should consult with Radiologist"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [375, 725, 465, 35],
+        "reason": "a blank beside the CT section's second Date"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [95, 880, 745, 200],
+        "reason": "DEPARTMENT USE: filled in by the imaging department"
+      }
+    ]
   }
 ];
