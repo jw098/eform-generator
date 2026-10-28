@@ -2921,35 +2921,38 @@ else if (typeof exports === 'object')
     }
   }
 
-  // Each field's printed label, from the page's words (positions in page-image pixels).
+  // ===== Pass 2: the page's words =====
+  // Shared by the steps below (positions in page-image pixels)
+  const hasLetters = (t) => /[A-Za-z]/.test(t);
+  const capsText = (t) => { const l = t.replace(/[^A-Za-z]/g, ''); return l.length >= 3 && l.replace(/[^A-Z]/g, '').length >= l.length*0.8; };
+  const phraseText = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
+  const endsWithColon = (ws) => !!(ws && ws.length && /:\s*$/.test(ws[ws.length-1].text));
+  // The page's words that could be labels (with letters, not inside a tick box), and their
+  // typical height
+  function labelWordsOf(fields, read){
+    const boxes = fields.filter(f => f.type === 'checkbox' || f.type === 'xbox');
+    const inBox = (w) => boxes.some(b => { const cx = (w.x0+w.x1)/2, cy = (w.y0+w.y1)/2; return cx >= b.x-2 && cx <= b.x+b.width+2 && cy >= b.y-2 && cy <= b.y+b.height+2; });
+    const words = read.words.filter(w => hasLetters(w.text) && !inBox(w));
+    const wh = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
+    return { boxes, words, wh };
+  }
+
+  // Each field's printed label, from the page's words.
   // A tick box's label is the words just right of it ("Yes, email"); those words are then
   // nobody else's. A text field's label is, in order of preference:
   //  - in a box of its own (f.box: rules above, below and down both sides), the words just above
   //    it in the box, with no rule between ("PERSONAL HEALTH NUMBER" printed in the corner of
   //    its box), only those over the field itself. When they are several labels spread along it
-  //    ("SURNAME OF PATIENT ... FIRST NAME"), the field is split into one per label;
+  //    ("SURNAME OF PATIENT ... FIRST NAME"), each gets its part of the field (f._split);
   //  - else the phrase just left of it on its row ("Patient Name Last:"). On a form of fill-in
   //    lines the words above a field are the row above's ("FIRST MIDDLE LAST" printed under the
   //    Name line), so they're not taken there;
   //  - else, with nothing to its left, the line just above it (a heading over a writing area).
   // A heading word at the start of its row is part of its label ("APPOINTMENT: Date").
-  // A text field's section, for its name only, is the nearest ALL-CAPS heading above it
-  // ("REFERRING MD"), over its own column, when it's in a box (a table's column), so two "Last
-  // Name"s get names of their own. A heading has no fields on its row and isn't
-  // any field's label (on a form printed in capitals, most lines are labels). A label that
-  // starts with a heading of its own ("PRESENT COMPLAINT (Please ...") has no section, nor does
-  // one in capitals other than a short code ("MSP", "PHN"): on such forms the lines above are
-  // the rows above.
+  // Sets f.label, and f._words, the label's words.
   // ruleAcross(x1, x2, y1, y2): is there a rule across x1..x2 somewhere between y1 and y2?
-  // Returns the fields, with any split ones replaced by their parts.
   function labelFields(fields, read, ruleAcross){
-    const hasLetters = (t) => /[A-Za-z]/.test(t);
-    const caps = (t) => { const l = t.replace(/[^A-Za-z]/g, ''); return l.length >= 3 && l.replace(/[^A-Z]/g, '').length >= l.length*0.8; };
-    const boxes = fields.filter(f => f.type === 'checkbox' || f.type === 'xbox');
-    const inBox = (w) => boxes.some(b => { const cx = (w.x0+w.x1)/2, cy = (w.y0+w.y1)/2; return cx >= b.x-2 && cx <= b.x+b.width+2 && cy >= b.y-2 && cy <= b.y+b.height+2; });
-    const words = read.words.filter(w => hasLetters(w.text) && !inBox(w));
-    const wh = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
-    const phrase = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
+    const { boxes, words, wh } = labelWordsOf(fields, read);
     const onRow = (f, w) => { const cy = (w.y0+w.y1)/2; return cy >= f.y - wh*0.3 && cy <= f.y + f.height + wh*0.4; };
 
     // Tick boxes first
@@ -2965,13 +2968,12 @@ else if (typeof exports === 'object')
         if (w.x0 - end > wh*(got.length ? 1.5 : 3)) break;
         got.push(w);
       }
-      if (got.length){ f.label = phrase(got); got.forEach(w => taken.add(w)); }
+      if (got.length){ f.label = phraseText(got); f._words = got; got.forEach(w => taken.add(w)); }
     });
     const free = words.filter(w => !taken.has(w));
 
-    const out = [];
     fields.forEach(f => {
-      if (f.type === 'checkbox' || f.type === 'xbox'){ out.push(f); return; }
+      if (f.type === 'checkbox' || f.type === 'xbox') return;
       const fy1 = f.y, fx2 = f.x + f.width;
       // Just above, with no rule between
       let above = [];
@@ -2982,7 +2984,6 @@ else if (typeof exports === 'object')
         above = over.filter(w => bottom - w.y1 < wh*0.6).sort((a,b) => a.x0-b.x0);
         if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
-      let left = [];
       // The phrase just left of it on its row: the nearest words, no further apart than a few
       // letters, not across a tick box (a tick box's words too: "☐ Other: ____" is the box's
       // label and the line's)
@@ -3000,82 +3001,101 @@ else if (typeof exports === 'object')
       // (in a box, a label on its own row ending with a colon is its own, "Copies of report to:",
       // whatever is printed above it)
       const own = f.box ? leftOf() : [];
-      const ownColon = own.length && /:\s*$/.test(own[own.length-1].text);
+      const ownColon = endsWithColon(own);
       if (above.length && f.box && !ownColon){
+        f.label = phraseText(above);
+        f._words = above;
         const groups = [];
         above.forEach(w => { const g = groups[groups.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wh*3) g.push(w); else groups.push([w]); });
-        const cuts = groups.map((g, j) => j ? g[0].x0 - 4 : f.x);
-        if (f.type === 'text' && groups.length > 1 && cuts.every((c, j) => (j+1 < cuts.length ? cuts[j+1] : fx2) - c >= wh*3)){
-          groups.forEach((g, j) => out.push({ ...f, x: cuts[j], width: (j+1 < cuts.length ? cuts[j+1] : fx2) - cuts[j], label: phrase(g), _words: g }));
-          return;
-        }
-        f.label = phrase(above);
+        const cuts = groups.map((g, j) => j ? g[0].x0 - 4 : f.x), end = (j) => j+1 < cuts.length ? cuts[j+1] : fx2;
+        if (f.type === 'text' && groups.length > 1 && cuts.every((c, j) => end(j) - c >= wh*3))
+          f._split = groups.map((g, j) => ({ x: cuts[j], width: end(j) - cuts[j], label: phraseText(g), _words: g }));
+        return;
+      }
+      // Else left of it on its row
+      let left = leftOf();
+      if (left.length){
+        // (with a heading word starting the row: "APPOINTMENT:  Date:")
+        const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wh*6 && capsText(w.text) && !taken.has(w) &&
+                                       !boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x <= left[0].x0));
+        // (only a tick box's own label: "☐ FIRST POST-OPERATIVE MAMMOGRAPHY ____")
+        if (left.every(w => taken.has(w))) f._afterOption = true;
+        left = [...before.sort((a,b) => a.x0-b.x0), ...left];
+        f.label = phraseText(left);
+        f._words = left;
+      } else if (above.length){
+        // Nothing to its left either: the line just above (a heading over a writing area)
+        f.label = phraseText(above);
         f._words = above;
-      } else {
-        // Else left of it on its row
-        left = leftOf();
-        // A blank in a table cell after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE
-        // MAMMOGRAPHY"), unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____"). A
-        // printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____").
-        if (f.box && left.length && left.every(w => taken.has(w)) && !/:\s*$/.test(left[left.length-1].text)) return;
-        if (left.length){
-          // (with a heading word starting the row: "APPOINTMENT:  Date:")
-          const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wh*6 && caps(w.text) && !taken.has(w) &&
-                                         !boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x <= left[0].x0));
-          left = [...before.sort((a,b) => a.x0-b.x0), ...left];
-          f.label = phrase(left);
-          f._words = left;
-        } else if (above.length){
-          // Nothing to its left either: the line just above (a heading over a writing area)
-          f.label = phrase(above);
-          f._words = above;
-        }
       }
       if (ownColon) f._ownColon = true;
-      // A writing area down to the foot of the page is one only under a label ending in a colon
-      if (f.toEnd){
-        delete f.toEnd;
-        const ws = f._words || [];
-        if (!ws.length || !/:\s*$/.test(ws[ws.length-1].text)) return;
-      }
-      out.push(f);
     });
+  }
 
-    // Sections, from headings: lines in capitals that are nobody's label, with no field on their row
-    const labelWords = new Set(out.flatMap(f => f._words || []));
-    // The small words printed just under a fill-in line, within its width ("FIRST  MIDDLE  LAST"
-    // under a NAME line): they say what goes on it, and in what order
-    out.forEach(f => {
+  // What the labels say about the fields themselves: everything pass 2 changes about which
+  // fields there are (besides the fields after a colon, from colonFields). Returns the fields:
+  //  - a field with several labels spread along it ("SURNAME OF PATIENT ... FIRST NAME") is one
+  //    field per label;
+  //  - a blank in a table cell after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE
+  //    MAMMOGRAPHY"), unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____"). A
+  //    printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____");
+  //  - a writing area down to the foot of the page is one only under a label ending with a colon.
+  function fieldsFromLabels(fields){
+    return fields.flatMap(f => {
+      const { _split, _afterOption, toEnd, ...g } = f;
+      if (_split) return _split.map(part => ({ ...g, ...part }));
+      if ((_afterOption && f.box || toEnd) && !endsWithColon(f._words)) return [];
+      return [g];
+    });
+  }
+
+  // What's printed around the fields, for their names and tags:
+  //  - a fill-in line's caption: the small words printed just under it, within its width
+  //    ("FIRST  MIDDLE  LAST" under a NAME line): they say what goes on it, and in what order;
+  //  - a text field's section, for its name only: the nearest ALL-CAPS heading above it ("REFERRING
+  //    MD"), over its own column, when it's in a box (a table's column), so two "Last Name"s get
+  //    names of their own. A heading has no fields on its row and isn't any field's label (on a
+  //    form printed in capitals, most lines are labels). A label that starts with a heading of
+  //    its own ("PRESENT COMPLAINT (Please ...") has no section, nor does one in capitals other
+  //    than a short code ("MSP", "PHN"): on such forms the lines above are the rows above.
+  // Keeps each label's words as f._lw.
+  function sectionFields(fields, read){
+    const { words, wh } = labelWordsOf(fields, read);
+    const ticks = new Set(fields.filter(f => f.type === 'checkbox' || f.type === 'xbox').flatMap(f => f._words || []));
+    const free = words.filter(w => !ticks.has(w));
+    const texts = fields.filter(f => f.type !== 'checkbox' && f.type !== 'xbox');
+    const labelWords = new Set(texts.flatMap(f => f._words || []));
+    texts.forEach(f => {
       if (f.box || (f.type !== 'text' && f.type !== 'textarea')) return;
       const bottom = f.y + f.height;
       const under = free.filter(w => !labelWords.has(w) && w.y0 >= bottom - wh*0.3 && w.y0 - bottom <= wh*1.2 &&
                                      (w.x0+w.x1)/2 >= f.x && (w.x0+w.x1)/2 <= f.x + f.width);
-      if (under.length) f.caption = phrase(under.sort((a,b) => a.x0-b.x0));
+      if (under.length) f.caption = phraseText(under.sort((a,b) => a.x0-b.x0));
     });
     const isLabel = (l) => l.words.some(w => [...labelWords].some(u => Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2));
-    const heads = read.lines.filter(l => caps(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
-                                         !out.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
-    out.forEach(f => {
-      const ws = f._words; delete f._words; f._lw = ws || null;
+    const heads = read.lines.filter(l => capsText(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
+                                         !fields.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
+    fields.forEach(f => {
+      const ws = f._words; delete f._words;
+      if (f.type === 'checkbox' || f.type === 'xbox') return;
+      f._lw = ws || null;
       // (a label of its own on its row, ending with a colon, says all: "Copies of report to:")
       if (f._ownColon){ delete f._ownColon; return; }
-      if (f.section || !f.label || f.type === 'checkbox' || f.type === 'xbox' || /^[A-Z][A-Z\s]{5,}/.test(f.label)) return;
+      if (f.section || !f.label || /^[A-Z][A-Z\s]{5,}/.test(f.label)) return;
       // (only in a box: on a form of fill-in lines, a line in capitals above is the row above's
       // captions, "STREET NAME" under the Address line, not a heading over this field)
       if (!f.box) return;
-      if (caps(f.label) && f.label.replace(/[^A-Za-z]/g, '').length > 4) return;
+      if (capsText(f.label) && f.label.replace(/[^A-Za-z]/g, '').length > 4) return;
       // The nearest heading above the label, taking only its words over the label and field: two
       // tables side by side read as one line ("PATIENT INFORMATION REFERRING MD"), each its own
       const x0 = Math.min(f.x, ...ws.map(w => w.x0)), top = Math.min(f.y, ...ws.map(w => w.y0)), x1 = f.x + f.width;
       for (const l of heads){
         if (l.y1 > top + 2) continue;
         const words = l.words.filter(w => hasLetters(w.text) && !/[a-z]/.test(w.text) && w.x1 > x0 && w.x0 < x1);
-        if (words.length){ f.section = phrase(words); break; }
+        if (words.length){ f.section = phraseText(words); break; }
       }
     });
-    return out;
   }
-
 
   // Typical height of the page's printed capitals, in canvas px (0 when it can't be told):
   // the median height of letter-sized blobs of ink.
@@ -3683,12 +3703,16 @@ else if (typeof exports === 'object')
         }
         return false;
       };
-      // A label ending with a colon and blank page after it, with no line to write on: a field there
+      // Pass 2, with the words: a field after a label ending with a colon and blank page after it;
+      // each field's label; the fields the labels split or rule out; then what's printed around
+      // the fields, for their names and tags
       if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/s : w/s;   // (the form's right edge: its rules' furthest end)
         found = found.concat(colonFields(read, clean, w, h, s, page, found, right));
+        labelFields(found, read, ruleAcross);
+        found = fieldsFromLabels(found);
+        sectionFields(found, read);
       }
-      if (read) found = labelFields(found, read, ruleAcross);
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
       // and below that span it, joined by sides down from both ends of the top one (page-image
       // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
