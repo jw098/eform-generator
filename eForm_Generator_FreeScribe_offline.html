@@ -3614,17 +3614,6 @@ else if (typeof exports === 'object')
         if(!merged) bands.push({x1:sg.x1,x2:sg.x2,y1:sg.y,y2:sg.y});
       });
 
-      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
-      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
-      // under its printed label. Lines with words sitting on them (underlined headings, the
-      // bottoms of bold words, table rules under column headings) give no field, a table row
-      // gives one field per column, and the top edge of a box gives none of its own.
-      textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p).forEach(f => newFields.push(f));
-      // Open writing areas under a heading, with no line or box around them
-      blankAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
-      // ... and inside a table's cells, beside other things on the same rows
-      cellAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
-
       // Connected component pass for checkboxes.
       const visited = new Uint8Array(w*h);
       const stack = [];
@@ -3709,21 +3698,34 @@ else if (typeof exports === 'object')
         if(!dup) dedupCb.push(cand);
       });
 
-      if (skew){
-        // Back onto the tilted page: turn each field's centre by the page's tilt
-        const W = w/s, H = h/s, cs = Math.cos(skew), sn = Math.sin(skew);
-        [...newFields, ...dedupCb].forEach(f => {
-          const cx = f.x + f.width/2 - W/2, cy = f.y + f.height/2 - H/2;
-          f.x = cx*cs - cy*sn + W/2 - f.width/2;
-          f.y = cx*sn + cy*cs + H/2 - f.height/2;
-        });
-      }
+      // Back onto the tilted page: turn each field's centre by the page's tilt
+      const W = w/s, H = h/s, cs = Math.cos(skew), sn = Math.sin(skew);
+      const tilt = (f) => {
+        const cx = f.x + f.width/2 - W/2, cy = f.y + f.height/2 - H/2;
+        return { ...f, x: cx*cs - cy*sn + W/2 - f.width/2, y: cx*sn + cy*cs + H/2 - f.height/2 };
+      };
+      if (skew) dedupCb.forEach((f, k) => { dedupCb[k] = tilt(f); });
+
+      // The page's words, read first: the fields are placed beside and under them
+      msg('Reading the page\'s words…', 'small');
+      const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
+
+      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
+      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
+      // under its printed label. Lines with words sitting on them (underlined headings, the
+      // bottoms of bold words, table rules under column headings) give no field, a table row
+      // gives one field per column, and the top edge of a box gives none of its own.
+      textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p).forEach(f => newFields.push(f));
+      // Open writing areas under a heading, with no line or box around them
+      blankAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
+      // ... and inside a table's cells, beside other things on the same rows
+      cellAreaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
+
+      if (skew) newFields.forEach((f, k) => { newFields[k] = tilt(f); });
 
       // Name each field after its printed label and suggest its tag (tick boxes get no tag:
       // an OSCAR tag on a tick box fills nothing useful)
       let found = [...newFields, ...dedupCb];
-      msg('Reading the page\'s words to name the fields…', 'small');
-      const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
       // Is there a rule across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
       const ruleAcross = (x1, x2, y1, y2) => {
         const a = Math.max(0, Math.round(x1*s)), z = Math.min(w-1, Math.round(x2*s));
