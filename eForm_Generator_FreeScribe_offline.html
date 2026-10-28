@@ -79,6 +79,16 @@
     position:absolute;left:0;top:-20px;background:#111827;color:#fff;font-size:11px;
     border-radius:4px;padding:1px 4px;white-space:nowrap
   }
+  .field-label.raised{top:-38px}
+  /* A field's oscarDB tag ("Show tags"): inside the field when it fits, else above it (a tick box's, centred over it) */
+  .field-tag{
+    position:absolute;pointer-events:none;white-space:nowrap;line-height:14px;
+    font:600 11px/14px ui-monospace,SFMono-Regular,Menlo,monospace;color:#065f46
+  }
+  .field-tag.inside{left:2px;top:50%;transform:translateY(-50%);max-width:calc(100% - 4px);overflow:hidden;
+    background:rgba(255,255,255,.8);border-radius:3px;padding:0 3px}
+  .field-tag.above{left:0;bottom:calc(100% + 2px);background:#065f46;color:#fff;border-radius:4px;padding:1px 4px}
+  .field-tag.above.tick{left:50%;transform:translateX(-50%)}
   .resize{
     position:absolute;width:9px;height:9px;border:1px solid #fff;background:#2563eb;
   }
@@ -298,6 +308,7 @@
     <div class="row" style="margin-top:8px">
       <span id="tabsRow"></span>
       <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="chkLabels" /> Show labels</label>
+      <label style="display:flex;align-items:center;gap:6px" title="Each field's oscarDB tag: inside the field when it fits, else above it"><input type="checkbox" id="chkTags" /> Show tags</label>
       <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Ctrl/Cmd+C/V copy/paste</span>
     </div>
 
@@ -884,6 +895,7 @@ else if (typeof exports === 'object')
     fields: [],
     selected: new Set(),
     showLabels: false,
+    showTags: false,
     nextId: 1,
 
     templateFiles: [],
@@ -936,6 +948,7 @@ else if (typeof exports === 'object')
       selected: [...state.selected],
       nextId: state.nextId,
       showLabels: state.showLabels,
+      showTags: state.showTags,
       tagCatalog: [...state.tagCatalog],
       placeCheckboxMode: state.placeCheckboxMode,
       snap: { ...state.snap }
@@ -957,11 +970,13 @@ else if (typeof exports === 'object')
     state.selected = new Set(Array.isArray(snap.selected) ? snap.selected : []);
     state.nextId = Number(snap.nextId) || (state.fields.reduce((m,f)=>Math.max(m, Number(f.id)||0),0)+1);
     state.showLabels = snap.showLabels !== false;
+    state.showTags = snap.showTags === true;
     if (Array.isArray(snap.tagCatalog)) state.tagCatalog = new Set(snap.tagCatalog.filter(t => t && !isRemovedTag(t)));
     if (snap.snap && typeof snap.snap === 'object') state.snap = { ...state.snap, ...snap.snap };
 
     Object.keys(state.pages).map(Number).forEach(n => { const el=$('img'+n); if(el) el.src=state.pages[n].imgData||''; });
     $('chkLabels').checked = state.showLabels;
+    $('chkTags').checked = state.showTags;
     if ($('chkSnap')) $('chkSnap').checked = !!state.snap.enabled;
     if ($('snapPx')) $('snapPx').value = String(state.snap.threshold || 8);
     if ($('chkGuides')) $('chkGuides').checked = !!state.snap.showGuides;
@@ -1587,13 +1602,27 @@ else if (typeof exports === 'object')
     state.selected = l.additive ? new Set([...l.baseSelected, ...hits]) : hits;
   }
 
+  // How wide a tag is written on the page (.field-tag's font)
+  let tagCtx = null;
+  const tagWidth = (t) => { if (!tagCtx){ tagCtx = document.createElement('canvas').getContext('2d'); tagCtx.font = '600 11px ui-monospace,SFMono-Regular,Menlo,monospace'; } return tagCtx.measureText(t).width; };
   function fieldElement(f, page){
     const { sx, sy } = getPageScale(page);
     const div = document.createElement('div');
     div.className = 'field' + (state.selected.has(f.id) ? ' selected' : '');
     div.style.left = (f.x * sx) + 'px'; div.style.top = (f.y * sy) + 'px'; div.style.width = (f.width * sx) + 'px'; div.style.height = (f.height * sy) + 'px';
     div.dataset.id = String(f.id);
-    if (state.showLabels){ const lb = document.createElement('div'); lb.className='field-label'; lb.textContent=f.name + (f.oscarTag ? ' · ' + f.oscarTag : ''); div.appendChild(lb); }
+    // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
+    // the edges of a field shorter than the text, so it stays on the field's own row), else
+    // above it; a tick box's always above, centred over it
+    const tag = state.showTags ? String(f.oscarTag || '').trim() : '';
+    const tick = f.type === 'checkbox' || f.type === 'xbox';
+    const above = !!tag && (tick || tagWidth(tag) + 8 > f.width * sx);
+    if (tag){ const tg = document.createElement('div'); tg.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : ''); tg.textContent = tag; tg.title = tag; div.appendChild(tg); }
+    if (state.showLabels){
+      // (with the tag shown, the label is just the name, raised over a tag above the field)
+      const lb = document.createElement('div'); lb.className = 'field-label' + (above ? ' raised' : '');
+      lb.textContent = f.name + (f.oscarTag && !state.showTags ? ' · ' + f.oscarTag : ''); div.appendChild(lb);
+    }
     if (state.selected.size === 1 && state.selected.has(f.id)){ const r = document.createElement('div'); r.className='resize se'; r.dataset.handle='se'; div.appendChild(r); }
     div.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
     return div;
@@ -1990,6 +2019,7 @@ else if (typeof exports === 'object')
   }
   // Upload/tab listeners wired dynamically by createPageDOM
   $('chkLabels').addEventListener('change', (e)=>{ state.showLabels = e.target.checked; renderAll(); });
+  $('chkTags').addEventListener('change', (e)=>{ state.showTags = e.target.checked; renderAll(); });
   $('chkSnap').addEventListener('change', (e)=>{ state.snap.enabled = !!e.target.checked; renderAll(); });
   $('snapPx').addEventListener('input', (e)=>{ const v = clamp(Number(e.target.value)||8,1,40); state.snap.threshold = v; });
   $('chkGuides').addEventListener('change', (e)=>{ state.snap.showGuides = !!e.target.checked; renderAll(); });
@@ -2135,6 +2165,7 @@ else if (typeof exports === 'object')
       fields: state.fields,
       nextId: state.nextId,
       showLabels: state.showLabels,
+      showTags: state.showTags,
       tagCatalog: [...state.tagCatalog],
       templateNameTagMap: [...state.templateNameTagMap.entries()],
       templateFields: state.templateFields,
@@ -2193,6 +2224,8 @@ else if (typeof exports === 'object')
     fsShowPdf();
     state.showLabels = obj.showLabels !== false;
     $('chkLabels').checked = state.showLabels;
+    state.showTags = obj.showTags === true;
+    $('chkTags').checked = state.showTags;
 
     state.tagCatalog = new Set((obj.tagCatalog || DEFAULT_TAGS).map(normalizeTag).filter(t => t && !isRemovedTag(t)));
     state.templateNameTagMap = new Map((obj.templateNameTagMap || []).filter(a => Array.isArray(a) && a.length>=2));
