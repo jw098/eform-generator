@@ -1097,7 +1097,7 @@ else if (typeof exports === 'object')
       if (state.tagCatalog.has('addressline')) return 'addressline';
       return 'patient_address';
     }
-    if (/(phone|telephone|tel|cell|mobile)/.test(n)){
+    if (word('phone|telephone|tel|cell|mobile|phone_no|phone_number')){   // (as words: not the "tel" in "platelets")
       if (/cell|mobile/.test(n) && state.tagCatalog.has('cell')) return 'cell';
       return state.tagCatalog.has('phone') ? 'phone' : 'patient_phone';
     }
@@ -2923,6 +2923,70 @@ else if (typeof exports === 'object')
     return out;
   }
 
+  // Fields after a label that ends with a colon, where nothing is printed to write on: the blank
+  // page right after it on its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐"),
+  // up to the next ink, when it is at least a few letters wide. When the blank also goes on
+  // down, under the label and beside it, for more than a line ("Address:" over room for two
+  // lines), the field takes that too. Not where a field was found already, nor after a heading
+  // over a writing area found just below it ("EXAM(s) REQUESTED:").
+  function colonFields(read, clean, w, h, s, page, found, right){
+    const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
+    const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
+    // The phrase a word ends: the words before it on its line, close together
+    const phraseOf = (wd) => {
+      const l = read.lines.find(l => l.words.some(u => Math.abs(u.x0 - wd.x0) < 2 && Math.abs(u.y0 - wd.y0) < 2));
+      if (!l) return [wd];
+      const ws = l.words.filter(u => u.x1 <= wd.x1 + 1).sort((a,b) => a.x0 - b.x0), got = [wd];
+      for (let i = ws.length - 2; i >= 0; i--){
+        if (got[0].x0 - ws[i].x1 > (wd.y1 - wd.y0)*2) break;
+        got.unshift(ws[i]);
+      }
+      return got;
+    };
+    // (overlapping a found field by more than a sliver)
+    const overlaps = (a, b) => {
+      const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+      return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
+    };
+    const out = [];
+    read.words.filter(wd => /:$/.test(wd.text) && /[A-Za-z]/.test(wd.text)).forEach(wd => {
+      const th = wd.y1 - wd.y0;                                  // the text's height
+      if (th < 4) return;
+      // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
+      // if required:", a sentence's second line)
+      const ph = phraseOf(wd);
+      if (ph.length > 6 || (ph.length >= 3 && /^[a-z]/.test(ph[0].text))) return;
+      // (nor a heading in capitals: "REASON FOR REFERRAL:")
+      if (ph.length >= 3 && ph.every(u => !/[a-z]/.test(u.text))) return;
+      const ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
+      const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (on(x,y)) return true; return false; };
+      // the blank after it on its row, up to the next ink or field found, and no further than the
+      // form's right edge
+      const ahead = found.concat(out).filter(g => g.x > wd.x1 && Math.min(g.y + g.height, wd.y1) - Math.max(g.y, wd.y0) >= th*0.5).map(g => g.x - 2);
+      const xa = Math.round((wd.x1 + th*0.3)*s), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*s));
+      let xb = xa;
+      while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
+      const x1 = xa/s + th*0.2, x2 = xb/s - th*0.4;
+      if (x2 - x1 < th*4) return;
+      let f = { page, x: x1, y: wd.y0 - th*0.3, width: x2 - x1, height: th*1.6, type: 'text', name: 'text', oscarTag: '' };
+      // room for more lines below it, under the label and beside it, down to the next ink
+      const la = Math.round(wd.x0*s), lb = Math.round(x2*s);
+      let yc = yb + 1;
+      const rowBlank = (y) => { for (let x=la; x<=lb; x++) if (on(x,y)) return false; return true; };
+      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*s) - 2));
+      while (yc < floor && rowBlank(yc + 1)) yc++;
+      if (yc/s - wd.y1 > th*2.5) f = { ...f, height: yc/s - th*0.4 - f.y, type: 'textarea' };
+      if (found.concat(out).some(g => overlaps(f, g))) return;
+      // (a heading over options: tick boxes on the next row, "Related Medical Issues:")
+      if (ticks.some(b => b.y > wd.y1 - 2 && b.y - wd.y1 < th*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return;
+      // (a writing area just below, starting where the label does: the label is its heading)
+      if (found.some(g => (g.type === 'text' || g.type === 'textarea') && g.height > th*2 && g.y >= wd.y1 - 2 && g.y - wd.y1 < th*1.5 &&
+                          Math.abs(g.x - ph[0].x0) < th*2 && g.x + g.width > f.x)) return;
+      out.push(f);
+    });
+    return out;
+  }
+
   // ===== Reading the page's words =====
   // Tesseract.js reads the printed words (each with its box, in page-image pixels) so Auto
   // Detect can name each field after its label and suggest its tag. Everything it needs is
@@ -3824,6 +3888,11 @@ else if (typeof exports === 'object')
         }
         return false;
       };
+      // A label ending with a colon and blank page after it, with no line to write on: a field there
+      if (read){
+        const right = bands.length ? Math.max(...bands.map(b => b.x2))/s : w/s;   // (the form's right edge: its rules' furthest end)
+        found = found.concat(colonFields(read, clean, w, h, s, page, found, right));
+      }
       if (read) found = labelFields(found, read, ruleAcross);
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
       // and below that span it, joined by sides down from both ends of the top one (page-image
@@ -3870,6 +3939,16 @@ else if (typeof exports === 'object')
           f.oscarTag = captionTag(f.oscarTag, f.label);
         }
         delete f.section; delete f.caption; delete f.toEnd;
+      });
+      // A bare "Date" beside a value on its row that OSCAR doesn't fill is that value's date
+      // ("INR: ____  Date: ____"), not today's; beside the doctor's details ("Billing #: ____
+      // Date: ____") it is the form's
+      found.forEach(f => {
+        if (f.oscarTag !== 'today' || norm(f.label || '') !== 'date') return;
+        const cy = f.y + f.height/2;
+        const prev = found.filter(g => g !== f && (g.type === 'text' || g.type === 'textarea') && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2)
+                          .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
+        if (prev && !prev.oscarTag) f.oscarTag = '';
       });
       // Whose details each name, phone, fax, address, email or billing number is: the patient's,
       // the referring clinician's, the family doctor's, or the receiving office's
