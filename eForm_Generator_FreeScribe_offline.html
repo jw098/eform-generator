@@ -1028,9 +1028,9 @@ else if (typeof exports === 'object')
   // A field's tag, in two steps: what it asks for, from the whole words of its label (askedFor),
   // and whose it is, from its label ("Referring Physician", "Family Doctor", "Home phone") or
   // else from the page (owner, from fieldOwners), else the patient's. TAG_FOR gives the tag.
-  // The words are the field's name when it has one made from its label (with its section and the
-  // rest of its words: "APPOINTMENT Date", "TELEPHONE REQUISITION TIME"), else its label. A label
-  // written as a tag's own name ("current_user_id") keeps that tag.
+  // The words are the field's name when it has one that isn't a plain numbered one, else its
+  // label (Auto Detect passes only the label: a section heading in a name is only for the name).
+  // A label written as a tag's own name ("current_user_id") keeps that tag.
   function guessTag(name='', type='text', label='', owner=''){
     if (type === 'signature') return state.tagCatalog.has('current_user_signature_image') ? 'current_user_signature_image' : '';
     if (/_/.test(label) && state.tagCatalog.has(label.trim())) return label.trim();
@@ -2976,10 +2976,10 @@ else if (typeof exports === 'object')
   //    lines the words above a field are the row above's ("FIRST MIDDLE LAST" printed under the
   //    Name line), so they're not taken there;
   //  - else, with nothing to its left, the line just above it (a heading over a writing area).
-  // A text field's section is the nearest ALL-CAPS heading above it ("REFERRING MD"), over its
-  // own column, when it's in a box (a table's column); or one at the start of its row
-  // ("APPOINTMENT:"), so a "Last Name" under
-  // REFERRING MD isn't taken for the patient's. A heading has no fields on its row and isn't
+  // A heading word at the start of its row is part of its label ("APPOINTMENT: Date").
+  // A text field's section, for its name only, is the nearest ALL-CAPS heading above it
+  // ("REFERRING MD"), over its own column, when it's in a box (a table's column), so two "Last
+  // Name"s get names of their own. A heading has no fields on its row and isn't
   // any field's label (on a form printed in capitals, most lines are labels). A label that
   // starts with a heading of its own ("PRESENT COMPLAINT (Please ...") has no section, nor does
   // one in capitals other than a short code ("MSP", "PHN"): on such forms the lines above are
@@ -3026,7 +3026,7 @@ else if (typeof exports === 'object')
         above = over.filter(w => bottom - w.y1 < wh*0.6).sort((a,b) => a.x0-b.x0);
         if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
-      let left = [], section = '';
+      let left = [];
       // The phrase just left of it on its row: the nearest words, no further apart than a few
       // letters, not across a tick box (a tick box's words too: "☐ Other: ____" is the box's
       // label and the line's)
@@ -3063,19 +3063,18 @@ else if (typeof exports === 'object')
         // printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____").
         if (f.box && left.length && left.every(w => taken.has(w)) && !/:\s*$/.test(left[left.length-1].text)) return;
         if (left.length){
-          f.label = phrase(left);
-          f._words = left;
-          // A heading word ending the phrase at the row's start ("APPOINTMENT:  Date:") is its section
+          // (with a heading word starting the row: "APPOINTMENT:  Date:")
           const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wh*6 && caps(w.text) && !taken.has(w) &&
                                          !boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x <= left[0].x0));
-          if (before.length) section = phrase(before.sort((a,b) => a.x0-b.x0));
+          left = [...before.sort((a,b) => a.x0-b.x0), ...left];
+          f.label = phrase(left);
+          f._words = left;
         } else if (above.length){
           // Nothing to its left either: the line just above (a heading over a writing area)
           f.label = phrase(above);
           f._words = above;
         }
       }
-      if (section) f.section = section;
       if (ownColon) f._ownColon = true;
       // A writing area down to the foot of the page is one only under a label ending in a colon
       if (f.toEnd){
@@ -3786,7 +3785,7 @@ else if (typeof exports === 'object')
       const owners = read ? fieldOwners(found, read, boxOf) : new Map();
       found.forEach(f => {
         if (f.type !== 'checkbox' && f.type !== 'xbox' && f.label && !f.oscarTag){
-          f.oscarTag = guessTag(f.name, f.type, f.label, owners.get(f));
+          f.oscarTag = guessTag('', f.type, f.label, owners.get(f));
           if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
           f.oscarTag = captionTag(f.oscarTag, f.label);
         }
