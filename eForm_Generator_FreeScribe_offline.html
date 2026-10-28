@@ -1129,7 +1129,7 @@ else if (typeof exports === 'object')
   function fieldOwners(found, read, boxOf){
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
-    writes.forEach(f => (f._lw || []).forEach(w => labelOf.set(w, f)));
+    writes.forEach(f => (f._words || []).forEach(w => labelOf.set(w, f)));
     const fieldOfWord = (w) => labelOf.get(w) || null;
     // The page's text in pieces: a line split where its words are far apart (two labels on a row,
     // or headings side by side)
@@ -1142,7 +1142,7 @@ else if (typeof exports === 'object')
       ps.forEach(p => parts.push({ words: p, text: p.map(w => w.text).join(' '), x0: p[0].x0, x1: p[p.length-1].x1,
                                    y0: Math.min(...p.map(w => w.y0)), y1: Math.max(...p.map(w => w.y1)) }));
     });
-    const extent = (f) => { const lw = f._lw || []; return { x0: Math.min(f.x, ...lw.map(w => w.x0)), top: Math.min(f.y, ...lw.map(w => w.y0)) }; };
+    const extent = (f) => { const lw = f._words || []; return { x0: Math.min(f.x, ...lw.map(w => w.x0)), top: Math.min(f.y, ...lw.map(w => w.y0)) }; };
     const owner = new Map();
     // (within a box: what lies inside it)
     const inside = (box, r) => !box || (r.x0 >= box.x0 - 2 && r.x1 <= box.x1 + 2 && r.y0 >= box.y0 - 2 && r.y1 <= box.y1 + 2);
@@ -1161,9 +1161,7 @@ else if (typeof exports === 'object')
     };
     // What is just left: the field before it on its row
     const left = (f, box) => {
-      const cy = f.y + f.height/2;
-      const g = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2 && inside(box, rect(g)))
-                      .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
+      const g = fieldLeftOf(f, writes.filter(g => inside(box, rect(g))));
       return g ? owner.get(g) || '' : '';
     };
     // Row by row from the top, each left to right, so what is left of and above a field is settled first
@@ -1183,6 +1181,36 @@ else if (typeof exports === 'object')
         owner.set(f, (box ? look(box) : look(null)) || 'patient');
       });
     return owner;
+  }
+  // The field just left of f on its row, among `fields` (or none)
+  function fieldLeftOf(f, fields){
+    const cy = f.y + f.height/2;
+    return fields.filter(g => g !== f && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2)
+                 .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
+  }
+
+  // ===== Each found text field's tag (Auto Detect) =====
+  // Whose details each field is (fieldOwners): the patient's, the referring clinician's, the
+  // family doctor's, or the receiving office's; then its tag (guessTag), made more exact by the
+  // date or name order printed under the line or in the label (captionTag: "Date of birth
+  // (dd/mm/yyyy)", "FIRST  MIDDLE  LAST"). Last, a bare "Date" beside a value on its row that
+  // OSCAR doesn't fill is that value's date ("INR: ____  Date: ____"), not today's; beside the
+  // doctor's details ("Billing #: ____  Date: ____") it is the form's.
+  // boxOf(x0, f): the bordered box a field (with its label from x0) is in, if any.
+  function tagFields(found, read, boxOf){
+    const owners = fieldOwners(found, read, boxOf);
+    const writes = found.filter(f => f.type === 'text' || f.type === 'textarea');
+    writes.forEach(f => {
+      if (!f.label || f.oscarTag) return;
+      f.oscarTag = guessTag('', f.type, f.label, owners.get(f));
+      if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
+      f.oscarTag = captionTag(f.oscarTag, f.label);
+    });
+    writes.forEach(f => {
+      if (f.oscarTag !== 'today' || norm(f.label || '') !== 'date') return;
+      const prev = fieldLeftOf(f, writes);
+      if (prev && !prev.oscarTag) f.oscarTag = '';
+    });
   }
 
   function readAsDataURL(file){
@@ -2923,6 +2951,19 @@ else if (typeof exports === 'object')
   }
 
   // ===== Pass 2: the page's words =====
+  // The steps hand each other what they learn on the found fields themselves. Besides the
+  // field's own properties (what addField keeps), they are:
+  //   box          a text field in a box of its own: rules above and below, sides down both
+  //                ends (textFieldsFromLines)
+  //   toEnd        a writing area that runs down to the foot of the page (areaFields)
+  //   label        its printed label (labelFields; addField keeps it)
+  //   _words       the label's words, the page's word objects themselves (labelFields)
+  //   _split       several labels spread along one field: the field's parts (labelFields)
+  //   _afterOption the label is only a tick box's own (labelFields)
+  //   _ownColon    in a box, a label of its own on its row ending with a colon (labelFields)
+  //   caption      small words printed under a fill-in line (sectionFields)
+  //   section      the heading over its column, for its name (sectionFields)
+  // addField keeps only the field's own properties, so these go no further than Auto Detect.
   // Shared by the steps below (positions in page-image pixels)
   const hasLetters = (t) => /[A-Za-z]/.test(t);
   // Text in capitals, a heading's: at least `min` letters, nearly all capitals ("REFERRING MD")
@@ -3066,7 +3107,6 @@ else if (typeof exports === 'object')
   //    form printed in capitals, most lines are labels). A label that starts with a heading of
   //    its own ("PRESENT COMPLAINT (Please ...") has no section, nor does one in capitals other
   //    than a short code ("MSP", "PHN"): on such forms the lines above are the rows above.
-  // Keeps each label's words as f._lw.
   function sectionFields(fields, read){
     const { words, wh } = labelWordsOf(fields, read);
     const ticks = new Set(fields.filter(f => f.type === 'checkbox' || f.type === 'xbox').flatMap(f => f._words || []));
@@ -3084,11 +3124,10 @@ else if (typeof exports === 'object')
     const heads = read.lines.filter(l => capsText(l.text, 6) && !isLabel(l) &&
                                          !fields.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
     fields.forEach(f => {
-      const ws = f._words; delete f._words;
+      const ws = f._words;
       if (f.type === 'checkbox' || f.type === 'xbox') return;
-      f._lw = ws || null;
       // (a label of its own on its row, ending with a colon, says all: "Copies of report to:")
-      if (f._ownColon){ delete f._ownColon; return; }
+      if (f._ownColon) return;
       if (f.section || !f.label || headingLabel(f.label)) return;
       // (only in a box: on a form of fill-in lines, a line in capitals above is the row above's
       // captions, "STREET NAME" under the Address line, not a heading over this field)
@@ -3746,31 +3785,8 @@ else if (typeof exports === 'object')
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
         else f.name = box ? `checkbox_${cN++}` : `text_${tN++}`;
         used.add(f.name);
-        delete f.section; delete f.toEnd;
       });
-      // Whose details each field is: the patient's, the referring clinician's, the family doctor's,
-      // or the receiving office's; then its tag, made more exact by the date or name order printed
-      // under the line or in the label ("Date of birth (dd/mm/yyyy)", "FIRST  MIDDLE  LAST")
-      const owners = read ? fieldOwners(found, read, boxOf) : new Map();
-      found.forEach(f => {
-        if (f.type !== 'checkbox' && f.type !== 'xbox' && f.label && !f.oscarTag){
-          f.oscarTag = guessTag('', f.type, f.label, owners.get(f));
-          if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
-          f.oscarTag = captionTag(f.oscarTag, f.label);
-        }
-        delete f.caption;
-      });
-      // A bare "Date" beside a value on its row that OSCAR doesn't fill is that value's date
-      // ("INR: ____  Date: ____"), not today's; beside the doctor's details ("Billing #: ____
-      // Date: ____") it is the form's
-      found.forEach(f => {
-        if (f.oscarTag !== 'today' || norm(f.label || '') !== 'date') return;
-        const cy = f.y + f.height/2;
-        const prev = found.filter(g => g !== f && (g.type === 'text' || g.type === 'textarea') && g.x + g.width <= f.x + 4 && Math.abs((g.y + g.height/2) - cy) < Math.max(f.height, g.height)/2)
-                          .sort((a,b) => (b.x + b.width) - (a.x + a.width))[0];
-        if (prev && !prev.oscarTag) f.oscarTag = '';
-      });
-      found.forEach(f => { delete f._lw; });
+      if (read) tagFields(found, read, boxOf);
       found.forEach(f => {
         const dup = state.fields.some(k =>
           samePage(k.page,page) &&
