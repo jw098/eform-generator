@@ -112,5 +112,63 @@ window.TEST_CASE_LIST = [
         "reason": "blanks between tick boxes' labels in a table cell"
       }
     ]
+  },
+  {
+    "name": "Diabetes Health Centre referral (St. Paul's)",
+    "folder": "sph-diabetes-health-centre",
+    "eform": "SPH_Diabetes_health_centre.html",
+    "images": [
+      "SPH_Diabetes_health_centre_1.png"
+    ],
+    "skip": [
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [1040, 540, 410, 60],
+        "reason": "First name: found, but as tall as the Appointment Date line above it"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [1040, 500, 410, 100],
+        "reason": "First name, found as tall as the Appointment Date line above it"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [810, 775, 330, 60],
+        "reason": "the Signature line: the eForm puts a signature image there"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [1140, 820, 320, 60],
+        "reason": "a blank under MSP No., between two lines"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [550, 1235, 900, 50],
+        "reason": "the line beside Additional medications/dose: the eForm's text area starts on the line below"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [530, 1055, 920, 50],
+        "reason": "the line beside Diabetes medications/dose: the eForm's text area starts on the line below"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [350, 1610, 1110, 60],
+        "reason": "the blanks after FAX # and please call, in the LAB WORK box: the centre's own numbers"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [150, 1090, 1310, 360],
+        "reason": "the medications text areas, which the eForm leaves untagged"
+      }
+    ]
   }
 ];

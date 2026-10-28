@@ -1147,6 +1147,93 @@ else if (typeof exports === 'object')
     return tag;
   }
 
+  // ===== Whose details a field holds (added by FreeScribe) =====
+  // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. The page does: it is
+  // in blocks (a box, or a section under a heading), and a block holds one person's details,
+  // which its words give away ("Referring MD", "Signature", "PHN", "Date of birth"). Going down
+  // a block row by row, a label naming someone ("Family Physician:") starts their rows.
+  //  - patient: the field keeps its tag (the patient's is what a bare label gets);
+  //  - referring clinician (current_user): the clinic's phone, fax and address, the user's email
+  //    and billing number;
+  //  - family doctor (doctor, the patient's MRP): their name and billing number; OSCAR may well
+  //    not have their phone, fax or address, so those get no tag;
+  //  - the receiving office ("FOR OFFICE USE ONLY"): no tags.
+  const OWNER_CUES = [
+    ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk)\b/],
+    ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
+    ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|md|np|mw|dr|doctor|signature|clinic|office)\b/],
+    ['patient', /\b(patients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
+  ];
+  const ownerCue = (text) => { const t = String(text || '').toLowerCase(); for (const [o, re] of OWNER_CUES) if (re.test(t)) return o; return ''; };
+  // What a label asks for, of the details that belong to someone
+  const detailKind = (label) => {
+    const t = String(label || '').toLowerCase();
+    if (/\b(time|date|hours?)\b/.test(t)) return '';           // ("TELEPHONE REQUISITION TIME" is a time)
+    if (/e-?mail/.test(t)) return 'email';
+    if (/\bfax\b/.test(t)) return 'fax';
+    if (/\b(phone|tel|telephone)\b/.test(t)) return 'phone';
+    if (/\baddress\b/.test(t)) return 'address';
+    if (/\b(msp|billing|ohip)\b/.test(t)) return 'number';
+    if (/\bname\b/.test(t)) return 'name';
+    return '';
+  };
+  function ownerTag(owner, kind, label){
+    const has = (t) => state.tagCatalog.has(t) ? t : '';
+    const part = /\b(last|first|surname|given|middle)\b/i.test(label);     // (a name in parts has no tag of its own here)
+    if (owner === 'clinician') return { name: part ? '' : has('current_user'), phone: has('clinic_phone'), fax: has('clinic_fax'),
+                                        address: has('clinic_addressLine'), email: has('current_user_email'), number: has('current_user_ohip_no') }[kind];
+    if (owner === 'family') return { name: part ? '' : has('doctor'), number: has('doctor_ohip_no') }[kind] || '';
+    return '';
+  }
+  function fieldOwners(found, read){
+    const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
+    const labelWords = found.flatMap(f => f._lw || []);
+    const isLabel = (w) => labelWords.some(u => Math.abs(u.x0 - w.x0) < 2 && Math.abs(u.y0 - w.y0) < 2);
+    // Headings: short lines that are nobody's label and have no field on their row. Words far
+    // apart on one line are headings side by side, each over the page from it to the next.
+    const heads = [];
+    read.lines.forEach(l => {
+      const ws = l.words.filter(w => /[A-Za-z]/.test(w.text)).sort((a,b) => a.x0 - b.x0);
+      if (!ws.length || ws.length > 8 || ws.some(isLabel)) return;
+      if (found.some(f => f.y < l.y1 && f.y + f.height > l.y0)) return;
+      // (nor a field's caption, printed just under it and within its width: "FIRST  MIDDLE  LAST"
+      // under a Name line)
+      const lh = l.y1 - l.y0;
+      if (writes.some(f => l.y0 >= f.y + f.height - 4 && l.y0 - (f.y + f.height) <= lh*1.5 && l.x0 >= f.x - lh && l.x1 <= f.x + f.width + lh)) return;
+      const gap = Math.max(...ws.map(w => w.y1 - w.y0))*3, parts = [];
+      ws.forEach(w => { const p = parts[parts.length-1]; if (p && w.x0 - p[p.length-1].x1 <= gap) p.push(w); else parts.push([w]); });
+      parts.forEach((p, i) => heads.push({ x0: p[0].x0, x1: i+1 < parts.length ? parts[i+1][0].x0 : Infinity, y1: Math.max(...p.map(w => w.y1)),
+                                           owner: ownerCue(p.map(w => w.text).join(' ')) }));
+    });
+    // Each field's block: the nearest heading above it, over where its row (its label) starts
+    const blocks = new Map();
+    writes.forEach(f => {
+      const lw = f._lw || [];
+      const x0 = Math.min(f.x, ...lw.map(w => w.x0)), top = Math.min(f.y, ...lw.map(w => w.y0));
+      const h = heads.filter(h => h.y1 <= top + 2 && x0 >= h.x0 - 20 && x0 < h.x1).sort((a,b) => b.y1 - a.y1)[0] || null;
+      if (!blocks.has(h)) blocks.set(h, []);
+      blocks.get(h).push(f);
+    });
+    blocks.forEach((fs, h) => {
+      // The block's owner: its heading's words count most, then its fields' labels
+      const score = {};
+      if (h && h.owner) score[h.owner] = 3;
+      fs.forEach(f => { const o = ownerCue(f.label); if (o) score[o] = (score[o] || 0) + 1; });
+      let owner = '', best = 0;
+      Object.entries(score).forEach(([o, n]) => { if (n > best){ best = n; owner = o; } else if (n === best) owner = ''; });
+      // Row by row down the block, left to right: a label naming someone starts their fields
+      fs.sort((a,b) => (a.y + a.height/2) - (b.y + b.height/2));
+      const rows = [];
+      fs.forEach(f => { const r = rows[rows.length-1], cy = f.y + f.height/2; if (r && Math.abs(cy - r.cy) < Math.max(r.h, f.height)/2) r.fs.push(f); else rows.push({ cy, h: f.height, fs: [f] }); });
+      rows.forEach(r => r.fs.sort((a,b) => a.x - b.x).forEach(f => {
+        const own = ownerCue(f.label);
+        if (own){ owner = own; return; }                          // (its label says whose: its tag stands)
+        const kind = detailKind(f.label);
+        if (kind && (owner === 'clinician' || owner === 'family' || owner === 'office')) f.oscarTag = ownerTag(owner, kind, f.label);
+      }));
+    });
+  }
+
   function readAsDataURL(file){
     return new Promise((res, rej)=>{
       const r = new FileReader();
@@ -2946,7 +3033,7 @@ else if (typeof exports === 'object')
     const heads = read.lines.filter(l => caps(l.text) && l.text.replace(/[^A-Za-z]/g, '').length >= 6 && !isLabel(l) &&
                                          !out.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
     out.forEach(f => {
-      const ws = f._words; delete f._words;
+      const ws = f._words; delete f._words; f._lw = ws || null;
       if (f.section || !f.label || f.type === 'checkbox' || f.type === 'xbox' || /^[A-Z][A-Z\s]{5,}/.test(f.label)) return;
       // (only in a box: on a form of fill-in lines, a line in capitals above is the row above's
       // captions, "STREET NAME" under the Address line, not a heading over this field)
@@ -3643,26 +3730,10 @@ else if (typeof exports === 'object')
         }
         delete f.section; delete f.caption; delete f.toEnd;
       });
-      // A phone, fax, address or email that doesn't say whose is the doctor's when the field to
-      // its left on its row is ("OFFICE TEL #: ____  FAX #: ____", "FAMILY DOCTOR: ____  PHONE #: ____")
-      const doctors = new Set(['current_user','current_user_ohip_no','clinic_name','clinic_phone','clinic_fax','clinic_addressLine','doctor']);
-      const writes = found.filter(f => f.type==='text'||f.type==='textarea').sort((a,b) => a.x-b.x);
-      writes.forEach(f => {
-        if (!f.label) return;
-        const prev = writes.filter(g => g !== f && g.x + g.width <= f.x + 4 && g.y < f.y + f.height && g.y + g.height > f.y)
-                           .sort((a,b) => (b.x+b.width)-(a.x+a.width))[0];
-        // The billing number beside the family doctor is theirs ("FAMILY PHYSICIAN: ____  BILLING #: ____")
-        if (prev && prev.oscarTag === 'doctor' && /\b(billing|msp|ohip)\b/i.test(f.label)){ f.oscarTag = state.tagCatalog.has('doctor_ohip_no') ? 'doctor_ohip_no' : ''; return; }
-        if (!/\b(phone|tel|telephone|fax|e-?mail|address)\b/i.test(f.label) || /\b(home|cell|mobile|patient)\b/i.test(f.label)) return;
-        if (prev && doctors.has(prev.oscarTag)){ const t = guessTag('referring ' + f.label, f.type, ''); if (t) f.oscarTag = t; return; }
-        // First on its row, under the family doctor's row ("FAMILY PHYSICIAN: ____" over
-        // "PHONE: ____  FAX: ____"): the family doctor's, whose number OSCAR may well not have
-        if (!prev){
-          const up = writes.filter(g => g !== f && g.y + g.height <= f.y + 4 && f.y - (g.y + g.height) < f.height*1.5 && g.x < f.x + f.width && g.x + g.width > f.x)
-                           .sort((a,b) => (b.y+b.height)-(a.y+a.height))[0];
-          if (up && up.oscarTag === 'doctor') f.oscarTag = '';
-        }
-      });
+      // Whose details each name, phone, fax, address, email or billing number is: the patient's,
+      // the referring clinician's, the family doctor's, or the receiving office's
+      if (read) fieldOwners(found, read);
+      found.forEach(f => { delete f._lw; });
       found.forEach(f => {
         const dup = state.fields.some(k =>
           samePage(k.page,page) &&

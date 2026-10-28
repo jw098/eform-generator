@@ -1,0 +1,267 @@
+<html>
+<head>
+
+
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>SPH Diabetes health centre</title>
+<style type="text/css" media="screen" >
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+</style>
+
+<!-- jQuery for greater functionality -->
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script>
+if (typeof jQuery === 'undefined') {
+	document.write(unescape('%3Cscript%20src%3D%22../js/jquery-1.7.1.min.js%22%3E%3C/script%3E'));
+}
+</script>
+<script>
+if (typeof jQuery === 'undefined') {
+	document.write(unescape('%3Cscript%20src%3D%22jquery-1.7.1.min.js%22%3E%3C/script%3E'));
+}
+</script>
+<!-- scripts for Xbox functions -->
+<script language="javascript">
+$(document).ready(function() {
+	$( ".Xbox" ).click(function() {
+		var st = $( this ).val();
+		if (st=="X") {
+			$( this ).val("");
+		} else {
+			$( this ).val("X");
+		}
+	});
+
+	$( ".Xbox" ).keypress(function(event) {
+	// any key press except tab will constitute a value change to the checkbox
+		if (event.which != 0){
+			$( this ).click();
+			return false;
+			}
+	});
+
+});
+</script>
+
+<script language="javascript">
+function formPrint(){
+	window.print();
+} 
+</script>
+
+<!-- scripts to confirm closing of window if it hadnt been saved yet -->
+<script language="javascript">
+//keypress events trigger dirty flag
+var needToConfirm = false;
+document.onkeyup=setDirtyFlag;
+function setDirtyFlag(){
+	needToConfirm = true;
+}
+function releaseDirtyFlag(){
+	needToConfirm = false; //Call this function to prevent an alert.
+	document.getElementById('FormName').submit()
+}
+window.onbeforeunload = confirmExit;
+function confirmExit(){
+	if (needToConfirm){
+		 return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+	 }
+}
+</script>
+
+<!-- Stamped Signatures -->
+<script type="text/javascript">
+var ImgArray = [];
+</script>
+
+<script src='../eform/displayImage.do?imagefile=stamps.js'></script>
+<script type="text/javascript">
+//autoloading signature images
+ImgArray.push(
+	"anonymous|BNK.png",
+	"zapski|PHC.png",
+	"acasse|MLL.png",
+	"mith|PJS.png",
+	"arron|BAB.png",
+	"urrie|LNC.png",
+	"awson|HAL.png",
+	"lgadi|KME.png",
+	"ears|STS.png",
+	"eller|MKK.png"
+	);
+
+function SignForm() {
+	var provNum = $('#current_user_id').val();
+	document.getElementById('signature').src = "../eform/displayImage.do?imagefile=consult_sig_"+provNum+".png";
+	$('#signature').attr(onerror, "this.style.display='none'");
+	document.getElementById('signature').alt= provNum;
+}
+
+function setPhone(){
+	let homePhone = document.getElementById('homePhone').value;
+	if(homePhone == ""){
+		homePhone = "n/a";
+	}
+	let cellPhone = document.getElementById('cellPhone').value;
+	if(cellPhone == ""){
+		cellPhone = "n/a";
+	}
+	document.getElementById('phone').value = "H: " + homePhone + "   " + "C: " + cellPhone;
+}
+
+// function toggleMe(){
+// 	if (document.getElementById("Stamp").src.indexOf("BNK.png")>0){
+// 		SignForm()
+// 	} else {
+// 		document.getElementById("Stamp").src = "../eform/displayImage.do?imagefile=BNK.png";
+// 	}
+// }
+</script>
+
+<script type="text/javascript">
+function reImg(){
+// for stand alone development without uploading to OSCAR
+	var strLoc = window.location.href.toLowerCase();
+	if(strLoc.indexOf("https") == -1) {
+		var src1 = document.getElementById("BGImage1").src;
+		document.getElementById("BGImage1").src = src1.replace("$%7Boscar_image_path%7D","");
+	}
+}
+</script>
+</head>
+
+<body onload="reImg();SignForm();setPhone();">
+<form method="post" action="" name="FormName" id="FormName" >
+
+
+<input name="homePhone" id="homePhone" type="hidden" oscarDB=phone>
+<input name="cellPhone" id="cellPhone" type="hidden" oscarDB=cell>
+
+
+<div id="page1" style="position:relative;" >
+<img id="BGImage1" src="${oscar_image_path}SPH 3934 (DB145) Diabetic Health Centre Referral (R. Feb 4-21)fillable_1.png" style="position: relative; left: 0px; top: 0px; width:825px">
+
+<!-- Appointment date -->
+<input name="page1_31" id="page1_31" type="text" class=" noborder" style="position:absolute; left:578px; top:254px; width:166px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;" >
+
+<!-- Patient info -->
+<input name="patient_nameF" id="patient_nameF" type="text" class=" noborder" style="position:absolute; left:575px; top:305px; width:212px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=patient_nameF>
+<input name="patient_nameL" id="patient_nameL" type="text" class=" noborder" style="position:absolute; left:151px; top:305px; width:340px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=patient_nameL>
+<input name="dobc" id="dobc" type="text" class=" noborder" style="position:absolute; left:238px; top:326px; width:257px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=dobc>
+<input name="hinc" id="hinc" type="text" class=" noborder" style="position:absolute; left:563px; top:326px; width:227px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=hin>
+<input name="address" id="address" type="text" class=" noborder" style="position:absolute; left:185px; top:347px; width:605px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=addressline>
+<input name="city" id="city" type="text" class=" noborder" style="position:absolute; left:111px; top:369px; width:308px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=city>
+<input name="province" id="province" type="text" class=" noborder" style="position:absolute; left:492px; top:369px; width:66px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=province>
+<input name="postal" id="postal" type="text" class=" noborder" style="position:absolute; left:651px; top:369px; width:141px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=postal>
+<input name="phone" id="phone" type="text" class=" noborder" style="position:absolute; left:197px; top:390px; width:224px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=phone >
+<input name="email" id="email" type="text" class=" noborder" style="position:absolute; left:527px; top:390px; width:264px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=email>
+
+<!-- Referring MD -->
+<input name="current_user" id="current_user" type="text" class=" noborder" style="position:absolute; left:182px; top:435px; width:189px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=current_user>
+<input name="current_user_ohip_no" id="current_user_ohip_no" type="text" class=" noborder" style="position:absolute; left:688px; top:435px; width:95px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=current_user_ohip_no>
+<input name="clinic_phone" id="clinic_phone" type="text" class=" noborder" style="position:absolute; left:190px; top:459px; width:182px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=clinic_phone>
+<input name="clinic_fax" id="clinic_fax" type="text" class=" noborder" style="position:absolute; left:464px; top:459px; width:158px; height:14px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;"  oscarDB=clinic_fax>
+<!-- <div style="position:absolute; left:449px; top:417px;"> -->
+<!-- <img id="Stamp" src="../eform/displayImage.do?imagefile=BNK.png" width="173" height="35" onclick="toggleMe();"> -->
+<img id="signature" name="signature" src="${oscar_image_path}BNK.png" width="173" height="35" style="position: absolute; left: 449px; top: 417px; z-index: 20">
+<input type="hidden" id="current_user_id" name="current_user_id" oscardb=current_user_id>
+<!-- </div> -->
+
+<!-- Reason for Referral -->
+<input name="preDiabetes" id="preDiabetes" type="text" class="Xbox" style="position:absolute; left:87px; top:507px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="DM1" id="DM1" type="text" class="Xbox" style="position:absolute; left:257px; top:507px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="DM2" id="DM2" type="text" class="Xbox" style="position:absolute; left:321px; top:507px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="ageDx" id="ageDx" type="text" class=" noborder" style="position:absolute; left:551px; top:506px; width:241px; height:12px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;" >
+<input name="insulinPump" id="insulinPump" type="text" class="Xbox" style="position:absolute; left:87px; top:526px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="otherReason" id="otherReason" type="text" class="Xbox" style="position:absolute; left:215px; top:526px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="otherReasonText" id="otherReasonText" type="text" class=" noborder" style="position:absolute; left:278px; top:526px; width:514px; height:12px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;" >
+
+<!-- Language -->
+<input name="english" id="english" type="text" class="Xbox" style="position:absolute; left:183px; top:557px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="otherLang" id="otherLang" type="text" class="Xbox" style="position:absolute; left:258px; top:557px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="otherLangSpec" id="otherLangSpec" type="text" class=" noborder" style="position:absolute; left:366px; top:556px; width:94px; height:12px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;" >
+<input name="bringInterpreter" id="bringInterpreter" type="text" class="Xbox" style="position:absolute; left:470px; top:557px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="bookInterpreter" id="bookInterpreter" type="text" class="Xbox" style="position:absolute; left:664px; top:557px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+
+<!-- Medications -->
+<div style="position: absolute; left: 88px; top:605px;"> 
+	<textarea name="medicationsTextArea" class="noborder" style="width:704px; height:78px;"></textarea>
+</div>
+
+<div style="position: absolute; left: 88px; top:706px;"> 
+	<textarea name="medicationsTextArea" class="noborder" style="width:704px; height:78px;"></textarea>
+</div>
+
+
+<!-- Related medical issues -->
+<input name="heartDisease" id="heartDisease" type="text" class="Xbox" style="position:absolute; left:85px; top:815px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="dyslipidemia" id="dyslipidemia" type="text" class="Xbox" style="position:absolute; left:215px; top:815px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="htn" id="htn" type="text" class="Xbox" style="position:absolute; left:337px; top:815px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="nephropathy" id="nephropathy" type="text" class="Xbox" style="position:absolute; left:466px; top:815px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="retinopathy" id="retinopathy" type="text" class="Xbox" style="position:absolute; left:588px; top:815px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="neuropathy" id="neuropathy" type="text" class="Xbox" style="position:absolute; left:698px; top:815px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="depression" id="depression" type="text" class="Xbox" style="position:absolute; left:85px; top:834px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="otherMedical" id="otherMedical" type="text" class="Xbox" style="position:absolute; left:215px; top:834px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="otherMedicalText" id="otherMedicalText" type="text" class=" noborder" style="position:absolute; left:278px; top:832px; width:515px; height:12px; font-family:sans-serif; font-style:normal; font-weight:normal; font-size:12px; text-align:left; background-color:transparent;" >
+<input name="endoRefYes" id="endoRefYes" type="text" class="Xbox" style="position:absolute; left:246px; top:931px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+<input name="endoRefNo" id="endoRefNo" type="text" class="Xbox" style="position:absolute; left:308px; top:931px; width:12px; height:12px; font-family:sans-serif; font-style:normal; font-weight:bold; font-size:12px; text-align:center; background-color:white;" >
+
+
+
+
+
+<input type="hidden" name="DoctorName" id="DoctorName" oscarDB=doctor>
+<input type="hidden" name="CurrentUserName" id="CurrentUserName" oscarDB=current_user>
+<input type="hidden" name="SubmittedBy" id="SubmittedBy">
+<input type="hidden" name="user_id" id="user_id" oscarDB=current_user_id>
+<input type="hidden" name="user_ohip_no" id="user_ohip_no" oscarDB=current_user_ohip_no>
+<input type="hidden" name="doctor_no" id="doctor_no" oscarDB=doctor_provider_no>
+<div id="signatureDisplay"></div>
+<input type="hidden" name="signatureValue" id="signatureValue">
+
+
+<div class="DoNotPrint" id="BottomButtons" style="position: absolute; top:1068px; left:0px;">
+	<table><tr><td>
+		Subject: <input name="subject" id="subject" size="40" type="text"> <br> 
+		<input value="Submit" name="SubmitButton" id="SubmitButton" type="button" onclick=" releaseDirtyFlag();"> 
+		<input value="Reset" name="ResetButton" id="ResetButton" type="reset"> 
+		<input value="Print" name="PrintButton" id="PrintButton" type="button" onclick="formPrint();"> 
+	</td></tr></table>
+
+<!-- Copy Left -->
+<a rel="liscence" href="http://creativecommons.org/licenses/by-sa/3.0/deed.en_US" target="blank"><img alt="Creative Commons License" src="http://i.creativecommons.org/l/by-sa/3.0/80x15.png"/></a><br>
+</div>
+</div>
+</form>
+</body>
+</html>
