@@ -2420,17 +2420,14 @@ else if (typeof exports === 'object')
     // The same on the grey image: the ink map's soft edges can close a small gap (the bottom of
     // a bold n, between its stems), which on the grey image stays paper. Ink there is anything a
     // fifth of the way from the paper to the box's darkest pixel (a thin side prints light).
-    if (gray){
-      let lo = 255, hi = 0;
-      for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
-      if (hi - lo >= 40){
-        const paper = hi - (hi - lo)*0.2, dark = (x,y) => gray[y*w+x] < paper;
-        const colDark = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(dark(x,y)) return true; return false; };
-        const rowDark = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(dark(x,y)) return true; return false; };
-        const g = [straight(bw, i => colDark(x1+i, y1, y1+band-1)), straight(bw, i => colDark(x1+i, y2-band+1, y2)),
-                   straight(bh, i => rowDark(y1+i, x1, x1+band-1)), straight(bh, i => rowDark(y1+i, x2-band+1, x2))];
-        if (Math.min(...g) < 0.6) return false;
-      }
+    let lo = 255, hi = 0;
+    for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (hi - lo >= 40){
+      const paper = hi - (hi - lo)*0.2, dark = (x,y) => gray[y*w+x] < paper;
+      const colDark = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(dark(x,y)) return true; return false; };
+      const rowDark = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(dark(x,y)) return true; return false; };
+      if (Math.min(straight(bw, i => colDark(x1+i, y1, y1+band-1)), straight(bw, i => colDark(x1+i, y2-band+1, y2)),
+                   straight(bh, i => rowDark(y1+i, x1, x1+band-1)), straight(bh, i => rowDark(y1+i, x2-band+1, x2))) < 0.6) return false;
     }
     // Square corners: ink right at each corner (an O's curve leaves its corners empty)
     const corner = (cx,cy) => countOnInRect(clean,w,h,cx,cy,cx+band-1,cy+band-1) > 0;
@@ -2441,14 +2438,12 @@ else if (typeof exports === 'object')
       // (on the grey image, where a blurred outline's halo doesn't count, at most 60%; and on the
       // ink map, which fills the gaps between letters merged into one blob, not all of it)
       const inMap = countOnInRect(clean,w,h,ix1,iy1,ix2,iy2) / ((ix2-ix1+1)*(iy2-iy1+1));
-      const inner = gray ? inkInside(gray,w,x1,y1,x2,y2,band+1) : inMap;
+      const inner = inkInside(gray,w,x1,y1,x2,y2,band+1);
       if (inner > 0.6 || inMap > 0.95) return false;
       // A bar straight across the middle third, joining both sides, makes a B, E, 8 or H; a tick
-      // or a cross runs at a slant. Looked for on the grey image when there is one (the ink map
-      // thickens a cross's arms into a bar), bridging a pixel or two where a B's bowls meet.
-      let mid = 128;
-      if (gray){ let lo = 255, hi = 0; for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; } mid = (lo + hi) / 2; }
-      const ink = gray ? (x,y) => gray[y*w+x] < mid : on;
+      // or a cross runs at a slant. Looked for on the grey image (the ink map thickens a cross's
+      // arms into a bar), bridging a pixel or two where a B's bowls meet.
+      const mid = (lo + hi) / 2, ink = (x,y) => gray[y*w+x] < mid;
       const slack = Math.max(1, Math.round(bw*0.08));
       for (let y=Math.ceil(y1+bh/3); y<=Math.floor(y2-bh/3); y++){
         let run = 0, gap = 0;
@@ -2724,9 +2719,8 @@ else if (typeof exports === 'object')
   // Priority list, "HISTORY AND CLINICAL FINDINGS:" over open page). Fields already found count
   // as ink. One that runs down to the foot of the page is one only under a label ending with a
   // colon (checked once the words are read).
-  function areaFields(clean, w, h, s, bands, minSeg, page, p, found){
-    const line = Math.max(18, p.naturalH*0.026) * s;
-    const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg).sort((a,b) => a.y1 - b.y1);
+  // rules: the page's rules, top to bottom; line: one written line's height (canvas px).
+  function areaFields(clean, w, h, s, rules, line, page, found){
     if (!rules.length) return [];
     // Ink, or a field already found
     const taken = Uint8Array.from(clean);
@@ -3123,8 +3117,8 @@ else if (typeof exports === 'object')
   }
 
   // ===== Text fields from lines (added by FreeScribe) =====
-  function textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p){
-    const line = Math.max(18, p.naturalH*0.026) * s;          // one written line, in canvas px
+  // bands: the page's rules, top to bottom; line: one written line's height (canvas px).
+  function textFieldsFromLines(clean, w, h, s, bands, line, page){
     const maxThick = Math.max(3, Math.round(h*0.012));
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
@@ -3153,8 +3147,7 @@ else if (typeof exports === 'object')
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
-    const lines = bands.filter(b => (b.x2-b.x1+1) >= minSeg)
-                       .map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
+    const lines = bands.map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
                        .filter(isLine)
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     const rowLine = capH ? Math.min(line, Math.max(10, capH*1.6)) : line;
@@ -3568,7 +3561,9 @@ else if (typeof exports === 'object')
         }
       }
       segs.sort((a,b)=>a.y-b.y);
-      const bands = [];
+      // The page's rules, top to bottom (each at least minSeg long), and the height of one
+      // written line, in canvas px
+      const bands = [], line = Math.max(18, p.naturalH*0.026) * s;
       segs.forEach(sg=>{
         let merged=false;
         for(let i=bands.length-1;i>=0;i--){
@@ -3590,10 +3585,10 @@ else if (typeof exports === 'object')
       // under its printed label. Lines with words sitting on them (underlined headings, the
       // bottoms of bold words, table rules under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
-      textFieldsFromLines(clean, w, h, s, bands, minSeg, page, p).forEach(f => newFields.push(f));
+      textFieldsFromLines(clean, w, h, s, bands, line, page).forEach(f => newFields.push(f));
       // Open writing areas under a heading, with no line or box around them, on the page or in a
       // table's cells
-      areaFields(clean, w, h, s, bands, minSeg, page, p, newFields).forEach(f => newFields.push(f));
+      areaFields(clean, w, h, s, bands, line, page, newFields).forEach(f => newFields.push(f));
 
       // Connected component pass for checkboxes.
       const visited = new Uint8Array(w*h);
@@ -3716,13 +3711,12 @@ else if (typeof exports === 'object')
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
       // and below that span it, joined by sides down from both ends of the top one (page-image
       // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
-      const rules = bands.filter(b => (b.x2-b.x1+1) >= minSeg);
       const sideDown = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb);
       const boxOf = (x0, f) => {
         const a = x0*s, z = (f.x + f.width)*s, top = f.y*s, bottom = (f.y + f.height)*s;
         const spans = (b) => b.x1 <= a + 3 && b.x2 >= z - 3;
-        const tops = rules.filter(b => b.y2 < top && spans(b)).sort((p,q) => q.y2 - p.y2).slice(0, 8);
-        const bots = rules.filter(b => b.y1 > bottom - 2 && spans(b)).sort((p,q) => p.y1 - q.y1).slice(0, 8);
+        const tops = bands.filter(b => b.y2 < top && spans(b)).sort((p,q) => q.y2 - p.y2).slice(0, 8);
+        const bots = bands.filter(b => b.y1 > bottom - 2 && spans(b)).sort((p,q) => p.y1 - q.y1).slice(0, 8);
         for (const T of tops) for (const B of bots){
           if (B.y1 - T.y2 < 4) continue;
           if (sideDown(T.x1 + 1, T.y2 + 1, B.y1 - 1) && sideDown(T.x2 - 1, T.y2 + 1, B.y1 - 1))
