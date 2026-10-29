@@ -19,19 +19,20 @@ package). **Auto Detect** finds the tick boxes and the places to write, and sugg
 ## Tags
 
 Only the **OSCAR version 12** tags count: the rows of `standard-eform-tags.csv` whose
-`Oscar Version` is `12` (105 tags). Tags from later versions (`15`, `15b803`, `19`…) and tags
+`Oscar Version` is `12` and whose tag isn't empty (102 tags). Tags from later versions (`15`, `15b803`, `19`…) and tags
 not in the file don't exist for this project: Auto Detect must never suggest one, and a new
 rule or list of tags must use only version 12's. (The rows with no version are the source
 page's section headings, not tags.) To list them:
 
 ```
-python3 -c "import csv; print('\n'.join(r[1] for r in csv.reader(open('CodingAgentContext/standard-eform-tags.csv', encoding='utf-8-sig')) if r[0].strip() == '12'))"
+python3 -c "import csv; print('\n'.join(r[1] for r in csv.reader(open('CodingAgentContext/standard-eform-tags.csv', encoding='utf-8-sig')) if r[0].strip() == '12' and r[1].strip()))"
 ```
 
-In the code: `DEFAULT_TAGS` (the tags offered to start with) and `TAG_FOR` (what Auto Detect
-suggests) hold only version 12's tags. `REMOVED_TAGS` lists the other tags the app used to
-offer; they are kept out of the tag list from any source, and a saved session's field loses
-one. Where version 12 has no tag for something (a clinician's email), the field gets none.
+In the code: `STANDARD_TAGS` is all of version 12's tags, a fixed list: it is the tag list
+the app offers, and Auto Detect suggests nothing outside it (`TAG_FOR`, what Auto Detect
+suggests, holds only its tags). Nothing in the app adds to it or takes from it. A user can
+still type any tag for a field; one that isn't standard shows a warning. `REMOVED_TAGS` lists
+the other tags the app used to offer; a saved session's field loses one. Where version 12 has no tag for something (a clinician's email), the field gets none.
 A signature is a field type (`signature`, exported as OSCAR's signature stamp), not a tag.
 A test case's expected tags follow the same rule. (OSCAR measurement references such as
 `m$EDC#value` aren't standard tags, and Auto Detect doesn't suggest them.)
