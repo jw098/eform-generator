@@ -2494,8 +2494,10 @@ else if (typeof exports === 'object')
     const right  = straight(bh, i => rowHas(y1+i, x2-band+1, x2));
     if (Math.min(top,bottom,left,right) < 0.85) return false;
     // The same on the grey image: the ink map's soft edges can close a small gap (the bottom of
-    // a bold n, between its stems), which on the grey image stays paper. Ink there is anything a
-    // fifth of the way from the paper to the box's darkest pixel (a thin side prints light).
+    // a bold n, between its stems; small letters merged into a square, "Bil" in "Bilat."), which
+    // on the grey image stays paper. Ink there is anything a fifth of the way from the paper to
+    // the box's darkest pixel (a thin side prints light). A printed side runs most of its length
+    // unbroken even on a poor scan; letters' strokes leave gaps.
     let lo = 255, hi = 0;
     for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
     if (hi - lo >= 40){
@@ -2503,7 +2505,7 @@ else if (typeof exports === 'object')
       const colDark = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(dark(x,y)) return true; return false; };
       const rowDark = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(dark(x,y)) return true; return false; };
       if (Math.min(straight(bw, i => colDark(x1+i, y1, y1+band-1)), straight(bw, i => colDark(x1+i, y2-band+1, y2)),
-                   straight(bh, i => rowDark(y1+i, x1, x1+band-1)), straight(bh, i => rowDark(y1+i, x2-band+1, x2))) < 0.6) return false;
+                   straight(bh, i => rowDark(y1+i, x1, x1+band-1)), straight(bh, i => rowDark(y1+i, x2-band+1, x2))) < 0.7) return false;
     }
     // Square corners: ink right at each corner (an O's curve leaves its corners empty)
     const corner = (cx,cy) => countOnInRect(clean,w,h,cx,cy,cx+band-1,cy+band-1) > 0;

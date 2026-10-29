@@ -203,8 +203,7 @@ window.TEST_CASE_LIST = [
       "CL489_Pg3.png"
     ],
     "todo": {
-      "extraFields": "blanks beside questions (two on page 1, one on page 2) and the open page under Return To on page 3 are taken for fields",
-      "extraTicks": "the lat of Bilat. on page 2 is taken for a tick box"
+      "extraFields": "blanks beside questions (two on page 1, one on page 2) and the open page under Return To on page 3 are taken for fields"
     },
     "skip": [
       {
