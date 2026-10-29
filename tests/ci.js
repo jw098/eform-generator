@@ -1,6 +1,7 @@
 // Runs the Auto Detect tests in headless Chrome, for CI (.github/workflows/tests.yml): opens the
-// app with #test, waits for the results, prints them, and exits with 1 if any test failed.
-// To-dos don't fail the run; a to-do that now passes is a warning (take it off the list).
+// app with #test, waits for the results, prints them (what went wrong under each failure and
+// to-do, and what each test skipped), and exits with 1 if any test failed. To-dos don't fail
+// the run; a to-do that now passes is a warning (take it off the list).
 //
 //   node tests/ci.js <app url ending in #test> [--variations]
 //
@@ -28,9 +29,12 @@ const { chromium } = require('playwright');
     }
     const mark = { pass: '✔', fail: '✘', todo: '○', 'todo-passes': '★' };
     const indent = (s) => s.split('\n').map(l => '      ' + l).join('\n');
+    // Each test, with what went wrong under a failure or a to-do (and the to-do's reason), and
+    // what it skipped
     for (const r of results){
-      console.log(`${mark[r.status] || '?'} ${r.name}${r.status === 'todo' ? ' (to do)' : ''}`);
-      if (r.error && r.status === 'fail') console.log(indent(r.error));
+      console.log(`${mark[r.status] || '?'} ${r.name}${r.status === 'todo' ? ` (to do: ${r.todo})` : ''}`);
+      if (r.error && (r.status === 'fail' || r.status === 'todo')) console.log(indent(r.error));
+      if (r.note) console.log(indent(r.note));
       if (r.status === 'todo-passes') console.log(`::warning::"${r.name}" is a to-do that now passes: take it off the to-do list`);
     }
     const n = (s) => results.filter(r => r.status === s).length;
