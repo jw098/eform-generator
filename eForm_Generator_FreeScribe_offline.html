@@ -2957,6 +2957,8 @@ else if (typeof exports === 'object')
   function colonFields(read, clean, w, h, s, page, found, right){
     const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
+    // The page's typical text height (a word far shorter is a speck OCR read, not a label)
+    const hs = read.words.map(wd => wd.y1 - wd.y0).sort((a,b) => a-b), wh = hs.length ? hs[hs.length >> 1] : 0;
     // The phrase a word ends: the words before it on its line, close together
     const phraseOf = (wd) => {
       const l = read.lines.find(l => l.words.includes(wd));
@@ -2977,7 +2979,7 @@ else if (typeof exports === 'object')
     // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
     read.words.filter(wd => /:$/.test(wd.text) && (/[A-Za-z]/.test(wd.text) || /^#+:$/.test(wd.text))).forEach(wd => {
       const th = wd.y1 - wd.y0;                                  // the text's height
-      if (th < 4) return;
+      if (th < wh*0.4) return;
       // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
       // if required:", a sentence's second line)
       const ph = phraseOf(wd);
@@ -3181,14 +3183,15 @@ else if (typeof exports === 'object')
         if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
       // The phrase just left of it on its row: the nearest words, no further apart than a few
-      // letters, not across a tick box (a tick box's words too: "☐ Other: ____" is the box's
+      // letters, the nearest no further from the field than about a dozen (a label set well apart
+      // from its blank), not across a tick box (a tick box's words too: "☐ Other: ____" is the box's
       // label and the line's)
       const row = words.filter(w => onRow(f, w) && w.x1 <= f.x + 6).sort((a,b) => b.x1-a.x1);
       const leftOf = () => {
         const got = [];
         for (const w of row){
           const start = got.length ? got[got.length-1].x0 : f.x;
-          if (start - w.x1 > (got.length ? wh*2.5 : Math.max(wh*8, 300))) break;
+          if (start - w.x1 > wh*(got.length ? 2.5 : 12)) break;
           if (boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x + b.width <= start + 2)) break;
           got.push(w);
         }
@@ -3350,7 +3353,7 @@ else if (typeof exports === 'object')
     const lines = bands.map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
                        .filter(isLine)
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
-    const rowLine = capH ? Math.min(line, Math.max(10, capH*1.6)) : line;
+    const rowLine = capH ? Math.min(line, capH*1.6) : line;
     const on = (x,y) => clean[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
     // A vertical rule at x between rows ya..yb (dark in nearly every row, allowing a pixel either side)
@@ -3770,7 +3773,7 @@ else if (typeof exports === 'object')
 
       const newFields = [];
       // Detect long thin horizontal lines -> text boxes.
-      const minSeg = Math.max(26, Math.round(w*(lineMinPct/100)));
+      const minSeg = Math.round(w*(lineMinPct/100));
       const segs = [];
       for(let y=0;y<h;y++){
         let x=0;
@@ -3789,7 +3792,7 @@ else if (typeof exports === 'object')
       segs.sort((a,b)=>a.y-b.y);
       // The page's rules, top to bottom (each at least minSeg long), and the height of one
       // written line, in canvas px
-      const bands = [], line = Math.max(18, p.naturalH*0.026) * s;
+      const bands = [], line = p.naturalH*0.026*s;
       segs.forEach(sg=>{
         let merged=false;
         for(let i=bands.length-1;i>=0;i--){
