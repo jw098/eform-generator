@@ -434,7 +434,7 @@ window.TEST_CASE_LIST = [
         "variation": "0.7× size",
         "page": 1,
         "test": "extraFields",
-        "reason": "at 0.7× (about 70 dpi) a table's thick bottom border splits into two rules with a thin \"row\" between them (under PAYEE ADDRESS and under PATIENT INFORMATION), the DATE OF ACCIDENT cell gets a small blank beside its label instead of its field, and the footer GP Standard Medical Report reads as a fill-in line"
+        "reason": "at 0.7× (about 70 dpi) a table's thick bottom border splits into two rules with a thin \"row\" between them (under PAYEE ADDRESS and under PATIENT INFORMATION), the DATE OF ACCIDENT cell gets a small blank beside its label instead of its field, and the footer GP Standard Medical Report reads as a fill-in line. Tried: ending the space above a thick rule at its top edge (it takes in the rule itself); that adds blanks between the referral form's boxes"
       },
       {
         "variation": "0.7× size",
