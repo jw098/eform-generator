@@ -269,6 +269,62 @@ window.TEST_CASE_LIST = [
           "Orientation4_Left"
         ],
         "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's rule with its label right beside it (\"☐Left\" under ORIENTATION): in those pixels the same as a letter on a rule (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "fields",
+        "page": 1,
+        "region": [225, 195, 410, 40],
+        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide), and the DATE OF ACCIDENT and DATE OF GP REPORT cells leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines, line guessed from the page's height; at 1× the DIAGNOSIS cells pass it by 0.04 px). Tried: measuring that room against the page's text (rowLine), which changes fields on four other forms"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 1,
+        "region": [225, 195, 410, 40],
+        "reason": "the small blank beside DATE OF ACCIDENT's label that the cell gets instead of its field (see the fields skip here)"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 1,
+        "region": [30, 315, 790, 20],
+        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the table's thick bottom border under PAYEE ADDRESS and the next table's heavy top rule read as two rules with a thin \"row\" between them. Tried: ending the space above a thick rule at its top edge, which adds blanks between the referral form's boxes"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 1,
+        "region": [30, 382, 790, 20],
+        "reason": "the same thin \"row\" between two tables (the skip above), under PATIENT INFORMATION's table"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 1,
+        "region": [640, 1025, 130, 50],
+        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the footer \"GP Standard Medical Report\": at 70 dpi the bottoms of its letters run together into what reads as a fill-in line"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "fields",
+        "page": 2,
+        "region": [340, 358, 270, 70],
+        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide), and the first two DIAGNOSIS rows under OTHER DIAGNOSIS leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines, line guessed from the page's height; at 1× the DIAGNOSIS cells pass it by 0.04 px). Tried: measuring that room against the page's text (rowLine), which changes fields on four other forms. Without a field under its neighbours' labels, the DEGREE/GRADE cell has none either"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 2,
+        "region": [505, 348, 100, 40],
+        "reason": "the small blank beside \"(WAD, SPRAIN, STRAIN)\" that the DEGREE/GRADE cell gets instead of its field (see the fields skip here)"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 2,
+        "region": [640, 1035, 130, 40],
+        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the footer \"GP Standard Medical Report\": at 70 dpi the bottoms of its letters run together into what reads as a fill-in line"
       }
     ],
     "skip": [
@@ -421,32 +477,6 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "region": [530, 970, 290, 60],
         "reason": "the blanks after the rows of options under STATUS OF DUTIES and STATUS OF HOURS (Study: Full Modified), found at some sizes: the eForm leaves them out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
-      }
-    ],
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "test": "fields",
-        "reason": "at 0.7× (about 70 dpi) the DATE OF ACCIDENT and DATE OF GP REPORT cells leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines; line is guessed from the page's height): their field isn't found"
-      },
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "test": "extraFields",
-        "reason": "at 0.7× (about 70 dpi) a table's thick bottom border splits into two rules with a thin \"row\" between them (under PAYEE ADDRESS and under PATIENT INFORMATION), the DATE OF ACCIDENT cell gets a small blank beside its label instead of its field, and the footer GP Standard Medical Report reads as a fill-in line. Tried: ending the space above a thick rule at its top edge (it takes in the rule itself); that adds blanks between the referral form's boxes"
-      },
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "test": "fields",
-        "reason": "at 0.7× (about 70 dpi) the first two DIAGNOSIS rows under OTHER DIAGNOSIS leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines; at 1× it passes by 0.04 px): their ICD 9 CODE fields aren't found, and without a field under its neighbours' labels the DEGREE/GRADE cell has none either. Measuring the room against the page's text (rowLine) instead changes fields on four other forms"
-      },
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "test": "extraFields",
-        "reason": "at 0.7× the DEGREE/GRADE cell missing its field gets a small blank beside \"(WAD, SPRAIN, STRAIN)\" instead (see the fields to-do), and the footer GP Standard Medical Report reads as a fill-in line"
       }
     ]
   }
