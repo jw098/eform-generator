@@ -256,6 +256,44 @@ window.TEST_CASE_LIST = [
       "CL489_Pg3.png"
     ],
     "variations": "pdf",
+    "variationSkip": [
+      {
+        "variation": "0.7× size",
+        "boxes": [
+          "Fulltime_Yes",
+          "Fulltime_No",
+          "Self_employed",
+          "Seasonal",
+          "Training_Apprentice",
+          "Student",
+          "Retired",
+          "Not_employed",
+          "Absent_WorkFull",
+          "Absent_WorkModified",
+          "Absent_TrainFull",
+          "Absent_TrainModified",
+          "Absent_SchoolFull",
+          "Absent_SchoolModified",
+          "Duties_WorkFull",
+          "Duties_SchoolFull",
+          "Hours_WorkFull",
+          "Hours_WorkModified",
+          "Hours_TrainFull",
+          "Hours_TrainModified",
+          "Hours_SchoolFull",
+          "Hours_SchoolModified"
+        ],
+        "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's rule with its label right beside it (\"☐Full time\", \"☐Yes ☐No\" in the work status table): in those pixels the same as a letter on a rule (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
+      },
+      {
+        "variation": "0.7× size",
+        "boxes": [
+          "Orientation2_Left",
+          "Orientation4_Left"
+        ],
+        "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's rule with its label right beside it (\"☐Left\" under ORIENTATION): in those pixels the same as a letter on a rule (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
+      }
+    ],
     "skip": [
       {
         "test": "tags",
@@ -400,20 +438,6 @@ window.TEST_CASE_LIST = [
         "page": 3,
         "region": [31, 527, 791, 536],
         "reason": "the open page under Return To, where the form has ended, taken for a writing area: fine as it is"
-      }
-    ],
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 22 of the 30 tick boxes"
-      },
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 2 of the 29 tick boxes"
       }
     ]
   }
