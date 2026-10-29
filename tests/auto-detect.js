@@ -296,7 +296,7 @@
     { name: 'tilted 1°', make: tilted(1) },
     { name: 'tilted 2.5°', make: tilted(2.5) },
     { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }),
-      todo: 'the fax drops the thin, light left side of some boxes, leaving "⊐"; taking three-sided shapes for boxes takes letters too' },
+      todo: 'the fax drops a thin side of some boxes (a one-pixel line between two rows goes half grey, under the threshold), leaving "⊓"; taking three-sided shapes for boxes takes letters too' },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
     { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img) => {
         const c = drawn(img), ctx = c.getContext('2d');
