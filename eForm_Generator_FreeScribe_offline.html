@@ -2513,11 +2513,10 @@ else if (typeof exports === 'object')
     // Inside: empty, or a tick / cross at most
     const ix1=x1+band+1, iy1=y1+band+1, ix2=x2-band-1, iy2=y2-band-1;
     if (ix2 > ix1 && iy2 > iy1){
-      // (on the grey image, where a blurred outline's halo doesn't count, at most 60%; and on the
-      // ink map, which fills the gaps between letters merged into one blob, not all of it)
-      const inMap = countOnInRect(clean,w,h,ix1,iy1,ix2,iy2) / ((ix2-ix1+1)*(iy2-iy1+1));
+      // (at most 60%, on the grey image: the ink map's soft edges count a blurred outline's halo,
+      // and fill the paper between a cross's arms in a small box)
       const inner = inkInside(gray,w,x1,y1,x2,y2,band+1);
-      if (inner > 0.6 || inMap > 0.95) return false;
+      if (inner > 0.6) return false;
       // A bar straight across the middle third, joining both sides, makes a B, E, 8 or H; a tick
       // or a cross runs at a slant. Looked for on the grey image (the ink map thickens a cross's
       // arms into a bar), bridging a pixel or two where a B's bowls meet.
@@ -3807,9 +3806,9 @@ else if (typeof exports === 'object')
       // Robust for thin-border PDF checkboxes that don't form a single connected component.
       const minSzPx = Math.max(4, Math.round(minNat * s));
       const maxSzPx = Math.round(maxNat * s);
-      // (isRealBox judges the inside, on the grey image as well: the ink map's inside test here
-      // would turn away a box with a thick tick in it)
-      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, 0.40, 0.95,
+      // (isRealBox judges the inside, on the grey image: the ink map's inside test here would turn
+      // away a box with a thick tick or a cross in it)
+      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, 0.40, 1,
         (x1,y1,x2,y2) => isRealBox(clean, w, h, x1, y1, x2, y2, gray));
       rectCandidates.forEach(r => {
         const bw = r.x2-r.x1+1, bh = r.y2-r.y1+1;

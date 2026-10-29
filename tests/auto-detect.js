@@ -308,7 +308,7 @@
           ctx.stroke();
         });
         return { url: png(c), map: same(), scale: 1 };
-      }, todo: 'not all found yet' },
+      }, todo: 'a ✓ running out of its box and into what is printed beside it (the box above, a rule, the next word) reads as ink joined on; telling its stroke from letters joined on needs more than the pixels around one box' },
   ];
   function variationTests(){
     const group = 'Poorer copies of the referral form (tick boxes only)';
