@@ -10,8 +10,9 @@
 //           { test, page, region: [x, y, width, height], reason }. The test is one of the keys
 //           above; boxes whose centre is in the region (page-image pixels) on that page are
 //           left out of it. Without a page, every page; without a region, the whole page.
-//   variations (optional) true: its pages with tick boxes are also tested in poorer copies,
-//           the variations (resized, blurred, faxed, ticked by hand…), when asked
+//   variations (optional) its pages with tick boxes are also tested in poorer copies when
+//           asked: "all" the variations (resized, blurred, faxed, ticked by hand…), or "pdf",
+//           those a clean PDF can come as (rendered at another size, printed faint)
 //   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box
 //           is found", where the variation leaves too little of them: a list of { variation,
 //           boxes, reason }, the variation by its name in the panel and the boxes by their
@@ -27,7 +28,7 @@ window.TEST_CASE_LIST = [
     "images": [
       "referral_form_3c1x42_page1.png"
     ],
-    "variations": true,
+    "variations": "all",
     "variationSkip": [
       {
         "variation": "blurred 2px",
@@ -79,7 +80,7 @@ window.TEST_CASE_LIST = [
     "images": [
       "mammography_requisition_42630x_page1.png"
     ],
-    "variations": true,
+    "variations": "pdf",
     "skip": [
       {
         "test": "extraFields",
@@ -92,43 +93,6 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "region": [50, 1656, 980, 74],
         "reason": "the blank above the bottom boxes: fine as a field"
-      }
-    ],
-    "variationTodo": [
-      {
-        "variation": "half size (scanned at half the resolution)",
-        "test": "ticks",
-        "reason": "not found yet: 2 of the 33 tick boxes"
-      },
-      {
-        "variation": "blurred 1px",
-        "test": "ticks",
-        "reason": "not found yet: 1 of the 33 tick boxes"
-      },
-      {
-        "variation": "blurred 2px",
-        "test": "ticks",
-        "reason": "not found yet: 5 of the 33 tick boxes"
-      },
-      {
-        "variation": "speckled (1% of pixels)",
-        "test": "ticks",
-        "reason": "not found yet: 9 of the 33 tick boxes"
-      },
-      {
-        "variation": "speckled (1% of pixels)",
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "fax (2/3 size, black and white only)",
-        "test": "ticks",
-        "reason": "not found yet: 24 of the 33 tick boxes"
-      },
-      {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "test": "ticks",
-        "reason": "not found yet: 9 of the 33 tick boxes"
       }
     ]
   },
@@ -163,7 +127,7 @@ window.TEST_CASE_LIST = [
       "RMH_1.png",
       "RMH_2.png"
     ],
-    "variations": true,
+    "variations": "pdf",
     "skip": [
       {
         "test": "extraFields",
@@ -198,46 +162,16 @@ window.TEST_CASE_LIST = [
     ],
     "variationTodo": [
       {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 1 of the 4 tick boxes"
-      },
-      {
         "variation": "0.7× size",
         "page": 2,
         "test": "extraTicks",
         "reason": "2 things taken for a tick box yet"
       },
       {
-        "variation": "speckled (1% of pixels)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 4 of the 40 tick boxes"
-      },
-      {
-        "variation": "tilted 1°",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "fax (2/3 size, black and white only)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 1 of the 40 tick boxes"
-      },
-      {
         "variation": "faint print",
         "page": 2,
         "test": "ticks",
         "reason": "not found yet: 1 of the 40 tick boxes"
-      },
-      {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 3 of the 40 tick boxes"
       }
     ]
   },
@@ -330,7 +264,7 @@ window.TEST_CASE_LIST = [
       "CL489_Pg2.png",
       "CL489_Pg3.png"
     ],
-    "variations": true,
+    "variations": "pdf",
     "skip": [
       {
         "test": "tags",
@@ -479,12 +413,6 @@ window.TEST_CASE_LIST = [
     ],
     "variationTodo": [
       {
-        "variation": "half size (scanned at half the resolution)",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 28 of the 30 tick boxes"
-      },
-      {
         "variation": "0.7× size",
         "page": 1,
         "test": "ticks",
@@ -495,66 +423,6 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "test": "extraTicks",
         "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "blurred 1px",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 29 of the 30 tick boxes"
-      },
-      {
-        "variation": "blurred 2px",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 30 of the 30 tick boxes"
-      },
-      {
-        "variation": "speckled (1% of pixels)",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 6 of the 30 tick boxes"
-      },
-      {
-        "variation": "rough JPEG (quality 30)",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 13 of the 30 tick boxes"
-      },
-      {
-        "variation": "rough JPEG (quality 30)",
-        "page": 1,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "tilted 1°",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 5 of the 30 tick boxes"
-      },
-      {
-        "variation": "tilted 2.5°",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 6 of the 30 tick boxes"
-      },
-      {
-        "variation": "fax (2/3 size, black and white only)",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 30 of the 30 tick boxes"
-      },
-      {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "page": 1,
-        "test": "ticks",
-        "reason": "not found yet: 20 of the 30 tick boxes"
-      },
-      {
-        "variation": "half size (scanned at half the resolution)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 21 of the 29 tick boxes"
       },
       {
         "variation": "0.7× size",
@@ -587,76 +455,10 @@ window.TEST_CASE_LIST = [
         "reason": "4 things taken for a tick box yet"
       },
       {
-        "variation": "blurred 1px",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 9 of the 29 tick boxes"
-      },
-      {
-        "variation": "blurred 2px",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 29 of the 29 tick boxes"
-      },
-      {
-        "variation": "speckled (1% of pixels)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 7 of the 29 tick boxes"
-      },
-      {
-        "variation": "rough JPEG (quality 30)",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "tilted 2.5°",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "fax (2/3 size, black and white only)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 29 of the 29 tick boxes"
-      },
-      {
         "variation": "faint print",
         "page": 2,
         "test": "extraTicks",
         "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 20 of the 29 tick boxes"
-      },
-      {
-        "variation": "half size (scanned at half the resolution)",
-        "page": 3,
-        "test": "ticks",
-        "reason": "not found yet: 1 of the 8 tick boxes"
-      },
-      {
-        "variation": "speckled (1% of pixels)",
-        "page": 3,
-        "test": "ticks",
-        "reason": "not found yet: 3 of the 8 tick boxes"
-      },
-      {
-        "variation": "fax (2/3 size, black and white only)",
-        "page": 3,
-        "test": "ticks",
-        "reason": "not found yet: 8 of the 8 tick boxes"
-      },
-      {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "page": 3,
-        "test": "ticks",
-        "reason": "not found yet: 6 of the 8 tick boxes"
       }
     ]
   }

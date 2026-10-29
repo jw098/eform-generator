@@ -239,10 +239,12 @@
   // ----- Variations: tick boxes on poorer copies of the cases' pages -----
   // The variations: poorer copies of each page of the cases marked "variations" in
   // tests/cases/index.js that has tick boxes, made here from the page (no extra image files):
-  // resized as if scanned at another resolution, blurred, speckled, saved as a rough JPEG,
-  // tilted, turned into a fax, printed faint, or with its boxes ticked by hand. Auto Detect runs
-  // on each (without reading words) and must find the eForm's tick boxes and nothing else, but
-  // those the case's variationSkip leaves out.
+  // resized as if rendered or scanned at another resolution, blurred, speckled, saved as a rough
+  // JPEG, tilted, turned into a fax, printed faint, or with its boxes ticked by hand. Auto Detect
+  // runs on each (without reading words) and must find the eForm's tick boxes and nothing else,
+  // but those the case's variationSkip leaves out. A case's "variations" is "all", or "pdf" for
+  // those a clean PDF can come as (a render at another size, faint print): not the ones marked
+  // scan, which only a scan, a fax or a filled-in form has.
   const canvasFor = (w, h) => { const c = document.createElement('canvas'); c.width = Math.round(w); c.height = Math.round(h); return c; };
   // Draw the page at k times its size (white behind it)
   const drawn = (img, k = 1) => {
@@ -281,22 +283,22 @@
     return { url: png(c), map, scale: 1 };
   };
   const VARIATIONS = [
-    { name: 'half size (scanned at half the resolution)', make: resized(0.5) },
+    { name: 'half size (scanned at half the resolution)', scan: true, make: resized(0.5) },
     { name: '0.7× size', make: resized(0.7) },
     { name: '1.5× size', make: resized(1.5) },
     { name: '2× size', make: resized(2) },
     { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
     { name: '3× size', make: resized(3) },
-    { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
-    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }) },
-    { name: 'speckled (1% of pixels)', make: (img) => { const rnd = random(1);
+    { name: 'blurred 1px', scan: true, make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
+    { name: 'blurred 2px', scan: true, make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }) },
+    { name: 'speckled (1% of pixels)', scan: true, make: (img) => { const rnd = random(1);
         return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; } },
-    { name: 'rough JPEG (quality 30)', make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
-    { name: 'tilted 1°', make: tilted(1) },
-    { name: 'tilted 2.5°', make: tilted(2.5) },
-    { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }) },
+    { name: 'rough JPEG (quality 30)', scan: true, make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
+    { name: 'tilted 1°', scan: true, make: tilted(1) },
+    { name: 'tilted 2.5°', scan: true, make: tilted(2.5) },
+    { name: 'fax (2/3 size, black and white only)', scan: true, make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }) },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
-    { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img, boxes) => {
+    { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', scan: true, make: (img, boxes) => {
         const c = drawn(img), ctx = c.getContext('2d');
         ctx.strokeStyle = '#000'; ctx.lineCap = 'round';
         boxes.forEach((b, i) => {
@@ -313,15 +315,15 @@
   // Each case's variations, once made: { c, entry, pages: [{ n, of, boxes, runs: [{ v, fields, map, scale }] }] }
   let varied = [];
   function variationTests(){
-    varied.forEach(({ c, entry, pages }) => {
+    varied.forEach(({ c, entry, pages, vs }) => {
       const group = `Poorer copies of ${c.name} (tick boxes only)`;
       // The case's skips and to-dos for its variations (its variationSkip and variationTodo in
       // tests/cases/index.js)
       const skips = entry.variationSkip || [], todos = entry.variationTodo || [], all = pages.flatMap(pg => pg.boxes);
       const todoOf = (v, n, key) => (todos.find(k => k.variation === v.name && k.test === key && (k.page == null || Number(k.page) === n)) || {}).reason;
       test(`${c.name} variations: each skip and to-do names a variation, and tick boxes and pages there are`, () => {
-        const none = [...skips, ...todos].map(k => k.variation).filter(n => !VARIATIONS.some(v => v.name === n));
-        assert(!none.length, `variationSkip or variationTodo names variations there aren't: ${none.join(', ')}`);
+        const none = [...skips, ...todos].map(k => k.variation).filter(n => !vs.some(v => v.name === n));
+        assert(!none.length, `variationSkip or variationTodo names variations the case doesn't run: ${none.join(', ')}`);
         const unknown = skips.flatMap(k => k.boxes).filter(id => !all.some(e => e.id === id));
         assert(!unknown.length, `variationSkip names tick boxes the case doesn't have: ${unknown.join(', ')}`);
         const bad = todos.filter(k => !['ticks', 'extraTicks'].includes(k.test) || (k.page != null && !pages.some(pg => pg.n === Number(k.page))));
@@ -444,17 +446,18 @@
       varied = [];
       for (const entry of entries.filter(e => e.variations && loaded[e.folder])){
         const c = loaded[entry.folder], all = await eformPages(c.html, c.images), pages = [];
+        const vs = VARIATIONS.filter(v => entry.variations === 'all' || !v.scan);
         for (const pg of all){
           const boxes = pg.boxes.filter(e => e.kind === 'tick');
           if (boxes.length) pages.push({ n: pg.n, of: all.length, boxes, img: pg.imgData, runs: [] });
         }
-        varied.push({ c, entry, pages });
+        varied.push({ c, entry, pages, vs });
       }
-      const total = varied.reduce((s, k) => s + k.pages.length, 0)*VARIATIONS.length;
+      const total = varied.reduce((s, k) => s + k.pages.length*k.vs.length, 0);
       let done = 0;
-      for (const { c, entry, pages } of varied) for (const pg of pages){
+      for (const { c, entry, pages, vs } of varied) for (const pg of pages){
         const base = await loadImage(pg.img);
-        for (const v of VARIATIONS){
+        for (const v of vs){
           progress(`poorer copies: processing ${++done} of ${total} (${c.name}${pg.of > 1 ? `, page ${pg.n}` : ''}, ${v.name})…`);
           const made = v.make(base, pg.boxes);
           pg.runs.push({ v, map: made.map, scale: made.scale,
@@ -517,8 +520,9 @@
     `//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys\n` +
     `//           above; boxes whose centre is in the region (page-image pixels) on that page are\n` +
     `//           left out of it. Without a page, every page; without a region, the whole page.\n` +
-    `//   variations (optional) true: its pages with tick boxes are also tested in poorer copies,\n` +
-    `//           the variations (resized, blurred, faxed, ticked by hand…), when asked\n` +
+    `//   variations (optional) its pages with tick boxes are also tested in poorer copies when\n` +
+    `//           asked: "all" the variations (resized, blurred, faxed, ticked by hand…), or "pdf",\n` +
+    `//           those a clean PDF can come as (rendered at another size, printed faint)\n` +
     `//   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box\n` +
     `//           is found", where the variation leaves too little of them: a list of { variation,\n` +
     `//           boxes, reason }, the variation by its name in the panel and the boxes by their\n` +
@@ -603,10 +607,10 @@
   copiesBox.style.cssText = 'margin:6px 0';
   const copiesBtn = document.createElement('button');
   copiesBtn.textContent = 'Also test poorer copies';
-  copiesBtn.title = 'Tick boxes on 15 poorer copies of each page of the cases marked "variations": resized, blurred, faxed, ticked by hand…';
+  copiesBtn.title = 'Tick boxes on poorer copies of each page of the cases marked "variations": resized, printed faint, and for some blurred, faxed, ticked by hand…';
   const copiesNote = document.createElement('span');
   copiesNote.style.cssText = 'margin-left:8px;color:#555;font-size:12px';
-  copiesNote.textContent = 'checks tick boxes on poor scans; takes about a minute';
+  copiesNote.textContent = 'checks tick boxes on poorer copies; takes about 30 seconds';
   copiesBtn.onclick = async () => { copiesBox.remove(); await runCopies(); };
   copiesBox.append(copiesBtn, copiesNote);
 

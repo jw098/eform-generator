@@ -89,13 +89,16 @@ real size, whatever made the eForm. Within an eForm:
   and anything inside a `DoNotPrint` block.
 - **Tick boxes:** checkboxes, radio buttons, and inputs with an `Xbox` or `xMarkOnly` class.
 
-**Also test poorer copies** (a button in the panel, after a run) checks tick boxes on 15
-variations, poorer copies made in the browser of each page with tick boxes of the cases marked
-`"variations": true` in `cases/index.js` (the referral form, the mammography requisition,
-St. Paul's RMH referral and CL489): resized as if scanned at another resolution, blurred,
-speckled, rough JPEG, tilted, faxed, printed faint, ticked by hand. On each, every tick box
-must be found (but those it skips, below) and nothing else taken for one. It takes about a
-minute more, so it only runs when asked: use it when changing how tick boxes are found.
+**Also test poorer copies** (a button in the panel, after a run) checks tick boxes on
+variations, poorer copies made in the browser of each page with tick boxes of the cases with a
+`"variations"` in `cases/index.js`. A case's `"variations"` is `"pdf"` for the 6 a clean PDF
+can come as: rendered at 0.7×, 1.5×, 2×, 2.5× or 3× the size, or printed faint (the
+mammography requisition, St. Paul's RMH referral and CL489). It is `"all"` for those and 9
+more that only a scan, a fax or a filled-in form has: half size, blurred 1px and 2px,
+speckled, rough JPEG, tilted 1° and 2.5°, faxed, ticked by hand (the referral form). On
+each, every tick box must be found (but those it skips, below) and nothing else taken for
+one. It takes about a minute and a half more, so it only runs when asked: use it when
+changing how tick boxes are found.
 
 ## Reading the results
 

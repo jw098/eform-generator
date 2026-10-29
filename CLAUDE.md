@@ -118,7 +118,9 @@ the time to consider one in `tests/auto-detect.js`, for the extra-fields test on
 missed fields or tags.
 
 The variations (`VARIATIONS` in `tests/auto-detect.js`) are poorer copies of the pages of the
-cases marked `"variations": true`. A variation Auto Detect should do better on is a to-do, in
+cases with a `"variations"`: `"pdf"` for those a clean PDF can come as (another size, faint
+print), `"all"` for the scan ones too (blur, specks, tilt, fax, hand ticks). eForm templates
+are mostly clean PDFs, so a new case takes `"pdf"`. A variation Auto Detect should do better on is a to-do, in
 the case's `variationTodo`. One can skip tick boxes it has left too little of to find (a side
 the fax dropped, a box blurred out of shape), once a general rule has been tried and couldn't
 find them without taking letters too: the case's `variationSkip` in `tests/cases/index.js`.
