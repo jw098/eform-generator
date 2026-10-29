@@ -1060,9 +1060,12 @@ else if (typeof exports === 'object')
     const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? words(name).replace(/_\d+$/, '') : '';
     const t = fromName || words(label);
     if (!t) return '';
-    const kind = askedFor(t);
+    let kind = askedFor(t);
     if (!kind) return '';
-    const who = ownerCue(t.replace(/_/g, ' ')) || owner || 'patient';
+    let who = ownerCue(t.replace(/_/g, ' ')) || owner || 'patient';
+    // (a billing number is a practitioner's, never the patient's: where nothing else says whose,
+    // the referring clinician's, "Billing #: ____")
+    if (kind === 'billing'){ kind = 'number'; if (who === 'patient') who = 'clinician'; }
     const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
     return state.tagCatalog.has(tag) ? tag : '';
   }
@@ -1071,7 +1074,7 @@ else if (typeof exports === 'object')
     any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name' },
     patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
                  workPhone: 'phone2', email: 'email', address: 'addressline', city: 'city', province: 'province', postal: 'postal',
-                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'current_user_ohip_no' },
+                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin' },   // (the patient's MSP or OHIP number is their health number)
     clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no' },                       // (OSCAR 12 has no tag for their email)
@@ -1091,7 +1094,8 @@ else if (typeof exports === 'object')
     if (w('fax')) return 'fax';
     if (w('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return w('version') ? 'hinVersion' : 'hin';
     if (w('version_code')) return 'hinVersion';
-    if (w('msp|billing|ohip')) return 'number';
+    if (w('billing')) return 'billing';
+    if (w('msp|ohip')) return 'number';
     if (w('dob|date_of_birth|birth_date|birthdate')) return 'dob';
     if (w('cell|mobile')) return 'cell';
     if (w('work_phone|business_phone')) return 'workPhone';
