@@ -52,12 +52,6 @@ window.TEST_CASE_LIST = [
       {
         "test": "extraFields",
         "page": 1,
-        "region": [740, 1070, 720, 50],
-        "reason": "the blank beside the PRESENT COMPLAINT heading: fine as a field"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
         "region": [50, 1656, 980, 74],
         "reason": "the blank above the bottom boxes: fine as a field"
       }
@@ -288,20 +282,6 @@ window.TEST_CASE_LIST = [
         "variation": "0.7× size",
         "test": "extraFields",
         "page": 1,
-        "region": [30, 315, 790, 20],
-        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the table's thick bottom border under PAYEE ADDRESS and the next table's heavy top rule read as two rules with a thin \"row\" between them. Tried: ending the space above a thick rule at its top edge, which adds blanks between the referral form's boxes"
-      },
-      {
-        "variation": "0.7× size",
-        "test": "extraFields",
-        "page": 1,
-        "region": [30, 382, 790, 20],
-        "reason": "the same thin \"row\" between two tables (the skip above), under PATIENT INFORMATION's table"
-      },
-      {
-        "variation": "0.7× size",
-        "test": "extraFields",
-        "page": 1,
         "region": [640, 1025, 130, 50],
         "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the footer \"GP Standard Medical Report\": at 70 dpi the bottoms of its letters run together into what reads as a fill-in line"
       },
@@ -309,15 +289,15 @@ window.TEST_CASE_LIST = [
         "variation": "0.7× size",
         "test": "fields",
         "page": 2,
-        "region": [340, 358, 270, 70],
-        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide), and the first two DIAGNOSIS rows under OTHER DIAGNOSIS leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines, line guessed from the page's height; at 1× the DIAGNOSIS cells pass it by 0.04 px). Tried: measuring that room against the page's text (rowLine), which changes fields on four other forms. Without a field under its neighbours' labels, the DEGREE/GRADE cell has none either"
+        "region": [35, 358, 575, 70],
+        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide), and the first two DIAGNOSIS rows under OTHER DIAGNOSIS leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines, line guessed from the page's height; at 1× the DIAGNOSIS cells pass it by 0.04 px). Tried: measuring that room against the page's text (rowLine), which changes fields on four other forms. Without a field under its neighbours' labels, the DEGREE/GRADE cell has none either, and the blank beside DIAGNOSIS, its cell's one label with no colon, is no field"
       },
       {
-        "variation": "0.7× size",
+        "variation": "faint print",
         "test": "extraFields",
-        "page": 2,
-        "region": [505, 348, 100, 40],
-        "reason": "the small blank beside \"(WAD, SPRAIN, STRAIN)\" that the DEGREE/GRADE cell gets instead of its field (see the fields skip here)"
+        "page": 1,
+        "region": [536, 398, 280, 26],
+        "reason": "the PRACTITIONER INFORMATION heading row, right of the MSP/PRACTITIONER NUMBER column: the hairline under the row is light grey (about 150 of 255), which faint print takes to about 224, and only its part from that column's divider on still reads as a rule, so that part makes a row of its own, with no label in it, under the table's top rule"
       },
       {
         "variation": "0.7× size",
@@ -373,92 +353,8 @@ window.TEST_CASE_LIST = [
       {
         "test": "extraFields",
         "page": 1,
-        "region": [146, 168, 674, 26],
-        "reason": "the blank after the INVOICE INFORMATION heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [146, 333, 674, 25],
-        "reason": "the blank after the PATIENT INFORMATION heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [177, 398, 642, 26],
-        "reason": "the blank after the PRACTITIONER INFORMATION heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [99, 497, 721, 25],
-        "reason": "the blank after the SUBJECTIVE heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [204, 723, 616, 26],
-        "reason": "the blank after the RELEVANT PRE-ACCIDENT HISTORY heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [109, 865, 712, 26],
-        "reason": "the blank after the WORK STATUS heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [117, 52, 700, 26],
-        "reason": "the blank after the PHYSICAL EXAM heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [106, 248, 715, 34],
-        "reason": "the blank after the Diagnosis heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [389, 278, 428, 25],
-        "reason": "the blank after the PRIMARY DIAGNOSIS heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [431, 329, 386, 26],
-        "reason": "the blank after the OTHER DIAGNOSIS heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [279, 478, 542, 35],
-        "reason": "the blank after the Recommended Care Plan Treatment heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [698, 510, 120, 27],
-        "reason": "the blank after the RECOMMENDED PRE-APPROVED TREATMENT(S) heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [132, 699, 684, 26],
-        "reason": "the blank after the TREATMENT NOTES heading, on its heading bar"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
         "region": [493, 922, 328, 27],
         "reason": "the blank after a row of options (School/Studies: Yes No): the eForm leaves it out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
-      },
-      {
-        "test": "extraFields",
-        "page": 1,
-        "region": [432, 944, 387, 26],
-        "reason": "the blank after the instructions on the shaded bar (If the patient is continuing to work...), like the heading bars"
       },
       {
         "test": "extraFields",

@@ -3100,6 +3100,7 @@ else if (typeof exports === 'object')
   // field's own properties (what addField keeps), they are:
   //   box          a text field in a box of its own: rules above and below, sides down both
   //                ends (textFieldsFromLines)
+  //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
   //   toEnd        a writing area that runs down to the foot of the page (areaFields)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
@@ -3234,12 +3235,16 @@ else if (typeof exports === 'object')
   //  - a blank in a table cell after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE
   //    MAMMOGRAPHY"), unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____"). A
   //    printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____");
+  //  - a blank in a table cell after the cell's one label on its row is no field either, unless the
+  //    label ends with a colon ("Diagnosis: ____"): a heading's row, the rest of it empty ("WORK
+  //    STATUS" at the top of its table, "PHYSICAL EXAM"). Several labels spaced along a row are
+  //    each a blank's ("LMP (DATE): ____ MENOPAUSE (AGE): ____"), with or without a colon OCR reads;
   //  - a writing area down to the foot of the page is one only under a label ending with a colon.
   function fieldsFromLabels(fields){
     return fields.flatMap(f => {
-      const { _split, _afterOption, toEnd, ...g } = f;
+      const { _split, _afterOption, _lone, toEnd, ...g } = f;
       if (_split) return _split.map(part => ({ ...g, ...part }));
-      if ((_afterOption && f.box || toEnd) && !endsWithColon(f._words)) return [];
+      if ((_afterOption && f.box || _lone && f.box || toEnd) && !endsWithColon(f._words)) return [];
       return [g];
     });
   }
@@ -3416,19 +3421,22 @@ else if (typeof exports === 'object')
         if (M.y2 >= L.y1-2) continue;
         if (overlap(M,L) >= 0.5*(L.x2-L.x1+1)){ top = M; break; }
       }
+      // Only the top edge of a box or table (its sides start here and go down, not up)
+      const ends = [L.x1+1, L.x2-1];
+      const topEdge = ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1));
       // A row (a table's, a box) is the space between two lines joined by sides at both ends of
-      // what they share, or between two page-wide rules a row apart. Any other line is a fill-in
-      // line: two lines one over the other without sides ("Name: ____" over "Address: ____", a
-      // line over a box's edge) are no row.
+      // what they share, or between two page-wide rules a row apart, the lower not a table's top
+      // edge (the space between two tables, with a table's title in it: "Diagnosis" over its
+      // table). Any other line is a fill-in line: two lines one over the other without sides
+      // ("Name: ____" over "Address: ____", a line over a box's edge) are no row.
       let bounded = false;
       if (top && (L.y1 - top.y2) <= line*8){
         const xa = Math.max(L.x1, top.x1) + 1, xb = Math.min(L.x2, top.x2) - 1;
         bounded = joinedBySides(clean, w, h, top, L, xa, xb, 2) ||
-                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2);
+                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2 && !topEdge);
       }
-      // Only the top edge of a box or table (its sides start here and go down, not up): no field above it
-      const ends = [L.x1+1, L.x2-1];
-      if (!bounded && ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1))) return;
+      // (no field above a table's top edge)
+      if (!bounded && topEdge) return;
       // (an open fill-in line's space stops under the nearest line above it, over any part of it:
       // that line is the row above's, "Age at diagnosis: ____" over "Other: ____", and its words
       // aren't this line's label; and under the tick boxes above it, over any part of it: they are
@@ -3538,7 +3546,7 @@ else if (typeof exports === 'object')
           if (several && labels.filter(g => g.x2 - g.x1 >= (capH || line*0.3)).length < 2) labels.length = 0;
           labels.forEach((g, j) => {
             const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(line*0.3) : x2;
-            if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2 });
+            if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2, lone: labels.length === 1 });
           });
         }
         // In a box of its own: a rule above and below, and rules down both sides (a table cell, a
@@ -3566,7 +3574,7 @@ else if (typeof exports === 'object')
         if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
         const tall = (f.y2 - f.y1) > line*1.8;
         fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
-                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box });
+                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone });
       }));
     });
     return fields;
