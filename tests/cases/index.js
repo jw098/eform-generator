@@ -128,12 +128,6 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [745, 540, 590, 50],
         "reason": "the space under the URGENT REFERRAL text, at the foot of its box"
-      },
-      {
-        "test": "extraFields",
-        "page": 2,
-        "region": [230, 935, 640, 60],
-        "reason": "blanks between tick boxes' labels in a table cell"
       }
     ]
   },

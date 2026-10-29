@@ -3214,7 +3214,13 @@ else if (typeof exports === 'object')
       // whatever is printed above it)
       const own = f.box ? leftOf() : [];
       const ownColon = endsWithColon(own);
-      if (above.length && f.box && !ownColon){
+      // (nor when it is a gap between options on its row, a tick box's label just left of it and
+      // more printed just right of it: "☐ OCD ____ ☐ Psychosis" under the cell's heading. It is
+      // after an option, below)
+      const fx = f.x + f.width;
+      const between = own.length && own.every(w => taken.has(w)) &&
+                      [...boxes.map(b => ({ x0: b.x, y0: b.y, y1: b.y + b.height })), ...words].some(w => onRow(f, w) && w.x0 >= fx - 2 && w.x0 - fx <= wh*2);
+      if (above.length && f.box && !ownColon && !between){
         f.label = phraseText(above);
         f._words = above;
         const groups = [];
