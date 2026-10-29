@@ -2546,7 +2546,10 @@ else if (typeof exports === 'object')
     // outside that side, running on well past both its ends (a table's side right beside
     // "☐ Yes"), when the side itself ends at the box's corners (not the corner of a table's cell,
     // with letters under its rule taken for the rest of a box). Above or below, a line under a
-    // box is far more often a fill-in line under letters ("Carecard: ____"), so it still counts.
+    // box is far more often a fill-in line under letters ("Carecard: ____"), so it counts unless
+    // the grey image shows bare paper all along between the two and the box stands apart from
+    // letters (not the D of "Family MD" over its cell's rule): on a small scan the ink map's soft
+    // edges can meet over a gap of a pixel or two ("☐ Other:" just over a section's rule).
     const limit = Math.max(1, Math.round(sz*0.12));
     let t=0, b=0, l=0, r=0;
     for(let x=x1;x<=x2;x++){
@@ -2565,7 +2568,23 @@ else if (typeof exports === 'object')
       for (let k=1; k<=near; k++) if (colRule(x + step*k)) return true;
       return false;
     };
-    return t <= limit && b <= limit && (l <= limit || ruleBeside(x1, -1)) && (r <= limit || ruleBeside(x2, 1));
+    const rowRule = (y) => {
+      if (y < 1 || y >= h-1) return false;
+      const a = Math.max(0, x1 - reach), z = Math.min(w-1, x2 + reach);
+      let n = 0; for (let x=a; x<=z; x++) if (on(x,y-1) || on(x,y) || on(x,y+1)) n++;
+      return n >= (z-a+1)*0.85;
+    };
+    const paperRow = (y) => { for (let x=x1; x<=x2; x++) if (gray[y*w+x] < hi - (hi - lo)*0.05) return false; return true; };
+    // (a side at y, with the outside towards step: -1 above, 1 below)
+    const ruleOver = (y, step) => {
+      if (hi - lo < 40 || !standsApart(clean,w,h,x1,y1,x2,y2)) return false;
+      for (let k=0; k<band; k++) if (rowRule(y - step*k)) return false;              // (the side is a rule itself)
+      let gap = false;
+      for (let k=1; k<=near; k++){ if (paperRow(y + step*k)) gap = true; if (gap && rowRule(y + step*k)) return true; }
+      return false;
+    };
+    return (t <= limit || ruleOver(y1, -1)) && (b <= limit || ruleOver(y2, 1)) &&
+           (l <= limit || ruleBeside(x1, -1)) && (r <= limit || ruleBeside(x2, 1));
   }
 
   // A round option button: a thin, unbroken ring with an empty middle and empty corners,
@@ -2600,12 +2619,15 @@ else if (typeof exports === 'object')
     const cs = Math.max(1, Math.round(sz*0.12));
     if (countOnInRect(clean,w,h,x1,y1,x1+cs-1,y1+cs-1) + countOnInRect(clean,w,h,x2-cs+1,y1,x2,y1+cs-1) +
         countOnInRect(clean,w,h,x1,y2-cs+1,x1+cs-1,y2) + countOnInRect(clean,w,h,x2-cs+1,y2-cs+1,x2,y2) > 2) return false;
-    // Stands apart: no letter within a third of its size on either side
-    const gap = Math.max(3, Math.round(sz*0.35));
+    return standsApart(clean,w,h,x1,y1,x2,y2);
+  }
+  // Stands apart from letters: nothing within a third of its size on either side, across the
+  // middle of its height (a letter in a word has the next letter right beside it)
+  function standsApart(clean,w,h,x1,y1,x2,y2){
+    const sz = Math.min(x2-x1+1, y2-y1+1), bh = y2-y1+1, gap = Math.max(3, Math.round(sz*0.35));
     const ya = Math.round(y1 + bh*0.2), yb = Math.round(y2 - bh*0.2);
-    if (countOnInRect(clean,w,h,x2+2,ya,Math.min(w-1,x2+gap),yb) > 0) return false;
-    if (countOnInRect(clean,w,h,Math.max(0,x1-gap),ya,x1-2,yb) > 0) return false;
-    return true;
+    return countOnInRect(clean,w,h,x2+2,ya,Math.min(w-1,x2+gap),yb) === 0 &&
+           countOnInRect(clean,w,h,Math.max(0,x1-gap),ya,x1-2,yb) === 0;
   }
 
   function resetEverything(){

@@ -282,7 +282,7 @@
     return { url: png(c), map, scale: 1 };
   };
   const VARIATIONS = [
-    { name: 'half size (scanned at half the resolution)', make: resized(0.5), todo: 'one not found yet (17 of 18)' },
+    { name: 'half size (scanned at half the resolution)', make: resized(0.5) },
     { name: '0.7× size', make: resized(0.7) },
     { name: '1.5× size', make: resized(1.5) },
     { name: '2× size', make: resized(2) },
