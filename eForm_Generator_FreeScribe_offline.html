@@ -324,24 +324,32 @@
   </section>
 
   <aside class="card pane pane-right">
-    <div class="panel-title">Template HTML import (labels / tags / snippets)</div>
-    <div class="row">
-      <button id="btnTemplate" class="btn-amber">Import template HTML(s)</button>
-      <input id="fileTemplates" type="file" accept=".html,.htm,text/html" multiple hidden />
-      <button id="btnApplyTemplateFields">Add fields from template(s)</button>
-    </div>
-    <div class="small" style="margin-top:6px">Parses positioned fields, oscarDB labels, fax/print/signature snippets, and body onload handlers from uploaded template HTML files.</div>
+    <details id="templateImportPanel">
+      <summary class="collapsible-summary"><span id="templatePlus" class="plus-pill">+</span><span>Template HTML import</span><span id="templateCount" class="small"></span></summary>
+      <div style="margin-top:8px">
+        <div class="row">
+          <button id="btnTemplate" class="btn-amber">Import template HTML(s)</button>
+          <input id="fileTemplates" type="file" accept=".html,.htm,text/html" multiple hidden />
+          <button id="btnApplyTemplateFields">Add fields from template(s)</button>
+          <button id="btnMatchByPosition">Transfer tags by position</button>
+        </div>
+        <div class="small" style="margin-top:6px">Parses positioned fields, oscarDB labels, fax/print/signature snippets, and body onload handlers from uploaded template HTML files. Imported tags are added to dropdown suggestions.</div>
 
-    <div class="hr"></div>
-    <div class="panel-title">Auto-tagging</div>
-    <div class="row">
-      <button id="btnAutoTag">Auto-tag untagged</button>
-      <button id="btnMatchByPosition">Transfer tags by position</button>
-    </div>
-    <div class="small">Uses extracted template name↔tag map + heuristics. Imported tags are added to dropdown suggestions.</div>
+        <div class="small" style="margin-top:8px"><b>Parsed fields</b></div>
+        <div id="templateFieldList" class="list small"></div>
+
+        <div class="small" style="margin-top:8px"><b>Extracted snippets</b></div>
+        <div id="snippetBox" class="list small"></div>
+        <label style="margin-top:8px;display:flex;align-items:center;gap:7px"><input id="chkIncludeSnippets" type="checkbox" checked/> Include extracted scripts / onload in export</label>
+      </div>
+    </details>
 
     <div class="hr"></div>
     <div class="panel-title">OSCAR tag catalog</div>
+    <div class="row">
+      <button id="btnAutoTag">Auto-tag untagged</button>
+    </div>
+    <div class="small" style="margin-bottom:8px">Tags untagged fields from their names and labels, using imported templates' name↔tag map when there is one.</div>
     <div class="row">
       <input id="tagNew" type="text" placeholder="new_tag_name" style="max-width:220px"/>
       <button id="btnAddTag">Add tag</button>
@@ -435,18 +443,6 @@
     </div>
 
     <div class="hr"></div>
-    <div class="panel-title">Extracted snippets / buttons</div>
-    <div id="snippetBox" class="list small"></div>
-    <label style="margin-top:8px;display:flex;align-items:center;gap:7px"><input id="chkIncludeSnippets" type="checkbox" checked/> Include extracted scripts / onload in export</label>
-    <label style="display:flex;align-items:center;gap:7px"><input id="chkIncludeButtons" type="checkbox" checked/> Include Submit / Fax &amp; Submit / Print &amp; Submit buttons in export</label>
-    <label style="margin-top:6px;display:block">jQuery in exported eForm
-      <select id="exportJquery" title="Modern: jQuery 3.7.1 + Migrate 3.4.1 (keeps older OSCAR scripts working), falls back to OSCAR's local copy if the CDN is unreachable. Legacy: OSCAR's bundled jquery-1.7.1 only (no internet, but has known XSS advisories).">
-        <option value="modern" selected>3.7.1 + Migrate (recommended)</option>
-        <option value="legacy">OSCAR local 1.7.1 (legacy)</option>
-      </select>
-    </label>
-
-    <div class="hr"></div>
     <div class="panel-title">eForm metadata</div>
     <label>eForm title
       <input id="eformTitle" type="text" value="Generated OSCAR eForm" placeholder="Generated OSCAR eForm"/>
@@ -457,6 +453,13 @@
 
     <div class="hr"></div>
     <div class="panel-title">Export (editable before save)</div>
+    <label style="margin-bottom:6px;display:flex;align-items:center;gap:7px"><input id="chkIncludeButtons" type="checkbox" checked/> Include Submit / Fax &amp; Submit / Print &amp; Submit buttons in export</label>
+    <label style="margin-bottom:8px;display:block">jQuery in exported eForm
+      <select id="exportJquery" title="Modern: jQuery 3.7.1 + Migrate 3.4.1 (keeps older OSCAR scripts working), falls back to OSCAR's local copy if the CDN is unreachable. Legacy: OSCAR's bundled jquery-1.7.1 only (no internet, but has known XSS advisories).">
+        <option value="modern" selected>3.7.1 + Migrate (recommended)</option>
+        <option value="legacy">OSCAR local 1.7.1 (legacy)</option>
+      </select>
+    </label>
     <div class="row">
       <button id="btnBuildDraft">Build HTML draft</button>
       
@@ -502,10 +505,6 @@
       <div id="convLinks" class="list small" style="margin-top:8px;max-height:140px"></div>
       <canvas id="convCanvas" style="display:none"></canvas>
     </details>
-
-    <div class="hr"></div>
-    <div class="panel-title">Template fields preview</div>
-    <div id="templateFieldList" class="list small"></div>
   </aside>
 </div>
 
@@ -2319,9 +2318,9 @@ else if (typeof exports === 'object')
     panel.scrollIntoView({behavior:'smooth', block:'start'});
   });
 
-  function initDetectionTuningCollapse(){
-    const det = $('detectionTuningPanel');
-    const plus = $('tuningPlus');
+  // A collapsible panel's + / − pill follows whether it is open
+  function initCollapse(detId, plusId){
+    const det = $(detId), plus = $(plusId);
     if (!det || !plus) return;
     const sync = ()=>{ plus.textContent = det.open ? '−' : '+'; };
     det.addEventListener('toggle', sync);
@@ -2348,6 +2347,7 @@ else if (typeof exports === 'object')
         parsedFields += tpl.fields.length;
       }
       state.templateFields = dedupeFields(state.templateFields);
+      $('templateImportPanel').open = true;
       renderAll();
       msg(`Imported ${files.length} template file(s). Parsed ${parsedFields} fields. Tags in catalog: ${state.tagCatalog.size}.`, 'ok');
     }catch(err){ msg('Template import failed: ' + (err.message || err), 'err'); }
@@ -2425,6 +2425,8 @@ else if (typeof exports === 'object')
 
   function renderTemplateFieldList(){
     const box=$('templateFieldList'); box.innerHTML='';
+    const nt=state.templateFields.length;
+    $('templateCount').textContent = nt ? `· ${nt} field${nt>1?'s':''}` : '';
     if(!state.templateFields.length){ box.innerHTML='<div class="list-item">No template fields parsed yet.</div>'; return; }
     state.templateFields.slice(0,300).forEach(f=>{ const d=document.createElement('div'); d.className='list-item mono'; d.textContent=`p${f.page} ${Math.round(f.x)},${Math.round(f.y)} ${Math.round(f.width)}x${Math.round(f.height)}  ${f.name}${f.oscarTag ? ' -> ' + f.oscarTag : ''}`; box.appendChild(d); });
     if(state.templateFields.length>300){ const d=document.createElement('div'); d.className='list-item'; d.textContent=`... ${state.templateFields.length-300} more`; box.appendChild(d); }
@@ -4876,7 +4878,8 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   if ($('btnRemovePage')) $('btnRemovePage').addEventListener('click', removePage);
 
   mountConverterTop();
-  initDetectionTuningCollapse();
+  initCollapse('detectionTuningPanel', 'tuningPlus');
+  initCollapse('templateImportPanel', 'templatePlus');
   initConverter();
   updateUndoBtn();
 
