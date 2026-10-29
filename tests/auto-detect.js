@@ -289,7 +289,7 @@
     { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
     { name: '3× size', make: resized(3) },
     { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
-    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }), todo: 'not all found yet' },
+    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }), todo: 'the ink map draws each blurred side several pixels thick, filling most of a box and joining it to a rule beside it; the sides\' darkest lines (their ridges) wander and round the corners, so they don\'t give a box either' },
     { name: 'speckled (1% of pixels)', make: (img) => { const rnd = random(1);
         return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; } },
     { name: 'rough JPEG (quality 30)', make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
