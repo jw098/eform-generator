@@ -51,10 +51,10 @@ ink alone, so it works where the words can't be read (no WebAssembly SIMD, no wo
 in the tests' tick-box-only runs (`readWords: false`). Never move a call to
 `readPageWords`, or anything using its words, into pass 1.
 1. Straighten (`estimateSkew`), make an ink map (`clean`) and find the rules (`bands`).
-2. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
-   ruled writing areas), then open writing areas under a label (`areaFields`). A "label" here
-   is ink, not words.
-3. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
+2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
+3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
+   ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
+   under a label (`areaFields`). A "label" here is ink, not words.
 
 **Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and

@@ -3265,8 +3265,9 @@ else if (typeof exports === 'object')
   }
 
   // ===== Text fields from lines (added by FreeScribe) =====
-  // bands: the page's rules, top to bottom; line: one written line's height (canvas px).
-  function textFieldsFromLines(clean, w, h, s, bands, line, page){
+  // bands: the page's rules, top to bottom; line: one written line's height; ticks: the tick
+  // boxes found on the page (all canvas px).
+  function textFieldsFromLines(clean, w, h, s, bands, line, page, ticks){
     const maxThick = Math.max(3, Math.round(h*0.012));
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
@@ -3494,16 +3495,19 @@ else if (typeof exports === 'object')
         cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box });
       }
       // In a table row whose cells have their label at the top and their field under it
-      // ("DIAGNOSIS | ICD 9 CODE"), a cell whose label starts as high but runs on into that
-      // space, a line or two of small print with only a narrow blank beside it ("DEGREE/GRADE"
-      // over "(WAD, SPRAIN, STRAIN)"), has its field there too, across the cell: its later line
-      // is a note. (Not a label over a row of tick boxes, "ORIENTATION" over "☐ Left ☐ Right",
-      // which is taller.)
-      if (bounded) cells.forEach(c => {
-        if (c.below != null || c.lowInk < 0 || c.x2 - c.rightInk >= c.cellW*0.5) return;
-        const sib = cells.find(b => b.below != null && Math.abs(b.highInk - c.highInk) <= (b.lowInk - b.highInk)*0.5 && c.lowInk >= b.below &&
-                                    c.lowInk - c.highInk <= (b.lowInk - b.highInk)*2.5);
-        if (sib) c.fs = [{ x1: c.x1, y1: sib.below, x2: c.trim(sib.below), y2: c.y2 }];
+      // ("DIAGNOSIS | ICD 9 CODE"), the cells share the space under their labels to write in. A
+      // cell whose label starts as high but runs on into that space by one more line of print at
+      // most has its field there too, across the cell: that line is a note ("DEGREE/GRADE" over
+      // "(WAD, SPRAIN, STRAIN)"). Not when tick boxes are there: they are the cell's options, and
+      // it has no field ("ORIENTATION" over "☐ Left ☐ Right"). More than a line is a paragraph,
+      // with no room to write.
+      if (bounded && capH) cells.forEach(c => {
+        if (c.below != null || c.lowInk < 0) return;
+        const sib = cells.find(b => b.below != null && c.highInk <= b.lowInk && c.lowInk >= b.below);
+        if (!sib) return;
+        if (c.lowInk - sib.lowInk > capH*1.6) return;
+        if (ticks.some(t => t.x2 > c.x1 && t.x1 < c.x2 && t.y2 > sib.below && t.y1 < c.y2)) return;
+        c.fs = [{ x1: c.x1, y1: sib.below, x2: c.trim(sib.below), y2: c.y2 }];
       });
       cells.forEach(c => c.fs.forEach(f => {
         if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
@@ -3740,16 +3744,6 @@ else if (typeof exports === 'object')
         if(!merged) bands.push({x1:sg.x1,x2:sg.x2,y1:sg.y,y2:sg.y});
       });
 
-      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
-      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
-      // under its printed label. Lines with words sitting on them (underlined headings, the
-      // bottoms of bold words, table rules under column headings) give no field, a table row
-      // gives one field per column, and the top edge of a box gives none of its own.
-      textFieldsFromLines(clean, w, h, s, bands, line, page).forEach(f => newFields.push(f));
-      // Open writing areas under a heading, with no line or box around them, on the page or in a
-      // table's cells
-      areaFields(clean, w, h, s, bands, line, page, newFields).forEach(f => newFields.push(f));
-
       // Connected component pass for checkboxes.
       const visited = new Uint8Array(w*h);
       const stack = [];
@@ -3832,6 +3826,17 @@ else if (typeof exports === 'object')
         });
         if(!dup) dedupCb.push(cand);
       });
+
+      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
+      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
+      // under its printed label. Lines with words sitting on them (underlined headings, the
+      // bottoms of bold words, table rules under column headings) give no field, a table row
+      // gives one field per column, and the top edge of a box gives none of its own.
+      const tickRects = dedupCb.map(f => ({ x1: f.x*s, y1: f.y*s, x2: (f.x + f.width)*s, y2: (f.y + f.height)*s }));
+      textFieldsFromLines(clean, w, h, s, bands, line, page, tickRects).forEach(f => newFields.push(f));
+      // Open writing areas under a heading, with no line or box around them, on the page or in a
+      // table's cells
+      areaFields(clean, w, h, s, bands, line, page, newFields).forEach(f => newFields.push(f));
 
       if (skew){
         // Back onto the tilted page: turn each field's centre by the page's tilt
