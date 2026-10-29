@@ -53,7 +53,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [50, 1656, 980, 74],
-        "reason": "the blank above the bottom boxes: fine as a field"
+        "reason": "the ruled row left of SIGNATURE OF REQUESTING PHYSICIAN, between the box above and the TELEPHONE REQUISITION TIME row: an empty row with no words in it or beside it, which the eForm leaves out. Its ink is a table row's with nothing printed in it, as a box left blank to write in is (a big box with its label printed outside it), so no rule can take it out without taking those"
       }
     ]
   },
@@ -109,7 +109,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [140, 15, 1310, 495],
-        "reason": "the blank top of the page, under a stray mark, taken for a writing area"
+        "reason": "the blank top of the page over the FOR OFFICE USE ONLY box, under a grey mark 2 px wide and 8 tall at the page's top edge (x 839, y 0 to 7), which reads as a label with open page under it"
       },
       {
         "test": "extraFields",
@@ -127,7 +127,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 2,
         "region": [745, 540, 590, 50],
-        "reason": "the space under the URGENT REFERRAL text, at the foot of its box"
+        "reason": "the room left under \"Fax completed form to the clinic then follow-up with a phone call outlining the urgency.\" at the foot of the URGENT REFERRAL box, which the eForm leaves out: in ink the same as a box's room to write under its label"
       }
     ]
   },
@@ -149,7 +149,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [1140, 820, 320, 60],
-        "reason": "a blank under MSP No., between two lines"
+        "reason": "the lower half of the MSP No box, beside Fax number: under MSP No's fill-in line and over the box's bottom rule, joined by the box's sides, so a row in ink; the eForm leaves it empty"
       },
       {
         "test": "extraFields",
@@ -195,13 +195,13 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [460, 150, 380, 80],
-        "reason": "the space for the medical imaging label"
+        "reason": "the box printed \"PLACE MEDICAL IMAGING LABEL HERE\", for a sticker, which the eForm leaves out: its words are grey and inside the box, read as the label over a blank"
       },
       {
         "test": "extraFields",
         "page": 1,
         "region": [440, 330, 330, 32],
-        "reason": "a blank beside Physician should consult with Radiologist"
+        "reason": "the blank after the note \"Physician should consult with Radiologist for Urgent and Stat cases\", left of the Priority options (Routine, Urgent, Stat), which the eForm leaves out: a ruled blank after words on its row, as a field after its label is"
       },
       {
         "test": "extraFields",
