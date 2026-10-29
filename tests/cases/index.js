@@ -30,15 +30,7 @@ window.TEST_CASE_LIST = [
     "images": [
       "referral_form_3c1x42_page1.png"
     ],
-    "variations": true,
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "test": "fields",
-        "reason": "the DATE: ____ fill-in line at the top of the page isn't found at 0.7× (about 123 dpi)"
-      }
-    ]
+    "variations": true
   },
   {
     "name": "X-ray requisition",
@@ -109,6 +101,13 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [625, 1655, 35, 35],
         "reason": "the bold D of \"DETAILS\" in a heading: at 0.7× (about 123 dpi) its straight stem, flat top and bottom, filled corners and empty inside are a tick box's, and only the line of capitals it is in says it is a letter"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 2,
+        "region": [740, 1645, 620, 50],
+        "reason": "the blank beside RELEVANT MEDICAL HISTORY / ADDITIONAL DETAILS:, from the bold D of DETAILS taken for a tick box (the skip above): the box splits the label, so it no longer starts where the writing area under it does, and isn't taken for that area's heading"
       }
     ],
     "skip": [
@@ -141,20 +140,6 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [230, 935, 640, 60],
         "reason": "blanks between tick boxes' labels in a table cell"
-      }
-    ],
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "test": "fields",
-        "reason": "the Other: ____ line under the CURRENT RELATED BEHAVIOURS options isn't found at 0.7× (about 123 dpi)"
-      },
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "test": "extraFields",
-        "reason": "at 0.7× the space over the Other: ____ line is taken for blanks after the Violence and Suicidal Ideation options, and a blank is found beside RELEVANT MEDICAL HISTORY / ADDITIONAL DETAILS:"
       }
     ]
   },

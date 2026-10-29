@@ -2918,6 +2918,36 @@ else if (typeof exports === 'object')
     return out;
   }
 
+  // A colon OCR left off a word, from the ink: at a small size it reads "DATE" for "DATE:", the
+  // colon only a few pixels. Right after the word, past a gap, a mark narrower than half the
+  // text's height, of two dots one over the other, each shorter than half that height (an i or
+  // an l has a stem, a ! one long stroke), is its colon, and the word gets it.
+  function inkColons(read, clean, w, h, s){
+    const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
+    read.words.forEach(wd => {
+      if (!/[A-Za-z]$/.test(wd.text)) return;
+      const th = wd.y1 - wd.y0, ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
+      const ink = (x) => { for (let y=ya; y<=yb; y++) if (on(x,y)) return true; return false; };
+      let x = Math.round(wd.x1*s);
+      const xz = Math.round((wd.x1 + th*0.6)*s);
+      while (x <= xz && ink(x)) x++;                               // (the end of the word's last letter)
+      while (x <= xz && !ink(x)) x++;                              // (the gap)
+      if (x > xz) return;
+      const x0 = x;
+      while (x <= xz && ink(x)) x++;
+      if (x - x0 > th*0.5*s || x > xz) return;
+      const runs = [];
+      for (let y=ya; y<=yb; y++){
+        let any = false; for (let xx=x0; xx<x; xx++) if (on(xx,y)) { any = true; break; }
+        if (!any) continue;
+        const r = runs[runs.length-1];
+        if (r && y - r.y2 <= 1) r.y2 = y; else runs.push({ y1: y, y2: y });
+      }
+      if (runs.length !== 2 || runs.some(r => r.y2 - r.y1 + 1 >= th*0.5*s)) return;
+      wd.text += ':'; wd.x1 = x/s;
+    });
+  }
+
   // Fields after a label that ends with a colon, where nothing is printed to write on: the blank
   // page right after it on its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐"),
   // up to the next ink, when it is at least a few letters wide. When the blank also goes on
@@ -3401,9 +3431,12 @@ else if (typeof exports === 'object')
       if (!bounded && ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1))) return;
       // (an open fill-in line's space stops under the nearest line above it, over any part of it:
       // that line is the row above's, "Age at diagnosis: ____" over "Other: ____", and its words
-      // aren't this line's label)
+      // aren't this line's label; and under the tick boxes above it, over any part of it: they are
+      // the row above's options, "☐ Violence ☐ Suicidal Ideation" over "☐ Other: ____", where a box
+      // on the line's own row ends less than its height above the line)
       const above = bounded ? null : lines.filter(M => M.y2 < L.y1 - 2 && overlap(M, L) > 0).sort((a,b) => b.y2 - a.y2)[0];
-      const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25), above ? above.y2 + 2 : 0);
+      const options = bounded ? [] : ticks.filter(t => t.x2 > L.x1 && t.x1 < L.x2 && t.y2 + (t.y2 - t.y1) < L.y1).map(t => Math.round(t.y2) + 2);
+      const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25), above ? above.y2 + 2 : 0, ...options);
       const floor = L.y1 - 2;
       // (any field is at least most of a table row's height: "PHN ____" just under a box's top edge)
       if (floor - ceil < rowLine*0.45) return;
@@ -3888,6 +3921,7 @@ else if (typeof exports === 'object')
       // the fields, for their names and tags
       if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/s : w/s;   // (the form's right edge: its rules' furthest end)
+        inkColons(read, clean, w, h, s);
         found = found.concat(colonFields(read, clean, w, h, s, page, found, right));
         labelFields(found, read, ruleAcross);
         found = fieldsFromLabels(found);
