@@ -10,10 +10,12 @@
 //           { test, page, region: [x, y, width, height], reason }. The test is one of the keys
 //           above; boxes whose centre is in the region (page-image pixels) on that page are
 //           left out of it. Without a page, every page; without a region, the whole page.
-//   variationSkip (optional, the referral form's) tick boxes to leave out of a variation's "each
-//           expected tick box is found" (a poorer copy of the form), where the variation leaves
-//           too little of them: a list of { variation, boxes, reason }, the variation by its name in
-//           the panel and the boxes by their names in the eForm (see tests/README.md)
+//   variations (optional) true: its pages with tick boxes are also tested in poorer copies,
+//           the variations (resized, blurred, faxed, ticked by hand…), when asked
+//   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box
+//           is found", where the variation leaves too little of them: a list of { variation,
+//           boxes, reason }, the variation by its name in the panel and the boxes by their
+//           names in the eForm (see tests/README.md)
 window.TEST_CASE_LIST = [
   {
     "name": "Referral form",
@@ -22,6 +24,7 @@ window.TEST_CASE_LIST = [
     "images": [
       "referral_form_3c1x42_page1.png"
     ],
+    "variations": true,
     "variationSkip": [
       {
         "variation": "blurred 2px",
@@ -73,6 +76,7 @@ window.TEST_CASE_LIST = [
     "images": [
       "mammography_requisition_42630x_page1.png"
     ],
+    "variations": true,
     "skip": [
       {
         "test": "extraFields",
@@ -119,6 +123,7 @@ window.TEST_CASE_LIST = [
       "RMH_1.png",
       "RMH_2.png"
     ],
+    "variations": true,
     "skip": [
       {
         "test": "extraFields",
@@ -241,6 +246,7 @@ window.TEST_CASE_LIST = [
       "CL489_Pg2.png",
       "CL489_Pg3.png"
     ],
+    "variations": true,
     "skip": [
       {
         "test": "tags",

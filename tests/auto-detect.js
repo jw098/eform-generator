@@ -6,7 +6,7 @@
 // builds the eForm from what was found ("Build HTML draft"), and compares that eForm with the
 // case's: where the boxes are, and their oscarDB tags (not their names). Results show in a
 // panel at the top right, which can also add a test case, and run Auto Detect on poorer copies
-// of the referral form (tick boxes only) when asked.
+// of the cases marked "variations" (tick boxes only) when asked.
 (async () => {
   const T = window.eformMapperTest;
 
@@ -236,14 +236,13 @@
     return run;
   }
 
-  // ----- Variations of the referral form: tick boxes on poorer copies -----
-  // Each copy is made here from the referral form's page (no extra image files): resized as
-  // if scanned at another resolution, blurred, speckled, saved as a rough JPEG, tilted, turned
-  // into a fax, printed faint, or with boxes ticked by hand. Auto Detect runs on each (without
-  // reading words) and must find the eForm's tick boxes and nothing else. A copy it can't
-  // handle yet is a to-do whose message says how many it found.
-  const VARIED_CASE = 'referral-form';
-  let VARIED_BOXES = [];                                  // the referral form's tick boxes, once loaded
+  // ----- Variations: tick boxes on poorer copies of the cases' pages -----
+  // The variations: poorer copies of each page of the cases marked "variations" in
+  // tests/cases/index.js that has tick boxes, made here from the page (no extra image files):
+  // resized as if scanned at another resolution, blurred, speckled, saved as a rough JPEG,
+  // tilted, turned into a fax, printed faint, or with its boxes ticked by hand. Auto Detect runs
+  // on each (without reading words) and must find the eForm's tick boxes and nothing else, but
+  // those the case's variationSkip leaves out.
   const canvasFor = (w, h) => { const c = document.createElement('canvas'); c.width = Math.round(w); c.height = Math.round(h); return c; };
   // Draw the page at k times its size (white behind it)
   const drawn = (img, k = 1) => {
@@ -297,56 +296,61 @@
     { name: 'tilted 2.5°', make: tilted(2.5) },
     { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }) },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
-    { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img) => {
+    { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img, boxes) => {
         const c = drawn(img), ctx = c.getContext('2d');
         ctx.strokeStyle = '#000'; ctx.lineCap = 'round';
-        VARIED_BOXES.forEach((b, i) => {
-          const x = Math.round(b.x), y = Math.round(b.y); ctx.beginPath();
-          if (i % 3 === 0){ ctx.lineWidth = 2; ctx.moveTo(x+4, y+4); ctx.lineTo(x+15, y+15); ctx.moveTo(x+15, y+4); ctx.lineTo(x+4, y+15); }
-          else if (i % 3 === 1){ ctx.lineWidth = 3; ctx.moveTo(x+3, y+9); ctx.lineTo(x+8, y+16); ctx.lineTo(x+24, y-8); }
+        boxes.forEach((b, i) => {
+          // (drawn for a box 20 pixels across, and as much bigger or smaller as the box is)
+          const x = Math.round(b.x), y = Math.round(b.y), k = b.width/20, at = (dx, dy) => [x + dx*k, y + dy*k];
+          ctx.beginPath();
+          if (i % 3 === 0){ ctx.lineWidth = 2*k; ctx.moveTo(...at(4, 4)); ctx.lineTo(...at(15, 15)); ctx.moveTo(...at(15, 4)); ctx.lineTo(...at(4, 15)); }
+          else if (i % 3 === 1){ ctx.lineWidth = 3*k; ctx.moveTo(...at(3, 9)); ctx.lineTo(...at(8, 16)); ctx.lineTo(...at(24, -8)); }
           ctx.stroke();
         });
         return { url: png(c), map: same(), scale: 1 };
       } },
   ];
+  // Each case's variations, once made: { c, entry, pages: [{ n, of, boxes, runs: [{ v, fields, map, scale }] }] }
+  let varied = [];
   function variationTests(){
-    const group = 'Poorer copies of the referral form (tick boxes only)';
-    // The variations' skips, in the referral form's entry in tests/cases/index.js (its variationSkip)
-    const variationSkips = (entries.find(e => e.folder === VARIED_CASE) || {}).variationSkip || [];
-    test('Referral form variations: each skip names a variation and its tick boxes', () => {
-      const none = variationSkips.map(k => k.variation).filter(n => !VARIATIONS.some(v => v.name === n));
-      assert(!none.length, `variationSkip names variations there aren't: ${none.join(', ')}`);
-      const unknown = variationSkips.flatMap(k => k.boxes).filter(id => !VARIED_BOXES.some(e => e.id === id));
-      assert(!unknown.length, `variationSkip names tick boxes the ${VARIED_CASE} case doesn't have: ${unknown.join(', ')}`);
-    }, { group, short: 'each skip names a variation and its tick boxes' });
-    VARIATIONS.forEach(v => {
-      const boxes = () => (v.fields || []).filter(f => f.kind === 'tick');
-      // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
-      // box is found"; one found anyway still matches, so it isn't counted as an extra
-      const skipOf = (e) => variationSkips.find(k => k.variation === v.name && k.boxes.includes(e.id));
-      // Each box found once, by its centre (within 8 pixels at the page's own size)
-      const matched = () => {
-        const left = [...boxes()], missed = [], skipped = new Map(), found = [];
-        VARIED_BOXES.forEach(e => {
-          const [X, Y] = v.map(e.x + e.width/2, e.y + e.height/2);
-          const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*v.scale), k = skipOf(e);
-          if (k){ skipped.set(k, (skipped.get(k) || 0) + 1); if (i >= 0) found.push(e.id); }
-          if (i >= 0) left.splice(i, 1); else if (!k) missed.push(`expected ${where(e)}`);
-        });
-        return { missed, extra: left, skipped, found };
-      };
-      const counted = () => VARIED_BOXES.filter(e => !skipOf(e)).length;
-      test(`Referral form, ${v.name}: each expected tick box is found`, () => {
-        assert(VARIED_BOXES.length, `the ${VARIED_CASE} case has no tick boxes`);
-        const { missed } = matched();
-        if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
-      }, { todo: v.todo, group, short: `${v.name}: each expected tick box is found`,
-           note: () => { const { skipped, found } = matched();
-             return [...skipped].map(([k, n]) => `${n} tick ${n === 1 ? 'box' : 'boxes'} skipped: ${k.reason}`)
-               .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
-      test(`Referral form, ${v.name}: no actual tick box that isn't expected`, () => {
-        sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
-      }, { group, short: `${v.name}: no actual tick box that isn't expected` });
+    varied.forEach(({ c, entry, pages }) => {
+      const group = `Poorer copies of ${c.name} (tick boxes only)`;
+      // The case's skips for its variations (its variationSkip in tests/cases/index.js)
+      const skips = entry.variationSkip || [], all = pages.flatMap(pg => pg.boxes);
+      test(`${c.name} variations: each skip names a variation and its tick boxes`, () => {
+        const none = skips.map(k => k.variation).filter(n => !VARIATIONS.some(v => v.name === n));
+        assert(!none.length, `variationSkip names variations there aren't: ${none.join(', ')}`);
+        const unknown = skips.flatMap(k => k.boxes).filter(id => !all.some(e => e.id === id));
+        assert(!unknown.length, `variationSkip names tick boxes the case doesn't have: ${unknown.join(', ')}`);
+      }, { group, short: 'each skip names a variation and its tick boxes' });
+      pages.forEach(({ n, of, boxes: expected, runs }) => runs.forEach(({ v, fields, map, scale }) => {
+        const name = `${c.name}${of > 1 ? `, page ${n}` : ''}, ${v.name}`, short = `${of > 1 ? `page ${n}, ` : ''}${v.name}`;
+        // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
+        // box is found"; one found anyway still matches, so it isn't counted as an extra
+        const skipOf = (e) => skips.find(k => k.variation === v.name && k.boxes.includes(e.id));
+        // Each box found once, by its centre (within 8 pixels at the page's own size)
+        const matched = () => {
+          const left = fields.filter(f => f.kind === 'tick'), missed = [], skipped = new Map(), found = [];
+          expected.forEach(e => {
+            const [X, Y] = map(e.x + e.width/2, e.y + e.height/2);
+            const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*scale), k = skipOf(e);
+            if (k){ skipped.set(k, (skipped.get(k) || 0) + 1); if (i >= 0) found.push(e.id); }
+            if (i >= 0) left.splice(i, 1); else if (!k) missed.push(`expected ${where(e)}`);
+          });
+          return { missed, extra: left, skipped, found };
+        };
+        const counted = () => expected.filter(e => !skipOf(e)).length;
+        test(`${name}: each expected tick box is found`, () => {
+          const { missed } = matched();
+          if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
+        }, { group, short: `${short}: each expected tick box is found`,
+             note: () => { const { skipped, found } = matched();
+               return [...skipped].map(([k, n]) => `${n} tick ${n === 1 ? 'box' : 'boxes'} skipped: ${k.reason}`)
+                 .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
+        test(`${name}: no actual tick box that isn't expected`, () => {
+          sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
+        }, { group, short: `${short}: no actual tick box that isn't expected` });
+      }));
     });
   }
 
@@ -417,7 +421,7 @@
       results.push({ name: 'run the tests', group: 'Setup', short: 'run the tests', status: 'fail', error: err.message || String(err) });
     }
     finished();
-    if (loaded[VARIED_CASE]) panel.insertBefore(copiesBox, groupsBox);
+    if (entries.some(e => e.variations && loaded[e.folder])) panel.insertBefore(copiesBox, groupsBox);
   }
   // After a run: results on the board, in the panel and in the console
   function finished(){
@@ -429,25 +433,36 @@
       `${mark[r.status]} ${r.name}${r.todo ? ' # TODO ' + r.todo : ''}${r.error ? '\n  ' + r.error : ''}`));
   }
 
-  // The poorer copies, when asked for (they take a while): one after another on the next page
-  // of the app, which shows the last of them afterwards
+  // The variations, when asked for (they take a while): one after another on the next page of
+  // the app, which shows the last of them afterwards
   async function runCopies(){
     try {
-      const pg = (await eformPages(loaded[VARIED_CASE].html, loaded[VARIED_CASE].images))[0];
-      VARIED_BOXES = pg.boxes.filter(e => e.kind === 'tick');
-      const base = await loadImage(pg.imgData);
-      for (const [i, v] of VARIATIONS.entries()){
-        progress(`poorer copies: processing ${i + 1} of ${VARIATIONS.length} (${v.name})…`);
-        const made = v.make(base);
-        v.fields = await detectOn(nextPage, made.url, `${VARIED_CASE} (${v.name}).png`, { readWords: false }, i === VARIATIONS.length - 1);
-        v.map = made.map; v.scale = made.scale;
+      varied = [];
+      for (const entry of entries.filter(e => e.variations && loaded[e.folder])){
+        const c = loaded[entry.folder], all = await eformPages(c.html, c.images), pages = [];
+        for (const pg of all){
+          const boxes = pg.boxes.filter(e => e.kind === 'tick');
+          if (boxes.length) pages.push({ n: pg.n, of: all.length, boxes, img: pg.imgData, runs: [] });
+        }
+        varied.push({ c, entry, pages });
+      }
+      const total = varied.reduce((s, k) => s + k.pages.length, 0)*VARIATIONS.length;
+      let done = 0;
+      for (const { c, entry, pages } of varied) for (const pg of pages){
+        const base = await loadImage(pg.img);
+        for (const v of VARIATIONS){
+          progress(`poorer copies: processing ${++done} of ${total} (${c.name}${pg.of > 1 ? `, page ${pg.n}` : ''}, ${v.name})…`);
+          const made = v.make(base, pg.boxes);
+          pg.runs.push({ v, map: made.map, scale: made.scale,
+                         fields: await detectOn(nextPage, made.url, `${entry.folder} (${v.name}).png`, { readWords: false }, done === total) });
+        }
       }
       nextPage++;
       tests = [];
       variationTests();
       results.push(...await runTests(tests));
     } catch (err) {
-      results.push({ name: 'run the poorer copies', group: 'Poorer copies of the referral form (tick boxes only)', short: 'run them', status: 'fail', error: err.message || String(err) });
+      results.push({ name: 'run the poorer copies', group: 'Poorer copies', short: 'run them', status: 'fail', error: err.message || String(err) });
     }
     finished();
   }
@@ -498,10 +513,12 @@
     `//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys\n` +
     `//           above; boxes whose centre is in the region (page-image pixels) on that page are\n` +
     `//           left out of it. Without a page, every page; without a region, the whole page.\n` +
-    `//   variationSkip (optional, the referral form's) tick boxes to leave out of a variation's "each\n` +
-    `//           expected tick box is found" (a poorer copy of the form), where the variation leaves\n` +
-    `//           too little of them: a list of { variation, boxes, reason }, the variation by its name in\n` +
-    `//           the panel and the boxes by their names in the eForm (see tests/README.md)\n` +
+    `//   variations (optional) true: its pages with tick boxes are also tested in poorer copies,\n` +
+    `//           the variations (resized, blurred, faxed, ticked by hand…), when asked\n` +
+    `//   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box\n` +
+    `//           is found", where the variation leaves too little of them: a list of { variation,\n` +
+    `//           boxes, reason }, the variation by its name in the panel and the boxes by their\n` +
+    `//           names in the eForm (see tests/README.md)\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';
@@ -579,10 +596,10 @@
   copiesBox.style.cssText = 'margin:6px 0';
   const copiesBtn = document.createElement('button');
   copiesBtn.textContent = 'Also test poorer copies';
-  copiesBtn.title = 'Tick boxes on 15 poorer copies of the referral form: resized, blurred, faxed, ticked by hand…';
+  copiesBtn.title = 'Tick boxes on 15 poorer copies of each page of the cases marked "variations": resized, blurred, faxed, ticked by hand…';
   const copiesNote = document.createElement('span');
   copiesNote.style.cssText = 'margin-left:8px;color:#555;font-size:12px';
-  copiesNote.textContent = 'checks tick boxes on poor scans; takes about 8 seconds';
+  copiesNote.textContent = 'checks tick boxes on poor scans; takes about a minute';
   copiesBtn.onclick = async () => { copiesBox.remove(); await runCopies(); };
   copiesBox.append(copiesBtn, copiesNote);
 
