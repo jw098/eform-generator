@@ -289,14 +289,19 @@
     { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
     { name: '3× size', make: resized(3) },
     { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
-    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }), todo: 'the ink map draws each blurred side several pixels thick, filling most of a box and joining it to a rule beside it; the sides\' darkest lines (their ridges) wander and round the corners, so they don\'t give a box either' },
+    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }),
+      skip: [{ boxes: ['referral_to_dr_left_1__0', 'referral_to_dr_right_1__3', 'referral_to_other_6', 'consent_yes_text_7',
+                       'consent_yes_email_8', 'consent_no_9', 'urgency_urgent_10', 'urgency_semi_urgent_11', 'urgency_routine_12',
+                       'type_epcp_completed_17'],
+               reason: 'the blur leaves too little of their shape: the ink map draws each side several pixels thick, filling most of the box and joining it to the rule beside it, and the sides\' darkest lines wander and round the corners' }] },
     { name: 'speckled (1% of pixels)', make: (img) => { const rnd = random(1);
         return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; } },
     { name: 'rough JPEG (quality 30)', make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
     { name: 'tilted 1°', make: tilted(1) },
     { name: 'tilted 2.5°', make: tilted(2.5) },
     { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }),
-      todo: 'the fax drops a thin side of some boxes (a one-pixel line between two rows goes half grey, under the threshold), leaving "⊓"; taking three-sided shapes for boxes takes letters too' },
+      skip: [{ boxes: ['referral_to_dr_left_2__1', 'referral_to_dr_right_2__4'],
+               reason: 'the fax drops their bottom side (a one-pixel line between two rows goes half grey, under the threshold), leaving "⊓"; taking three-sided shapes for boxes takes letters too' }] },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
     { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img) => {
         const c = drawn(img), ctx = c.getContext('2d');
@@ -308,27 +313,38 @@
           ctx.stroke();
         });
         return { url: png(c), map: same(), scale: 1 };
-      }, todo: 'a ✓ running out of its box and into what is printed beside it (the box above, a rule, the next word) reads as ink joined on; telling its stroke from letters joined on needs more than the pixels around one box' },
+      }, skip: [{ boxes: ['referral_to_dr_left_2__1', 'consent_yes_text_7', 'type_revised_referral_16'],
+                  reason: 'the ✓ runs out of the box into what is printed beside it (the box above, a rule, the next word) and reads as ink joined on; its stroke can\'t be told from a letter joined on by the pixels around one box' }] },
   ];
   function variationTests(){
     const group = 'Poorer copies of the referral form (tick boxes only)';
     VARIATIONS.forEach(v => {
       const boxes = () => (v.fields || []).filter(f => f.kind === 'tick');
+      // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
+      // box is found"; one found anyway still matches, so it isn't counted as an extra
+      const skipOf = (e) => (v.skip || []).find(k => k.boxes.includes(e.id));
       // Each box found once, by its centre (within 8 pixels at the page's own size)
       const matched = () => {
-        const left = [...boxes()], missed = [];
+        const left = [...boxes()], missed = [], skipped = new Map(), found = [];
         VARIED_BOXES.forEach(e => {
           const [X, Y] = v.map(e.x + e.width/2, e.y + e.height/2);
-          const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*v.scale);
-          if (i < 0) missed.push(`expected ${where(e)}`); else left.splice(i, 1);
+          const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*v.scale), k = skipOf(e);
+          if (k){ skipped.set(k, (skipped.get(k) || 0) + 1); if (i >= 0) found.push(e.id); }
+          if (i >= 0) left.splice(i, 1); else if (!k) missed.push(`expected ${where(e)}`);
         });
-        return { missed, extra: left };
+        return { missed, extra: left, skipped, found };
       };
+      const counted = () => VARIED_BOXES.filter(e => !skipOf(e)).length;
       test(`Referral form, ${v.name}: each expected tick box is found`, () => {
         assert(VARIED_BOXES.length, `the ${VARIED_CASE} case has no tick boxes`);
+        const unknown = (v.skip || []).flatMap(k => k.boxes).filter(id => !VARIED_BOXES.some(e => e.id === id));
+        assert(!unknown.length, `the skip names tick boxes the ${VARIED_CASE} case doesn't have: ${unknown.join(', ')}`);
         const { missed } = matched();
-        if (missed.length) throw new Error(`actual: found ${VARIED_BOXES.length - missed.length} of the ${VARIED_BOXES.length} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
-      }, { todo: v.todo, group, short: `${v.name}: each expected tick box is found` });
+        if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
+      }, { todo: v.todo, group, short: `${v.name}: each expected tick box is found`,
+           note: () => { const { skipped, found } = matched();
+             return [...skipped].map(([k, n]) => `${n} tick ${n === 1 ? 'box' : 'boxes'} skipped: ${k.reason}`)
+               .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
       test(`Referral form, ${v.name}: no actual tick box that isn't expected`, () => {
         sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
       }, { group, short: `${v.name}: no actual tick box that isn't expected` });

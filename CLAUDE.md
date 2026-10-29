@@ -117,6 +117,11 @@ regressions in those places. If the same kind of skip turns up across several fo
 the time to consider one in `tests/auto-detect.js`, for the extra-fields test only, never for
 missed fields or tags.
 
+A poorer copy of the referral form (`VARIATIONS` in `tests/auto-detect.js`) can skip tick
+boxes the copy has left too little of to find (a side the fax dropped, a box blurred out of
+shape), once a general rule has been tried and couldn't find them without taking letters
+too. Name each box and say what the copy did to it; take a box off once it's found.
+
 ## Style
 
 - Match the existing code: compact JavaScript, short local names, small arrow helpers.
