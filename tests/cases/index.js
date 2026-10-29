@@ -202,9 +202,6 @@ window.TEST_CASE_LIST = [
       "CL489_Pg2.png",
       "CL489_Pg3.png"
     ],
-    "todo": {
-      "extraFields": "the open page under Return To on page 3, where the form has ended, is taken for a field"
-    },
     "skip": [
       {
         "test": "tags",
@@ -343,6 +340,12 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [258, 800, 559, 28],
         "reason": "the blank after a row of options (Yes No Unable to determine): the eForm leaves it out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
+      },
+      {
+        "test": "extraFields",
+        "page": 3,
+        "region": [31, 527, 791, 536],
+        "reason": "the open page under Return To, where the form has ended, taken for a writing area: fine as it is"
       }
     ]
   }

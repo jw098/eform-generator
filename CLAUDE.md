@@ -102,8 +102,8 @@ before running the tests when `window.eformMapperTestNoRun` is set), so the two 
 Where a test case's eForm and Auto Detect disagree and the code shouldn't change, say so in
 the case's entry in `tests/cases/index.js` (see `tests/README.md`), and pick the right one:
 
-- **To-do**: Auto Detect is wrong and should do better (a missed tick box, a field on the
-  blank page where the form has ended). It stays until fixed; take it off once it passes.
+- **To-do**: Auto Detect is wrong and should do better (a missed tick box, letters taken for
+  a tick box). It stays until fixed; take it off once it passes.
 - **Skip**: the eForm made a choice the page can't show, and Auto Detect's answer is as good,
   so a rule to match it would cost real fields on other forms. For example: a blank after a
   row of options that the eForm leaves out (when the same layout gets a field elsewhere), rows

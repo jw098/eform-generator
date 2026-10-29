@@ -160,7 +160,7 @@ reason, so it shows as "to do" rather than as a failure:
 }
 ```
 
-(The ICBC CL489 case has to-dos: a form whose layout Auto Detect doesn't handle well yet.)
+(None of the cases has a to-do at the moment.)
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
 and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once
