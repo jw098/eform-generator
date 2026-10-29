@@ -10,10 +10,10 @@
 //           { test, page, region: [x, y, width, height], reason }. The test is one of the keys
 //           above; boxes whose centre is in the region (page-image pixels) on that page are
 //           left out of it. Without a page, every page; without a region, the whole page.
-//   copySkip (optional, the referral form's) tick boxes to leave out of a poorer copy's "each
-//           expected tick box is found", where the copy leaves too little of them: a list of
-//           { copy, boxes, reason }, the copy by its name in the panel and the boxes by their
-//           names in the eForm (see tests/README.md)
+//   variationSkip (optional, the referral form's) tick boxes to leave out of a variation's "each
+//           expected tick box is found" (a poorer copy of the form), where the variation leaves
+//           too little of them: a list of { variation, boxes, reason }, the variation by its name in
+//           the panel and the boxes by their names in the eForm (see tests/README.md)
 window.TEST_CASE_LIST = [
   {
     "name": "Referral form",
@@ -22,9 +22,9 @@ window.TEST_CASE_LIST = [
     "images": [
       "referral_form_3c1x42_page1.png"
     ],
-    "copySkip": [
+    "variationSkip": [
       {
-        "copy": "blurred 2px",
+        "variation": "blurred 2px",
         "boxes": [
           "referral_to_dr_left_1__0",
           "referral_to_dr_right_1__3",
@@ -40,7 +40,7 @@ window.TEST_CASE_LIST = [
         "reason": "the blur leaves too little of their shape: the ink map draws each side several pixels thick, filling most of the box and joining it to the rule beside it, and the sides' darkest lines wander and round the corners"
       },
       {
-        "copy": "fax (2/3 size, black and white only)",
+        "variation": "fax (2/3 size, black and white only)",
         "boxes": [
           "referral_to_dr_left_2__1",
           "referral_to_dr_right_2__4"
@@ -48,7 +48,7 @@ window.TEST_CASE_LIST = [
         "reason": "the fax drops their bottom side (a one-pixel line between two rows goes half grey, under the threshold), leaving \"⊓\"; taking three-sided shapes for boxes takes letters too"
       },
       {
-        "copy": "ticked by hand (✗ inside, or ✓ running out of the box)",
+        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
         "boxes": [
           "referral_to_dr_left_2__1",
           "consent_yes_text_7",

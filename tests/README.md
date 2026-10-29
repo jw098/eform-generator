@@ -90,10 +90,11 @@ real size, whatever made the eForm. Within an eForm:
 - **Tick boxes:** checkboxes, radio buttons, and inputs with an `Xbox` or `xMarkOnly` class.
 
 **Also test poorer copies** (a button in the panel, after a run) checks tick boxes on 15
-poorer copies of the referral form made in the browser: resized as if scanned at another
-resolution, blurred, speckled, rough JPEG, tilted, faxed, printed faint, ticked by hand. On
-each, every tick box must be found (but those it skips, below) and nothing else taken for one. It takes about 8 seconds
-more, so it only runs when asked: use it when changing how tick boxes are found.
+variations, poorer copies of the referral form made in the browser: resized as if scanned at
+another resolution, blurred, speckled, rough JPEG, tilted, faxed, printed faint, ticked by
+hand. On each, every tick box must be found (but those it skips, below) and nothing else
+taken for one. It takes about 8 seconds more, so it only runs when asked: use it when
+changing how tick boxes are found.
 
 ## Reading the results
 
@@ -188,21 +189,21 @@ or `region` for the whole page:
 The test's line in the panel then says what it left out, in grey, for example
 `16 tick boxes on page 2 in (0, 170) 1500×900 skipped: no printed tick boxes here, …`.
 
-A poorer copy can skip tick boxes too, where the copy leaves too little of a box to find
-(the fax drops a side of it, the blur leaves no square). The skips are the referral form's
-`copySkip` in `cases/index.js`: each names the copy (as the panel names it) and the boxes (by
-their names in the eForm), with the reason:
+A variation can skip tick boxes too, where it leaves too little of a box to find (the fax
+drops a side of it, the blur leaves no square). The skips are the referral form's
+`variationSkip` in `cases/index.js`: each names the variation (as the panel names it) and the
+boxes (by their names in the eForm), with the reason:
 
 ```js
-"copySkip": [
+"variationSkip": [
   {
-    "copy": "fax (2/3 size, black and white only)",
+    "variation": "fax (2/3 size, black and white only)",
     "boxes": ["referral_to_dr_left_2__1", "referral_to_dr_right_2__4"],
     "reason": "the fax drops their bottom side, leaving \"⊓\"; …"
   }
 ]
 ```
 
-They're left out of that copy's "each expected tick box is found" only; one found anyway
+They're left out of that variation's "each expected tick box is found" only; one found anyway
 still counts as found, not as an extra, and its line then says `found now, take off the skip`.
-A copy or a box that isn't there fails "each skip names a copy and its tick boxes".
+A variation or a box that isn't there fails "each skip names a variation and its tick boxes".

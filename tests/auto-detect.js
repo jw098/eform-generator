@@ -311,19 +311,19 @@
   ];
   function variationTests(){
     const group = 'Poorer copies of the referral form (tick boxes only)';
-    // The copies' skips, in the referral form's entry in tests/cases/index.js (its copySkip)
-    const copySkips = (entries.find(e => e.folder === VARIED_CASE) || {}).copySkip || [];
-    test('Referral form copies: each skip names a copy and its tick boxes', () => {
-      const copies = copySkips.map(k => k.copy).filter(n => !VARIATIONS.some(v => v.name === n));
-      assert(!copies.length, `copySkip names copies there aren't: ${copies.join(', ')}`);
-      const unknown = copySkips.flatMap(k => k.boxes).filter(id => !VARIED_BOXES.some(e => e.id === id));
-      assert(!unknown.length, `copySkip names tick boxes the ${VARIED_CASE} case doesn't have: ${unknown.join(', ')}`);
-    }, { group, short: 'each skip names a copy and its tick boxes' });
+    // The variations' skips, in the referral form's entry in tests/cases/index.js (its variationSkip)
+    const variationSkips = (entries.find(e => e.folder === VARIED_CASE) || {}).variationSkip || [];
+    test('Referral form variations: each skip names a variation and its tick boxes', () => {
+      const none = variationSkips.map(k => k.variation).filter(n => !VARIATIONS.some(v => v.name === n));
+      assert(!none.length, `variationSkip names variations there aren't: ${none.join(', ')}`);
+      const unknown = variationSkips.flatMap(k => k.boxes).filter(id => !VARIED_BOXES.some(e => e.id === id));
+      assert(!unknown.length, `variationSkip names tick boxes the ${VARIED_CASE} case doesn't have: ${unknown.join(', ')}`);
+    }, { group, short: 'each skip names a variation and its tick boxes' });
     VARIATIONS.forEach(v => {
       const boxes = () => (v.fields || []).filter(f => f.kind === 'tick');
       // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
       // box is found"; one found anyway still matches, so it isn't counted as an extra
-      const skipOf = (e) => copySkips.find(k => k.copy === v.name && k.boxes.includes(e.id));
+      const skipOf = (e) => variationSkips.find(k => k.variation === v.name && k.boxes.includes(e.id));
       // Each box found once, by its centre (within 8 pixels at the page's own size)
       const matched = () => {
         const left = [...boxes()], missed = [], skipped = new Map(), found = [];
@@ -498,10 +498,10 @@
     `//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys\n` +
     `//           above; boxes whose centre is in the region (page-image pixels) on that page are\n` +
     `//           left out of it. Without a page, every page; without a region, the whole page.\n` +
-    `//   copySkip (optional, the referral form's) tick boxes to leave out of a poorer copy's "each\n` +
-    `//           expected tick box is found", where the copy leaves too little of them: a list of\n` +
-    `//           { copy, boxes, reason }, the copy by its name in the panel and the boxes by their\n` +
-    `//           names in the eForm (see tests/README.md)\n` +
+    `//   variationSkip (optional, the referral form's) tick boxes to leave out of a variation's "each\n` +
+    `//           expected tick box is found" (a poorer copy of the form), where the variation leaves\n` +
+    `//           too little of them: a list of { variation, boxes, reason }, the variation by its name in\n` +
+    `//           the panel and the boxes by their names in the eForm (see tests/README.md)\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';
