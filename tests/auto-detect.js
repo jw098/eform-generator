@@ -289,19 +289,13 @@
     { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
     { name: '3× size', make: resized(3) },
     { name: 'blurred 1px', make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
-    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }),
-      skip: [{ boxes: ['referral_to_dr_left_1__0', 'referral_to_dr_right_1__3', 'referral_to_other_6', 'consent_yes_text_7',
-                       'consent_yes_email_8', 'consent_no_9', 'urgency_urgent_10', 'urgency_semi_urgent_11', 'urgency_routine_12',
-                       'type_epcp_completed_17'],
-               reason: 'the blur leaves too little of their shape: the ink map draws each side several pixels thick, filling most of the box and joining it to the rule beside it, and the sides\' darkest lines wander and round the corners' }] },
+    { name: 'blurred 2px', make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }) },
     { name: 'speckled (1% of pixels)', make: (img) => { const rnd = random(1);
         return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; } },
     { name: 'rough JPEG (quality 30)', make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
     { name: 'tilted 1°', make: tilted(1) },
     { name: 'tilted 2.5°', make: tilted(2.5) },
-    { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }),
-      skip: [{ boxes: ['referral_to_dr_left_2__1', 'referral_to_dr_right_2__4'],
-               reason: 'the fax drops their bottom side (a one-pixel line between two rows goes half grey, under the threshold), leaving "⊓"; taking three-sided shapes for boxes takes letters too' }] },
+    { name: 'fax (2/3 size, black and white only)', make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }) },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
     { name: 'ticked by hand (✗ inside, or ✓ running out of the box)', make: (img) => {
         const c = drawn(img), ctx = c.getContext('2d');
@@ -313,16 +307,23 @@
           ctx.stroke();
         });
         return { url: png(c), map: same(), scale: 1 };
-      }, skip: [{ boxes: ['referral_to_dr_left_2__1', 'consent_yes_text_7', 'type_revised_referral_16'],
-                  reason: 'the ✓ runs out of the box into what is printed beside it (the box above, a rule, the next word) and reads as ink joined on; its stroke can\'t be told from a letter joined on by the pixels around one box' }] },
+      } },
   ];
   function variationTests(){
     const group = 'Poorer copies of the referral form (tick boxes only)';
+    // The copies' skips, in the referral form's entry in tests/cases/index.js (its copySkip)
+    const copySkips = (entries.find(e => e.folder === VARIED_CASE) || {}).copySkip || [];
+    test('Referral form copies: each skip names a copy and its tick boxes', () => {
+      const copies = copySkips.map(k => k.copy).filter(n => !VARIATIONS.some(v => v.name === n));
+      assert(!copies.length, `copySkip names copies there aren't: ${copies.join(', ')}`);
+      const unknown = copySkips.flatMap(k => k.boxes).filter(id => !VARIED_BOXES.some(e => e.id === id));
+      assert(!unknown.length, `copySkip names tick boxes the ${VARIED_CASE} case doesn't have: ${unknown.join(', ')}`);
+    }, { group, short: 'each skip names a copy and its tick boxes' });
     VARIATIONS.forEach(v => {
       const boxes = () => (v.fields || []).filter(f => f.kind === 'tick');
       // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
       // box is found"; one found anyway still matches, so it isn't counted as an extra
-      const skipOf = (e) => (v.skip || []).find(k => k.boxes.includes(e.id));
+      const skipOf = (e) => copySkips.find(k => k.copy === v.name && k.boxes.includes(e.id));
       // Each box found once, by its centre (within 8 pixels at the page's own size)
       const matched = () => {
         const left = [...boxes()], missed = [], skipped = new Map(), found = [];
@@ -337,8 +338,6 @@
       const counted = () => VARIED_BOXES.filter(e => !skipOf(e)).length;
       test(`Referral form, ${v.name}: each expected tick box is found`, () => {
         assert(VARIED_BOXES.length, `the ${VARIED_CASE} case has no tick boxes`);
-        const unknown = (v.skip || []).flatMap(k => k.boxes).filter(id => !VARIED_BOXES.some(e => e.id === id));
-        assert(!unknown.length, `the skip names tick boxes the ${VARIED_CASE} case doesn't have: ${unknown.join(', ')}`);
         const { missed } = matched();
         if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
       }, { todo: v.todo, group, short: `${v.name}: each expected tick box is found`,
@@ -499,6 +498,10 @@
     `//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys\n` +
     `//           above; boxes whose centre is in the region (page-image pixels) on that page are\n` +
     `//           left out of it. Without a page, every page; without a region, the whole page.\n` +
+    `//   copySkip (optional, the referral form's) tick boxes to leave out of a poorer copy's "each\n` +
+    `//           expected tick box is found", where the copy leaves too little of them: a list of\n` +
+    `//           { copy, boxes, reason }, the copy by its name in the panel and the boxes by their\n` +
+    `//           names in the eForm (see tests/README.md)\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';

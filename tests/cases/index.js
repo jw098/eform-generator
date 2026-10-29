@@ -10,6 +10,10 @@
 //           { test, page, region: [x, y, width, height], reason }. The test is one of the keys
 //           above; boxes whose centre is in the region (page-image pixels) on that page are
 //           left out of it. Without a page, every page; without a region, the whole page.
+//   copySkip (optional, the referral form's) tick boxes to leave out of a poorer copy's "each
+//           expected tick box is found", where the copy leaves too little of them: a list of
+//           { copy, boxes, reason }, the copy by its name in the panel and the boxes by their
+//           names in the eForm (see tests/README.md)
 window.TEST_CASE_LIST = [
   {
     "name": "Referral form",
@@ -17,6 +21,41 @@ window.TEST_CASE_LIST = [
     "eform": "referral_form_3c1x42.html",
     "images": [
       "referral_form_3c1x42_page1.png"
+    ],
+    "copySkip": [
+      {
+        "copy": "blurred 2px",
+        "boxes": [
+          "referral_to_dr_left_1__0",
+          "referral_to_dr_right_1__3",
+          "referral_to_other_6",
+          "consent_yes_text_7",
+          "consent_yes_email_8",
+          "consent_no_9",
+          "urgency_urgent_10",
+          "urgency_semi_urgent_11",
+          "urgency_routine_12",
+          "type_epcp_completed_17"
+        ],
+        "reason": "the blur leaves too little of their shape: the ink map draws each side several pixels thick, filling most of the box and joining it to the rule beside it, and the sides' darkest lines wander and round the corners"
+      },
+      {
+        "copy": "fax (2/3 size, black and white only)",
+        "boxes": [
+          "referral_to_dr_left_2__1",
+          "referral_to_dr_right_2__4"
+        ],
+        "reason": "the fax drops their bottom side (a one-pixel line between two rows goes half grey, under the threshold), leaving \"⊓\"; taking three-sided shapes for boxes takes letters too"
+      },
+      {
+        "copy": "ticked by hand (✗ inside, or ✓ running out of the box)",
+        "boxes": [
+          "referral_to_dr_left_2__1",
+          "consent_yes_text_7",
+          "type_revised_referral_16"
+        ],
+        "reason": "the ✓ runs out of the box into what is printed beside it (the box above, a rule, the next word) and reads as ink joined on; its stroke can't be told from a letter joined on by the pixels around one box"
+      }
     ]
   },
   {

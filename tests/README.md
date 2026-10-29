@@ -189,14 +189,20 @@ The test's line in the panel then says what it left out, in grey, for example
 `16 tick boxes on page 2 in (0, 170) 1500×900 skipped: no printed tick boxes here, …`.
 
 A poorer copy can skip tick boxes too, where the copy leaves too little of a box to find
-(the fax drops a side of it, the blur leaves no square). Its `skip` on its line in
-`auto-detect.js` names the boxes, by their name in the referral form's eForm, with the reason:
+(the fax drops a side of it, the blur leaves no square). The skips are the referral form's
+`copySkip` in `cases/index.js`: each names the copy (as the panel names it) and the boxes (by
+their names in the eForm), with the reason:
 
 ```js
-skip: [{ boxes: ['referral_to_dr_left_2__1', 'referral_to_dr_right_2__4'],
-         reason: 'the fax drops their bottom side, leaving "⊓"; …' }]
+"copySkip": [
+  {
+    "copy": "fax (2/3 size, black and white only)",
+    "boxes": ["referral_to_dr_left_2__1", "referral_to_dr_right_2__4"],
+    "reason": "the fax drops their bottom side, leaving \"⊓\"; …"
+  }
+]
 ```
 
 They're left out of that copy's "each expected tick box is found" only; one found anyway
 still counts as found, not as an extra, and its line then says `found now, take off the skip`.
-A name the eForm doesn't have fails the test.
+A copy or a box that isn't there fails "each skip names a copy and its tick boxes".

@@ -120,7 +120,8 @@ missed fields or tags.
 A poorer copy of the referral form (`VARIATIONS` in `tests/auto-detect.js`) can skip tick
 boxes the copy has left too little of to find (a side the fax dropped, a box blurred out of
 shape), once a general rule has been tried and couldn't find them without taking letters
-too. Name each box and say what the copy did to it; take a box off once it's found.
+too. The skips are the referral form's `copySkip` in `tests/cases/index.js`: name each box
+and say what the copy did to it; take a box off once it's found.
 
 ## Style
 
