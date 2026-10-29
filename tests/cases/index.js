@@ -364,12 +364,6 @@ window.TEST_CASE_LIST = [
       },
       {
         "test": "extraFields",
-        "page": 3,
-        "region": [31, 527, 791, 536],
-        "reason": "the open page under Return To, where the form has ended, taken for a writing area: fine as it is"
-      },
-      {
-        "test": "extraFields",
         "page": 1,
         "region": [530, 970, 290, 60],
         "reason": "the blanks after the rows of options under STATUS OF DUTIES and STATUS OF HOURS (Study: Full Modified), found at some sizes: the eForm leaves them out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"

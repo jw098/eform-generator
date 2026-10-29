@@ -2860,8 +2860,9 @@ else if (typeof exports === 'object')
   // a label: ink just above it in the container that isn't a rule ("PERTINENT HISTORY /
   // MEDICATIONS:" over the rest of its cell, "EXAM(s) REQUESTED:" over a blank beside the
   // Priority list, "HISTORY AND CLINICAL FINDINGS:" over open page). Fields already found count
-  // as ink. One that runs down to the foot of the page is one only under a label ending with a
-  // colon (checked once the words are read).
+  // as ink. One that runs down to the foot of the page, or to its footer, is one only under a
+  // label ending with a colon (checked once the words are read): the blank page where a form
+  // ends ("Return To ... Fax 1-877-..." over half a page left empty) is no writing area.
   // rules: the page's rules, top to bottom; line: one written line's height (canvas px).
   function areaFields(clean, w, h, s, rules, line, page, found){
     if (!rules.length) return [];
@@ -2888,6 +2889,18 @@ else if (typeof exports === 'object')
         break;
       }
     });
+    // The foot of the form: above its last line of print when that is a footer ("CL489 (042019)
+    // ... Page 3 of 3"), a line of text with only the margin under it. Blank page down to it
+    // runs to the end of the form.
+    const inkRow = (y) => { let n = 0; for (let x=cx1; x<=cx2; x++) if (clean[y*w+x]) n++; return n; };
+    let foot = boxes[0].y2, last = foot, top = -1;
+    while (last > 0 && !inkRow(last)) last--;
+    for (let y=last; y > last - line; y--){
+      const n = inkRow(y);
+      if (n > (cx2-cx1+1)*0.6){ top = -1; break; }                 // (a rule: no footer)
+      if (n) top = y; else if (top - y > line*0.3) break;
+    }
+    if (top > 0 && last - top <= line*0.8 && foot - last <= line*0.5) foot = top - 1;
     const out = [];
     boxes.forEach(c => {
       const cw = c.x2 - c.x1 + 1, wide = c.form ? cw : cw*0.5, tall = line*(c.form ? 2.5 : 1.1), pad = c.form ? Math.round(line*0.3) : 2;
@@ -2907,8 +2920,8 @@ else if (typeof exports === 'object')
         const r = y <= c.y2 ? blank(y) : 0;
         if (r >= wide - 1){ if (run) { run.y2 = y; run.r = Math.min(run.r, r); } else run = { y1: y, y2: y, r }; continue; }
         if (run && run.y2 - run.y1 + 1 >= tall && label(run.y1)){
-          const toEnd = c.form && run.y2 >= c.y2;
-          const y1 = run.y1 + pad, y2 = run.y2 - (toEnd ? 0 : pad), x1 = c.x1 + (c.form ? 0 : pad), x2 = c.x1 + run.r - 1 - (c.form ? 0 : pad);
+          const toEnd = c.form && run.y2 >= Math.min(c.y2, foot - Math.round(line*0.5));
+          const y1 = run.y1 + pad, y2 = run.y2 - (c.form && run.y2 >= c.y2 ? 0 : pad), x1 = c.x1 + (c.form ? 0 : pad), x2 = c.x1 + run.r - 1 - (c.form ? 0 : pad);
           const f = { page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s, type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(toEnd ? { toEnd: true } : {}) };
           out.push(f); take(f);
         }
@@ -3103,7 +3116,7 @@ else if (typeof exports === 'object')
   //   box          a text field in a box of its own: rules above and below, sides down both
   //                ends (textFieldsFromLines)
   //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
-  //   toEnd        a writing area that runs down to the foot of the page (areaFields)
+  //   toEnd        a writing area that runs down to the foot of the page or its footer (areaFields)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
   //   _split       several labels spread along one field: the field's parts (labelFields)
