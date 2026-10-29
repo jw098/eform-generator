@@ -9,6 +9,12 @@
 //   node tests/snapshot.js <app url ending in #test> [image paths...] > after.txt
 //   diff before.txt after.txt
 //
+// To see why a rule does what it does, add --log: everything the app logs to the console while
+// it reads each image is printed after that image's fields, each line starting "> ". Put a
+// console.log in the app for the values you want (and take it out after).
+//
+//   node tests/snapshot.js <app url ending in #test> --log [image paths...]
+//
 // Without image paths, it takes every image in tests/cases. Paths are relative to the folder
 // the app is served from. The app must be served over http, as for ci.js. Uses the Chrome
 // installed on the machine (PW_CHANNEL=chrome, the default); set PW_CHANNEL= to use
@@ -18,8 +24,9 @@ const fs = require('fs'), path = require('path');
 
 (async () => {
   const url = process.argv[2];
-  if (!url) { console.error('usage: node tests/snapshot.js <app url ending in #test> [image paths...]'); process.exit(2); }
-  let images = process.argv.slice(3);
+  if (!url) { console.error('usage: node tests/snapshot.js <app url ending in #test> [--log] [image paths...]'); process.exit(2); }
+  const log = process.argv.includes('--log');
+  let images = process.argv.slice(3).filter(a => a !== '--log');
   if (!images.length){
     const cases = path.join(__dirname, 'cases');
     images = fs.readdirSync(cases, { withFileTypes: true }).filter(d => d.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))
@@ -30,6 +37,8 @@ const fs = require('fs'), path = require('path');
   let failed = false;
   try {
     const page = await browser.newPage();
+    const logged = [];
+    if (log) page.on('console', m => logged.push(m.text()));
     page.on('pageerror', err => { console.error('page error:', err.message); failed = true; });
     // (the app with #test loads tests/auto-detect.js: answer with nothing, so the tests don't run)
     await page.route('**/tests/auto-detect.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.__snapshotReady = true;' }));
@@ -52,6 +61,7 @@ const fs = require('fs'), path = require('path');
       }, base + img);
       console.log(`### ${img} (${lines.length})`);
       lines.forEach(l => console.log(l));
+      logged.splice(0).forEach(l => console.log('> ' + l));
     }
   } catch (err) {
     console.error('Could not take the snapshot:', err.message || err);

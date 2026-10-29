@@ -51,7 +51,10 @@ ink alone, so it works where the words can't be read (no WebAssembly SIMD, no wo
 `readWords: false` runs it so). Never move a call to `readPageWords`, or anything using its
 words, into pass 1.
 1. Straighten (`estimateSkew`), stretch a faint page's grey levels (`stretchGrey`, also on
-   the copy OCR reads), make an ink map (`clean`) and find the rules (`bands`).
+   the copy OCR reads), make an ink map (`clean`) and find the rules (`bands`). The ink map
+   drops lone pixels: keep that, even for clean PDFs (a lone pixel on the Diabetes form's top
+   edge becomes a writing area without it). It also drops a small colon's one-pixel dots
+   ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a rule can't rely on every colon.
 2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
 3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
@@ -92,6 +95,12 @@ PW_CHANNEL= node tests/snapshot.js "http://localhost:8000/eForm_Generator_FreeSc
 diff before.txt after.txt
 ```
 
+The snapshot covers the case pages only, not the variations: a change it shows none for still
+needs the full run with `--variations`. (A snapshot takes about a minute, the full run about
+four.) To see why a rule does what it does, add `--log` after the URL: whatever the app logs
+to the console while it reads each image is printed after that image's fields, each line
+starting "> ". Put a `console.log` in the app for the values you want, and take it out after.
+
 To see a case page's expected and actual boxes (matched as the tests match them: green
 matched, red missing, orange extra, magenta tags that differ, grey skipped), as a PNG and a
 list:
@@ -131,6 +140,10 @@ rule is the same in pixels as a letter on a rule"). Keep a to-do only while you 
 general fix exists; once you've tried and know why there isn't one, it's a skip. A few honest
 skips are better than a detector tuned to its tests.
 
+When a rule takes out the right fields but costs real ones on other forms, look at what the
+lost fields share before giving up, and say that in the rule: a blank after a cell's only label
+is a heading row's, where several labels spaced along a row are each a blank's.
+
 Write skips by hand, one region each, so every one is visible in the panel with its reason.
 Don't add rules to the tests or the app that skip things automatically: they would hide
 regressions in those places. If the same kind of skip turns up across several forms, that is
@@ -168,7 +181,11 @@ size it against the page.
   a stack of exceptions to make one case pass. If a fix needs exceptions to stop it breaking
   other forms, the rule is probably the wrong one: look for the general fact instead.
 - Prefer one shared test over another copy with its own thresholds, and size thresholds
-  against the page (its rules, its printed text), not fixed pixel counts.
+  against the page (its rules, its printed text), not fixed pixel counts. Know which pixels a
+  threshold counts: the canvas Auto Detect works on (`clean`, `bands`, `line`, `capH`) is the
+  page resized to about 1600 px on its long side (twice the size for a page under 800 px), so
+  it is already sized to the page; page-image pixels (OCR's words, the fields) are not (the
+  cases are 850 to 1500 px wide, the variations 0.7× to 3× that).
 - Check every rule change against every case: an exact snapshot before and after
   (`tests/snapshot.js`), and every difference explained. Where a form can't be handled yet,
   leave a to-do in its test case rather than an exception in the code, or, if a general fix
