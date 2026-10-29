@@ -108,13 +108,25 @@ Where a test case's eForm and Auto Detect disagree and the code shouldn't change
 the case's entry in `tests/cases/index.js` (see `tests/README.md`), and pick the right one:
 
 - **To-do**: Auto Detect is wrong and should do better (a missed tick box, letters taken for
-  a tick box). It stays until fixed; take it off once it passes.
-- **Skip**: the eForm made a choice the page can't show, and Auto Detect's answer is as good,
-  so a rule to match it would cost real fields on other forms. For example: a blank after a
-  row of options that the eForm leaves out (when the same layout gets a field elsewhere), rows
-  or cells the eForm joins into one field, a field its script fills, a reference that isn't
-  a standard tag (`e$last#…`, `m$…`). Skip only what can't apply: one test, one small region
-  on one page, with a reason that names the evidence.
+  a tick box), and a general fix is believed to exist. It stays until fixed; take it off once
+  it passes.
+- **Skip**: the eForm made a choice the page can't show, or Auto Detect's answer is as good as
+  the page allows; either way a rule to match it would cost real fields on other forms. For
+  example: a blank after a row of options that the eForm leaves out (when the same layout gets
+  a field elsewhere), rows or cells the eForm joins into one field, a field its script fills, a
+  reference that isn't a standard tag (`e$last#…`, `m$…`), a box a poorer copy has left the
+  same in pixels as a letter. Skip only what can't apply: one test, one small region on one
+  page, with a reason that names the evidence.
+
+**When a general fix isn't there.** Detection must stay general and robust: a rule has to hold
+across forms, not rescue one case. Try for a general fact first, and check every attempt
+against every case and variation (the snapshot and the full suite). If the only fixes found
+need exceptions, special cases, or thresholds fitted to the one case, or any fix costs real
+fields elsewhere (a false box, a lost field), don't add it: accept the miss. Skip it, with a
+reason that says what was tried and why it can't be told apart ("at 70 dpi this box over a
+rule is the same in pixels as a letter on a rule"). Keep a to-do only while you believe a
+general fix exists; once you've tried and know why there isn't one, it's a skip. A few honest
+skips are better than a detector tuned to its tests.
 
 Write skips by hand, one region each, so every one is visible in the panel with its reason.
 Don't add rules to the tests or the app that skip things automatically: they would hide
@@ -148,5 +160,6 @@ bold letter that is a perfect square at that size): a skip of one small region o
   against the page (its rules, its printed text), not fixed pixel counts.
 - Check every rule change against every case: an exact snapshot before and after
   (`tests/snapshot.js`), and every difference explained. Where a form can't be handled yet,
-  leave a to-do in its test case rather than an exception in the code.
+  leave a to-do in its test case rather than an exception in the code, or, if a general fix
+  isn't possible, a skip (see "To-do or skip").
 - Commit messages: a short summary of what changed, in the same plain style as the comments.
