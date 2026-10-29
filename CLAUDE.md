@@ -97,6 +97,26 @@ PW_CHANNEL= node tests/show.js "http://localhost:8000/eForm_Generator_FreeScribe
 `show.js` uses the tests' own machinery (`T.harness` in `tests/auto-detect.js`, which stops
 before running the tests when `window.eformMapperTestNoRun` is set), so the two always agree.
 
+### To-do or skip
+
+Where a test case's eForm and Auto Detect disagree and the code shouldn't change, say so in
+the case's entry in `tests/cases/index.js` (see `tests/README.md`), and pick the right one:
+
+- **To-do**: Auto Detect is wrong and should do better (a missed tick box, a field on the
+  blank page where the form has ended). It stays until fixed; take it off once it passes.
+- **Skip**: the eForm made a choice the page can't show, and Auto Detect's answer is as good,
+  so a rule to match it would cost real fields on other forms. For example: a blank after a
+  row of options that the eForm leaves out (when the same layout gets a field elsewhere), rows
+  or cells the eForm joins into one field, a field its script fills, a reference that isn't
+  a standard tag (`e$last#…`, `m$…`). Skip only what can't apply: one test, one small region
+  on one page, with a reason that names the evidence.
+
+Write skips by hand, one region each, so every one is visible in the panel with its reason.
+Don't add rules to the tests or the app that skip things automatically: they would hide
+regressions in those places. If the same kind of skip turns up across several forms, that is
+the time to consider one in `tests/auto-detect.js`, for the extra-fields test only, never for
+missed fields or tags.
+
 ## Style
 
 - Match the existing code: compact JavaScript, short local names, small arrow helpers.

@@ -203,7 +203,7 @@ window.TEST_CASE_LIST = [
       "CL489_Pg3.png"
     ],
     "todo": {
-      "extraFields": "blanks beside questions (two on page 1, one on page 2) and the open page under Return To on page 3 are taken for fields"
+      "extraFields": "the open page under Return To on page 3, where the form has ended, is taken for a field"
     },
     "skip": [
       {
@@ -325,6 +325,24 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [132, 699, 684, 26],
         "reason": "the blank after the TREATMENT NOTES heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [493, 922, 328, 27],
+        "reason": "the blank after a row of options (School/Studies: Yes No): the eForm leaves it out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [432, 944, 387, 26],
+        "reason": "the blank after the instructions on the shaded bar (If the patient is continuing to work...), like the heading bars"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [258, 800, 559, 28],
+        "reason": "the blank after a row of options (Yes No Unable to determine): the eForm leaves it out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
       }
     ]
   }
