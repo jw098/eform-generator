@@ -78,6 +78,12 @@ window.TEST_CASE_LIST = [
       {
         "test": "extraFields",
         "page": 1,
+        "region": [740, 1070, 720, 50],
+        "reason": "the blank beside the PRESENT COMPLAINT heading: fine as a field"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
         "region": [50, 1656, 980, 74],
         "reason": "the blank above the bottom boxes: fine as a field"
       }
@@ -333,6 +339,84 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [35, 1018, 780, 32],
         "reason": "the eForm splits the one ANTICIPATED DATE OF FULL RECOVERY blank into a date and a note"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [146, 168, 674, 26],
+        "reason": "the blank after the INVOICE INFORMATION heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [146, 333, 674, 25],
+        "reason": "the blank after the PATIENT INFORMATION heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [177, 398, 642, 26],
+        "reason": "the blank after the PRACTITIONER INFORMATION heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [99, 497, 721, 25],
+        "reason": "the blank after the SUBJECTIVE heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [204, 723, 616, 26],
+        "reason": "the blank after the RELEVANT PRE-ACCIDENT HISTORY heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [109, 865, 712, 26],
+        "reason": "the blank after the WORK STATUS heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [117, 52, 700, 26],
+        "reason": "the blank after the PHYSICAL EXAM heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [106, 248, 715, 34],
+        "reason": "the blank after the Diagnosis heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [389, 278, 428, 25],
+        "reason": "the blank after the PRIMARY DIAGNOSIS heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [431, 329, 386, 26],
+        "reason": "the blank after the OTHER DIAGNOSIS heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [279, 478, 542, 35],
+        "reason": "the blank after the Recommended Care Plan Treatment heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [698, 510, 120, 27],
+        "reason": "the blank after the RECOMMENDED PRE-APPROVED TREATMENT(S) heading, on its heading bar"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [132, 699, 684, 26],
+        "reason": "the blank after the TREATMENT NOTES heading, on its heading bar"
       },
       {
         "test": "extraFields",

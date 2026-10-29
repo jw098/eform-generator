@@ -3056,7 +3056,6 @@ else if (typeof exports === 'object')
   //   _split       several labels spread along one field: the field's parts (labelFields)
   //   _afterOption the label is only a tick box's own (labelFields)
   //   _ownColon    in a box, a label of its own on its row ending with a colon (labelFields)
-  //   _title       the blank after a table's title, in its title row (labelFields)
   //   caption      small words printed under a fill-in line (sectionFields)
   //   section      the heading over its column, for its name (sectionFields)
   // addField keeps only the field's own properties, so these go no further than Auto Detect.
@@ -3169,9 +3168,6 @@ else if (typeof exports === 'object')
         left = [...before.sort((a,b) => a.x0-b.x0), ...left];
         f.label = phraseText(left);
         f._words = left;
-        // (a table's title row: a heading in capitals, with no colon, alone in a bordered row only
-        // a line tall, "PHYSICAL EXAM", "PRIMARY DIAGNOSIS — IDENTIFY THE MOST SERIOUS ...")
-        if (f.box && f.height <= wh*2 && !endsWithColon(left) && headingLabel(f.label)) f._title = true;
       } else if (above.length){
         // Nothing to its left either: the line just above (a heading over a writing area)
         f.label = phraseText(above);
@@ -3188,12 +3184,10 @@ else if (typeof exports === 'object')
   //  - a blank in a table cell after a tick box's own label is no field ("☐ FIRST POST-OPERATIVE
   //    MAMMOGRAPHY"), unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____"). A
   //    printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____");
-  //  - a writing area down to the foot of the page is one only under a label ending with a colon;
-  //  - the blank after a table's title, in its title row, is no field ("PHYSICAL EXAM").
+  //  - a writing area down to the foot of the page is one only under a label ending with a colon.
   function fieldsFromLabels(fields){
     return fields.flatMap(f => {
-      const { _split, _afterOption, toEnd, _title, ...g } = f;
-      if (_title) return [];
+      const { _split, _afterOption, toEnd, ...g } = f;
       if (_split) return _split.map(part => ({ ...g, ...part }));
       if ((_afterOption && f.box || toEnd) && !endsWithColon(f._words)) return [];
       return [g];
@@ -3375,17 +3369,15 @@ else if (typeof exports === 'object')
       // what they share, or between two page-wide rules a row apart. Any other line is a fill-in
       // line: two lines one over the other without sides ("Name: ____" over "Address: ____", a
       // line over a box's edge) are no row.
-      let bounded = false, sided = false;
+      let bounded = false;
       if (top && (L.y1 - top.y2) <= line*8){
         const xa = Math.max(L.x1, top.x1) + 1, xb = Math.min(L.x2, top.x2) - 1;
-        sided = joinedBySides(clean, w, h, top, L, xa, xb, 2);
-        bounded = sided || (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2);
+        bounded = joinedBySides(clean, w, h, top, L, xa, xb, 2) ||
+                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2);
       }
-      // Only the top edge of a box or table (its sides start here and go down, not up): no field
-      // above it, even between page-wide rules (a section heading between one box's foot and the
-      // next one's top, "Diagnosis" over its table)
+      // Only the top edge of a box or table (its sides start here and go down, not up): no field above it
       const ends = [L.x1+1, L.x2-1];
-      if (!sided && ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1))) return;
+      if (!bounded && ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1))) return;
       // (an open fill-in line's space stops under the nearest line above it, over any part of it:
       // that line is the row above's, "Age at diagnosis: ____" over "Other: ____", and its words
       // aren't this line's label)
