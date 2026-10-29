@@ -117,11 +117,12 @@ regressions in those places. If the same kind of skip turns up across several fo
 the time to consider one in `tests/auto-detect.js`, for the extra-fields test only, never for
 missed fields or tags.
 
-A variation, a poorer copy of the referral form (`VARIATIONS` in `tests/auto-detect.js`), can
-skip tick boxes it has left too little of to find (a side the fax dropped, a box blurred out of
-shape), once a general rule has been tried and couldn't find them without taking letters
-too. The skips are the referral form's `variationSkip` in `tests/cases/index.js`: name each box
-and say what the variation did to it; take a box off once it's found.
+The variations (`VARIATIONS` in `tests/auto-detect.js`) are poorer copies of the pages of the
+cases marked `"variations": true`. A variation Auto Detect should do better on is a to-do, in
+the case's `variationTodo`. One can skip tick boxes it has left too little of to find (a side
+the fax dropped, a box blurred out of shape), once a general rule has been tried and couldn't
+find them without taking letters too: the case's `variationSkip` in `tests/cases/index.js`.
+Name each box and say what the variation did to it; take a box off once it's found.
 
 ## Style
 

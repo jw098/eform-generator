@@ -315,14 +315,18 @@
   function variationTests(){
     varied.forEach(({ c, entry, pages }) => {
       const group = `Poorer copies of ${c.name} (tick boxes only)`;
-      // The case's skips for its variations (its variationSkip in tests/cases/index.js)
-      const skips = entry.variationSkip || [], all = pages.flatMap(pg => pg.boxes);
-      test(`${c.name} variations: each skip names a variation and its tick boxes`, () => {
-        const none = skips.map(k => k.variation).filter(n => !VARIATIONS.some(v => v.name === n));
-        assert(!none.length, `variationSkip names variations there aren't: ${none.join(', ')}`);
+      // The case's skips and to-dos for its variations (its variationSkip and variationTodo in
+      // tests/cases/index.js)
+      const skips = entry.variationSkip || [], todos = entry.variationTodo || [], all = pages.flatMap(pg => pg.boxes);
+      const todoOf = (v, n, key) => (todos.find(k => k.variation === v.name && k.test === key && (k.page == null || Number(k.page) === n)) || {}).reason;
+      test(`${c.name} variations: each skip and to-do names a variation, and tick boxes and pages there are`, () => {
+        const none = [...skips, ...todos].map(k => k.variation).filter(n => !VARIATIONS.some(v => v.name === n));
+        assert(!none.length, `variationSkip or variationTodo names variations there aren't: ${none.join(', ')}`);
         const unknown = skips.flatMap(k => k.boxes).filter(id => !all.some(e => e.id === id));
         assert(!unknown.length, `variationSkip names tick boxes the case doesn't have: ${unknown.join(', ')}`);
-      }, { group, short: 'each skip names a variation and its tick boxes' });
+        const bad = todos.filter(k => !['ticks', 'extraTicks'].includes(k.test) || (k.page != null && !pages.some(pg => pg.n === Number(k.page))));
+        assert(!bad.length, `variationTodo names a test that isn't ticks or extraTicks, or a page without tick boxes: ${bad.map(k => `${k.variation} ${k.test} page ${k.page}`).join(', ')}`);
+      }, { group, short: 'each skip and to-do names a variation, and tick boxes and pages there are' });
       pages.forEach(({ n, of, boxes: expected, runs }) => runs.forEach(({ v, fields, map, scale }) => {
         const name = `${c.name}${of > 1 ? `, page ${n}` : ''}, ${v.name}`, short = `${of > 1 ? `page ${n}, ` : ''}${v.name}`;
         // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
@@ -343,13 +347,13 @@
         test(`${name}: each expected tick box is found`, () => {
           const { missed } = matched();
           if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
-        }, { group, short: `${short}: each expected tick box is found`,
+        }, { group, short: `${short}: each expected tick box is found`, todo: todoOf(v, n, 'ticks'),
              note: () => { const { skipped, found } = matched();
                return [...skipped].map(([k, n]) => `${n} tick ${n === 1 ? 'box' : 'boxes'} skipped: ${k.reason}`)
                  .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
         test(`${name}: no actual tick box that isn't expected`, () => {
           sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
-        }, { group, short: `${short}: no actual tick box that isn't expected` });
+        }, { group, short: `${short}: no actual tick box that isn't expected`, todo: todoOf(v, n, 'extraTicks') });
       }));
     });
   }
@@ -519,6 +523,9 @@
     `//           is found", where the variation leaves too little of them: a list of { variation,\n` +
     `//           boxes, reason }, the variation by its name in the panel and the boxes by their\n` +
     `//           names in the eForm (see tests/README.md)\n` +
+    `//   variationTodo (optional) a variation's tests it doesn't pass yet, shown as "to do": a list\n` +
+    `//           of { variation, page, test, reason }, the test ticks (each expected tick box is\n` +
+    `//           found) or extraTicks (no tick box that isn't expected); without a page, every page\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';

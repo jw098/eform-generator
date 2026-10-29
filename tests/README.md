@@ -90,11 +90,12 @@ real size, whatever made the eForm. Within an eForm:
 - **Tick boxes:** checkboxes, radio buttons, and inputs with an `Xbox` or `xMarkOnly` class.
 
 **Also test poorer copies** (a button in the panel, after a run) checks tick boxes on 15
-variations, poorer copies of the referral form made in the browser: resized as if scanned at
-another resolution, blurred, speckled, rough JPEG, tilted, faxed, printed faint, ticked by
-hand. On each, every tick box must be found (but those it skips, below) and nothing else
-taken for one. It takes about 8 seconds more, so it only runs when asked: use it when
-changing how tick boxes are found.
+variations, poorer copies made in the browser of each page with tick boxes of the cases marked
+`"variations": true` in `cases/index.js` (the referral form, the mammography requisition,
+St. Paul's RMH referral and CL489): resized as if scanned at another resolution, blurred,
+speckled, rough JPEG, tilted, faxed, printed faint, ticked by hand. On each, every tick box
+must be found (but those it skips, below) and nothing else taken for one. It takes about a
+minute more, so it only runs when asked: use it when changing how tick boxes are found.
 
 ## Reading the results
 
@@ -165,7 +166,16 @@ reason, so it shows as "to do" rather than as a failure:
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
 and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once
-it passes. The poorer copies' to-dos are the `todo: '...'` on their lines in `auto-detect.js`.
+it passes. A variation's to-dos are the case's `variationTodo` in `cases/index.js`: each names
+the variation (as the panel names it), the page (leave it out for every page), the test,
+`ticks` or `extraTicks`, and the reason:
+
+```js
+"variationTodo": [
+  { "variation": "half size (scanned at half the resolution)", "page": 1, "test": "ticks",
+    "reason": "not found yet: 28 of the 30 tick boxes" }
+]
+```
 
 Where a test can't apply to part of a page (no printed tick boxes there, say), or what Auto
 Detect does there is fine as it is (a blank it takes for a field), the boxes in that part
@@ -190,8 +200,8 @@ The test's line in the panel then says what it left out, in grey, for example
 `16 tick boxes on page 2 in (0, 170) 1500×900 skipped: no printed tick boxes here, …`.
 
 A variation can skip tick boxes too, where it leaves too little of a box to find (the fax
-drops a side of it, the blur leaves no square). The skips are the referral form's
-`variationSkip` in `cases/index.js`: each names the variation (as the panel names it) and the
+drops a side of it, the blur leaves no square). The skips are the case's `variationSkip` in
+`cases/index.js`: each names the variation (as the panel names it) and the
 boxes (by their names in the eForm), with the reason:
 
 ```js
@@ -206,4 +216,5 @@ boxes (by their names in the eForm), with the reason:
 
 They're left out of that variation's "each expected tick box is found" only; one found anyway
 still counts as found, not as an extra, and its line then says `found now, take off the skip`.
-A variation or a box that isn't there fails "each skip names a variation and its tick boxes".
+A variation, box or page that isn't there, in a skip or a to-do, fails "each skip and to-do
+names a variation, and tick boxes and pages there are".
