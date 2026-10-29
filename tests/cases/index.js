@@ -10,18 +10,18 @@
 //           { test, page, region: [x, y, width, height], reason }. The test is one of the keys
 //           above; boxes whose centre is in the region (page-image pixels) on that page are
 //           left out of it. Without a page, every page; without a region, the whole page.
-//   variations (optional) its pages with tick boxes are also tested in poorer copies when
-//           asked: "all" the variations (resized, blurred, tilted, faxed…), or "pdf", those
-//           a clean PDF can come as (rendered at another size, printed faint)
+//   variations (optional) true: its pages are also tested, tick boxes and fields, in copies
+//           as a clean PDF can come (rendered at another size, printed faint) when asked
 //   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box
 //           is found", where the variation leaves too little of them: a list of { variation,
 //           boxes, reason }, the variation by its name in the panel and the boxes by their
-//           names in the eForm; or what a variation takes for a tick box to leave out of its
-//           "no actual tick box that isn't expected": { variation, page, region: [x, y,
-//           width, height], reason }, in the page's own pixels (see tests/README.md)
+//           names in the eForm; or a region to leave out of one of its tests: { variation,
+//           test, page, region: [x, y, width, height], reason }, in the page's own pixels, the
+//           test extraTicks (without one), fields or extraFields (see tests/README.md). The
+//           case's own skips and to-dos for fields hold on its variations too.
 //   variationTodo (optional) a variation's tests it doesn't pass yet, shown as "to do": a list
-//           of { variation, page, test, reason }, the test ticks (each expected tick box is
-//           found) or extraTicks (no tick box that isn't expected); without a page, every page
+//           of { variation, page, test, reason }, the test ticks, extraTicks, fields or
+//           extraFields; without a page, every page
 window.TEST_CASE_LIST = [
   {
     "name": "Referral form",
@@ -30,31 +30,13 @@ window.TEST_CASE_LIST = [
     "images": [
       "referral_form_3c1x42_page1.png"
     ],
-    "variations": "all",
-    "variationSkip": [
+    "variations": true,
+    "variationTodo": [
       {
-        "variation": "blurred 2px",
-        "boxes": [
-          "referral_to_dr_left_1__0",
-          "referral_to_dr_right_1__3",
-          "referral_to_other_6",
-          "consent_yes_text_7",
-          "consent_yes_email_8",
-          "consent_no_9",
-          "urgency_urgent_10",
-          "urgency_semi_urgent_11",
-          "urgency_routine_12",
-          "type_epcp_completed_17"
-        ],
-        "reason": "the blur leaves too little of their shape: the ink map draws each side several pixels thick, filling most of the box and joining it to the rule beside it, and the sides' darkest lines wander and round the corners"
-      },
-      {
-        "variation": "fax (2/3 size, black and white only)",
-        "boxes": [
-          "referral_to_dr_left_2__1",
-          "referral_to_dr_right_2__4"
-        ],
-        "reason": "the fax drops their bottom side (a one-pixel line between two rows goes half grey, under the threshold), leaving \"⊓\"; taking three-sided shapes for boxes takes letters too"
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "fields",
+        "reason": "the DATE: ____ fill-in line at the top of the page isn't found at 0.7× (about 123 dpi)"
       }
     ]
   },
@@ -73,7 +55,7 @@ window.TEST_CASE_LIST = [
     "images": [
       "mammography_requisition_42630x_page1.png"
     ],
-    "variations": "pdf",
+    "variations": true,
     "skip": [
       {
         "test": "extraFields",
@@ -120,15 +102,8 @@ window.TEST_CASE_LIST = [
       "RMH_1.png",
       "RMH_2.png"
     ],
-    "variations": "pdf",
+    "variations": true,
     "variationSkip": [
-      {
-        "variation": "faint print",
-        "boxes": [
-          "urgent"
-        ],
-        "reason": "the box is printed grey (its darkest 112, where the others are black), and faint print leaves its sides at about 235 against paper at 255: under the ink threshold, so they aren't in the ink map at all; taking 20 grey levels for ink would take the paper's texture and noise too"
-      },
       {
         "variation": "0.7× size",
         "page": 2,
@@ -166,6 +141,20 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [230, 935, 640, 60],
         "reason": "blanks between tick boxes' labels in a table cell"
+      }
+    ],
+    "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 2,
+        "test": "fields",
+        "reason": "the Other: ____ line under the CURRENT RELATED BEHAVIOURS options isn't found at 0.7× (about 123 dpi)"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 2,
+        "test": "extraFields",
+        "reason": "at 0.7× the space over the Other: ____ line is taken for blanks after the Violence and Suicidal Ideation options, and a blank is found beside RELEVANT MEDICAL HISTORY / ADDITIONAL DETAILS:"
       }
     ]
   },
@@ -258,7 +247,7 @@ window.TEST_CASE_LIST = [
       "CL489_Pg2.png",
       "CL489_Pg3.png"
     ],
-    "variations": "pdf",
+    "variations": true,
     "variationSkip": [
       {
         "variation": "0.7× size",
@@ -441,6 +430,38 @@ window.TEST_CASE_LIST = [
         "page": 3,
         "region": [31, 527, 791, 536],
         "reason": "the open page under Return To, where the form has ended, taken for a writing area: fine as it is"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [530, 970, 290, 60],
+        "reason": "the blanks after the rows of options under STATUS OF DUTIES and STATUS OF HOURS (Study: Full Modified), found at some sizes: the eForm leaves them out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
+      }
+    ],
+    "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "fields",
+        "reason": "at 0.7× (about 70 dpi) the DATE OF ACCIDENT and DATE OF GP REPORT cells leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines; line is guessed from the page's height): their field isn't found"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "extraFields",
+        "reason": "at 0.7× (about 70 dpi) a table's thick bottom border splits into two rules with a thin \"row\" between them (under PAYEE ADDRESS and under PATIENT INFORMATION), the DATE OF ACCIDENT cell gets a small blank beside its label instead of its field, and the footer GP Standard Medical Report reads as a fill-in line"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 2,
+        "test": "fields",
+        "reason": "at 0.7× (about 70 dpi) the first two DIAGNOSIS rows under OTHER DIAGNOSIS leave just under the room asked for a field under a label (y2 - lowInk >= line*0.6 in textFieldsFromLines; at 1× it passes by 0.04 px): their ICD 9 CODE fields aren't found, and without a field under its neighbours' labels the DEGREE/GRADE cell has none either. Measuring the room against the page's text (rowLine) instead changes fields on four other forms"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 2,
+        "test": "extraFields",
+        "reason": "at 0.7× the DEGREE/GRADE cell missing its field gets a small blank beside \"(WAD, SPRAIN, STRAIN)\" instead (see the fields to-do), and the footer GP Standard Medical Report reads as a fill-in line"
       }
     ]
   }

@@ -1,7 +1,7 @@
 # Auto Detect tests
 
 These tests check **Auto Detect**, the button in the eForm Mapper that finds the tick boxes
-and the places to write on a scanned form and suggests their OSCAR tags.
+and the places to write on a form's page image and suggests their OSCAR tags.
 
 A **test case is a finished eForm**: the eForm HTML and its page image(s), with every box in
 the right place and the right `oscarDB` tag. Each case is a folder in `cases/` holding those
@@ -90,16 +90,17 @@ real size, whatever made the eForm. Within an eForm:
   and anything inside a `DoNotPrint` block.
 - **Tick boxes:** checkboxes, radio buttons, and inputs with an `Xbox` or `xMarkOnly` class.
 
-**Also test poorer copies** (a button in the panel, after a run) checks tick boxes on
-variations, poorer copies made in the browser of each page with tick boxes of the cases with a
-`"variations"` in `cases/index.js`. A case's `"variations"` is `"pdf"` for the 6 a clean PDF
-can come as: rendered at 0.7×, 1.5×, 2×, 2.5× or 3× the size, or printed faint (the
-mammography requisition, St. Paul's RMH referral and CL489). It is `"all"` for those and 8
-more that only a scan or a fax has: half size, blurred 1px and 2px, speckled, rough JPEG,
-tilted 1° and 2.5°, faxed (the referral form). The forms are blank, so a tick box is empty.
-On each, every tick box must be found (but those it skips, below) and nothing else taken for
-one. It takes about a minute and a half more, so it only runs when asked: use it when
-changing how tick boxes are found.
+**Also test poorer copies** (a button in the panel, after a run) checks tick boxes and fields
+on variations: copies made in the browser of each page of the cases with `"variations": true`
+in `cases/index.js` (the referral form, the mammography requisition, St. Paul's RMH referral
+and CL489), as a clean PDF can come, since eForm templates are mostly clean PDFs: rendered at
+0.7×, 1.5×, 2×, 2.5× or 3× the size, or printed faint. (Scans and faxes aren't among them.)
+The forms are blank, so a tick box is empty. On each, Auto Detect runs as on the page itself,
+reading the words too, and every tick box and field of the eForm must be found and nothing
+else taken for one, but those the case skips (below). Fields are matched as the case's own
+tests match them, and the case's own skips and to-dos for fields hold on every copy. It takes
+about two and a half minutes more, so it only runs when asked: use it when changing how tick
+boxes or fields are found.
 
 ## Reading the results
 
@@ -149,7 +150,7 @@ From then on it runs with the others.
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 | `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
 | `snapshot.js` | Prints exactly what Auto Detect finds on each case's images (no margin), to compare before and after a change that shouldn't change it. |
-| `show.js` | Draws one case page with its expected and actual boxes, matched as the tests match them (skips in grey), and saves it as a PNG: `node tests/show.js <app url#test> tests/cases/<folder>/<image> [out.png]`. |
+| `show.js` | Draws one case page with its expected and actual boxes, matched as the tests match them (skips in grey), and saves it as a PNG: `node tests/show.js <app url#test> tests/cases/<folder>/<image> [out.png]`. With `--variation "0.7× size"`, it draws what Auto Detect finds on that poorer copy instead, on the page itself. |
 
 ## To-dos
 
@@ -166,18 +167,18 @@ reason, so it shows as "to do" rather than as a failure:
 }
 ```
 
-(None of the cases has a to-do at the moment.)
+(None of the cases has a to-do of its own at the moment; some have one for a variation.)
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
 and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once
 it passes. A variation's to-dos are the case's `variationTodo` in `cases/index.js`: each names
 the variation (as the panel names it), the page (leave it out for every page), the test,
-`ticks` or `extraTicks`, and the reason:
+`ticks`, `extraTicks`, `fields` or `extraFields`, and the reason:
 
 ```js
 "variationTodo": [
-  { "variation": "half size (scanned at half the resolution)", "page": 1, "test": "ticks",
-    "reason": "not found yet: 28 of the 30 tick boxes" }
+  { "variation": "0.7× size", "page": 1, "test": "fields",
+    "reason": "the DATE: ____ fill-in line at the top of the page isn't found at 0.7× (about 123 dpi)" }
 ]
 ```
 
@@ -203,17 +204,17 @@ or `region` for the whole page:
 The test's line in the panel then says what it left out, in grey, for example
 `16 tick boxes on page 2 in (0, 170) 1500×900 skipped: no printed tick boxes here, …`.
 
-A variation can skip tick boxes too, where it leaves too little of a box to find (the fax
-drops a side of it, the blur leaves no square). The skips are the case's `variationSkip` in
-`cases/index.js`: each names the variation (as the panel names it) and the
+A variation can skip tick boxes too, where it leaves too little of a box to find (at a small
+size, a box over a rule is the same in pixels as a letter on one). The skips are the case's
+`variationSkip` in `cases/index.js`: each names the variation (as the panel names it) and the
 boxes (by their names in the eForm), with the reason:
 
 ```js
 "variationSkip": [
   {
-    "variation": "fax (2/3 size, black and white only)",
-    "boxes": ["referral_to_dr_left_2__1", "referral_to_dr_right_2__4"],
-    "reason": "the fax drops their bottom side, leaving \"⊓\"; …"
+    "variation": "0.7× size",
+    "boxes": ["Orientation2_Left", "Orientation4_Left"],
+    "reason": "at 0.7× the page is about 70 dpi, …"
   }
 ]
 ```
@@ -225,7 +226,9 @@ Where a variation takes something for a tick box that the page itself can't tell
 bold letter that is a perfect square at that size), a skip can leave it out of "no actual tick
 box that isn't expected" instead: it names the page and a small region, in the page's own
 pixels (as the case's own skips do), and anything found there, but an expected box, is left
-out. Its line says what it left out, or `nothing … now, take off the skip`:
+out. With a `test`, `fields` or `extraFields`, it leaves fields there out of that test instead
+(without one, it is `extraTicks`). Its line says what it left out, or `nothing … now, take off
+the skip`:
 
 ```js
 { "variation": "0.7× size", "page": 2, "region": [625, 1655, 35, 35],

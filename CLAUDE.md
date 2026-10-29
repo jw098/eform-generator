@@ -47,10 +47,11 @@ A fillable PDF's own form fields are taken as they are, when the page came from 
 (`pdfFormFields`). Otherwise Auto Detect works from the picture, in two passes.
 
 **Pass 1: the picture only, no OCR.** It must not rely on OCR: it finds the fields from the
-ink alone, so it works where the words can't be read (no WebAssembly SIMD, no workers) and
-in the tests' tick-box-only runs (`readWords: false`). Never move a call to
-`readPageWords`, or anything using its words, into pass 1.
-1. Straighten (`estimateSkew`), make an ink map (`clean`) and find the rules (`bands`).
+ink alone, so it works where the words can't be read (no WebAssembly SIMD, no workers;
+`readWords: false` runs it so). Never move a call to `readPageWords`, or anything using its
+words, into pass 1.
+1. Straighten (`estimateSkew`), stretch a faint page's grey levels (`stretchGrey`, also on
+   the copy OCR reads), make an ink map (`clean`) and find the rules (`bands`).
 2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
 3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
@@ -101,6 +102,8 @@ PW_CHANNEL= node tests/show.js "http://localhost:8000/eForm_Generator_FreeScribe
 
 `show.js` uses the tests' own machinery (`T.harness` in `tests/auto-detect.js`, which stops
 before running the tests when `window.eformMapperTestNoRun` is set), so the two always agree.
+Add `--variation "0.7× size"` (a variation's name) to draw what Auto Detect finds on that
+poorer copy instead, on the page itself.
 
 ### To-do or skip
 
@@ -134,16 +137,24 @@ regressions in those places. If the same kind of skip turns up across several fo
 the time to consider one in `tests/auto-detect.js`, for the extra-fields test only, never for
 missed fields or tags.
 
-The variations (`VARIATIONS` in `tests/auto-detect.js`) are poorer copies of the pages of the
-cases with a `"variations"`: `"pdf"` for those a clean PDF can come as (another size, faint
-print), `"all"` for the scan ones too (blur, specks, tilt, fax). eForm templates
-are mostly clean PDFs, so a new case takes `"pdf"`. A variation Auto Detect should do better on is a to-do, in
-the case's `variationTodo`. One can skip tick boxes it has left too little of to find (a side
-the fax dropped, a box blurred out of shape), once a general rule has been tried and couldn't
-find them without taking letters too: the case's `variationSkip` in `tests/cases/index.js`.
-Name each box and say what the variation did to it; take a box off once it's found. The same
-goes for something a variation takes for a tick box that its pixels can't tell from one (a
-bold letter that is a perfect square at that size): a skip of one small region on one page.
+The variations (`VARIATIONS` in `tests/auto-detect.js`) are copies of the pages of the cases
+with `"variations": true`, as a clean PDF can come, since eForm templates are mostly clean
+PDFs: rendered at another size (0.7× to 3×; the app renders a PDF at the width you set, up to
+1500 px) or printed faint. Don't add scan or fax variations (blur, specks, tilt, a fax's black
+and white): they test pages the forms rarely are, and tuning for them costs the clean ones. A
+new case takes `"variations": true`. Each variation is tested for both tick boxes and fields,
+with words read, as the page itself is; the case's own skips and to-dos for fields hold on its
+variations too. A variation Auto Detect should do better on is a to-do, in the case's
+`variationTodo` (`ticks`, `extraTicks`, `fields` or `extraFields`). One can skip tick boxes it
+has left too little of to find (a box over a rule that a small size leaves the same in pixels
+as a letter), once a general rule has been tried and couldn't find them without taking letters
+too: the case's `variationSkip` in `tests/cases/index.js`. Name each box and say what the
+variation did to it; take a box off once it's found. The same goes for something a variation
+takes for a tick box that its pixels can't tell from one (a bold letter that is a perfect
+square at that size): a skip of one small region on one page. A field a variation can't help
+taking or missing is a skip of one small region too (with its `test`), once a general fix has
+been tried; a variation is where a threshold fitted to one rendering shows, so try first to
+size it against the page.
 
 ## Style
 

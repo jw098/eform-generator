@@ -6,7 +6,7 @@
 // builds the eForm from what was found ("Build HTML draft"), and compares that eForm with the
 // case's: where the boxes are, and their oscarDB tags (not their names). Results show in a
 // panel at the top right, which can also add a test case, and run Auto Detect on poorer copies
-// of the cases marked "variations" (tick boxes only) when asked.
+// of the cases marked "variations" (tick boxes and fields) when asked.
 (async () => {
   const T = window.eformMapperTest;
 
@@ -236,15 +236,13 @@
     return run;
   }
 
-  // ----- Variations: tick boxes on poorer copies of the cases' pages -----
-  // The variations: poorer copies of each page of the cases marked "variations" in
-  // tests/cases/index.js that has tick boxes, made here from the page (no extra image files):
-  // resized as if rendered or scanned at another resolution, blurred, speckled, saved as a rough
-  // JPEG, tilted, turned into a fax, or printed faint. Auto Detect runs on each (without reading
-  // words) and must find the eForm's tick boxes and nothing else, but those the case's
-  // variationSkip leaves out. A case's "variations" is "all", or "pdf" for those a clean PDF can
-  // come as (a render at another size, faint print): not the ones marked scan, which only a scan
-  // or a fax has. (The forms are blank: a tick box is empty.)
+  // ----- Variations: poorer copies of the cases' pages -----
+  // The variations: copies of each page of the cases marked "variations" in tests/cases/index.js,
+  // as a clean PDF can come (eForm templates are mostly clean PDFs): rendered at another size,
+  // or printed faint. They are made here from the page (no extra image files). Auto Detect runs
+  // on each and must find the eForm's tick boxes and fields and nothing else, but those the
+  // case's skips leave out (its skip, for fields, and its variationSkip). (The forms are blank:
+  // a tick box is empty.)
   const canvasFor = (w, h) => { const c = document.createElement('canvas'); c.width = Math.round(w); c.height = Math.round(h); return c; };
   // Draw the page at k times its size (white behind it)
   const drawn = (img, k = 1) => {
@@ -259,102 +257,96 @@
     for (let i=0, j=0; j<px.length; i++, j+=4){ const v = fn(Math.round(0.299*px[j] + 0.587*px[j+1] + 0.114*px[j+2]), i); px[j] = px[j+1] = px[j+2] = v; }
     ctx.putImageData(d, 0, 0); return c;
   };
-  // Gaussian blur of the grey levels (sigma in pixels), the same in every browser
-  const blurred = (c, sigma) => {
-    const r = Math.ceil(sigma*3), k = []; let sum = 0;
-    for (let i=-r; i<=r; i++){ const v = Math.exp(-i*i/(2*sigma*sigma)); k.push(v); sum += v; }
-    const W = c.width, H = c.height, a = new Float32Array(W*H), b = new Float32Array(W*H);
-    eachGrey(c, (v, i) => { a[i] = v; return v; });
-    for (let y=0; y<H; y++) for (let x=0; x<W; x++){ let t = 0; for (let i=-r; i<=r; i++) t += k[i+r]*a[y*W + Math.min(W-1, Math.max(0, x+i))]; b[y*W+x] = t/sum; }
-    for (let y=0; y<H; y++) for (let x=0; x<W; x++){ let t = 0; for (let i=-r; i<=r; i++) t += k[i+r]*b[Math.min(H-1, Math.max(0, y+i))*W + x]; a[y*W+x] = t/sum; }
-    return eachGrey(c, (v, i) => Math.round(a[i]));
-  };
-  // Repeatable random numbers, so a speckled copy is the same every run
-  const random = (seed) => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const png = (c) => c.toDataURL('image/png');
-  const same = (k = 1) => (x, y) => [x*k, y*k];
-  const resized = (k) => (img) => ({ url: png(drawn(img, k)), map: same(k), scale: k });
-  const tilted = (deg) => (img) => {
-    // Turned anticlockwise about the middle, as a crooked scan
-    const a = deg*Math.PI/180, c = drawn(img), ctx = c.getContext('2d'), cx = c.width/2, cy = c.height/2;
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-    ctx.translate(cx, cy); ctx.rotate(-a); ctx.translate(-cx, -cy); ctx.drawImage(img, 0, 0);
-    const map = (x, y) => { const dx = x-cx, dy = y-cy; return [cx + dx*Math.cos(a) + dy*Math.sin(a), cy - dx*Math.sin(a) + dy*Math.cos(a)]; };
-    return { url: png(c), map, scale: 1 };
-  };
+  // (scale: the copy's size against the page's; what is found on it, divided by scale, is in the
+  // page's own pixels)
+  const resized = (k) => (img) => ({ url: png(drawn(img, k)), scale: k });
   const VARIATIONS = [
-    { name: 'half size (scanned at half the resolution)', scan: true, make: resized(0.5) },
     { name: '0.7× size', make: resized(0.7) },
     { name: '1.5× size', make: resized(1.5) },
     { name: '2× size', make: resized(2) },
-    { name: '2.5× size (a high-resolution scan)', make: resized(2.5) },
+    { name: '2.5× size', make: resized(2.5) },
     { name: '3× size', make: resized(3) },
-    { name: 'blurred 1px', scan: true, make: (img) => ({ url: png(blurred(drawn(img), 1)), map: same(), scale: 1 }) },
-    { name: 'blurred 2px', scan: true, make: (img) => ({ url: png(blurred(drawn(img), 2)), map: same(), scale: 1 }) },
-    { name: 'speckled (1% of pixels)', scan: true, make: (img) => { const rnd = random(1);
-        return { url: png(eachGrey(drawn(img), v => rnd() < 0.01 ? (rnd() < 0.5 ? 0 : 255) : v)), map: same(), scale: 1 }; } },
-    { name: 'rough JPEG (quality 30)', scan: true, make: (img) => ({ url: drawn(img).toDataURL('image/jpeg', 0.3), map: same(), scale: 1 }) },
-    { name: 'tilted 1°', scan: true, make: tilted(1) },
-    { name: 'tilted 2.5°', scan: true, make: tilted(2.5) },
-    { name: 'fax (2/3 size, black and white only)', scan: true, make: (img) => ({ url: png(eachGrey(drawn(img, 2/3), v => v < 160 ? 0 : 255)), map: same(2/3), scale: 2/3 }) },
-    { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), map: same(), scale: 1 }) },
+    { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), scale: 1 }) },
   ];
-  // Each case's variations, once made: { c, entry, pages: [{ n, of, boxes, runs: [{ v, fields, map, scale }] }] }
+  // Each case's variations, once made: { c, entry, pages: [{ n, of, boxes, runs: [{ v, fields, scale }] }] }
   let varied = [];
   function variationTests(){
     varied.forEach(({ c, entry, pages, vs }) => {
-      const group = `Poorer copies of ${c.name} (tick boxes only)`;
+      const group = `Poorer copies of ${c.name}`;
       // The case's skips and to-dos for its variations (its variationSkip and variationTodo in
-      // tests/cases/index.js)
+      // tests/cases/index.js), and its own skips and to-dos for fields, which hold on every copy
       const skips = entry.variationSkip || [], todos = entry.variationTodo || [], all = pages.flatMap(pg => pg.boxes);
-      const todoOf = (v, n, key) => (todos.find(k => k.variation === v.name && k.test === key && (k.page == null || Number(k.page) === n)) || {}).reason;
+      const caseSkips = Array.isArray(entry.skip) ? entry.skip : [], caseTodo = entry.todo || {};
+      const KEYS = ['ticks', 'extraTicks', 'fields', 'extraFields'];
+      const todoOf = (v, n, key) => (todos.find(k => k.variation === v.name && k.test === key && (k.page == null || Number(k.page) === n)) || {}).reason ||
+                                    (key === 'fields' || key === 'extraFields' ? caseTodo[key] : undefined);
       test(`${c.name} variations: each skip and to-do names a variation, and tick boxes and pages there are`, () => {
         const none = [...skips, ...todos].map(k => k.variation).filter(n => !vs.some(v => v.name === n));
         assert(!none.length, `variationSkip or variationTodo names variations the case doesn't run: ${none.join(', ')}`);
-        const unknown = skips.flatMap(k => k.boxes || []).filter(id => !all.some(e => e.id === id));
+        const unknown = skips.flatMap(k => k.boxes || []).filter(id => !all.some(e => e.id === id && e.kind === 'tick'));
         assert(!unknown.length, `variationSkip names tick boxes the case doesn't have: ${unknown.join(', ')}`);
-        const odd = skips.filter(k => !k.boxes === !k.region || (k.region && (k.region.length !== 4 || !pages.some(pg => pg.n === Number(k.page)))));
-        assert(!odd.length, `a variationSkip needs either boxes, or a region [x, y, width, height] and a page with tick boxes: ${odd.map(k => k.variation).join(', ')}`);
-        const bad = todos.filter(k => !['ticks', 'extraTicks'].includes(k.test) || (k.page != null && !pages.some(pg => pg.n === Number(k.page))));
-        assert(!bad.length, `variationTodo names a test that isn't ticks or extraTicks, or a page without tick boxes: ${bad.map(k => `${k.variation} ${k.test} page ${k.page}`).join(', ')}`);
+        const odd = skips.filter(k => !k.boxes === !k.region || (k.region && (k.region.length !== 4 || !pages.some(pg => pg.n === Number(k.page)))) ||
+                                      (k.boxes && k.test) || (k.region && k.test && !['extraTicks', 'fields', 'extraFields'].includes(k.test)));
+        assert(!odd.length, `a variationSkip needs either boxes, or a region [x, y, width, height], a page and a test (extraTicks, fields or extraFields): ${odd.map(k => k.variation).join(', ')}`);
+        const bad = todos.filter(k => !KEYS.includes(k.test) || (k.page != null && !pages.some(pg => pg.n === Number(k.page))));
+        assert(!bad.length, `variationTodo names a test that isn't ${KEYS.join(', ')}, or a page the case doesn't have: ${bad.map(k => `${k.variation} ${k.test} page ${k.page}`).join(', ')}`);
       }, { group, short: 'each skip and to-do names a variation, and tick boxes and pages there are' });
-      pages.forEach(({ n, of, boxes: expected, runs }) => runs.forEach(({ v, fields, map, scale }) => {
+      pages.forEach(({ n, of, boxes: expected, runs }) => runs.forEach(({ v, fields, scale }) => {
         const name = `${c.name}${of > 1 ? `, page ${n}` : ''}, ${v.name}`, short = `${of > 1 ? `page ${n}, ` : ''}${v.name}`;
-        // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
-        // box is found"; one found anyway still matches, so it isn't counted as an extra. A skip
-        // with a region (in the page's own pixels) leaves what's found there, other than an
-        // expected box, out of "no actual tick box that isn't expected".
+        // What was found, in the page's own pixels
+        const found = fields.map(f => ({ ...f, x: f.x/scale, y: f.y/scale, width: f.width/scale, height: f.height/scale }));
+        const ticks = expected.filter(e => e.kind === 'tick');
+        // A skip leaves the tick boxes it names (by their name in the eForm) out of "each expected
+        // tick box is found"; one found anyway still matches, so it isn't counted as an extra. A
+        // skip with a region (in the page's own pixels) leaves what's there out of its test (an
+        // extra tick box when it names no test), as the case's own skips do for its fields.
         const skipOf = (e) => skips.find(k => k.variation === v.name && (k.boxes || []).includes(e.id));
-        const regions = skips.filter(k => k.variation === v.name && k.region && Number(k.page) === n).map(k => {
-          const [x, y, w, h] = k.region, cs = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].map(([a, b]) => map(a, b));
-          return { k, x1: Math.min(...cs.map(q => q[0])), x2: Math.max(...cs.map(q => q[0])), y1: Math.min(...cs.map(q => q[1])), y2: Math.max(...cs.map(q => q[1])) };
-        });
-        const regionOf = (f) => { const cx = f.x + f.width/2, cy = f.y + f.height/2; return regions.find(r => cx >= r.x1 && cx <= r.x2 && cy >= r.y1 && cy <= r.y2); };
-        // Each box found once, by its centre (within 8 pixels at the page's own size)
+        const inside = (b, [x, y, w, h]) => { const cx = b.x + b.width/2, cy = b.y + b.height/2; return cx >= x && cx <= x + w && cy >= y && cy <= y + h; };
+        const regionOf = (key, b) => skips.find(k => k.variation === v.name && k.region && Number(k.page) === n && (k.test || 'extraTicks') === key && inside(b, k.region)) ||
+          ((key === 'fields' || key === 'extraFields') && caseSkips.find(k => k.test === key && (k.page == null || Number(k.page) === n) && (!k.region || inside(b, k.region))));
+        const regions = (key) => skips.filter(k => k.variation === v.name && k.region && Number(k.page) === n && (k.test || 'extraTicks') === key);
+        // Each tick box found once, by its centre (within 8 pixels of the page's own)
         const matched = () => {
-          const left = fields.filter(f => f.kind === 'tick'), missed = [], skipped = new Map(), found = [];
-          expected.forEach(e => {
-            const [X, Y] = map(e.x + e.width/2, e.y + e.height/2);
-            const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8*scale), k = skipOf(e);
-            if (k){ skipped.set(k, (skipped.get(k) || 0) + 1); if (i >= 0) found.push(e.id); }
+          const left = found.filter(f => f.kind === 'tick'), missed = [], skipped = new Map(), got = [];
+          ticks.forEach(e => {
+            const X = e.x + e.width/2, Y = e.y + e.height/2;
+            const i = left.findIndex(f => Math.hypot(f.x + f.width/2 - X, f.y + f.height/2 - Y) < 8), k = skipOf(e);
+            if (k){ skipped.set(k, (skipped.get(k) || 0) + 1); if (i >= 0) got.push(e.id); }
             if (i >= 0) left.splice(i, 1); else if (!k) missed.push(`expected ${where(e)}`);
           });
-          const outside = left.filter(f => !regionOf(f)), inRegions = new Map(regions.map(r => [r.k, left.filter(f => regionOf(f) === r).length]));
-          return { missed, extra: outside, skipped, found, inRegions };
+          return { missed, extra: left.filter(f => !regionOf('extraTicks', f)), skipped, found: got, inRegions: regionCounts('extraTicks', left) };
         };
-        const counted = () => expected.filter(e => !skipOf(e)).length;
-        test(`${name}: each expected tick box is found`, () => {
-          const { missed } = matched();
-          if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
-        }, { group, short: `${short}: each expected tick box is found`, todo: todoOf(v, n, 'ticks'),
-             note: () => { const { skipped, found } = matched();
-               return [...skipped].map(([k, n]) => `${n} tick ${n === 1 ? 'box' : 'boxes'} skipped: ${k.reason}`)
-                 .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
-        test(`${name}: no actual tick box that isn't expected`, () => {
-          sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
-        }, { group, short: `${short}: no actual tick box that isn't expected`, todo: todoOf(v, n, 'extraTicks'),
-             note: () => [...matched().inRegions].map(([k, m]) => m ? `${m} ${m === 1 ? 'thing' : 'things'} taken for a tick box in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]} skipped: ${k.reason}`
-               : `nothing taken for a tick box in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]} now, take off the skip`).join('\n') });
+        // How many things each of the variation's regions for a test left out
+        const regionCounts = (key, things) => new Map(regions(key).map(k => [k, things.filter(f => regionOf(key, f) === k).length]));
+        const regionNote = (counts, one, many) => [...counts].map(([k, m]) => m ? `${m} ${m === 1 ? one : many} in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]} skipped: ${k.reason}`
+          : `nothing in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]} now, take off the skip`).join('\n');
+        const counted = () => ticks.filter(e => !skipOf(e)).length;
+        if (ticks.length){
+          test(`${name}: each expected tick box is found`, () => {
+            const { missed } = matched();
+            if (missed.length) throw new Error(`actual: found ${counted() - missed.length} of the ${counted()} expected tick boxes; missing:\n  ${missed.join('\n  ')}`);
+          }, { group, short: `${short}: each expected tick box is found`, todo: todoOf(v, n, 'ticks'),
+               note: () => { const { skipped, found } = matched();
+                 return [...skipped].map(([k, n]) => `${n} tick ${n === 1 ? 'box' : 'boxes'} skipped: ${k.reason}`)
+                   .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
+          test(`${name}: no actual tick box that isn't expected`, () => {
+            sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
+          }, { group, short: `${short}: no actual tick box that isn't expected`, todo: todoOf(v, n, 'extraTicks'),
+               note: () => regionNote(matched().inRegions, 'thing taken for a tick box', 'things taken for a tick box') });
+        }
+        // Fields, matched as the case's own tests match them
+        const writes = expected.filter(e => e.kind === 'write');
+        if (!writes.length) return;
+        const r = () => compare(writes, found.filter(f => f.kind === 'write'));
+        test(`${name}: each expected field is found`, () => {
+          sameList(r().missing.filter(e => !regionOf('fields', e)).map(e => `expected ${where(e, false)}`), [], 'expected, but not found');
+        }, { group, short: `${short}: each expected field is found`, todo: todoOf(v, n, 'fields'),
+             note: () => regionNote(regionCounts('fields', r().missing), 'field', 'fields') });
+        test(`${name}: no actual field that isn't expected`, () => {
+          sameList(r().extra.filter(f => !regionOf('extraFields', f)).map(f => `actual ${where(f, false)}`), [], 'found, but not expected');
+        }, { group, short: `${short}: no actual field that isn't expected`, todo: todoOf(v, n, 'extraFields'),
+             note: () => regionNote(regionCounts('extraFields', r().extra), 'field', 'fields') });
       }));
     });
   }
@@ -445,11 +437,8 @@
       varied = [];
       for (const entry of entries.filter(e => e.variations && loaded[e.folder])){
         const c = loaded[entry.folder], all = await eformPages(c.html, c.images), pages = [];
-        const vs = VARIATIONS.filter(v => entry.variations === 'all' || !v.scan);
-        for (const pg of all){
-          const boxes = pg.boxes.filter(e => e.kind === 'tick');
-          if (boxes.length) pages.push({ n: pg.n, of: all.length, boxes, img: pg.imgData, runs: [] });
-        }
+        const vs = VARIATIONS;
+        for (const pg of all) if (pg.boxes.length) pages.push({ n: pg.n, of: all.length, boxes: pg.boxes, img: pg.imgData, runs: [] });
         varied.push({ c, entry, pages, vs });
       }
       const total = varied.reduce((s, k) => s + k.pages.length*k.vs.length, 0);
@@ -459,8 +448,11 @@
         for (const v of vs){
           progress(`poorer copies: processing ${++done} of ${total} (${c.name}${pg.of > 1 ? `, page ${pg.n}` : ''}, ${v.name})…`);
           const made = v.make(base);
-          pg.runs.push({ v, map: made.map, scale: made.scale,
-                         fields: await detectOn(nextPage, made.url, `${entry.folder} (${v.name}).png`, { readWords: false }, done === total) });
+          // (measured as the case's own tests measure what is found: in the eForm built from it)
+          await detectOn(nextPage, made.url, `${entry.folder} (${v.name}).png`, {});
+          const draft = draftOf(nextPage, 1), built = (await eformPages(draft.html, draft.images))[0] || { boxes: [] };
+          if (done !== total) onShow.set(nextPage, []);
+          pg.runs.push({ v, scale: made.scale, fields: built.boxes });
         }
       }
       nextPage++;
@@ -519,18 +511,18 @@
     `//           { test, page, region: [x, y, width, height], reason }. The test is one of the keys\n` +
     `//           above; boxes whose centre is in the region (page-image pixels) on that page are\n` +
     `//           left out of it. Without a page, every page; without a region, the whole page.\n` +
-    `//   variations (optional) its pages with tick boxes are also tested in poorer copies when\n` +
-    `//           asked: "all" the variations (resized, blurred, tilted, faxed…), or "pdf", those\n` +
-    `//           a clean PDF can come as (rendered at another size, printed faint)\n` +
+    `//   variations (optional) true: its pages are also tested, tick boxes and fields, in copies\n` +
+    `//           as a clean PDF can come (rendered at another size, printed faint) when asked\n` +
     `//   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box\n` +
     `//           is found", where the variation leaves too little of them: a list of { variation,\n` +
     `//           boxes, reason }, the variation by its name in the panel and the boxes by their\n` +
-    `//           names in the eForm; or what a variation takes for a tick box to leave out of its\n` +
-    `//           "no actual tick box that isn't expected": { variation, page, region: [x, y,\n` +
-    `//           width, height], reason }, in the page's own pixels (see tests/README.md)\n` +
+    `//           names in the eForm; or a region to leave out of one of its tests: { variation,\n` +
+    `//           test, page, region: [x, y, width, height], reason }, in the page's own pixels, the\n` +
+    `//           test extraTicks (without one), fields or extraFields (see tests/README.md). The\n` +
+    `//           case's own skips and to-dos for fields hold on its variations too.\n` +
     `//   variationTodo (optional) a variation's tests it doesn't pass yet, shown as "to do": a list\n` +
-    `//           of { variation, page, test, reason }, the test ticks (each expected tick box is\n` +
-    `//           found) or extraTicks (no tick box that isn't expected); without a page, every page\n` +
+    `//           of { variation, page, test, reason }, the test ticks, extraTicks, fields or\n` +
+    `//           extraFields; without a page, every page\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';
@@ -608,10 +600,10 @@
   copiesBox.style.cssText = 'margin:6px 0';
   const copiesBtn = document.createElement('button');
   copiesBtn.textContent = 'Also test poorer copies';
-  copiesBtn.title = 'Tick boxes on poorer copies of each page of the cases marked "variations": resized, printed faint, and for some blurred, tilted, faxed…';
+  copiesBtn.title = 'Tick boxes and fields on poorer copies of each page of the cases marked "variations", as a clean PDF can come: resized, printed faint';
   const copiesNote = document.createElement('span');
   copiesNote.style.cssText = 'margin-left:8px;color:#555;font-size:12px';
-  copiesNote.textContent = 'checks tick boxes on poorer copies; takes about 30 seconds';
+  copiesNote.textContent = 'checks tick boxes and fields on poorer copies; takes a few minutes';
   copiesBtn.onclick = async () => { copiesBox.remove(); await runCopies(); };
   copiesBox.append(copiesBtn, copiesNote);
 
@@ -657,7 +649,7 @@
   }
   // The machinery, for tests/show.js (which draws a case's expected and actual boxes). With
   // window.eformMapperTestNoRun set before this file loads, it stops here: no tests, no panel.
-  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare };
+  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare, VARIATIONS };
   if (window.eformMapperTestNoRun) return;
   render();
   document.body.appendChild(panel);

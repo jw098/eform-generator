@@ -8,8 +8,12 @@
 // Each box is labelled with its tag (the expected tag for a match). Also prints the same as a
 // list, with each skip's reason and the case's to-dos.
 //
-//   node tests/show.js <app url ending in #test> <page image> [out.png]
+//   node tests/show.js <app url ending in #test> <page image> [out.png] [--variation "<name>"]
 //
+// With --variation, Auto Detect runs on that poorer copy of the page (a variation's name as the
+// panel shows it, "0.7× size", "faint print"), and what it found is drawn on the page itself,
+// with the variation's skips (its variationSkip, and the case's own skips for fields). (Tick
+// boxes are matched here as fields are, not by their centre as the variation tests do.)
 // The page image is one of a case's, as tests/cases/index.js lists it, e.g.
 // tests/cases/referral-form/referral_form_3c1x42_page1.png. Without out.png, the picture is
 // saved beside where you run it, as <image name>.compare.png. The app must be served over http, as for ci.js. Uses the Chrome
@@ -19,12 +23,14 @@ const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 
 (async () => {
-  const [url, image, outArg] = process.argv.slice(2);
-  if (!url || !image) { console.error('usage: node tests/show.js <app url ending in #test> <page image> [out.png]'); process.exit(2); }
+  const args = process.argv.slice(2), vi = args.indexOf('--variation'), variation = vi >= 0 ? args[vi + 1] : null;
+  if (vi >= 0) args.splice(vi, 2);
+  const [url, image, outArg] = args;
+  if (!url || !image || (vi >= 0 && !variation)) { console.error('usage: node tests/show.js <app url ending in #test> <page image> [out.png] [--variation "<name>"]'); process.exit(2); }
   const m = image.replace(/\\/g, '/').match(/(?:^|\/)cases\/([^/]+)\/([^/]+)$/);
   if (!m) { console.error('the page image must be in a case folder: tests/cases/<folder>/<image>'); process.exit(2); }
   const [, folder, file] = m;
-  const out = outArg || path.basename(file).replace(/\.[^.]+$/, '') + '.compare.png';
+  const out = outArg || path.basename(file).replace(/\.[^.]+$/, '') + (variation ? ` (${variation})` : '') + '.compare.png';
   const channel = process.env.PW_CHANNEL ?? 'chrome';
   const browser = await chromium.launch(channel ? { channel } : {});
   let failed = false;
@@ -34,7 +40,7 @@ const fs = require('fs'), path = require('path');
     await page.addInitScript(() => { window.eformMapperTestNoRun = true; });
     await page.goto(url);
     await page.waitForFunction(() => window.eformMapperTest && window.eformMapperTest.harness, null, { timeout: 60000 });
-    const res = await page.evaluate(async ({ folder, file }) => {
+    const res = await page.evaluate(async ({ folder, file, variation }) => {
       const T = window.eformMapperTest, H = T.harness;
       await H.loadScript('tests/cases/index.js');
       const entry = (window.TEST_CASE_LIST || []).find(e => e.folder === folder);
@@ -42,15 +48,24 @@ const fs = require('fs'), path = require('path');
       const c = await H.loadCase(entry, H.fromServer());
       const pg = (await H.eformPages(c.html, c.images)).find(p => p.file === file);
       if (!pg) throw new Error(`"${file}" isn't one of the case's pages (${entry.images.join(', ')})`);
-      // Auto Detect on this page alone, then the eForm built from what it found, read like the case's
-      await H.detectOn(1, pg.imgData, pg.file);
-      const draft = H.draftOf(1, 1);
-      const built = (await H.eformPages(draft.html, draft.images))[0] || { boxes: [] };
+      // Auto Detect on this page alone (or its poorer copy), then the eForm built from what it
+      // found, read like the case's, in the page's own pixels
+      const V = variation ? H.VARIATIONS.find(v => v.name === variation) : null;
+      if (variation && !V) throw new Error(`no variation "${variation}"; they are: ${H.VARIATIONS.map(v => v.name).join(', ')}`);
+      const made = V ? V.make(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = pg.imgData; })) : { url: pg.imgData, scale: 1 };
+      await H.detectOn(1, made.url, pg.file);
+      const draft = H.draftOf(1, 1), k = made.scale;
+      const built = { boxes: (((await H.eformPages(draft.html, draft.images))[0] || { boxes: [] }).boxes)
+                               .map(b => ({ ...b, x: b.x/k, y: b.y/k, width: b.width/k, height: b.height/k })) };
       const r = H.compare(pg.boxes, built.boxes);
       // The case's skips, as the tests apply them: by test, page and the box's centre
       const inside = (b, [x, y, w, h]) => { const cx = b.x + b.width/2, cy = b.y + b.height/2; return cx >= x && cx <= x + w && cy >= y && cy <= y + h; };
+      // (a variation: its variationSkip too, and the case's own skips for fields only)
+      const vskips = V ? (entry.variationSkip || []).filter(k => k.variation === V.name) : [];
       const skipFor = (key, b) => (Array.isArray(entry.skip) ? entry.skip : [])
-        .find(k => k.test === key && (k.page == null || Number(k.page) === pg.n) && (!k.region || inside(b, k.region)));
+        .find(k => k.test === key && (!V || key === 'fields' || key === 'extraFields') && (k.page == null || Number(k.page) === pg.n) && (!k.region || inside(b, k.region))) ||
+        vskips.find(k => (k.boxes && key === 'ticks' && k.boxes.includes(b.id)) ||
+                         (k.region && Number(k.page) === pg.n && (k.test || 'extraTicks') === key && inside(b, k.region)));
 
       const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = pg.imgData; });
       const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
@@ -97,7 +112,7 @@ const fs = require('fs'), path = require('path');
         ` (${problems} not skipped, ${skipped.length} skipped)`;
       const todos = Object.entries(entry.todo || {}).map(([k, v]) => `to do (${k}): ${v}`);
       return { png: cv.toDataURL('image/png'), summary, lines, skipped, todos };
-    }, { folder, file });
+    }, { folder, file, variation });
     fs.writeFileSync(out, Buffer.from(res.png.split(',')[1], 'base64'));
     console.log(res.summary);
     res.lines.forEach(l => console.log('  ' + l));

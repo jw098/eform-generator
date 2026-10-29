@@ -1,6 +1,7 @@
 # Runs the Auto Detect tests (tests/README.md) in the Chrome that GitHub's Ubuntu runners come
 # with, so no browser is downloaded: only Playwright's small npm package, to drive it.
-# Each run also tests the poorer copies of the referral form (--variations).
+# Each run also tests the poorer copies of the cases marked "variations" (--variations): tick
+# boxes and fields, as a clean PDF can come.
 name: Auto Detect tests
 on:
   push:
