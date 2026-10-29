@@ -11,8 +11,8 @@
 //           above; boxes whose centre is in the region (page-image pixels) on that page are
 //           left out of it. Without a page, every page; without a region, the whole page.
 //   variations (optional) its pages with tick boxes are also tested in poorer copies when
-//           asked: "all" the variations (resized, blurred, faxed, ticked by hand…), or "pdf",
-//           those a clean PDF can come as (rendered at another size, printed faint)
+//           asked: "all" the variations (resized, blurred, tilted, faxed…), or "pdf", those
+//           a clean PDF can come as (rendered at another size, printed faint)
 //   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box
 //           is found", where the variation leaves too little of them: a list of { variation,
 //           boxes, reason }, the variation by its name in the panel and the boxes by their
@@ -53,15 +53,6 @@ window.TEST_CASE_LIST = [
           "referral_to_dr_right_2__4"
         ],
         "reason": "the fax drops their bottom side (a one-pixel line between two rows goes half grey, under the threshold), leaving \"⊓\"; taking three-sided shapes for boxes takes letters too"
-      },
-      {
-        "variation": "ticked by hand (✗ inside, or ✓ running out of the box)",
-        "boxes": [
-          "referral_to_dr_left_2__1",
-          "consent_yes_text_7",
-          "type_revised_referral_16"
-        ],
-        "reason": "the ✓ runs out of the box into what is printed beside it (the box above, a rule, the next word) and reads as ink joined on; its stroke can't be told from a letter joined on by the pixels around one box"
       }
     ]
   },
@@ -165,7 +156,7 @@ window.TEST_CASE_LIST = [
         "variation": "0.7× size",
         "page": 2,
         "test": "extraTicks",
-        "reason": "2 things taken for a tick box yet"
+        "reason": "the bold D of \"DETAILS\" in a heading: at 0.7× its curve fills its corners and its inside is empty, so it looks like a box; only the line of capitals it is in says it is a letter"
       },
       {
         "variation": "faint print",
@@ -419,46 +410,10 @@ window.TEST_CASE_LIST = [
         "reason": "not found yet: 22 of the 30 tick boxes"
       },
       {
-        "variation": "3× size",
-        "page": 1,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
         "variation": "0.7× size",
         "page": 2,
         "test": "ticks",
         "reason": "not found yet: 2 of the 29 tick boxes"
-      },
-      {
-        "variation": "1.5× size",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
-      },
-      {
-        "variation": "2× size",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "3 things taken for a tick box yet"
-      },
-      {
-        "variation": "2.5× size (a high-resolution scan)",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "4 things taken for a tick box yet"
-      },
-      {
-        "variation": "3× size",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "4 things taken for a tick box yet"
-      },
-      {
-        "variation": "faint print",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "1 thing taken for a tick box yet"
       }
     ]
   }

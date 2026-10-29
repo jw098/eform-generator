@@ -93,10 +93,10 @@ real size, whatever made the eForm. Within an eForm:
 variations, poorer copies made in the browser of each page with tick boxes of the cases with a
 `"variations"` in `cases/index.js`. A case's `"variations"` is `"pdf"` for the 6 a clean PDF
 can come as: rendered at 0.7×, 1.5×, 2×, 2.5× or 3× the size, or printed faint (the
-mammography requisition, St. Paul's RMH referral and CL489). It is `"all"` for those and 9
-more that only a scan, a fax or a filled-in form has: half size, blurred 1px and 2px,
-speckled, rough JPEG, tilted 1° and 2.5°, faxed, ticked by hand (the referral form). On
-each, every tick box must be found (but those it skips, below) and nothing else taken for
+mammography requisition, St. Paul's RMH referral and CL489). It is `"all"` for those and 8
+more that only a scan or a fax has: half size, blurred 1px and 2px, speckled, rough JPEG,
+tilted 1° and 2.5°, faxed (the referral form). The forms are blank, so a tick box is empty.
+On each, every tick box must be found (but those it skips, below) and nothing else taken for
 one. It takes about a minute and a half more, so it only runs when asked: use it when
 changing how tick boxes are found.
 

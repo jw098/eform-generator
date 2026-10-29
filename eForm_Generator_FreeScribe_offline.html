@@ -2453,16 +2453,18 @@ else if (typeof exports === 'object')
   // ===== Tick-box test (added by FreeScribe) =====
   // Letters such as O, D, P, B and 0 look box-like: an O's curve covers each side's band, and
   // a P's bowl with its stem looks like a square. A printed tick box has four
-  // straight sides meeting in square corners, a (nearly) empty inside, and nothing touching it
-  // from outside.
+  // straight sides meeting in square corners, an empty inside (the forms are blank), and nothing
+  // touching it from outside.
+  // The grey image is judged where a box has at least this much between its darkest pixel and
+  // the paper: faint print has little more (a 1-pixel side of "faint print" 75 levels at most)
+  const GREY_RANGE = 20;
   // How much of a box's inside (inside its outline band) is ink, on the grey image: darker than
   // halfway between the box's darkest pixel and the paper. A blurred outline's halo is lighter
-  // than that and doesn't count, as it does on the ink map (which takes soft edges for ink);
-  // a tick or a cross still counts.
+  // than that and doesn't count, as it does on the ink map (which takes soft edges for ink).
   function inkInside(gray,w,x1,y1,x2,y2,band){
     let lo = 255, hi = 0;
     for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
-    if (hi - lo < 40) return 0;
+    if (hi - lo < GREY_RANGE) return 0;
     const mid = (lo + hi) / 2, ix1 = x1+band, iy1 = y1+band, ix2 = x2-band, iy2 = y2-band;
     if (ix2 < ix1 || iy2 < iy1) return 0;
     let n = 0;
@@ -2500,7 +2502,7 @@ else if (typeof exports === 'object')
     // unbroken even on a poor scan; letters' strokes leave gaps.
     let lo = 255, hi = 0;
     for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
-    if (hi - lo >= 40){
+    if (hi - lo >= GREY_RANGE){
       const paper = hi - (hi - lo)*0.2, dark = (x,y) => gray[y*w+x] < paper;
       const colDark = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(dark(x,y)) return true; return false; };
       const rowDark = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(dark(x,y)) return true; return false; };
@@ -2510,16 +2512,15 @@ else if (typeof exports === 'object')
     // Square corners: ink right at each corner (an O's curve leaves its corners empty)
     const corner = (cx,cy) => countOnInRect(clean,w,h,cx,cy,cx+band-1,cy+band-1) > 0;
     if (!(corner(x1,y1) && corner(x2-band+1,y1) && corner(x1,y2-band+1) && corner(x2-band+1,y2-band+1))) return false;
-    // Inside: empty, or a tick / cross at most
+    // Inside: empty, as on a blank form. Its middle (two side bands in, past a blurred side's
+    // halo) is paper, on the grey image, but a speck: a letter's middle has its strokes (the bowls
+    // of the B in "Bilat.", with the i beside it taken for the box's right side; "IS"). Up to a
+    // quarter, for a side blurred far into a small box.
     const ix1=x1+band+1, iy1=y1+band+1, ix2=x2-band-1, iy2=y2-band-1;
     if (ix2 > ix1 && iy2 > iy1){
-      // (at most 60%, on the grey image: the ink map's soft edges count a blurred outline's halo,
-      // and fill the paper between a cross's arms in a small box)
-      const inner = inkInside(gray,w,x1,y1,x2,y2,band+1);
-      if (inner > 0.6) return false;
-      // A bar straight across the middle third, joining both sides, makes a B, E, 8 or H; a tick
-      // or a cross runs at a slant. Looked for on the grey image (the ink map thickens a cross's
-      // arms into a bar), bridging a pixel or two where a B's bowls meet.
+      if (inkInside(gray,w,x1,y1,x2,y2,2*band) > 0.25) return false;
+      // A bar straight across the middle third, joining both sides, makes a B, E, 8 or H.
+      // Looked for on the grey image, bridging a pixel or two where a B's bowls meet.
       const mid = (lo + hi) / 2, ink = (x,y) => gray[y*w+x] < mid;
       const slack = Math.max(1, Math.round(bw*0.08));
       for (let y=Math.ceil(y1+bh/3); y<=Math.floor(y2-bh/3); y++){
@@ -2576,7 +2577,7 @@ else if (typeof exports === 'object')
     const paperRow = (y) => { for (let x=x1; x<=x2; x++) if (gray[y*w+x] < hi - (hi - lo)*0.05) return false; return true; };
     // (a side at y, with the outside towards step: -1 above, 1 below)
     const ruleOver = (y, step) => {
-      if (hi - lo < 40 || !standsApart(clean,w,h,x1,y1,x2,y2)) return false;
+      if (hi - lo < GREY_RANGE || !standsApart(clean,w,h,x1,y1,x2,y2)) return false;
       for (let k=0; k<band; k++) if (rowRule(y - step*k)) return false;              // (the side is a rule itself)
       let gap = false;
       for (let k=1; k<=near; k++){ if (paperRow(y + step*k)) gap = true; if (gap && rowRule(y + step*k)) return true; }
@@ -3806,8 +3807,7 @@ else if (typeof exports === 'object')
       // Robust for thin-border PDF checkboxes that don't form a single connected component.
       const minSzPx = Math.max(4, Math.round(minNat * s));
       const maxSzPx = Math.round(maxNat * s);
-      // (isRealBox judges the inside, on the grey image: the ink map's inside test here would turn
-      // away a box with a thick tick or a cross in it)
+      // (isRealBox judges the inside, on the grey image, where a blurred side's halo isn't ink)
       const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, 0.40, 1,
         (x1,y1,x2,y2) => isRealBox(clean, w, h, x1, y1, x2, y2, gray));
       rectCandidates.forEach(r => {

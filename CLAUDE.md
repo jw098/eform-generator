@@ -38,6 +38,11 @@ A test case's expected tags follow the same rule. (OSCAR measurement references 
 
 ## Auto Detect, in order (`detectCurrentPage`)
 
+The forms are blank templates, mostly clean PDFs rendered at some size, sometimes a scan or a
+fax. A rule may rely on that: a tick box is empty (`isRealBox` turns away ink in a box's
+middle, which is how a letter such as the B in "Bilat." is told from a box), and nothing is
+filled in or ticked by hand. Don't loosen a rule for filled-in forms.
+
 A fillable PDF's own form fields are taken as they are, when the page came from one
 (`pdfFormFields`). Otherwise Auto Detect works from the picture, in two passes.
 
@@ -119,7 +124,7 @@ missed fields or tags.
 
 The variations (`VARIATIONS` in `tests/auto-detect.js`) are poorer copies of the pages of the
 cases with a `"variations"`: `"pdf"` for those a clean PDF can come as (another size, faint
-print), `"all"` for the scan ones too (blur, specks, tilt, fax, hand ticks). eForm templates
+print), `"all"` for the scan ones too (blur, specks, tilt, fax). eForm templates
 are mostly clean PDFs, so a new case takes `"pdf"`. A variation Auto Detect should do better on is a to-do, in
 the case's `variationTodo`. One can skip tick boxes it has left too little of to find (a side
 the fax dropped, a box blurred out of shape), once a general rule has been tried and couldn't
