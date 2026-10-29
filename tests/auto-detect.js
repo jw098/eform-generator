@@ -311,16 +311,25 @@
       test(`${c.name} variations: each skip and to-do names a variation, and tick boxes and pages there are`, () => {
         const none = [...skips, ...todos].map(k => k.variation).filter(n => !vs.some(v => v.name === n));
         assert(!none.length, `variationSkip or variationTodo names variations the case doesn't run: ${none.join(', ')}`);
-        const unknown = skips.flatMap(k => k.boxes).filter(id => !all.some(e => e.id === id));
+        const unknown = skips.flatMap(k => k.boxes || []).filter(id => !all.some(e => e.id === id));
         assert(!unknown.length, `variationSkip names tick boxes the case doesn't have: ${unknown.join(', ')}`);
+        const odd = skips.filter(k => !k.boxes === !k.region || (k.region && (k.region.length !== 4 || !pages.some(pg => pg.n === Number(k.page)))));
+        assert(!odd.length, `a variationSkip needs either boxes, or a region [x, y, width, height] and a page with tick boxes: ${odd.map(k => k.variation).join(', ')}`);
         const bad = todos.filter(k => !['ticks', 'extraTicks'].includes(k.test) || (k.page != null && !pages.some(pg => pg.n === Number(k.page))));
         assert(!bad.length, `variationTodo names a test that isn't ticks or extraTicks, or a page without tick boxes: ${bad.map(k => `${k.variation} ${k.test} page ${k.page}`).join(', ')}`);
       }, { group, short: 'each skip and to-do names a variation, and tick boxes and pages there are' });
       pages.forEach(({ n, of, boxes: expected, runs }) => runs.forEach(({ v, fields, map, scale }) => {
         const name = `${c.name}${of > 1 ? `, page ${n}` : ''}, ${v.name}`, short = `${of > 1 ? `page ${n}, ` : ''}${v.name}`;
         // A skip leaves the boxes it names (by their name in the eForm) out of "each expected tick
-        // box is found"; one found anyway still matches, so it isn't counted as an extra
-        const skipOf = (e) => skips.find(k => k.variation === v.name && k.boxes.includes(e.id));
+        // box is found"; one found anyway still matches, so it isn't counted as an extra. A skip
+        // with a region (in the page's own pixels) leaves what's found there, other than an
+        // expected box, out of "no actual tick box that isn't expected".
+        const skipOf = (e) => skips.find(k => k.variation === v.name && (k.boxes || []).includes(e.id));
+        const regions = skips.filter(k => k.variation === v.name && k.region && Number(k.page) === n).map(k => {
+          const [x, y, w, h] = k.region, cs = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].map(([a, b]) => map(a, b));
+          return { k, x1: Math.min(...cs.map(q => q[0])), x2: Math.max(...cs.map(q => q[0])), y1: Math.min(...cs.map(q => q[1])), y2: Math.max(...cs.map(q => q[1])) };
+        });
+        const regionOf = (f) => { const cx = f.x + f.width/2, cy = f.y + f.height/2; return regions.find(r => cx >= r.x1 && cx <= r.x2 && cy >= r.y1 && cy <= r.y2); };
         // Each box found once, by its centre (within 8 pixels at the page's own size)
         const matched = () => {
           const left = fields.filter(f => f.kind === 'tick'), missed = [], skipped = new Map(), found = [];
@@ -330,7 +339,8 @@
             if (k){ skipped.set(k, (skipped.get(k) || 0) + 1); if (i >= 0) found.push(e.id); }
             if (i >= 0) left.splice(i, 1); else if (!k) missed.push(`expected ${where(e)}`);
           });
-          return { missed, extra: left, skipped, found };
+          const outside = left.filter(f => !regionOf(f)), inRegions = new Map(regions.map(r => [r.k, left.filter(f => regionOf(f) === r).length]));
+          return { missed, extra: outside, skipped, found, inRegions };
         };
         const counted = () => expected.filter(e => !skipOf(e)).length;
         test(`${name}: each expected tick box is found`, () => {
@@ -342,7 +352,9 @@
                  .concat(found.length ? [`found now, take off the skip: ${found.join(', ')}`] : []).join('\n'); } });
         test(`${name}: no actual tick box that isn't expected`, () => {
           sameList(matched().extra.map(f => `actual ${where(f)}`), [], 'found, but not expected');
-        }, { group, short: `${short}: no actual tick box that isn't expected`, todo: todoOf(v, n, 'extraTicks') });
+        }, { group, short: `${short}: no actual tick box that isn't expected`, todo: todoOf(v, n, 'extraTicks'),
+             note: () => [...matched().inRegions].map(([k, m]) => m ? `${m} ${m === 1 ? 'thing' : 'things'} taken for a tick box in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]} skipped: ${k.reason}`
+               : `nothing taken for a tick box in (${k.region[0]}, ${k.region[1]}) ${k.region[2]}×${k.region[3]} now, take off the skip`).join('\n') });
       }));
     });
   }
@@ -513,7 +525,9 @@
     `//   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box\n` +
     `//           is found", where the variation leaves too little of them: a list of { variation,\n` +
     `//           boxes, reason }, the variation by its name in the panel and the boxes by their\n` +
-    `//           names in the eForm (see tests/README.md)\n` +
+    `//           names in the eForm; or what a variation takes for a tick box to leave out of its\n` +
+    `//           "no actual tick box that isn't expected": { variation, page, region: [x, y,\n` +
+    `//           width, height], reason }, in the page's own pixels (see tests/README.md)\n` +
     `//   variationTodo (optional) a variation's tests it doesn't pass yet, shown as "to do": a list\n` +
     `//           of { variation, page, test, reason }, the test ticks (each expected tick box is\n` +
     `//           found) or extraTicks (no tick box that isn't expected); without a page, every page\n` +

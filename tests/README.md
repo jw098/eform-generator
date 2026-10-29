@@ -220,5 +220,17 @@ boxes (by their names in the eForm), with the reason:
 
 They're left out of that variation's "each expected tick box is found" only; one found anyway
 still counts as found, not as an extra, and its line then says `found now, take off the skip`.
+
+Where a variation takes something for a tick box that the page itself can't tell from one (a
+bold letter that is a perfect square at that size), a skip can leave it out of "no actual tick
+box that isn't expected" instead: it names the page and a small region, in the page's own
+pixels (as the case's own skips do), and anything found there, but an expected box, is left
+out. Its line says what it left out, or `nothing … now, take off the skip`:
+
+```js
+{ "variation": "0.7× size", "page": 2, "region": [625, 1655, 35, 35],
+  "reason": "the bold D of \"DETAILS\" in a heading: …" }
+```
+
 A variation, box or page that isn't there, in a skip or a to-do, fails "each skip and to-do
 names a variation, and tick boxes and pages there are".

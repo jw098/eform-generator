@@ -129,7 +129,9 @@ are mostly clean PDFs, so a new case takes `"pdf"`. A variation Auto Detect shou
 the case's `variationTodo`. One can skip tick boxes it has left too little of to find (a side
 the fax dropped, a box blurred out of shape), once a general rule has been tried and couldn't
 find them without taking letters too: the case's `variationSkip` in `tests/cases/index.js`.
-Name each box and say what the variation did to it; take a box off once it's found.
+Name each box and say what the variation did to it; take a box off once it's found. The same
+goes for something a variation takes for a tick box that its pixels can't tell from one (a
+bold letter that is a perfect square at that size): a skip of one small region on one page.
 
 ## Style
 

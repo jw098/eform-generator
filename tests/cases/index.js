@@ -16,7 +16,9 @@
 //   variationSkip (optional) tick boxes to leave out of a variation's "each expected tick box
 //           is found", where the variation leaves too little of them: a list of { variation,
 //           boxes, reason }, the variation by its name in the panel and the boxes by their
-//           names in the eForm (see tests/README.md)
+//           names in the eForm; or what a variation takes for a tick box to leave out of its
+//           "no actual tick box that isn't expected": { variation, page, region: [x, y,
+//           width, height], reason }, in the page's own pixels (see tests/README.md)
 //   variationTodo (optional) a variation's tests it doesn't pass yet, shown as "to do": a list
 //           of { variation, page, test, reason }, the test ticks (each expected tick box is
 //           found) or extraTicks (no tick box that isn't expected); without a page, every page
@@ -119,6 +121,21 @@ window.TEST_CASE_LIST = [
       "RMH_2.png"
     ],
     "variations": "pdf",
+    "variationSkip": [
+      {
+        "variation": "faint print",
+        "boxes": [
+          "urgent"
+        ],
+        "reason": "the box is printed grey (its darkest 112, where the others are black), and faint print leaves its sides at about 235 against paper at 255: under the ink threshold, so they aren't in the ink map at all; taking 20 grey levels for ink would take the paper's texture and noise too"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 2,
+        "region": [625, 1655, 35, 35],
+        "reason": "the bold D of \"DETAILS\" in a heading: at 0.7× (about 123 dpi) its straight stem, flat top and bottom, filled corners and empty inside are a tick box's, and only the line of capitals it is in says it is a letter"
+      }
+    ],
     "skip": [
       {
         "test": "extraFields",
@@ -149,20 +166,6 @@ window.TEST_CASE_LIST = [
         "page": 2,
         "region": [230, 935, 640, 60],
         "reason": "blanks between tick boxes' labels in a table cell"
-      }
-    ],
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "test": "extraTicks",
-        "reason": "the bold D of \"DETAILS\" in a heading: at 0.7× its curve fills its corners and its inside is empty, so it looks like a box; only the line of capitals it is in says it is a letter"
-      },
-      {
-        "variation": "faint print",
-        "page": 2,
-        "test": "ticks",
-        "reason": "not found yet: 1 of the 40 tick boxes"
       }
     ]
   },
