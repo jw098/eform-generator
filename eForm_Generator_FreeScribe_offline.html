@@ -330,8 +330,8 @@
       <div style="margin-top:8px">
         <div class="panel-title" style="margin-top:0">Display</div>
         <div class="row">
-          <label style="display:flex;align-items:center;gap:6px" title="Each field's name above it, with its oscarDB tag when Show tags is off"><input type="checkbox" id="chkLabels" checked/> Show labels</label>
-          <label style="display:flex;align-items:center;gap:6px" title="Each field's oscarDB tag: inside the field when it fits, else above it"><input type="checkbox" id="chkTags" /> Show tags</label>
+          <label style="display:flex;align-items:center;gap:6px" title="Each field's name above it, with its oscarDB tag when Show tags is off"><input type="checkbox" id="chkLabels" /> Show labels</label>
+          <label style="display:flex;align-items:center;gap:6px" title="Each field's oscarDB tag: inside the field when it fits, else above it"><input type="checkbox" id="chkTags" checked/> Show tags</label>
         </div>
         <div class="hr"></div>
         <div class="panel-title">Interaction</div>
@@ -917,8 +917,8 @@ else if (typeof exports === 'object')
     },
     fields: [],
     selected: new Set(),
-    showLabels: true,
-    showTags: false,
+    showLabels: false,
+    showTags: true,
     nextId: 1,
 
     templateName: '',   // the imported eForm HTML's file name (one at a time)
@@ -990,8 +990,8 @@ else if (typeof exports === 'object')
     state.fields = Array.isArray(snap.fields) ? snap.fields.map(f => ({ ...f })) : [];
     state.selected = new Set(Array.isArray(snap.selected) ? snap.selected : []);
     state.nextId = Number(snap.nextId) || (state.fields.reduce((m,f)=>Math.max(m, Number(f.id)||0),0)+1);
-    state.showLabels = snap.showLabels !== false;
-    state.showTags = snap.showTags === true;
+    state.showLabels = snap.showLabels === true;
+    state.showTags = snap.showTags !== false;
     if (snap.snap && typeof snap.snap === 'object') state.snap = { ...state.snap, ...snap.snap };
 
     Object.keys(state.pages).map(Number).forEach(n => { const el=$('img'+n); if(el) el.src=state.pages[n].imgData||''; });
@@ -2176,9 +2176,9 @@ else if (typeof exports === 'object')
 
     state.sourcePdf = (obj.sourcePdf && obj.sourcePdf.data) ? obj.sourcePdf : null;
     fsShowPdf();
-    state.showLabels = obj.showLabels !== false;
+    state.showLabels = obj.showLabels === true;
     $('chkLabels').checked = state.showLabels;
-    state.showTags = obj.showTags === true;
+    state.showTags = obj.showTags !== false;
     $('chkTags').checked = state.showTags;
 
     state.templateNameTagMap = new Map((obj.templateNameTagMap || []).filter(a => Array.isArray(a) && a.length>=2));
