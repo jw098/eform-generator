@@ -34,6 +34,9 @@ suggests, holds only its tags). Nothing in the app adds to it or takes from it. 
 still type any tag for a field; one that isn't standard shows a warning. `REMOVED_TAGS` lists
 the other tags the app used to offer; a saved session's field loses one. Where version 12 has no tag for something (a clinician's email), the field gets none.
 A signature is a field type (`signature`, exported as OSCAR's signature stamp), not a tag.
+A tick box (`checkbox`, `xbox`) never has a tag: nothing tags one (Auto Detect, "Auto-tag
+untagged", `guessTag`), the field editor's tag box is off for one, and a tag on one is dropped
+when it is added, imported, loaded from a session or exported (`isTickType`).
 A test case's expected tags follow the same rule. (OSCAR measurement references such as
 `m$EDC#value` aren't standard tags, and Auto Detect doesn't suggest them.)
 
