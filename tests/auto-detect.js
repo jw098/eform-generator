@@ -109,11 +109,14 @@
 
   // Put an image on page n of the app and run Auto Detect on it, from no fields at all. What
   // it found stays on that page to look at afterwards (keep: false for a page reused at once).
+  // pdf: { data, page } when the image is a page of a fillable PDF (its bytes in base64, and
+  // which page), given to the app as its PDF converter gives it; else the app has no PDF.
   const onShow = new Map();                              // page -> its fields, put back at the end
-  async function detectOn(n, imgData, fileName, opts, keep = true){
+  async function detectOn(n, imgData, fileName, opts, keep = true, pdf = null){
     const img = await loadImage(imgData);
     T.createPageDOM(n);
-    T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName };
+    T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName, ...(pdf ? { pdfPage: pdf.page } : {}) };
+    T.state.sourcePdf = pdf ? { name: fileName, data: pdf.data } : null;
     document.getElementById('img' + n).src = imgData;
     T.state.fields = [];
     T.setCurrentPage(n);
@@ -189,7 +192,7 @@
     const run = async () => {
       try {
         pages = await eformPages(c.html, c.images);
-        for (const pg of pages){ onPage(pg.n, pages.length); await detectOn(firstPage + pg.n - 1, pg.imgData, pg.file); }
+        for (const pg of pages){ onPage(pg.n, pages.length); await detectOn(firstPage + pg.n - 1, pg.imgData, pg.file, {}, true, pdfPage(c, pg.n)); }
         const draft = draftOf(firstPage, pages.length);
         const built = await eformPages(draft.html, draft.images);
         pages.forEach(pg => { pg.result = compare(pg.boxes, (built[pg.n - 1] || { boxes: [] }).boxes); });
@@ -385,8 +388,13 @@
     const html = await (await getFile(`${entry.folder}/${entry.eform}`)).text();
     const images = {};
     for (const name of entry.images || []) images[name] = await asDataUrl(await getFile(`${entry.folder}/${name}`));
-    return { name: entry.name || entry.folder, html, images };
+    // (a fillable PDF's bytes in base64, as the app keeps them)
+    const pdf = entry.pdf ? (await asDataUrl(await getFile(`${entry.folder}/${entry.pdf}`))).split(',')[1] : null;
+    return { name: entry.name || entry.folder, html, images, pdf };
   }
+  // A case's page n as a page of its fillable PDF ({ data, page }, for detectOn), or null: the
+  // eForm's pages are the PDF's, in order
+  const pdfPage = (c, n) => c.pdf ? { data: c.pdf, page: n } : null;
 
   // ----- Running everything -----
   const results = [];
@@ -505,6 +513,10 @@
     `//   folder  its folder in tests/cases\n` +
     `//   eform   the eForm's HTML file, in that folder\n` +
     `//   images  its page images, in that folder\n` +
+    `//   pdf     (optional) the fillable PDF the page images were made from (by the app's PDF\n` +
+    `//           converter, its pages in order), in that folder: Auto Detect is given it as the\n` +
+    `//           converter gives it, and takes the PDF's own form fields (no variations: a copy of a\n` +
+    `//           page is a picture only)\n` +
     `//   todo    (optional) its tests it doesn't pass yet, shown as "to do" rather than failures, by\n` +
     `//           key: ticks, fields, extraTicks, extraFields, tags (see tests/README.md)\n` +
     `//   skip    (optional) boxes to leave out of a test, where it can't apply: a list of\n` +
@@ -649,7 +661,7 @@
   }
   // The machinery, for tests/show.js (which draws a case's expected and actual boxes). With
   // window.eformMapperTestNoRun set before this file loads, it stops here: no tests, no panel.
-  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare, VARIATIONS };
+  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare, pdfPage, VARIATIONS };
   if (window.eformMapperTestNoRun) return;
   render();
   document.body.appendChild(panel);

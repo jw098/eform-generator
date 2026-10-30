@@ -3679,10 +3679,36 @@ else if (typeof exports === 'object')
     return fields;
   }
 
+  // ===== pdf.js's worker =====
+  // Offline edition: pdf.js's worker is embedded in this page (<script id="pdfjsWorkerSource">).
+  // Served over http(s) it runs as a real Web Worker from a blob URL; opened as a file
+  // (file://), where some browsers refuse workers, it runs on the page's own thread.
+  let pdfWorkerReady = null;
+  // Starts pdf.js's worker from the copy embedded in this page (once)
+  function ensurePdfWorker(){
+    if (pdfWorkerReady) return pdfWorkerReady;
+    pdfWorkerReady = (async () => {
+      if (pdfjsLib.GlobalWorkerOptions.workerSrc || window.pdfjsWorker) return;
+      const source = (document.getElementById('pdfjsWorkerSource') || {}).textContent || '';
+      if (!source) throw new Error('The embedded pdf.js worker is missing from this file.');
+      if (location.protocol !== 'file:'){
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          URL.createObjectURL(new Blob([source], { type: 'application/javascript' }));
+        return;
+      }
+      const workerScript = document.createElement('script');
+      workerScript.textContent = source;
+      document.head.appendChild(workerScript);
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'embedded';  // unused: window.pdfjsWorker is set
+    })();
+    return pdfWorkerReady;
+  }
+
   // ===== Fields from a fillable PDF (added by FreeScribe) =====
   // When a page came from a PDF that has its own form fields, those fields are exact: their
-  // position, kind and name. Auto Detect uses them for that page instead of guessing from
-  // the picture. Pages from scans, faxes, images or flat PDFs are detected from the picture.
+  // position, kind and name. Auto Detect uses them for that page instead of the fields it would
+  // find in the picture (whose rules and words it still reads, to tag them). Pages from scans,
+  // faxes, images or flat PDFs are detected from the picture.
   const USE_PDF_FIELDS = true;
   let pdfFieldsDoc = { key: null, doc: null };
   // A fillable PDF's own form fields on a page, at their places and with their names, when the
@@ -3694,7 +3720,7 @@ else if (typeof exports === 'object')
       if (pdfFieldsDoc.key !== state.sourcePdf.data){
         const raw = atob(state.sourcePdf.data), bytes = new Uint8Array(raw.length);
         for (let i=0;i<raw.length;i++) bytes[i] = raw.charCodeAt(i);
-        if (typeof ensurePdfWorker === 'function') await ensurePdfWorker();
+        await ensurePdfWorker();
         pdfFieldsDoc = { key: state.sourcePdf.data, doc: await pdfjsLib.getDocument({ data: bytes }).promise };
       }
       const doc = pdfFieldsDoc.doc;
@@ -4803,30 +4829,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       };
       const imgEl = $('img'+page);
       if (imgEl) imgEl.src = dataUrl;
-    }
-
-    // Offline edition: pdf.js's worker is embedded in this page (<script id="pdfjsWorkerSource">).
-    // Served over http(s) it runs as a real Web Worker from a blob URL; opened as a file
-    // (file://), where some browsers refuse workers, it runs on the page's own thread.
-    let pdfWorkerReady = null;
-    // Starts pdf.js's worker from the copy embedded in this page (once)
-    function ensurePdfWorker(){
-      if (pdfWorkerReady) return pdfWorkerReady;
-      pdfWorkerReady = (async () => {
-        if (pdfjsLib.GlobalWorkerOptions.workerSrc || window.pdfjsWorker) return;
-        const source = (document.getElementById('pdfjsWorkerSource') || {}).textContent || '';
-        if (!source) throw new Error('The embedded pdf.js worker is missing from this file.');
-        if (location.protocol !== 'file:'){
-          pdfjsLib.GlobalWorkerOptions.workerSrc =
-            URL.createObjectURL(new Blob([source], { type: 'application/javascript' }));
-          return;
-        }
-        const workerScript = document.createElement('script');
-        workerScript.textContent = source;
-        document.head.appendChild(workerScript);
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'embedded';  // unused: window.pdfjsWorker is set
-      })();
-      return pdfWorkerReady;
     }
 
     // pdf.js asks for its standard fonts (ZapfDingbats tick boxes, Helvetica...) by file

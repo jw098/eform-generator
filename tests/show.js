@@ -53,7 +53,8 @@ const fs = require('fs'), path = require('path');
       const V = variation ? H.VARIATIONS.find(v => v.name === variation) : null;
       if (variation && !V) throw new Error(`no variation "${variation}"; they are: ${H.VARIATIONS.map(v => v.name).join(', ')}`);
       const made = V ? V.make(await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = pg.imgData; })) : { url: pg.imgData, scale: 1 };
-      await H.detectOn(1, made.url, pg.file);
+      // (a poorer copy is a picture only, as the variations are; the page itself comes with its PDF)
+      await H.detectOn(1, made.url, pg.file, {}, true, V ? null : H.pdfPage(c, pg.n));
       const draft = H.draftOf(1, 1), k = made.scale;
       const built = { boxes: (((await H.eformPages(draft.html, draft.images))[0] || { boxes: [] }).boxes)
                                .map(b => ({ ...b, x: b.x/k, y: b.y/k, width: b.width/k, height: b.height/k })) };

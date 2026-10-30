@@ -141,12 +141,24 @@ tab in the app, with what Auto Detect found drawn on it.
 
 From then on it runs with the others.
 
+**A fillable PDF** (one with its own form fields): Auto Detect takes the PDF's fields rather than
+finding them in the picture, so the test must give it the PDF too. Make the eForm from pages
+the app's PDF converter made (**Load into Mapper**, "All pages"), add the case as above, then
+put the PDF in the case's folder and name it in the case's entry in `cases/index.js` as `pdf`:
+
+```js
+"pdf": "BounceBack_Referral_Form_2025.pdf"
+```
+
+Its pages are the eForm's, in order. Such a case has no variations: a poorer copy of a page is
+a picture only, with no PDF behind it.
+
 ## The files
 
 | File | What it is |
 |---|---|
 | `cases/index.js` | The list of test cases: each one's name, folder, eForm file and page images, and any to-dos. |
-| `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s). |
+| `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s), and the fillable PDF they were made from, for a case with one. |
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 | `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
 | `snapshot.js` | Prints exactly what Auto Detect finds on each case's images (no margin), to compare before and after a change that shouldn't change it. |
@@ -167,7 +179,8 @@ reason, so it shows as "to do" rather than as a failure:
 }
 ```
 
-(None of the cases has a to-do of its own at the moment; some have one for a variation.)
+(One case has a to-do of its own at the moment, the BounceBack referral's `tags`; some have one
+for a variation.)
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
 and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once

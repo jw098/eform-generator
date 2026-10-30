@@ -1,0 +1,407 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>BounceBack Referral Form</title>
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	overflow: hidden;
+ }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; background:transparent; text-align:center; font-weight:bold; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+// "Print & Submit": prints the form
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+// Typing in the form marks it changed, so leaving asks first; submitting clears that
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+// The warning shown on leaving a changed form
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+// Shows the current provider's signature image in the signature stamp (hidden if they have none)
+function SignForm() {
+  try {
+    var provNum = $('#current_user_id').val();
+    var sig = document.getElementById('signature');
+    if (!sig) return;
+    sig.src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+    $('#signature').on('error', function() {
+      $(this).hide();
+    });
+    sig.alt = provNum;
+  } catch(e){}
+}
+// The fax number to send to: the first filled-in fax number field on the form
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var input = document.getElementById(ids[i]);
+    if (!input) continue;
+    var faxNo = (input.value || '').trim();
+    if (faxNo) return faxNo;
+  }
+  return '';
+}
+// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
+function syncFaxNoMirror(){
+  var faxNo = getFaxTargetNo();
+  var hiddenFaxNo = document.getElementById('faxnumber');
+  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
+}
+// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
+// form has one of those
+function primeFaxNo(){
+  try{
+    var faxNoBox = document.getElementById('faxNo');
+    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var input = document.getElementById(candidates[i]);
+      if (!input) continue;
+      var faxNo = (input.value || '').trim();
+      if (faxNo){ faxNoBox.value = faxNo; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var faxControl = document.getElementById('faxControl');
+    if (faxControl){
+      faxControl.style.display = 'inline-block';
+      if (faxControl.children && faxControl.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+// "Fax & Submit": fills in the fax number, faxes, then submits the form
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
+}
+</script>
+
+
+</head>
+<body onload="setFaxNo(); primeFaxNo(); syncFaxNoMirror(); SignForm(); checkGender()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}bounceback_0s1c1k_page1.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- name -->
+<input class="gen_input noborder" id="name_1" name="name" oscarDB="patient_name" type="text" autocomplete="off" style="position:absolute; left:85px; top:282px; width:261px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- gender -->
+<input class="gen_input noborder" id="gender_2" name="gender" oscarDB="sex" type="text" autocomplete="off" style="position:absolute; left:400px; top:283px; width:95px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_of_birth -->
+<input class="gen_input noborder" id="date_of_birth_3" name="date_of_birth" oscarDB="dobc2" type="text" autocomplete="off" style="position:absolute; left:120px; top:311px; width:81px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phone -->
+<input class="gen_input noborder" id="phone_4" name="phone" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:250px; top:311px; width:125px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- address -->
+<input class="gen_input noborder" id="address_5" name="address" oscarDB="addressline" type="text" autocomplete="off" style="position:absolute; left:98px; top:340px; width:229px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- city -->
+<input class="gen_input noborder" id="city_6" name="city" oscarDB="city" type="text" autocomplete="off" style="position:absolute; left:363px; top:341px; width:132px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- postal_code -->
+<input class="gen_input noborder" id="postal_code_7" name="postal_code" oscarDB="postal" type="text" autocomplete="off" style="position:absolute; left:118px; top:366px; width:89px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- participant_email -->
+<input class="gen_input noborder" id="participant_email_8" name="participant_email" oscarDB="email" type="text" autocomplete="off" style="position:absolute; left:251px; top:366px; width:244px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- name_of_clinic_or_school_1 -->
+<input class="gen_input noborder" id="name_of_clinic_or_school_1_9" name="name_of_clinic_or_school_1" oscarDB="clinic_name" type="text" autocomplete="off" style="position:absolute; left:630px; top:381px; width:64px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- name_of_clinic_or_school_2 -->
+<input class="gen_input noborder" id="name_of_clinic_or_school_2_10" name="name_of_clinic_or_school_2" type="text" autocomplete="off" style="position:absolute; left:517px; top:400px; width:176px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- name_2 -->
+<input class="gen_input noborder" id="name_2_11" name="name_2" type="text" autocomplete="off" style="position:absolute; left:94px; top:429px; width:393px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- referrer_name_1 -->
+<input class="gen_input noborder" id="referrer_name_1_12" name="referrer_name_1" oscarDB="current_user" type="text" autocomplete="off" style="position:absolute; left:593px; top:418px; width:100px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- referrer_name_2 -->
+<input class="gen_input noborder" id="referrer_name_2_13" name="referrer_name_2" type="text" autocomplete="off" style="position:absolute; left:517px; top:436px; width:176px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- relationship -->
+<input class="gen_input noborder" id="relationship_14" name="relationship" type="text" autocomplete="off" style="position:absolute; left:128px; top:456px; width:359px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- physician -->
+<input class="xMarkOnly noborder" id="physician_15" name="physician" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:517px; top:462px; width:13px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- psychiatrist -->
+<input class="xMarkOnly noborder" id="psychiatrist_16" name="psychiatrist" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:517px; top:481px; width:13px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- school_counsellor -->
+<input class="xMarkOnly noborder" id="school_counsellor_17" name="school_counsellor" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:517px; top:500px; width:13px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- registered_social_worker -->
+<input class="xMarkOnly noborder" id="registered_social_worker_18" name="registered_social_worker" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:517px; top:521px; width:13px; height:29px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- registered_clinical_counsellor -->
+<input class="xMarkOnly noborder" id="registered_clinical_counsellor_19" name="registered_clinical_counsellor" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:517px; top:542px; width:13px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- nurse_practitioner -->
+<input class="xMarkOnly noborder" id="nurse_practitioner_20" name="nurse_practitioner" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:590px; top:462px; width:13px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- email_3 -->
+<input class="gen_input noborder" id="email_3_21" name="email_3" type="text" autocomplete="off" style="position:absolute; left:91px; top:483px; width:241px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phone_3 -->
+<input class="gen_input noborder" id="phone_3_22" name="phone_3" type="text" autocomplete="off" style="position:absolute; left:378px; top:483px; width:109px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- psychologist -->
+<input class="xMarkOnly noborder" id="psychologist_23" name="psychologist" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:600px; top:481px; width:13px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- address_1 -->
+<input class="gen_input noborder" id="address_1_24" name="address_1" oscarDB="clinic_addressLine" type="text" autocomplete="off" style="position:absolute; left:564px; top:555px; width:130px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- address_2 -->
+<input class="gen_input noborder" id="address_2_25" name="address_2" type="text" autocomplete="off" style="position:absolute; left:517px; top:574px; width:176px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- address_3 -->
+<input class="gen_input noborder" id="address_3_26" name="address_3" type="text" autocomplete="off" style="position:absolute; left:517px; top:592px; width:176px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phone_4 -->
+<input class="gen_input noborder" id="phone_4_27" name="phone_4" oscarDB="clinic_phone" type="text" autocomplete="off" style="position:absolute; left:555px; top:610px; width:138px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- fax -->
+<input class="gen_input noborder" id="fax_28" name="fax" oscarDB="clinic_fax" type="text" autocomplete="off" style="position:absolute; left:541px; top:629px; width:153px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- email_1 -->
+<input class="gen_input noborder" id="email_1_29" name="email_1" type="text" autocomplete="off" style="position:absolute; left:549px; top:647px; width:145px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- email_2 -->
+<input class="gen_input noborder" id="email_2_30" name="email_2" type="text" autocomplete="off" style="position:absolute; left:517px; top:666px; width:176px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phq9_score -->
+<input class="gen_input noborder" id="phq9_score_31" name="phq9_score" type="text" autocomplete="off" style="position:absolute; left:134px; top:818px; width:58px; height:16px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- english -->
+<input class="xMarkOnly noborder" id="english_32" name="english" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:402px; top:840px; width:14px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- french -->
+<input class="xMarkOnly noborder" id="french_33" name="french" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:500px; top:840px; width:14px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- mandarin -->
+<input class="xMarkOnly noborder" id="mandarin_34" name="mandarin" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:593px; top:840px; width:14px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- cantonese -->
+<input class="xMarkOnly noborder" id="cantonese_35" name="cantonese" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:402px; top:861px; width:14px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- punjabi -->
+<input class="xMarkOnly noborder" id="punjabi_36" name="punjabi" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:499px; top:861px; width:14px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- participant_info_home -->
+<input class="xMarkOnly noborder" id="participant_info_home_37" name="participant_info_home" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:383px; top:314px; width:12px; height:14px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- participant_info_mobile -->
+<input class="xMarkOnly noborder" id="participant_info_mobile_38" name="participant_info_mobile" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:443px; top:315px; width:9px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- guardian_info -->
+<input class="xMarkOnly noborder" id="guardian_info_39" name="guardian_info" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:330px; top:515px; width:10px; height:10px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- guardian_info_no -->
+<input class="xMarkOnly noborder" id="guardian_info_no_40" name="guardian_info_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:392px; top:515px; width:11px; height:8px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 13_years_or_older -->
+<input class="xMarkOnly noborder" id="13_years_or_older_41" name="13_years_or_older" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:56px; top:570px; width:11px; height:9px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- care_provider_accepts_responsibilities -->
+<input class="xMarkOnly noborder" id="care_provider_accepts_responsibilities_42" name="care_provider_accepts_responsibilities" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:590px; width:10px; height:10px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- not_significantly_depressed -->
+<input class="xMarkOnly noborder" id="not_significantly_depressed_43" name="not_significantly_depressed" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:641px; width:10px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- not_significantly_misusing_substances -->
+<input class="xMarkOnly noborder" id="not_significantly_misusing_substances_44" name="not_significantly_misusing_substances" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:680px; width:10px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- not_at_risk_of_harming_self_or_others -->
+<input class="xMarkOnly noborder" id="not_at_risk_of_harming_self_or_others_45" name="not_at_risk_of_harming_self_or_others" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:659px; width:10px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- no_personality_disorder -->
+<input class="xMarkOnly noborder" id="no_personality_disorder_46" name="no_personality_disorder" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:715px; width:10px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- no_mania_or_psychosis -->
+<input class="xMarkOnly noborder" id="no_mania_or_psychosis_47" name="no_mania_or_psychosis" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:736px; width:9px; height:9px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- able_to_use_workbooks -->
+<input class="xMarkOnly noborder" id="able_to_use_workbooks_48" name="able_to_use_workbooks" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:56px; top:755px; width:11px; height:10px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- has_not_self_harmed_recently -->
+<input class="xMarkOnly noborder" id="has_not_self_harmed_recently_49" name="has_not_self_harmed_recently" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:776px; width:11px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- depression -->
+<input class="xMarkOnly noborder" id="depression_50" name="depression" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:57px; top:860px; width:11px; height:10px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- anxiety -->
+<input class="xMarkOnly noborder" id="anxiety_51" name="anxiety" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:140px; top:860px; width:10px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- can_we_leave_a_message -->
+<input class="xMarkOnly noborder" id="can_we_leave_a_message_52" name="can_we_leave_a_message" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:656px; top:313px; width:9px; height:9px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- can_we_leave_a_message_no -->
+<input class="xMarkOnly noborder" id="can_we_leave_a_message_no_53" name="can_we_leave_a_message_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:656px; top:328px; width:10px; height:9px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- best_way_to_contact_sms -->
+<input class="xMarkOnly noborder" id="best_way_to_contact_sms_54" name="best_way_to_contact_sms" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:606px; top:276px; width:9px; height:10px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- best_way_to_contact_email -->
+<input class="xMarkOnly noborder" id="best_way_to_contact_email_55" name="best_way_to_contact_email" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:656px; top:276px; width:9px; height:9px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- best_way_to_contact_phone -->
+<input class="xMarkOnly noborder" id="best_way_to_contact_phone_56" name="best_way_to_contact_phone" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:656px; top:291px; width:9px; height:9px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+</div>
+<div id="page2" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage2" src="${oscar_image_path}bounceback_0s1c1k_page2.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- sum_of_not_at_all_answers -->
+<input class="gen_input noborder" id="sum_of_not_at_all_answers_57" name="sum_of_not_at_all_answers" type="text" autocomplete="off" style="position:absolute; left:369px; top:737px; width:67px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- sum_of_several_days_answers -->
+<input class="gen_input noborder" id="sum_of_several_days_answers_58" name="sum_of_several_days_answers" type="text" autocomplete="off" style="position:absolute; left:457px; top:737px; width:67px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- sum_of_more_than_half_the_days_answers -->
+<input class="gen_input noborder" id="sum_of_more_than_half_the_days_answers_59" name="sum_of_more_than_half_the_days_answers" type="text" autocomplete="off" style="position:absolute; left:541px; top:737px; width:67px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- sum_of_nearly_every_day_answers -->
+<input class="gen_input noborder" id="sum_of_nearly_every_day_answers_60" name="sum_of_nearly_every_day_answers" type="text" autocomplete="off" style="position:absolute; left:625px; top:737px; width:67px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- total_score_of_all_the_answers -->
+<input class="gen_input noborder" id="total_score_of_all_the_answers_61" name="total_score_of_all_the_answers" type="text" autocomplete="off" style="position:absolute; left:625px; top:764px; width:67px; height:26px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- trouble_with_sleep_not_at_all -->
+<input class="xMarkOnly noborder" id="trouble_with_sleep_not_at_all_62" name="trouble_with_sleep_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:387px; top:341px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_with_sleep_several_days -->
+<input class="xMarkOnly noborder" id="trouble_with_sleep_several_days_63" name="trouble_with_sleep_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:475px; top:341px; width:20px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_with_sleep_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="trouble_with_sleep_more_than_half_the_days_64" name="trouble_with_sleep_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:561px; top:341px; width:22px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_with_sleep_nearly_every_day -->
+<input class="xMarkOnly noborder" id="trouble_with_sleep_nearly_every_day_65" name="trouble_with_sleep_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:649px; top:341px; width:19px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- little_interest_or_pleasure_not_at_all -->
+<input class="xMarkOnly noborder" id="little_interest_or_pleasure_not_at_all_66" name="little_interest_or_pleasure_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:387px; top:391px; width:20px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- little_interest_or_pleasure_several_days -->
+<input class="xMarkOnly noborder" id="little_interest_or_pleasure_several_days_67" name="little_interest_or_pleasure_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:475px; top:391px; width:19px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- little_interest_or_pleasure_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="little_interest_or_pleasure_more_than_half_the_days_68" name="little_interest_or_pleasure_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:562px; top:391px; width:19px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- little_interest_or_pleasure_nearly_every_day -->
+<input class="xMarkOnly noborder" id="little_interest_or_pleasure_nearly_every_day_69" name="little_interest_or_pleasure_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:649px; top:391px; width:21px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_tired_not_at_all -->
+<input class="xMarkOnly noborder" id="feeling_tired_not_at_all_70" name="feeling_tired_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:387px; top:440px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_tired_several_days -->
+<input class="xMarkOnly noborder" id="feeling_tired_several_days_71" name="feeling_tired_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:474px; top:440px; width:21px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_tired_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="feeling_tired_more_than_half_the_days_72" name="feeling_tired_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:561px; top:440px; width:21px; height:21px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_tired_nearly_every_day -->
+<input class="xMarkOnly noborder" id="feeling_tired_nearly_every_day_73" name="feeling_tired_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:649px; top:440px; width:22px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- poor_appetite_or_overeating_not_at_all -->
+<input class="xMarkOnly noborder" id="poor_appetite_or_overeating_not_at_all_74" name="poor_appetite_or_overeating_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:388px; top:490px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- poor_appetite_or_overeating_several_days -->
+<input class="xMarkOnly noborder" id="poor_appetite_or_overeating_several_days_75" name="poor_appetite_or_overeating_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:475px; top:491px; width:19px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- poor_appetite_or_overeating_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="poor_appetite_or_overeating_more_than_half_the_days_76" name="poor_appetite_or_overeating_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:562px; top:490px; width:20px; height:21px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- poor_appetite_or_overeating_nearly_every_day -->
+<input class="xMarkOnly noborder" id="poor_appetite_or_overeating_nearly_every_day_77" name="poor_appetite_or_overeating_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:649px; top:491px; width:22px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_bad_about_yourself_not_at_all -->
+<input class="xMarkOnly noborder" id="feeling_bad_about_yourself_not_at_all_78" name="feeling_bad_about_yourself_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:387px; top:540px; width:19px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_bad_about_yourself_several_days -->
+<input class="xMarkOnly noborder" id="feeling_bad_about_yourself_several_days_79" name="feeling_bad_about_yourself_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:476px; top:540px; width:19px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_bad_about_yourself_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="feeling_bad_about_yourself_more_than_half_the_days_80" name="feeling_bad_about_yourself_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:562px; top:540px; width:19px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_bad_about_yourself_nearly_every_day -->
+<input class="xMarkOnly noborder" id="feeling_bad_about_yourself_nearly_every_day_81" name="feeling_bad_about_yourself_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:649px; top:540px; width:22px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_concentrating_not_at_all -->
+<input class="xMarkOnly noborder" id="trouble_concentrating_not_at_all_82" name="trouble_concentrating_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:387px; top:591px; width:20px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_concentrating_several_days -->
+<input class="xMarkOnly noborder" id="trouble_concentrating_several_days_83" name="trouble_concentrating_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:474px; top:590px; width:20px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_concentrating_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="trouble_concentrating_more_than_half_the_days_84" name="trouble_concentrating_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:561px; top:590px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- trouble_concentrating_nearly_every_day -->
+<input class="xMarkOnly noborder" id="trouble_concentrating_nearly_every_day_85" name="trouble_concentrating_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:650px; top:591px; width:19px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- moving_too_slowly_or_too_quickly_not_at_all -->
+<input class="xMarkOnly noborder" id="moving_too_slowly_or_too_quickly_not_at_all_86" name="moving_too_slowly_or_too_quickly_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:388px; top:649px; width:19px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- moving_too_slowly_or_too_quickly_several_days -->
+<input class="xMarkOnly noborder" id="moving_too_slowly_or_too_quickly_several_days_87" name="moving_too_slowly_or_too_quickly_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:475px; top:649px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- moving_too_slowly_or_too_quickly_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="moving_too_slowly_or_too_quickly_more_than_half_the_days_88" name="moving_too_slowly_or_too_quickly_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:562px; top:648px; width:20px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- moving_too_slowly_or_too_quickly_nearly_every_day -->
+<input class="xMarkOnly noborder" id="moving_too_slowly_or_too_quickly_nearly_every_day_89" name="moving_too_slowly_or_too_quickly_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:650px; top:649px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- suicidal_thoughts_not_at_all -->
+<input class="xMarkOnly noborder" id="suicidal_thoughts_not_at_all_90" name="suicidal_thoughts_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:387px; top:710px; width:21px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- suicidal_thoughts_several_days -->
+<input class="xMarkOnly noborder" id="suicidal_thoughts_several_days_91" name="suicidal_thoughts_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:475px; top:710px; width:19px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- suicidal_thoughts_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="suicidal_thoughts_more_than_half_the_days_92" name="suicidal_thoughts_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:561px; top:710px; width:20px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- suicidal_thoughts_choice1 -->
+<input class="xMarkOnly noborder" id="suicidal_thoughts_choice1_93" name="suicidal_thoughts_choice1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:650px; top:711px; width:19px; height:17px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- how_difficult_has_your_life_been_not_difficult_at_all -->
+<input class="xMarkOnly noborder" id="how_difficult_has_your_life_been_not_difficult_at_all_94" name="how_difficult_has_your_life_been_not_difficult_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:192px; top:830px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- how_difficult_has_your_life_been_somewhat_difficult -->
+<input class="xMarkOnly noborder" id="how_difficult_has_your_life_been_somewhat_difficult_95" name="how_difficult_has_your_life_been_somewhat_difficult" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:328px; top:829px; width:14px; height:14px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- how_difficult_has_your_life_been_very_difficult -->
+<input class="xMarkOnly noborder" id="how_difficult_has_your_life_been_very_difficult_96" name="how_difficult_has_your_life_been_very_difficult" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:476px; top:830px; width:12px; height:11px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- how_difficult_has_your_life_been_extremely_difficult -->
+<input class="xMarkOnly noborder" id="how_difficult_has_your_life_been_extremely_difficult_97" name="how_difficult_has_your_life_been_extremely_difficult" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:588px; top:830px; width:12px; height:12px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_down_depressed_or_hopeless_not_at_all -->
+<input class="xMarkOnly noborder" id="feeling_down_depressed_or_hopeless_not_at_all_98" name="feeling_down_depressed_or_hopeless_not_at_all" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:388px; top:289px; width:22px; height:22px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_down_depressed_or_hopeless_several_days -->
+<input class="xMarkOnly noborder" id="feeling_down_depressed_or_hopeless_several_days_99" name="feeling_down_depressed_or_hopeless_several_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:476px; top:290px; width:22px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_down_depressed_or_hopeless_more_than_half_the_days -->
+<input class="xMarkOnly noborder" id="feeling_down_depressed_or_hopeless_more_than_half_the_days_100" name="feeling_down_depressed_or_hopeless_more_than_half_the_days" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:563px; top:291px; width:20px; height:20px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- feeling_down_depressed_or_hopeless_nearly_every_day -->
+<input class="xMarkOnly noborder" id="feeling_down_depressed_or_hopeless_nearly_every_day_101" name="feeling_down_depressed_or_hopeless_nearly_every_day" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="position:absolute; left:650px; top:290px; width:22px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+
+</form>
+</body>
+</html>

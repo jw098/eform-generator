@@ -12,7 +12,7 @@ package). **Auto Detect** finds the tick boxes and the places to write, and sugg
   megabytes long. Don't edit them, and keep searches off them (a search that hits them prints
   megabytes). The app's own code starts around line 900.
 - `tests/`: the Auto Detect tests (see `tests/README.md`). Each case in `tests/cases/` is a
-  finished eForm and its page image(s).
+  finished eForm and its page image(s), and for a fillable PDF the PDF itself (its `pdf`).
 - `CodingAgentContext/standard-eform-tags.csv`: OSCAR's standard eForm tags, with the OSCAR
   version each came in (see "Tags" below).
 
@@ -158,7 +158,8 @@ with `"variations": true`, as a clean PDF can come, since eForm templates are mo
 PDFs: rendered at another size (0.7× to 3×; the app renders a PDF at the width you set, up to
 1500 px) or printed faint. Don't add scan or fax variations (blur, specks, tilt, a fax's black
 and white): they test pages the forms rarely are, and tuning for them costs the clean ones. A
-new case takes `"variations": true`. Each variation is tested for both tick boxes and fields,
+new case takes `"variations": true` (but a fillable PDF's, whose copies would be pictures with no
+PDF behind them). Each variation is tested for both tick boxes and fields,
 with words read, as the page itself is; the case's own skips and to-dos for fields hold on its
 variations too. A variation Auto Detect should do better on is a to-do, in the case's
 `variationTodo` (`ticks`, `extraTicks`, `fields` or `extraFields`). One can skip tick boxes it

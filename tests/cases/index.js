@@ -4,6 +4,10 @@
 //   folder  its folder in tests/cases
 //   eform   the eForm's HTML file, in that folder
 //   images  its page images, in that folder
+//   pdf     (optional) the fillable PDF the page images were made from (by the app's PDF
+//           converter, its pages in order), in that folder: Auto Detect is given it as the
+//           converter gives it, and takes the PDF's own form fields (no variations: a copy of a
+//           page is a picture only)
 //   todo    (optional) its tests it doesn't pass yet, shown as "to do" rather than failures, by
 //           key: ticks, fields, extraTicks, extraFields, tags (see tests/README.md)
 //   skip    (optional) boxes to leave out of a test, where it can't apply: a list of
@@ -363,5 +367,18 @@ window.TEST_CASE_LIST = [
         "reason": "the blanks after the rows of options under STATUS OF DUTIES and STATUS OF HOURS (Study: Full Modified), found at some sizes: the eForm leaves them out, though it has a field after options laid out the same way (RegularMD_comment, AddRx_comment)"
       }
     ]
+  },
+  {
+    "name": "BounceBack referral (fillable PDF)",
+    "folder": "bounceback-referral",
+    "eform": "bounceback_0s1c1k.html",
+    "images": [
+      "bounceback_0s1c1k_page1.png",
+      "bounceback_0s1c1k_page2.png"
+    ],
+    "pdf": "BounceBack_Referral_Form_2025.pdf",
+    "todo": {
+      "tags": "the lines after the first of a field the PDF splits over several (name_of_clinic_or_school_2, referrer_name_2, address_2, address_3) take the first line's tag, so OSCAR would fill the clinic's name, the referrer and the address on each: only the first line should have it"
+    }
   }
 ];
