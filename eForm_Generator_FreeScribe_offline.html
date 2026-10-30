@@ -4010,42 +4010,51 @@ else if (typeof exports === 'object')
   $('btnDetect').addEventListener('click', () => detectCurrentPage());
 
 
-  function toPercent(v,total){ return (total ? (v/total*100) : 0).toFixed(3); }
-  function escAttr(v){ return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function cssPx(v){ return (Math.round((Number(v)||0)*1000)/1000).toString(); }
+  // A value as a percentage of a total, to three decimals
+  function toPercent(value,total){ return (total ? (value/total*100) : 0).toFixed(3); }
+  // A value made safe to put inside an HTML attribute's quotes
+  function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // A number of pixels for CSS, to three decimals
+  function cssPx(value){ return (Math.round((Number(value)||0)*1000)/1000).toString(); }
   
+// The fields, each given a name safe for the exported HTML (letters, digits and _) as
+// _safeName, numbered when two would be the same ("name", "name_2"); _origName keeps its name
 function sanitizeUniqueFieldNames(fields){
-  const used = new Map();
+  const timesUsed = new Map();
   return fields.map((f, idx) => {
     let base = String(f.name || '').trim();
     if (!base) base = `field_${idx+1}`;
     const safeBase = base.replace(/[^A-Za-z0-9_]/g, '_').replace(/^_+|_+$/g, '') || `field_${idx+1}`;
-    if (!used.has(safeBase)) { used.set(safeBase, 1); return { ...f, _safeName: safeBase, _origName: base }; }
-    const n = used.get(safeBase) + 1; used.set(safeBase, n);
-    return { ...f, _safeName: `${safeBase}_${n}`, _origName: base };
+    if (!timesUsed.has(safeBase)) { timesUsed.set(safeBase, 1); return { ...f, _safeName: safeBase, _origName: base }; }
+    const count = timesUsed.get(safeBase) + 1; timesUsed.set(safeBase, count);
+    return { ...f, _safeName: `${safeBase}_${count}`, _origName: base };
   });
 }
+// A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
+// that a click turns on and off) or a text input; `inlinePosStyle` places it on the page
 function inputMarkup(f, inlinePosStyle=''){
-  const nm = escAttr(f._safeName || f.name || 'field');
+  const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = escAttr(f.oscarTag || '');
   const id = escAttr((f._safeName || f.name || 'field') + '_' + (f.id ?? ''));
   const dbAttr = tag ? ` oscarDB="${tag}"` : '';
 
   if (f.type === 'textarea') {
-    return `<textarea class="gen_input noborder" id="${id}" name="${nm}"${dbAttr} style="${inlinePosStyle} resize:none;"></textarea>`;
+    return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;"></textarea>`;
   }
   if (f.type === 'checkbox' || f.type === 'xbox') {
     // X-only marker over printed checkbox outlines: no browser checkbox boundary.
     // We render as readonly text input that toggles X on click/space/enter.
     const style = `${inlinePosStyle} border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;`;
-    return `<input class="xMarkOnly noborder" id="${id}" name="${nm}"${dbAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
+    return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
   }
   // OSCAR compatibility: keep as text input even for date/signature.
-  return `<input class="gen_input noborder" id="${id}" name="${nm}"${dbAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
+  return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
 }
 
 
 
+// The compatibility check: each check on the export draft (or `htmlText`) and the fields, with
+// its level (ok, warn or err) and what it found
 function preflightChecks(htmlText=''){
   const out = [];
   const html = String(htmlText || $('exportEditor').value || '');
@@ -4062,59 +4071,62 @@ function preflightChecks(htmlText=''){
   const hasOscarDb = /oscarDB\s*=\s*["'][^"']+["']/i.test(html);
   out.push({ level: hasOscarDb ? 'ok':'warn', text: hasOscarDb ? 'oscarDB tags detected.' : 'No oscarDB tags detected (fields may not autofill).' });
 
-  const names = new Map();
+  const nameCounts = new Map();
   state.fields.forEach(f => {
-    const n = String(f.name||'').trim();
-    if (!n) return;
-    names.set(n, (names.get(n)||0)+1);
+    const name = String(f.name||'').trim();
+    if (!name) return;
+    nameCounts.set(name, (nameCounts.get(name)||0)+1);
   });
-  const dups = [...names.entries()].filter(([k,v])=>v>1);
+  const duplicates = [...nameCounts.entries()].filter(([name,count])=>count>1);
 
   // Check that every page with fields has an image loaded
   const pagesWithFields = [...new Set(state.fields.map(f => Number(f.page)))].sort((a,b)=>a-b);
-  const pagesWithoutImg = pagesWithFields.filter(pg => !state.pages[pg] || !state.pages[pg].naturalW);
+  const pagesWithoutImg = pagesWithFields.filter(page => !state.pages[page] || !state.pages[page].naturalW);
   if (pagesWithoutImg.length)
     out.push({ level: 'err', text: `Page(s) ${pagesWithoutImg.join(', ')} have fields but no background image loaded.` });
 
-  out.push({ level: dups.length ? 'warn':'ok', text: dups.length ? `Duplicate field names (${dups.length}): ` + dups.slice(0,6).map(([k,v])=>`${k}×${v}`).join(', ') : 'No duplicate field names.' });
+  out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
   const untagged = state.fields.filter(f => !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature');
   out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
-  const oob = [];
+  const outOfBounds = [];
   state.fields.forEach(f => {
-    const p = state.pages[f.page] || {};
-    const w = Number(p.naturalW)||0, h = Number(p.naturalH)||0;
+    const pageInfo = state.pages[f.page] || {};
+    const w = Number(pageInfo.naturalW)||0, h = Number(pageInfo.naturalH)||0;
     if (!w || !h) return;
-    if (f.x < 0 || f.y < 0 || f.x + f.width > w + 0.001 || f.y + f.height > h + 0.001) oob.push(f);
+    if (f.x < 0 || f.y < 0 || f.x + f.width > w + 0.001 || f.y + f.height > h + 0.001) outOfBounds.push(f);
   });
-  out.push({ level: oob.length ? 'err':'ok', text: oob.length ? `${oob.length} field(s) are out of page bounds.` : 'All fields are within page bounds.' });
+  out.push({ level: outOfBounds.length ? 'err':'ok', text: outOfBounds.length ? `${outOfBounds.length} field(s) are out of page bounds.` : 'All fields are within page bounds.' });
 
   return out;
 }
 
+// Lists the compatibility check's results under its button
 function renderPreflight(results){
-    const box = $('preflightBox');
-    if (!box) return;
-    if (!results || !results.length){ box.innerHTML = '<div class="small" style="color:#64748b">Run preflight to see checks.</div>'; return; }
-    box.innerHTML = results.map(r => `<div class="pf-${r.level}" style="margin-bottom:4px">• ${escHtml(r.text)}</div>`).join('');
+    const resultsBox = $('preflightBox');
+    if (!resultsBox) return;
+    if (!results || !results.length){ resultsBox.innerHTML = '<div class="small" style="color:#64748b">Run preflight to see checks.</div>'; return; }
+    resultsBox.innerHTML = results.map(result => `<div class="pf-${result.level}" style="margin-bottom:4px">• ${escHtml(result.text)}</div>`).join('');
   }
 
   
+// "Repair image placeholders in draft": points each page's background image in the export draft
+// at its file in OSCAR's image folder (${oscar_image_path}…), building the draft if it is empty
 function repairImagePlaceholders(){
   let html = String($('exportEditor').value || '');
   if (!html.trim()) html = buildExportHtml();
   // Replace each BGImage src with the correct ${oscar_image_path} placeholder.
   // Match id="BGImage1", id="BGImage2", etc. and fix their src.
   let patched = 0;
-  for (let pg = 1; pg <= 10; pg++){
-    const bgIdRe = new RegExp('(<img[^>]*id=["\']BGImage' + pg + '["\'][^>]*src=)["\'][^"\']*["\']', 'i');
-    const bgSrcRe = new RegExp('(<img[^>]*src=)["\'][^"\']*["\']([^>]*id=["\']BGImage' + pg + '["\'])', 'i');
-    const slug = pageImageName(pg);
-    const replacement = '$1"${oscar_image_path}' + slug + '"';
+  for (let page = 1; page <= 10; page++){
+    const bgIdRe = new RegExp('(<img[^>]*id=["\']BGImage' + page + '["\'][^>]*src=)["\'][^"\']*["\']', 'i');
+    const bgSrcRe = new RegExp('(<img[^>]*src=)["\'][^"\']*["\']([^>]*id=["\']BGImage' + page + '["\'])', 'i');
+    const imageName = pageImageName(page);
+    const replacement = '$1"${oscar_image_path}' + imageName + '"';
     const before = html;
     html = html.replace(bgIdRe, replacement);
-    if (html === before) html = html.replace(bgSrcRe, '$1"${oscar_image_path}' + slug + '"$2');
+    if (html === before) html = html.replace(bgSrcRe, '$1"${oscar_image_path}' + imageName + '"$2');
     if (html !== before) patched++;
   }
   // Fallback: if no BGImage ids found, patch first unresolved img src
@@ -4130,10 +4142,10 @@ function repairImagePlaceholders(){
 
 
 
+  // The eForm's title as a safe file name prefix: "SHN MRI Request" -> "shn_mri_request"
   function titleSlug(){
-    // Convert eForm title to a safe filename prefix e.g. "SHN MRI Request" -> "shn_mri_request"
-    const t = String(state.exportTitle || 'eform').trim();
-    return t.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'eform';
+    const title = String(state.exportTitle || 'eform').trim();
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'eform';
   }
 
   // OSCAR keeps every eForm's images in one shared folder, so each form's file names must be
@@ -4144,24 +4156,30 @@ function repairImagePlaceholders(){
     (window.crypto || window.msCrypto).getRandomValues(bytes);
     return Array.from(bytes, b => b.toString(36).padStart(2, '0')).join('').slice(0, 6);
   }
+  // This form's id, made the first time it is asked for
   function formId(){
     if (!/^[a-z0-9]{4,12}$/.test(String(state.formId || ''))) state.formId = newFormId();
     return state.formId;
   }
+  // The start of the form's file names: its title, or the source PDF's name while the title is
+  // still the default
   function formSlug(){
-    // The title, or the source PDF's name while the title is still the default
     const title = String(state.exportTitle || '').trim();
     if (title && title !== 'Generated OSCAR eForm') return titleSlug();
     const pdf = state.sourcePdf && state.sourcePdf.name ? String(state.sourcePdf.name).replace(/\.[^.]+$/, '') : '';
     const slug = pdf.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     return slug || titleSlug();
   }
-  function pageImageName(n){ return `${formSlug()}_${formId()}_page${n}.png`; }
+  // A page's image file name, and the eForm's HTML file name, in the export
+  function pageImageName(page){ return `${formSlug()}_${formId()}_page${page}.png`; }
   function exportHtmlFileName(){ return `${formSlug()}_${formId()}.html`; }
 
+// The exported eForm's HTML: each page's image (750 px wide) with its fields and signature
+// stamp, OSCAR's scripts, any scripts taken from an imported eForm, and the Submit / Fax / Print
+// buttons
 function buildExportHtml(){
-  const p1=state.pages[1];
-  if(!p1||!p1.naturalW) throw new Error('Page 1 image is required before export.');
+  const firstPage=state.pages[1];
+  if(!firstPage||!firstPage.naturalW) throw new Error('Page 1 image is required before export.');
 
   const isSignatureField = (f) => String(f.type || '').toLowerCase() === 'signature';
 
@@ -4171,24 +4189,27 @@ function buildExportHtml(){
 
   const EXPORT_W = 750;
   const exportPages = Object.keys(state.pages).map(Number)
-    .filter(n => state.pages[n] && state.pages[n].naturalW > 0).sort((a,b)=>a-b);
+    .filter(page => state.pages[page] && state.pages[page].naturalW > 0).sort((a,b)=>a-b);
 
-  function scaled(n, s){ return Math.round((Number(n) || 0) * (Number(s) || 1)); }
+  // A length in page-image pixels at the export's scale, rounded
+  function scaled(length, scale){ return Math.round((Number(length) || 0) * (Number(scale) || 1)); }
 
+  // A field's control, placed at the export's scale and kept on the page
   function fieldMarkupScaled(f, naturalW, naturalH, scale){
-    const sw = scaled(f.width, scale);
-    const sh = scaled(f.height, scale);
-    const sx = scaled(f.x, scale);
-    const sy = scaled(f.y, scale);
+    const scaledW = scaled(f.width, scale);
+    const scaledH = scaled(f.height, scale);
+    const scaledX = scaled(f.x, scale);
+    const scaledY = scaled(f.y, scale);
 
-    const x = Math.round(clamp(sx, 0, Math.max(0, scaled(naturalW, scale) - sw)));
-    const y = Math.round(clamp(sy, 0, Math.max(0, scaled(naturalH, scale) - sh)));
-    const w = Math.round(clamp(sw, 6, scaled(naturalW, scale)));
-    const h = Math.round(clamp(sh, 6, scaled(naturalH, scale)));
+    const x = Math.round(clamp(scaledX, 0, Math.max(0, scaled(naturalW, scale) - scaledW)));
+    const y = Math.round(clamp(scaledY, 0, Math.max(0, scaled(naturalH, scale) - scaledH)));
+    const w = Math.round(clamp(scaledW, 6, scaled(naturalW, scale)));
+    const h = Math.round(clamp(scaledH, 6, scaled(naturalH, scale)));
     const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:12px; background-color:transparent;`;
     return inputMarkup(f, inlinePos);
   }
 
+  // The signature stamp for a page's signature field: OSCAR's CanvasProSignature image
   function signatureMarkup(sigField, naturalW, naturalH, scale, pageNo){
     if(!sigField) return '';
     const x = Math.round(clamp(scaled(sigField.x, scale), 0, Math.max(0, scaled(naturalW, scale))));
@@ -4203,6 +4224,8 @@ function buildExportHtml(){
 `;
   }
 
+  // A page of the eForm: its background image, signature stamp and fields, a page break after
+  // it unless it is the last, then `afterHtml` (the buttons) outside it
   function pageMarkup(pageNo, fields, sigField, naturalW, naturalH, bgSrc, scale, hasNext, tailHtml='', afterHtml=''){
     const breakAfter = hasNext ? 'always' : 'auto';
     const pageW = scaled(naturalW, scale);
@@ -4229,11 +4252,11 @@ ${fieldMarkupScaled(f, naturalW, naturalH, scale)}
   let addonScripts = '';
   if(includeSnippets){
     [...state.snippets.externalSrc].forEach(src => {
-      const s = String(src||'');
-      if (/(^|\/)jquery(-migrate)?(-[\d.]+)?(\.min)?\.js/i.test(s)) return;
-      if (/eforms\/printControl\.js/i.test(s)) return;
-      if (/eforms\/faxControl\.js/i.test(s)) return;
-      addonScripts += `<script src="${escAttr(s)}"><\/script>
+      const scriptSrc = String(src||'');
+      if (/(^|\/)jquery(-migrate)?(-[\d.]+)?(\.min)?\.js/i.test(scriptSrc)) return;
+      if (/eforms\/printControl\.js/i.test(scriptSrc)) return;
+      if (/eforms\/faxControl\.js/i.test(scriptSrc)) return;
+      addonScripts += `<script src="${escAttr(scriptSrc)}"><\/script>
 `;
     });
     state.snippets.inlineScripts.forEach(js => {
@@ -4284,13 +4307,16 @@ $(document).ready(function() {
 <script type="text/javascript" src="\${oscar_javascript_path}eforms/faxControl.js"><\/script>
 
 <script>
+// "Print & Submit": prints the form
 function formPrint(){ try{ window.print(); }catch(e){} }
 
+// Typing in the form marks it changed, so leaving asks first; submitting clears that
 var needToConfirm = false;
 document.onkeyup = setDirtyFlag;
 function setDirtyFlag(){ needToConfirm = true; }
 function releaseDirtyFlag(){ needToConfirm = false; }
 window.onbeforeunload = confirmExit;
+// The warning shown on leaving a changed form
 function confirmExit(){
   if (needToConfirm){
     return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
@@ -4300,6 +4326,7 @@ if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
 if (typeof window.checkGender !== 'function') window.checkGender = function(){};
 if (typeof window.loadSig !== 'function') window.loadSig = function(){};
 
+// Shows the current provider's signature image in the signature stamp (hidden if they have none)
 function SignForm() {
   try {
     var provNum = $('#current_user_id').val();
@@ -4312,35 +4339,40 @@ function SignForm() {
     sig.alt = provNum;
   } catch(e){}
 }
+// The fax number to send to: the first filled-in fax number field on the form
 function getFaxTargetNo(){
   var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
   for (var i=0;i<ids.length;i++){
-    var el = document.getElementById(ids[i]);
-    if (!el) continue;
-    var v = (el.value || '').trim();
-    if (v) return v;
+    var input = document.getElementById(ids[i]);
+    if (!input) continue;
+    var faxNo = (input.value || '').trim();
+    if (faxNo) return faxNo;
   }
   return '';
 }
+// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
 function syncFaxNoMirror(){
-  var v = getFaxTargetNo();
-  var h = document.getElementById('faxnumber');
-  if (h) h.value = v;
+  var faxNo = getFaxTargetNo();
+  var hiddenFaxNo = document.getElementById('faxnumber');
+  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
 }
+// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
+// form has one of those
 function primeFaxNo(){
   try{
-    var box = document.getElementById('faxNo');
-    if (!box || (box.value && box.value.trim())) { syncFaxNoMirror(); return; }
+    var faxNoBox = document.getElementById('faxNo');
+    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
     var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
     for (var i=0;i<candidates.length;i++){
-      var el = document.getElementById(candidates[i]);
-      if (!el) continue;
-      var v = (el.value || '').trim();
-      if (v){ box.value = v; break; }
+      var input = document.getElementById(candidates[i]);
+      if (!input) continue;
+      var faxNo = (input.value || '').trim();
+      if (faxNo){ faxNoBox.value = faxNo; break; }
     }
     syncFaxNoMirror();
   }catch(e){}
 }
+// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
 function formFax(){
   try{
     syncFaxNoMirror();
@@ -4348,28 +4380,29 @@ function formFax(){
     if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
     if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
     if (typeof setFaxNo === 'function') { setFaxNo(); }
-    var fc = document.getElementById('faxControl');
-    if (fc){
-      fc.style.display = 'inline-block';
-      if (fc.children && fc.children.length) return;
+    var faxControl = document.getElementById('faxControl');
+    if (faxControl){
+      faxControl.style.display = 'inline-block';
+      if (faxControl.children && faxControl.children.length) return;
     }
     alert('Fax control not available in this context.');
   }catch(e){ alert('Fax control not available in this context.'); }
 }
+// "Fax & Submit": fills in the fax number, faxes, then submits the form
 function formSubmitAndFax(){
   try{ primeFaxNo(); }catch(e){}
   try{ formFax(); }catch(e){}
   try{ releaseDirtyFlag(); }catch(e){}
-  setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); }, 350);
+  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
 }
 <\/script>
 `;
 
   let bodyOnloadParts = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
   if(includeSnippets && state.snippets.onloads.size){
-    [...state.snippets.onloads].forEach(x => {
-      const sx = String(x||'').trim();
-      if (sx && !/^SignForm\(\)\s*;?$/i.test(sx)) bodyOnloadParts.push(sx);
+    [...state.snippets.onloads].forEach(onload => {
+      const onloadCall = String(onload||'').trim();
+      if (onloadCall && !/^SignForm\(\)\s*;?$/i.test(onloadCall)) bodyOnloadParts.push(onloadCall);
     });
   }
   const bodyOnload = bodyOnloadParts.join('; ');
@@ -4449,21 +4482,20 @@ ${addonScripts}
 <body onload="${escAttr(bodyOnload)}">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
-  const hiddenCU = '<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">';
-  return exportPages.map((n, idx) => {
-    const p = state.pages[n];
-    const scale = p.naturalW ? (EXPORT_W / p.naturalW) : 1;
-    const allF = sanitizeUniqueFieldNames(getPageFields(n));
-    const sigFields = allF.filter(f => isSignatureField(f));
-    if (sigFields.length > 1) console.warn(`Page ${n}: ${sigFields.length} signature fields found; only the first will be rendered.`);
-    const sig = sigFields[0] || null;
-    const fields = allF.filter(f => !isSignatureField(f));
-    const pName = pageImageName(n);
-    const pSrc = '${oscar_image_path}' + pName;
+  const hiddenCurrentUser = '<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">';
+  return exportPages.map((page, idx) => {
+    const pageInfo = state.pages[page];
+    const scale = pageInfo.naturalW ? (EXPORT_W / pageInfo.naturalW) : 1;
+    const pageFields = sanitizeUniqueFieldNames(getPageFields(page));
+    const sigFields = pageFields.filter(f => isSignatureField(f));
+    if (sigFields.length > 1) console.warn(`Page ${page}: ${sigFields.length} signature fields found; only the first will be rendered.`);
+    const sigField = sigFields[0] || null;
+    const fields = pageFields.filter(f => !isSignatureField(f));
+    const imageSrc = '${oscar_image_path}' + pageImageName(page);
     const isLast = idx === exportPages.length - 1;
     const tailHtml = '';
-    const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCU : '';
-    return pageMarkup(n, fields, sig, p.naturalW, p.naturalH, pSrc, scale, !isLast, tailHtml, afterHtml);
+    const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCurrentUser : '';
+    return pageMarkup(page, fields, sigField, pageInfo.naturalW, pageInfo.naturalH, imageSrc, scale, !isLast, tailHtml, afterHtml);
   }).join('');
 })()}
 </form>
@@ -4473,25 +4505,27 @@ ${(function(){
   return stripPdfControls(html);
 }
 
+// The eform.properties file in the OSCAR package: the eForm's title, date, HTML file and author
 function buildOscarProperties(htmlFileName='generated_oscar_eform.html'){
   const title = (state.exportTitle && String(state.exportTitle).trim()) ? String(state.exportTitle).trim() : 'Generated OSCAR eForm';
   const author = String(state.exportAuthor || '').trim();
   const now = new Date();
-  const mm = String(now.getMonth()+1).padStart(2,'0');
-  const dd = String(now.getDate()).padStart(2,'0');
-  const yyyy = now.getFullYear();
-  const iso = `${yyyy}-${mm}-${dd}`;
+  const month = String(now.getMonth()+1).padStart(2,'0');
+  const day = String(now.getDate()).padStart(2,'0');
+  const today = `${now.getFullYear()}-${month}-${day}`;
   return [
     '#',
     '# Generated by EForm Mapper',
     `form.details=${title}`,
-    `form.date=${iso}`,
+    `form.date=${today}`,
     `form.name=${title}`,
     `form.htmlFilename=${htmlFileName}`,
     ...(author ? [`form.author=${author}`] : [])
   ].join('\n') + '\n';
 }
 
+// "Download OSCAR package (.zip)": the eForm's HTML, eform.properties and the page images, named
+// as the HTML expects them
 async function downloadOscarPackage(){
   try {
     if (typeof JSZip === 'undefined') throw new Error('JSZip library not loaded.');
@@ -4502,50 +4536,55 @@ async function downloadOscarPackage(){
     zip.file('eform.properties', buildOscarProperties(htmlFileName));
 
     // Include all page background images
-    Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(pg => {
-      const p = state.pages[pg];
-      if (p && p.imgData){
-        const fn = pageImageName(pg);
-        const b64 = String(p.imgData).split(',')[1] || '';
-        if (b64) zip.file(fn, b64, {base64:true});
+    Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(page => {
+      const pageInfo = state.pages[page];
+      if (pageInfo && pageInfo.imgData){
+        const base64 = String(pageInfo.imgData).split(',')[1] || '';
+        if (base64) zip.file(pageImageName(page), base64, {base64:true});
       }
     });
 
     const blob = await zip.generateAsync({type:'blob'});
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${formSlug()}_${formId()}_oscar_package.zip`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${formSlug()}_${formId()}_oscar_package.zip`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 1200);
-    msg(`Downloaded ${a.download} (HTML + eform.properties + images named ${pageImageName(1).replace(/1\.png$/, 'N.png')}).`, 'ok');
+    msg(`Downloaded ${link.download} (HTML + eform.properties + images named ${pageImageName(1).replace(/1\.png$/, 'N.png')}).`, 'ok');
   } catch (err) {
     msg('OSCAR package download failed: ' + (err.message || err), 'err');
   }
 }
 
+// "Build HTML draft": puts a freshly built eForm in the export editor
 function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(); msg('Built export HTML draft in editor.', 'ok'); }catch(err){ msg('Build failed: ' + (err.message || err), 'err'); }}
 
+  // The eForm's HTML without any PDF controls: buttons, inputs and links that mention PDF, and
+  // the PDF helper functions an imported eForm's scripts may call
   function stripPdfControls(html){
-    let s = String(html || '');
+    let out = String(html || '');
     // Remove any control element (input/button/a) that references PDF in text or attributes.
-    s = s.replace(/<input\b[^>]*>/gi, m => (/pdf/i.test(m) ? '' : m));
-    s = s.replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi, m => (/pdf/i.test(m) ? '' : m));
-    s = s.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, m => (/pdf/i.test(m) ? '' : m));
+    out = out.replace(/<input\b[^>]*>/gi, tag => (/pdf/i.test(tag) ? '' : tag));
+    out = out.replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi, tag => (/pdf/i.test(tag) ? '' : tag));
+    out = out.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, tag => (/pdf/i.test(tag) ? '' : tag));
 
     // Remove common PDF helper JS hooks/functions if present in imported snippets.
-    s = s.replace(/\bformSubmitAndPdf\s*\([^)]*\)\s*;?/gi, '');
-    s = s.replace(/\bformPDF\s*\([^)]*\)\s*;?/gi, '');
-    s = s.replace(/function\s+formSubmitAndPdf\s*\([\s\S]*?\}\s*/gi, '');
-    s = s.replace(/function\s+formPDF\s*\([\s\S]*?\}\s*/gi, '');
-    return s;
+    out = out.replace(/\bformSubmitAndPdf\s*\([^)]*\)\s*;?/gi, '');
+    out = out.replace(/\bformPDF\s*\([^)]*\)\s*;?/gi, '');
+    out = out.replace(/function\s+formSubmitAndPdf\s*\([\s\S]*?\}\s*/gi, '');
+    out = out.replace(/function\s+formPDF\s*\([\s\S]*?\}\s*/gi, '');
+    return out;
   }
 
-  function getEditorHtml(){ const txt=$('exportEditor').value||''; return stripPdfControls(txt.trim() ? txt : buildExportHtml()); }
+  // The eForm's HTML to copy or download: the export editor's, or a fresh build when it is empty
+  function getEditorHtml(){ const draft=$('exportEditor').value||''; return stripPdfControls(draft.trim() ? draft : buildExportHtml()); }
+  // "Copy draft": copies the eForm's HTML to the clipboard
   async function copyExport(){ try{ await navigator.clipboard.writeText(getEditorHtml()); msg('Copied OSCAR HTML draft to clipboard.', 'ok'); }catch(err){ msg('Copy failed: ' + (err.message || err), 'err'); }}
-  function downloadExport(){ try{ const html=getEditorHtml(); const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=exportHtmlFileName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); msg('Downloaded ' + a.download, 'ok'); }catch(err){ msg('Download failed: ' + (err.message || err), 'err'); }}
+  // "Download draft": downloads the eForm's HTML
+  function downloadExport(){ try{ const html=getEditorHtml(); const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=exportHtmlFileName(); document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); msg('Downloaded ' + link.download, 'ok'); }catch(err){ msg('Download failed: ' + (err.message || err), 'err'); }}
   $('btnBuildDraft').addEventListener('click', buildDraftIntoEditor);
   
   $('btnCopyHtml').addEventListener('click', copyExport);
@@ -4562,8 +4601,8 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   if ($('eformTitle')) {
     $('eformTitle').value = state.exportTitle;
     $('eformTitle').addEventListener('input', (e)=>{
-      const v = String(e.target.value || '').trim();
-      state.exportTitle = v || 'Generated OSCAR eForm';
+      const title = String(e.target.value || '').trim();
+      state.exportTitle = title || 'Generated OSCAR eForm';
     });
   }
   if ($('eformAuthor')) {
