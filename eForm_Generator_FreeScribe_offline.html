@@ -502,7 +502,6 @@
         <button id="btnConvConvertDownload" class="btn-blue">Convert + Download</button>
         <button id="btnConvLoadOnly" class="btn-violet">Load to Mapper</button>
         <button id="btnConvConvertAll" class="btn-green">Convert + Download + Load</button>
-        <button id="btnConvClear">Clear links</button>
       </div>
       <div id="convStatus" class="small" style="margin-top:6px"></div>
       <img id="convPreview" alt="converter preview" hidden style="width:100%;max-height:240px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px"/>
@@ -4731,7 +4730,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       btnConvertDownload: $('btnConvConvertDownload'),
       btnLoadOnly: $('btnConvLoadOnly'),
       btnConvertAll: $('btnConvConvertAll'),
-      btnClear: $('btnConvClear'),
       status: $('convStatus'),
       preview: $('convPreview'),
       links: $('convLinks'),
@@ -5049,7 +5047,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     controls.btnConvertDownload.addEventListener('click', ()=> runConvertAction({download:true, load:false}));
     controls.btnLoadOnly.addEventListener('click', runLoadOnly);
     controls.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
-    controls.btnClear.addEventListener('click', ()=>{ controls.links.innerHTML=''; showStatus('Cleared links.'); });
 
     updateButtons();
     showStatus('Converter ready (PNG output). Use Convert+Download or Load to Mapper.');
