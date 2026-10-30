@@ -310,8 +310,6 @@
 
     <div class="row" style="margin-top:8px">
       <span id="tabsRow"></span>
-      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="chkLabels" /> Show labels</label>
-      <label style="display:flex;align-items:center;gap:6px" title="Each field's oscarDB tag: inside the field when it fits, else above it"><input type="checkbox" id="chkTags" /> Show tags</label>
       <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Ctrl/Cmd+C/V copy/paste</span>
     </div>
 
@@ -330,7 +328,13 @@
     <details id="settingsPanel">
       <summary class="collapsible-summary"><span id="settingsPlus" class="plus-pill">+</span><span>Settings</span><span id="settingsCustom" class="small"></span></summary>
       <div style="margin-top:8px">
-        <div class="panel-title" style="margin-top:0">Interaction</div>
+        <div class="panel-title" style="margin-top:0">Display</div>
+        <div class="row">
+          <label style="display:flex;align-items:center;gap:6px" title="Each field's name above it, with its oscarDB tag when Show tags is off"><input type="checkbox" id="chkLabels" checked/> Show labels</label>
+          <label style="display:flex;align-items:center;gap:6px" title="Each field's oscarDB tag: inside the field when it fits, else above it"><input type="checkbox" id="chkTags" /> Show tags</label>
+        </div>
+        <div class="hr"></div>
+        <div class="panel-title">Interaction</div>
         <div class="row">
           <label style="display:flex;align-items:center;gap:6px"><input id="chkSnap" type="checkbox" checked/> Snap while dragging</label>
           <label>Snap px <input id="snapPx" type="number" value="8" min="1" max="40" style="width:78px"/></label>
@@ -913,7 +917,7 @@ else if (typeof exports === 'object')
     },
     fields: [],
     selected: new Set(),
-    showLabels: false,
+    showLabels: true,
     showTags: false,
     nextId: 1,
 
