@@ -280,7 +280,6 @@
       <button id="btnSaveSession">Save Session</button>
       <button id="btnLoadSession">Load Session</button>
       <input id="fileSession" type="file" accept="application/json,.json" hidden />
-      <button id="btnToggleConverter">PDF→Image Tool</button>
     </div>
 
     <!-- FreeScribe connection (added by FreeScribe): shown only when FreeScribe opens this page -->
@@ -2236,13 +2235,6 @@ else if (typeof exports === 'object')
     panel.classList.add('converter-top');
     panel.open = true;
   }
-
-  $('btnToggleConverter').addEventListener('click', ()=>{
-    const panel = $('converterPanel');
-    if (!panel) return;
-    panel.open = !panel.open;
-    panel.scrollIntoView({behavior:'smooth', block:'start'});
-  });
 
   // A collapsible panel's + / − pill follows whether it is open
   function initCollapse(detId, plusId){
@@ -4878,7 +4870,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   async function fsFindFields(){
     if (FS.busy) return;
     const pages = fsTargetPages();
-    if (!pages.length){ msg('Load the form pages first (PDF→Image Tool, or upload page images).', 'warn'); return; }
+    if (!pages.length){ msg('Load the form pages first (PDF → PNG converter, or upload page images).', 'warn'); return; }
     const replace = $('fsReplace').checked;
     const before = state.fields.filter(f => pages.includes(Number(f.page))).length;
     const kept = replace ? state.fields.filter(f => !pages.includes(Number(f.page))) : state.fields;
