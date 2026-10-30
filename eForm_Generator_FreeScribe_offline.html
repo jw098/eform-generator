@@ -948,7 +948,9 @@ else if (typeof exports === 'object')
   let syncingEditor = false;
 
 
+  // The element with this id
   const $ = (id) => document.getElementById(id);
+  // Shows a message under the canvas; `cls` is its style: 'ok', 'warn', 'err' or plain 'small'
   const msg = (text, cls='small') => {
     const m = $('msg');
     m.className = cls;
@@ -956,16 +958,18 @@ else if (typeof exports === 'object')
   };
 
   // ===== Small helpers used throughout =====
-  const norm = (s='') => String(s).toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').trim();
+  // A name as a lookup key, to match names however they are written: "Patient Name" -> "patient_name"
+  const nameKey = (s='') => String(s).toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').trim();
+  // A number kept between min and max
   const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+  // Text made safe to put in HTML
   const escHtml = (s='') => String(s)
     .replace(/&/g,'&amp;')
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
-  // A value made safe to put inside an HTML attribute's quotes
-  function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // A file the user chose, read as a data: URL (a page image) or as text (an eForm, a session)
   function readAsDataURL(file){
     return new Promise((res, rej)=>{
       const r = new FileReader();
@@ -982,6 +986,7 @@ else if (typeof exports === 'object')
       r.readAsText(file);
     });
   }
+  // An image loaded from a URL, once it has loaded
   function loadImage(src){
     return new Promise((res, rej)=>{
       const img = new Image();
@@ -1118,7 +1123,7 @@ else if (typeof exports === 'object')
     family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (OSCAR may well not have their phone, fax or address)
     office:    {}                                                // ("FOR OFFICE USE ONLY": the receiving office fills these in)
   };
-  // What a field asks for, from the whole words of its label (norm()'d: words joined by "_").
+  // What a field asks for, from the whole words of its label (nameKey()'d: words joined by "_").
   // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral");
   // any other is the date of something else ("Date of loss", "LMP (date)", "Date seen"), and an
   // age is the patient's only when it is just "Age" ("Age at diagnosis", "Menopause (age)").
@@ -1276,7 +1281,7 @@ else if (typeof exports === 'object')
       f.oscarTag = captionTag(f.oscarTag, f.label);
     });
     writes.forEach(f => {
-      if (f.oscarTag !== 'today' || norm(f.label || '') !== 'date') return;
+      if (f.oscarTag !== 'today' || nameKey(f.label || '') !== 'date') return;
       const prev = fieldLeftOf(f, writes);
       if (prev && !prev.oscarTag) f.oscarTag = '';
     });
@@ -1458,8 +1463,8 @@ else if (typeof exports === 'object')
       const label    = nearestLabelText(el);
 
       if (oscarTag) {
-        if (rawName && !GENERIC_NAME_RE.test(rawName)) template.nameTagMap.set(norm(rawName), oscarTag);
-        if (label && label.length > 1) template.nameTagMap.set(norm(label), oscarTag);
+        if (rawName && !GENERIC_NAME_RE.test(rawName)) template.nameTagMap.set(nameKey(rawName), oscarTag);
+        if (label && label.length > 1) template.nameTagMap.set(nameKey(label), oscarTag);
       }
 
       const box = getPositionedBox(el);
@@ -1530,7 +1535,7 @@ else if (typeof exports === 'object')
   function dedupeFields(fields){
     const kept = [];
     fields.forEach(f => {
-      const isRepeat = kept.some(k => samePage(k.page,f.page) && Math.abs(k.x - f.x) < 2 && Math.abs(k.y - f.y) < 2 && Math.abs(k.width - f.width) < 2 && Math.abs(k.height - f.height) < 2 && norm(k.name) === norm(f.name));
+      const isRepeat = kept.some(k => samePage(k.page,f.page) && Math.abs(k.x - f.x) < 2 && Math.abs(k.y - f.y) < 2 && Math.abs(k.width - f.width) < 2 && Math.abs(k.height - f.height) < 2 && nameKey(k.name) === nameKey(f.name));
       if (!isRepeat) kept.push(f);
     });
     return kept;
@@ -1552,7 +1557,7 @@ else if (typeof exports === 'object')
       clearTemplate();
       state.templateName = file.name;
       state.templateFields = dedupeFields(tpl.fields);
-      state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(norm(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(norm(f.label), f.oscarTag); }});
+      state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(nameKey(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(nameKey(f.label), f.oscarTag); }});
       tpl.nameTagMap.forEach((v,k)=> state.templateNameTagMap.set(k,v));
       const sn = tpl.snippets;
       state.snippets = { externalSrc: new Set(sn.externalSrc), inlineScripts: [...new Set(sn.inlineScripts)], actionFns: new Set(sn.actionFns),
@@ -1599,7 +1604,7 @@ else if (typeof exports === 'object')
     let changed=0;
     state.fields.forEach(f => {
       if (f.oscarTag) return;
-      const fromMap = state.templateNameTagMap.get(norm(f.name)) || (f.label ? state.templateNameTagMap.get(norm(f.label)) : '');
+      const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
       const g = fromMap || guessTag(f.name, f.type, f.label);
       if (g){ f.oscarTag=g; changed++; }
     });
@@ -4008,6 +4013,8 @@ else if (typeof exports === 'object')
 
   
   // ===== Export: the eForm's HTML, the compatibility check, the OSCAR package =====
+  // A value made safe to put inside an HTML attribute's quotes
+  function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
 // _safeName, numbered when two would be the same ("name", "name_2"); _origName keeps its name
 function sanitizeUniqueFieldNames(fields){
@@ -4949,7 +4956,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   updateUndoBtn();
 
   try{
-    console.assert(norm('Patient Name')==='patient_name', 'norm test');
+    console.assert(nameKey('Patient Name')==='patient_name', 'nameKey test');
     console.assert(guessTag('DOB')==='dobc2' || guessTag('DOB')==='dob', 'tag DOB');
     console.assert(guessTag('Patient phone')==='phone', 'tag phone');
     console.assert(clamp(12,0,10)===10, 'clamp');
