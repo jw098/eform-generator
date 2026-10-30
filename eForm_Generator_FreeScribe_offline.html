@@ -955,6 +955,51 @@ else if (typeof exports === 'object')
     m.textContent = text || '';
   };
 
+  // ===== Small helpers used throughout =====
+  const norm = (s='') => String(s).toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').trim();
+  const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+  const escHtml = (s='') => String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+  // A value made safe to put inside an HTML attribute's quotes
+  function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function readAsDataURL(file){
+    return new Promise((res, rej)=>{
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+  function readAsText(file){
+    return new Promise((res, rej)=>{
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = rej;
+      r.readAsText(file);
+    });
+  }
+  function loadImage(src){
+    return new Promise((res, rej)=>{
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+  }
+  // A collapsible panel's + / − pill follows whether it is open
+  function initCollapse(detId, plusId){
+    const det = $(detId), plus = $(plusId);
+    if (!det || !plus) return;
+    const sync = ()=>{ plus.textContent = det.open ? '−' : '+'; };
+    det.addEventListener('toggle', sync);
+    sync();
+  }
+
+  // ===== Undo =====
   function updateUndoBtn(){
     const b = $('btnUndo');
     if (!b) return;
@@ -1022,24 +1067,7 @@ else if (typeof exports === 'object')
     msg('Undid last action.', 'ok');
   }
 
-  const TUNING_IDS = ['minCb','maxCb','tolCb','lineMinPct','darkBias','gradMult'];
-  function getTuning(){
-    const out = {};
-    TUNING_IDS.forEach(id => {
-      const el = $(id); if (!el) return;
-      const v = Number(el.value);
-      out[id] = Number.isFinite(v) ? v : el.value;
-    });
-    return out;
-  }
-  function setTuning(t){
-    if (!t || typeof t !== 'object') return;
-    TUNING_IDS.forEach(id => {
-      if (t[id] == null) return;
-      const el = $(id); if (el) el.value = String(t[id]);
-    });
-  }
-
+  // ===== Tags: OSCAR's standard tags, and guessing a field's =====
   function normalizeTag(tag){
     return String(tag || '').trim().replace(/\s+/g,'_').replace(/[^A-Za-z0-9_]/g,'_').replace(/^_+|_+$/g,'');
   }
@@ -1051,14 +1079,6 @@ else if (typeof exports === 'object')
     'patient_dob','patient_hin','patient_phone','patient_address','patient_sex','today_date']);
   function isRemovedTag(tag){ return REMOVED_TAGS.has(String(tag||'').trim().toLowerCase()); }
 
-  const norm = (s='') => String(s).toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').trim();
-  const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
-  const escHtml = (s='') => String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;');
   const GENERIC_NAME_RE = /^(gen_inputid\d+|page\d+_\d+|field_\d+|input\d+|checkbox\d*)$/i;
 
   // A field's tag, in two steps: what it asks for, from the whole words of its label (askedFor),
@@ -1262,31 +1282,7 @@ else if (typeof exports === 'object')
     });
   }
 
-  function readAsDataURL(file){
-    return new Promise((res, rej)=>{
-      const r = new FileReader();
-      r.onload = e => res(e.target.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-  }
-  function readAsText(file){
-    return new Promise((res, rej)=>{
-      const r = new FileReader();
-      r.onload = e => res(e.target.result);
-      r.onerror = rej;
-      r.readAsText(file);
-    });
-  }
-  function loadImage(src){
-    return new Promise((res, rej)=>{
-      const img = new Image();
-      img.onload = () => res(img);
-      img.onerror = rej;
-      img.src = src;
-    });
-  }
-
+  // ===== Reading an imported eForm's HTML =====
   function parseStylePx(styleText, prop){
     const m = String(styleText || '').match(new RegExp(prop + '\\s*:\\s*([-0-9.]+)(px|%)?', 'i'));
     if (!m) return null;
@@ -1361,18 +1357,6 @@ else if (typeof exports === 'object')
     }
     return null;
   }
-
-  // The tag list and suggestions: the standard tags, which never change
-  function fillTagOptions(){
-    const sorted = [...STANDARD_TAGS].sort((a,b)=>a.localeCompare(b));
-    sorted.forEach(tag => {
-      const o = document.createElement('option'); o.value = tag; $('tagSuggestions').appendChild(o);
-      const o2 = document.createElement('option'); o2.value = tag; o2.textContent = tag; $('fTagSelect').appendChild(o2);
-    });
-  }
-  // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
-  function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
-
 
   // Names/ids on inputs that belong to the form toolbar, not to data fields
   const CONTROL_INPUT_NAMES = new Set([
@@ -1552,6 +1536,102 @@ else if (typeof exports === 'object')
     return kept;
   }
 
+  // ===== The eForm HTML import panel =====
+  // One eForm HTML at a time: its fields, name↔tag map and scripts
+  function clearTemplate(){
+    state.templateName = '';
+    state.templateNameTagMap = new Map();
+    state.templateFields = [];
+    state.snippets = { externalSrc: new Set(), inlineScripts: [], actionFns: new Set(), onloads: new Set(), buttonHtml: [], signatureHtml: [] };
+  }
+  $('btnTemplate').addEventListener('click', ()=> $('fileTemplates').click());
+  $('fileTemplates').addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    try{
+      const text = await readAsText(file), tpl = parseTemplateHtml(text, file.name);
+      clearTemplate();
+      state.templateName = file.name;
+      state.templateFields = dedupeFields(tpl.fields);
+      state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(norm(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(norm(f.label), f.oscarTag); }});
+      tpl.nameTagMap.forEach((v,k)=> state.templateNameTagMap.set(k,v));
+      const sn = tpl.snippets;
+      state.snippets = { externalSrc: new Set(sn.externalSrc), inlineScripts: [...new Set(sn.inlineScripts)], actionFns: new Set(sn.actionFns),
+                         onloads: new Set(sn.onloads), buttonHtml: sn.buttonHtml.slice(), signatureHtml: sn.signatureHtml.slice() };
+      $('templateImportPanel').open = true;
+      renderAll();
+      msg(`Imported ${file.name}: ${state.templateFields.length} field(s).`, 'ok');
+    }catch(err){ msg('eForm HTML import failed: ' + (err.message || err), 'err'); }
+    finally { e.target.value=''; }
+  });
+  $('btnClearTemplate').addEventListener('click', ()=>{
+    if (!state.templateName) return;
+    const name = state.templateName;
+    clearTemplate(); renderAll(); msg(`Removed ${name}.`, 'ok');
+  });
+
+  // The eForm's fields, with their tags, added to your pages as they are. Fields already on those
+  // pages (Auto Detect's, or your own) are left alone, so the eForm's come as a second set.
+  $('btnApplyTemplateFields').addEventListener('click', ()=>{
+    if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
+    const onPages = state.templateFields.filter(tf => state.pages[Number(tf.page)]);
+    const have = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
+    if (have && !confirm(`These pages already have ${have} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
+    pushUndo();
+    onPages.forEach(tf => {
+      // A field from an eForm this app made (it has _exportW) is rescaled from the width it was
+      // exported at to the page image's
+      const p = state.pages[Number(tf.page)];
+      let x = tf.x, y = tf.y, w = tf.width, h = tf.height;
+      if (tf._exportW > 0 && p.naturalW > 0) {
+        const scale = p.naturalW / tf._exportW;
+        x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
+      }
+      addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
+        oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '' });
+    });
+    renderAll();
+    const off = state.templateFields.length - onPages.length;
+    msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (off ? `; ${off} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
+  });
+
+  function autoTagUnmapped(){
+    pushUndo();
+    let changed=0;
+    state.fields.forEach(f => {
+      if (f.oscarTag) return;
+      const fromMap = state.templateNameTagMap.get(norm(f.name)) || (f.label ? state.templateNameTagMap.get(norm(f.label)) : '');
+      const g = fromMap || guessTag(f.name, f.type, f.label);
+      if (g){ f.oscarTag=g; changed++; }
+    });
+    renderAll(); msg(changed ? `Auto-tagged ${changed} field(s).` : 'No fields were auto-tagged.', changed ? 'ok':'warn');
+  }
+  $('btnAutoTag').addEventListener('click', autoTagUnmapped);
+
+
+  function renderTemplateFieldList(){
+    const box=$('templateFieldList'); box.innerHTML='';
+    const nt=state.templateFields.length, name=state.templateName;
+    $('templateCount').textContent = name ? `· ${name}` : '';
+    $('templateLoaded').innerHTML = name ? `Loaded: <b>${escHtml(name)}</b> (${nt} field${nt!==1?'s':''})` : 'No eForm HTML loaded.';
+    $('btnClearTemplate').disabled = !name;
+    if(!state.templateFields.length){ box.innerHTML='<div class="list-item">No eForm HTML loaded.</div>'; return; }
+    state.templateFields.slice(0,300).forEach(f=>{ const d=document.createElement('div'); d.className='list-item mono'; d.textContent=`p${f.page} ${Math.round(f.x)},${Math.round(f.y)} ${Math.round(f.width)}x${Math.round(f.height)}  ${f.name}${f.oscarTag ? ' -> ' + f.oscarTag : ''}`; box.appendChild(d); });
+    if(state.templateFields.length>300){ const d=document.createElement('div'); d.className='list-item'; d.textContent=`... ${state.templateFields.length-300} more`; box.appendChild(d); }
+  }
+
+  function renderSnippetList(){
+    const box=$('snippetBox'); box.innerHTML=''; const rows=[];
+    if(state.snippets.externalSrc.size) rows.push(`External scripts: ${state.snippets.externalSrc.size}`);
+    if(state.snippets.inlineScripts.length) rows.push(`Inline script blocks: ${state.snippets.inlineScripts.length}`);
+    if(state.snippets.actionFns.size) rows.push(`Detected action fns: ${[...state.snippets.actionFns].join(', ')}`);
+    if(state.snippets.onloads.size) rows.push(`Body onload hooks: ${state.snippets.onloads.size}`);
+    if(state.snippets.buttonHtml.length) rows.push(`Template button snippets detected: ${state.snippets.buttonHtml.length} (informational — output uses generated Submit/Fax/Print buttons)`);
+    if(state.snippets.signatureHtml.length) rows.push(`Signature image snippets: ${state.snippets.signatureHtml.length}`);
+    if(!rows.length){ box.innerHTML='<div class="list-item">No snippets extracted yet.</div>'; return; }
+    rows.forEach(r=>{ const d=document.createElement('div'); d.className='list-item'; d.textContent=r; box.appendChild(d); });
+  }
+
+  // ===== Pages and fields on the canvas =====
   // Adds a field to the form, filling in what `partial` leaves out, and returns it
   function addField(partial){
     const f = {
@@ -1584,22 +1664,6 @@ else if (typeof exports === 'object')
 
   // Shows the current page and the number of fields on it and in all
   function renderCounts(){ const page = Number(state.currentPage) || 1; $('kvPage').textContent = String(page); $('kvCount').textContent = String(getPageFields(page).length); $('kvTotal').textContent = String(state.fields.length); }
-
-  // Fills the Selected field editor from the selected field, or hides it unless one is selected
-  function renderSelectedEditor(){
-    if (state.selected.size === 1){
-      const id = [...state.selected][0];
-      const f = state.fields.find(x => x.id === id);
-      if (!f) { $('selNone').style.display='block'; $('selEditor').style.display='none'; return; }
-      $('selNone').style.display='none'; $('selEditor').style.display='block';
-      syncingEditor = true;
-      $('fName').value = f.name || ''; $('fType').value = f.type || 'text'; $('fTag').value = f.oscarTag || '';
-      $('fX').value = Math.round(f.x); $('fY').value = Math.round(f.y); $('fW').value = Math.round(f.width); $('fH').value = Math.round(f.height);
-      const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
-      showTagWarn(f.oscarTag);
-      syncingEditor = false;
-    } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
-  }
 
   // The lasso's rectangle, in screen pixels on its page's overlay
   function lassoRectPx(lasso){ const left = Math.min(lasso.startX, lasso.curX), top = Math.min(lasso.startY, lasso.curY); const width = Math.abs(lasso.curX - lasso.startX), height = Math.abs(lasso.curY - lasso.startY); return { left, top, width, height, right:left+width, bottom:top+height }; }
@@ -2097,7 +2161,33 @@ else if (typeof exports === 'object')
   $('btnDuplicateSel').addEventListener('click', duplicateSelectedFields);
   $('btnUndo').addEventListener('click', doUndo);
   $('btnClearPage').addEventListener('click', ()=>{ const page=state.currentPage; pushUndo(); state.fields = state.fields.filter(f=>!samePage(f.page,page)); state.selected.clear(); renderAll(); msg(`Cleared fields on page ${page}.`, 'ok'); });
-  $('btnResetAll').addEventListener('click', resetEverything);
+
+  // ===== The Selected field editor =====
+  // The tag list and suggestions: the standard tags, which never change
+  function fillTagOptions(){
+    const sorted = [...STANDARD_TAGS].sort((a,b)=>a.localeCompare(b));
+    sorted.forEach(tag => {
+      const o = document.createElement('option'); o.value = tag; $('tagSuggestions').appendChild(o);
+      const o2 = document.createElement('option'); o2.value = tag; o2.textContent = tag; $('fTagSelect').appendChild(o2);
+    });
+  }
+  // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
+  function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
+  // Fills the Selected field editor from the selected field, or hides it unless one is selected
+  function renderSelectedEditor(){
+    if (state.selected.size === 1){
+      const id = [...state.selected][0];
+      const f = state.fields.find(x => x.id === id);
+      if (!f) { $('selNone').style.display='block'; $('selEditor').style.display='none'; return; }
+      $('selNone').style.display='none'; $('selEditor').style.display='block';
+      syncingEditor = true;
+      $('fName').value = f.name || ''; $('fType').value = f.type || 'text'; $('fTag').value = f.oscarTag || '';
+      $('fX').value = Math.round(f.x); $('fY').value = Math.round(f.y); $('fW').value = Math.round(f.width); $('fH').value = Math.round(f.height);
+      const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
+      showTagWarn(f.oscarTag);
+      syncingEditor = false;
+    } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
+  }
 
   syncingEditor = false;
   // Copies the Selected field editor's values onto the selected field as they are typed
@@ -2162,7 +2252,7 @@ else if (typeof exports === 'object')
     }
   });
 
-  // Session save/load
+  // ===== Sessions: save, load, leave and reset =====
   function serializeSession(){
     return {
       app: 'oscar-eform-mapper',
@@ -2316,119 +2406,95 @@ else if (typeof exports === 'object')
     finally { e.target.value=''; }
   });
 
-  function mountConverterTop(){
-    const panel = $('converterPanel');
-    const mount = $('converterTopMount');
-    if (!panel || !mount) return;
-    if (panel.parentElement !== mount) mount.appendChild(panel);
-    panel.classList.add('converter-top');
-    panel.open = true;
-  }
-
-  // A collapsible panel's + / − pill follows whether it is open
-  function initCollapse(detId, plusId){
-    const det = $(detId), plus = $(plusId);
-    if (!det || !plus) return;
-    const sync = ()=>{ plus.textContent = det.open ? '−' : '+'; };
-    det.addEventListener('toggle', sync);
-    sync();
-  }
-
-  // One eForm HTML at a time: its fields, name↔tag map and scripts
-  function clearTemplate(){
-    state.templateName = '';
-    state.templateNameTagMap = new Map();
-    state.templateFields = [];
-    state.snippets = { externalSrc: new Set(), inlineScripts: [], actionFns: new Set(), onloads: new Set(), buttonHtml: [], signatureHtml: [] };
-  }
-  $('btnTemplate').addEventListener('click', ()=> $('fileTemplates').click());
-  $('fileTemplates').addEventListener('change', async (e)=>{
-    const file = e.target.files && e.target.files[0]; if (!file) return;
-    try{
-      const text = await readAsText(file), tpl = parseTemplateHtml(text, file.name);
-      clearTemplate();
-      state.templateName = file.name;
-      state.templateFields = dedupeFields(tpl.fields);
-      state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(norm(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(norm(f.label), f.oscarTag); }});
-      tpl.nameTagMap.forEach((v,k)=> state.templateNameTagMap.set(k,v));
-      const sn = tpl.snippets;
-      state.snippets = { externalSrc: new Set(sn.externalSrc), inlineScripts: [...new Set(sn.inlineScripts)], actionFns: new Set(sn.actionFns),
-                         onloads: new Set(sn.onloads), buttonHtml: sn.buttonHtml.slice(), signatureHtml: sn.signatureHtml.slice() };
-      $('templateImportPanel').open = true;
-      renderAll();
-      msg(`Imported ${file.name}: ${state.templateFields.length} field(s).`, 'ok');
-    }catch(err){ msg('eForm HTML import failed: ' + (err.message || err), 'err'); }
-    finally { e.target.value=''; }
-  });
-  $('btnClearTemplate').addEventListener('click', ()=>{
-    if (!state.templateName) return;
-    const name = state.templateName;
-    clearTemplate(); renderAll(); msg(`Removed ${name}.`, 'ok');
-  });
-
-  // The eForm's fields, with their tags, added to your pages as they are. Fields already on those
-  // pages (Auto Detect's, or your own) are left alone, so the eForm's come as a second set.
-  $('btnApplyTemplateFields').addEventListener('click', ()=>{
-    if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
-    const onPages = state.templateFields.filter(tf => state.pages[Number(tf.page)]);
-    const have = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
-    if (have && !confirm(`These pages already have ${have} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
+  function resetEverything(){
+    const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, snippets, and export draft.');
+    if(!ok) return;
     pushUndo();
-    onPages.forEach(tf => {
-      // A field from an eForm this app made (it has _exportW) is rescaled from the width it was
-      // exported at to the page image's
-      const p = state.pages[Number(tf.page)];
-      let x = tf.x, y = tf.y, w = tf.width, h = tf.height;
-      if (tf._exportW > 0 && p.naturalW > 0) {
-        const scale = p.naturalW / tf._exportW;
-        x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
-      }
-      addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
-        oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '' });
+    state.currentPage = 1;
+    Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(n => { if(n>1) removeSinglePage(n,true); });
+    state.pages[1] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
+    state.fields = [];
+    state.selected.clear();
+    state.nextId = 1;
+
+    clearTemplate();
+
+    const _ri=$('img1'); if(_ri) _ri.src='';
+    Object.keys(state.pages).map(Number).forEach(n=>{ const fi=$('fileImg'+n); if(fi) fi.value=''; });
+    $('fileTemplates').value = '';
+    $('exportEditor').value = '';
+    state.exportTitle = 'Generated OSCAR eForm';
+    state.exportAuthor = '';
+    state.formId = newFormId();
+    if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
+    if ($('eformAuthor')) $('eformAuthor').value = '';
+    setCurrentPage(1);
+    msg('Reset complete.', 'ok');
+  }
+  $('btnResetAll').addEventListener('click', resetEverything);
+
+  // ===== Auto Detect tuning (Settings) =====
+  const TUNING_IDS = ['minCb','maxCb','tolCb','lineMinPct','darkBias','gradMult'];
+  function getTuning(){
+    const out = {};
+    TUNING_IDS.forEach(id => {
+      const el = $(id); if (!el) return;
+      const v = Number(el.value);
+      out[id] = Number.isFinite(v) ? v : el.value;
     });
-    renderAll();
-    const off = state.templateFields.length - onPages.length;
-    msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (off ? `; ${off} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
+    return out;
+  }
+  function setTuning(t){
+    if (!t || typeof t !== 'object') return;
+    TUNING_IDS.forEach(id => {
+      if (t[id] == null) return;
+      const el = $(id); if (el) el.value = String(t[id]);
+    });
+  }
+  const DETECT_PRESETS = {
+    standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
+    small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, lineMinPct:7.5},
+    large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
+    lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
+  };
+  // The tuning values that aren't the standard ones, as "Min checkbox px 10 (standard 8)"
+  function tuningChanges(){
+    const std = DETECT_PRESETS.standard;
+    return TUNING_IDS.filter(id => $(id) && Number($(id).value) !== std[id]).map(id => {
+      const label = $(id).closest('label');
+      const name = label ? label.firstChild.textContent.trim() : id;
+      return `${name} ${$(id).value} (standard ${std[id]})`;
+    });
+  }
+  // While any value isn't the standard one, the tuning panel's heading says "· custom", the
+  // Settings heading "· tuning custom" and the Auto Detect button wears a "custom" badge, so a
+  // change shows with the panels closed (it is saved with the session too)
+  function syncTuningMarker(){
+    const custom = tuningChanges().length > 0;
+    $('tuningCustom').textContent = custom ? '· custom' : '';
+    $('settingsCustom').textContent = custom ? '· tuning custom' : '';
+    $('detectCustom').hidden = !custom;
+  }
+  // The badge opens the tuning, where "Reset to standard" is
+  $('detectCustom').addEventListener('click', () => {
+    $('settingsPanel').open = true; $('detectionTuningPanel').open = true;
+    $('detectionTuningPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-
-  function autoTagUnmapped(){
-    pushUndo();
-    let changed=0;
-    state.fields.forEach(f => {
-      if (f.oscarTag) return;
-      const fromMap = state.templateNameTagMap.get(norm(f.name)) || (f.label ? state.templateNameTagMap.get(norm(f.label)) : '');
-      const g = fromMap || guessTag(f.name, f.type, f.label);
-      if (g){ f.oscarTag=g; changed++; }
-    });
-    renderAll(); msg(changed ? `Auto-tagged ${changed} field(s).` : 'No fields were auto-tagged.', changed ? 'ok':'warn');
+  TUNING_IDS.forEach(id => { if ($(id)) $(id).addEventListener('input', syncTuningMarker); });
+  async function applyDetectPreset(name){
+    const p = DETECT_PRESETS[name]; if (!p) return;
+    const set = (id,v) => { const el=$(''+id); if(el) el.value = String(v); };
+    set('minCb',p.minCb); set('maxCb',p.maxCb); set('tolCb',p.tolCb);
+    set('darkBias',p.darkBias); set('gradMult',p.gradMult); set('lineMinPct',p.lineMinPct);
+    syncTuningMarker();
+    msg(name === 'standard' ? 'Auto Detect tuning reset to standard.' : 'Preset "' + name + '" applied. Run Auto Detect to use it.', 'ok');
   }
-  $('btnAutoTag').addEventListener('click', autoTagUnmapped);
+  if ($('btnPresetStandard')) $('btnPresetStandard').addEventListener('click', ()=>applyDetectPreset('standard'));
+  if ($('btnPresetSmall')) $('btnPresetSmall').addEventListener('click', ()=>applyDetectPreset('small'));
+  if ($('btnPresetLarge')) $('btnPresetLarge').addEventListener('click', ()=>applyDetectPreset('large'));
+  if ($('btnPresetLines')) $('btnPresetLines').addEventListener('click', ()=>applyDetectPreset('lines'));
 
-
-  function renderTemplateFieldList(){
-    const box=$('templateFieldList'); box.innerHTML='';
-    const nt=state.templateFields.length, name=state.templateName;
-    $('templateCount').textContent = name ? `· ${name}` : '';
-    $('templateLoaded').innerHTML = name ? `Loaded: <b>${escHtml(name)}</b> (${nt} field${nt!==1?'s':''})` : 'No eForm HTML loaded.';
-    $('btnClearTemplate').disabled = !name;
-    if(!state.templateFields.length){ box.innerHTML='<div class="list-item">No eForm HTML loaded.</div>'; return; }
-    state.templateFields.slice(0,300).forEach(f=>{ const d=document.createElement('div'); d.className='list-item mono'; d.textContent=`p${f.page} ${Math.round(f.x)},${Math.round(f.y)} ${Math.round(f.width)}x${Math.round(f.height)}  ${f.name}${f.oscarTag ? ' -> ' + f.oscarTag : ''}`; box.appendChild(d); });
-    if(state.templateFields.length>300){ const d=document.createElement('div'); d.className='list-item'; d.textContent=`... ${state.templateFields.length-300} more`; box.appendChild(d); }
-  }
-
-  function renderSnippetList(){
-    const box=$('snippetBox'); box.innerHTML=''; const rows=[];
-    if(state.snippets.externalSrc.size) rows.push(`External scripts: ${state.snippets.externalSrc.size}`);
-    if(state.snippets.inlineScripts.length) rows.push(`Inline script blocks: ${state.snippets.inlineScripts.length}`);
-    if(state.snippets.actionFns.size) rows.push(`Detected action fns: ${[...state.snippets.actionFns].join(', ')}`);
-    if(state.snippets.onloads.size) rows.push(`Body onload hooks: ${state.snippets.onloads.size}`);
-    if(state.snippets.buttonHtml.length) rows.push(`Template button snippets detected: ${state.snippets.buttonHtml.length} (informational — output uses generated Submit/Fax/Print buttons)`);
-    if(state.snippets.signatureHtml.length) rows.push(`Signature image snippets: ${state.snippets.signatureHtml.length}`);
-    if(!rows.length){ box.innerHTML='<div class="list-item">No snippets extracted yet.</div>'; return; }
-    rows.forEach(r=>{ const d=document.createElement('div'); d.className='list-item'; d.textContent=r; box.appendChild(d); });
-  }
-
-
+  // ===== Auto Detect =====
   function countOnInRect(arr,w,h,x1,y1,x2,y2){
     const xx1 = clamp(Math.round(x1), 0, w-1), yy1 = clamp(Math.round(y1), 0, h-1);
     const xx2 = clamp(Math.round(x2), 0, w-1), yy2 = clamp(Math.round(y2), 0, h-1);
@@ -2635,76 +2701,6 @@ else if (typeof exports === 'object')
     return countOnInRect(clean,w,h,x2+2,ya,Math.min(w-1,x2+gap),yb) === 0 &&
            countOnInRect(clean,w,h,Math.max(0,x1-gap),ya,x1-2,yb) === 0;
   }
-
-  function resetEverything(){
-    const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, snippets, and export draft.');
-    if(!ok) return;
-    pushUndo();
-    state.currentPage = 1;
-    Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(n => { if(n>1) removeSinglePage(n,true); });
-    state.pages[1] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
-    state.fields = [];
-    state.selected.clear();
-    state.nextId = 1;
-
-    clearTemplate();
-
-    const _ri=$('img1'); if(_ri) _ri.src='';
-    Object.keys(state.pages).map(Number).forEach(n=>{ const fi=$('fileImg'+n); if(fi) fi.value=''; });
-    $('fileTemplates').value = '';
-    $('exportEditor').value = '';
-    state.exportTitle = 'Generated OSCAR eForm';
-    state.exportAuthor = '';
-    state.formId = newFormId();
-    if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
-    if ($('eformAuthor')) $('eformAuthor').value = '';
-    setCurrentPage(1);
-    msg('Reset complete.', 'ok');
-  }
-
-
-  const DETECT_PRESETS = {
-    standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
-    small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, lineMinPct:7.5},
-    large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
-    lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
-  };
-  // The tuning values that aren't the standard ones, as "Min checkbox px 10 (standard 8)"
-  function tuningChanges(){
-    const std = DETECT_PRESETS.standard;
-    return TUNING_IDS.filter(id => $(id) && Number($(id).value) !== std[id]).map(id => {
-      const label = $(id).closest('label');
-      const name = label ? label.firstChild.textContent.trim() : id;
-      return `${name} ${$(id).value} (standard ${std[id]})`;
-    });
-  }
-  // While any value isn't the standard one, the tuning panel's heading says "· custom", the
-  // Settings heading "· tuning custom" and the Auto Detect button wears a "custom" badge, so a
-  // change shows with the panels closed (it is saved with the session too)
-  function syncTuningMarker(){
-    const custom = tuningChanges().length > 0;
-    $('tuningCustom').textContent = custom ? '· custom' : '';
-    $('settingsCustom').textContent = custom ? '· tuning custom' : '';
-    $('detectCustom').hidden = !custom;
-  }
-  // The badge opens the tuning, where "Reset to standard" is
-  $('detectCustom').addEventListener('click', () => {
-    $('settingsPanel').open = true; $('detectionTuningPanel').open = true;
-    $('detectionTuningPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-  TUNING_IDS.forEach(id => { if ($(id)) $(id).addEventListener('input', syncTuningMarker); });
-  async function applyDetectPreset(name){
-    const p = DETECT_PRESETS[name]; if (!p) return;
-    const set = (id,v) => { const el=$(''+id); if(el) el.value = String(v); };
-    set('minCb',p.minCb); set('maxCb',p.maxCb); set('tolCb',p.tolCb);
-    set('darkBias',p.darkBias); set('gradMult',p.gradMult); set('lineMinPct',p.lineMinPct);
-    syncTuningMarker();
-    msg(name === 'standard' ? 'Auto Detect tuning reset to standard.' : 'Preset "' + name + '" applied. Run Auto Detect to use it.', 'ok');
-  }
-  if ($('btnPresetStandard')) $('btnPresetStandard').addEventListener('click', ()=>applyDetectPreset('standard'));
-  if ($('btnPresetSmall')) $('btnPresetSmall').addEventListener('click', ()=>applyDetectPreset('small'));
-  if ($('btnPresetLarge')) $('btnPresetLarge').addEventListener('click', ()=>applyDetectPreset('large'));
-  if ($('btnPresetLines')) $('btnPresetLines').addEventListener('click', ()=>applyDetectPreset('lines'));
 
   // Explicit 4-sided rectangle scan — finds hollow square outlines without needing
   // them to be a single connected component. Robust against thin PDF borders and
@@ -4010,13 +4006,8 @@ else if (typeof exports === 'object')
   $('btnDetect').addEventListener('click', () => detectCurrentPage());
 
 
-  // A value as a percentage of a total, to three decimals
-  function toPercent(value,total){ return (total ? (value/total*100) : 0).toFixed(3); }
-  // A value made safe to put inside an HTML attribute's quotes
-  function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  // A number of pixels for CSS, to three decimals
-  function cssPx(value){ return (Math.round((Number(value)||0)*1000)/1000).toString(); }
   
+  // ===== Export: the eForm's HTML, the compatibility check, the OSCAR package =====
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
 // _safeName, numbered when two would be the same ("name", "name_2"); _origName keeps its name
 function sanitizeUniqueFieldNames(fields){
@@ -4611,6 +4602,17 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     });
   }
 
+  // ===== The PDF → PNG converter =====
+  // Moves the converter's panel to the top of the page, open
+  function mountConverterTop(){
+    const panel = $('converterPanel');
+    const mount = $('converterTopMount');
+    if (!panel || !mount) return;
+    if (panel.parentElement !== mount) mount.appendChild(panel);
+    panel.classList.add('converter-top');
+    panel.open = true;
+  }
+
   // The PDF → PNG converter: renders a PDF's pages as PNG images to download or to load straight
   // onto the mapper's pages
   function initConverter(){
@@ -4933,6 +4935,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     showStatus('Converter ready (PNG output). Use Convert+Download or Load to Mapper.');
   }
 
+  // ===== Start-up =====
   createPageDOM(1);
   if ($('btnAddPage')) $('btnAddPage').addEventListener('click', addPage);
   if ($('btnRemovePage')) $('btnRemovePage').addEventListener('click', removePage);
