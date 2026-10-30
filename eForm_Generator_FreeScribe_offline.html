@@ -1087,6 +1087,7 @@ else if (typeof exports === 'object')
   const REMOVED_TAGS = new Set(['signature','current_user_signature','signature_image','current_user_signature_image',
     'hc_type','current_user_email','current_user_fax','clinic_email',
     'patient_dob','patient_hin','patient_phone','patient_address','patient_sex','today_date']);
+  // Whether a tag is one of those
   function isRemovedTag(tag){ return REMOVED_TAGS.has(String(tag||'').trim().toLowerCase()); }
 
   const GENERIC_NAME_RE = /^(gen_inputid\d+|page\d+_\d+|field_\d+|input\d+|checkbox\d*)$/i;
@@ -1103,13 +1104,14 @@ else if (typeof exports === 'object')
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
     if (/_/.test(label) && STANDARD_TAGS.has(label.trim())) return label.trim();
-    const words = (v) => String(v || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? words(name).replace(/_\d+$/, '') : '';
-    const t = fromName || words(label);
-    if (!t) return '';
-    let kind = askedFor(t);
+    // (text as lowercase words joined by _: "Patient's Name" -> "patients_name")
+    const underscored = (v) => String(v || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? underscored(name).replace(/_\d+$/, '') : '';
+    const words = fromName || underscored(label);
+    if (!words) return '';
+    let kind = askedFor(words);
     if (!kind) return '';
-    let who = ownerCue(t.replace(/_/g, ' ')) || owner || 'patient';
+    let who = ownerCue(words.replace(/_/g, ' ')) || owner || 'patient';
     // (a billing number is a practitioner's, never the patient's: where nothing else says whose,
     // the referring clinician's, "Billing #: ____")
     if (kind === 'billing'){ kind = 'number'; if (who === 'patient') who = 'clinician'; }
@@ -1132,37 +1134,38 @@ else if (typeof exports === 'object')
   // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral");
   // any other is the date of something else ("Date of loss", "LMP (date)", "Date seen"), and an
   // age is the patient's only when it is just "Age" ("Age at diagnosis", "Menopause (age)").
-  function askedFor(t){
-    const w = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(t);
+  function askedFor(words){
+    // (whether one of the words matches `re`, a whole word or words)
+    const hasWord = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(words);
     // (not in the chart, or not the patient's own: an appointment, a maiden name, a doctor or
     // date the patient was seen by before, the facility, who initials or signs)
-    if (w('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|time|hours')) return '';
-    if (w('email|e_mail')) return 'email';
-    if (w('fax')) return 'fax';
-    if (w('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return w('version') ? 'hinVersion' : 'hin';
-    if (w('version_code')) return 'hinVersion';
-    if (w('billing')) return 'billing';
-    if (w('msp|ohip')) return 'number';
-    if (w('dob|date_of_birth|birth_date|birthdate')) return 'dob';
-    if (w('cell|mobile')) return 'cell';
-    if (w('work_phone|business_phone')) return 'workPhone';
-    if (w('phone|telephone|tel')) return 'phone';
-    if (w('postal|postal_code|zip')) return 'postal';
-    if (w('city|town')) return 'city';
-    if (w('province')) return 'province';
-    if (w('address|street')) return 'address';
-    if (w('sex|gender')) return 'sex';
-    if (w('clinic')) return 'clinic';
-    if (/^(date|today|todays_date|current_date|form_date)$/.test(t) || (w('date') && w('signed|referral|referred|request|requested|today|todays'))) return 'today';
-    if (/^(patient_)?age$/.test(t)) return 'age';
-    if (w('date|age')) return '';
-    if (/medical_history/.test(t)) return 'history';
-    if (w('medications|meds|medication_list')) return /allerg/.test(t) ? '' : 'meds';   // (with allergies, not the drug list)
-    if (w('last|surname')) return 'lastName';
-    if (w('first|given')) return 'firstName';
-    if (w('middle')) return '';
+    if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|time|hours')) return '';
+    if (hasWord('email|e_mail')) return 'email';
+    if (hasWord('fax')) return 'fax';
+    if (hasWord('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return hasWord('version') ? 'hinVersion' : 'hin';
+    if (hasWord('version_code')) return 'hinVersion';
+    if (hasWord('billing')) return 'billing';
+    if (hasWord('msp|ohip')) return 'number';
+    if (hasWord('dob|date_of_birth|birth_date|birthdate')) return 'dob';
+    if (hasWord('cell|mobile')) return 'cell';
+    if (hasWord('work_phone|business_phone')) return 'workPhone';
+    if (hasWord('phone|telephone|tel')) return 'phone';
+    if (hasWord('postal|postal_code|zip')) return 'postal';
+    if (hasWord('city|town')) return 'city';
+    if (hasWord('province')) return 'province';
+    if (hasWord('address|street')) return 'address';
+    if (hasWord('sex|gender')) return 'sex';
+    if (hasWord('clinic')) return 'clinic';
+    if (/^(date|today|todays_date|current_date|form_date)$/.test(words) || (hasWord('date') && hasWord('signed|referral|referred|request|requested|today|todays'))) return 'today';
+    if (/^(patient_)?age$/.test(words)) return 'age';
+    if (hasWord('date|age')) return '';
+    if (/medical_history/.test(words)) return 'history';
+    if (hasWord('medications|meds|medication_list')) return /allerg/.test(words) ? '' : 'meds';   // (with allergies, not the drug list)
+    if (hasWord('last|surname')) return 'lastName';
+    if (hasWord('first|given')) return 'firstName';
+    if (hasWord('middle')) return '';
     // a name, or the person themselves ("Referring Physician: ____", "Family Doctor: ____")
-    if (w('name|physician|doctor|md|dr|provider|practitioner|gp|mrp|referring')) return 'name';
+    if (hasWord('name|physician|doctor|md|dr|provider|practitioner|gp|mrp|referring')) return 'name';
     return '';
   }
 
@@ -1197,6 +1200,7 @@ else if (typeof exports === 'object')
     ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|md|np|mw|dr|doctor|signature|clinic|office)\b/],
     ['patient', /\b(patients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
   ];
+  // Whose details a text names ("Referring physician" -> clinician), from OWNER_CUES, or ''
   const ownerCue = (text) => { const t = String(text || '').toLowerCase(); for (const [o, re] of OWNER_CUES) if (re.test(t)) return o; return ''; };
   // Returns each text field's owner (a Map).
   function fieldOwners(found, read, boxOf){
@@ -1220,10 +1224,12 @@ else if (typeof exports === 'object')
     // "PATIENT INFORMATION   REFERRING MD" side by side each head their own. A label ending with
     // a colon isn't a heading: "APPOINTMENT:  ____ / ____")
     const heads = (p) => capsText(p.text, 6) && !/:\s*$/.test(p.text) && !parts.some(q => q !== p && q.y0 < p.y1 && q.y1 > p.y0);
+    // (where a field starts, its label included: its left and top)
     const extent = (f) => { const lw = f._words || []; return { x0: Math.min(f.x, ...lw.map(w => w.x0)), top: Math.min(f.y, ...lw.map(w => w.y0)) }; };
     const owner = new Map();
     // (within a box: what lies inside it)
     const inside = (box, r) => !box || (r.x0 >= box.x0 - 2 && r.x1 <= box.x1 + 2 && r.y0 >= box.y0 - 2 && r.y1 <= box.y1 + 2);
+    // (a field as x0/x1/y0/y1, as words are)
     const rect = (g) => ({ x0: g.x, x1: g.x + g.width, y0: g.y, y1: g.y + g.height });
     // What is just above: the nearest text over its column (or a heading over the whole width),
     // a field's label (that field's owner) or a short line naming someone (a sentence of
@@ -2566,6 +2572,8 @@ else if (typeof exports === 'object')
     return true;
   }
 
+  // The share of a box's middle (inside its sides, `band` thick) darker than halfway between its
+  // lightest and darkest pixel, on the grey image; 0 when the box is all one shade
   function inkInside(gray,w,x1,y1,x2,y2,band){
     let lo = 255, hi = 0;
     for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
@@ -2577,6 +2585,9 @@ else if (typeof exports === 'object')
     return n / ((ix2-ix1+1)*(iy2-iy1+1));
   }
 
+  // Whether a square of ink is a printed tick box and not letters: four straight sides on the ink
+  // map and on the grey image, ink at every corner, an empty middle, and not just a piece of a
+  // table's rules
   function isRealBox(inkMap,w,h,x1,y1,x2,y2,gray){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
     // (under 7 pixels a small letter such as e or o can't be told from a box)
@@ -2666,6 +2677,8 @@ else if (typeof exports === 'object')
       if(isInk(x2,y) && isInk(x2+1,y) && isInk(x2+2,y)) r++;
     }
     const reach = Math.max(2, Math.round(sz*0.6)), near = Math.max(3, Math.round(sz*0.4));
+    // (a vertical rule at x running past the box, above and below; a horizontal one at y, past it
+    // on both sides; a row of the box that is paper on the grey image)
     const colRule = (x) => x >= 1 && x < w-1 && sideRule(inkMap, w, h, x, y1 - reach, y2 + reach, 0.85, 0);
     // (a side at x, with the outside towards step: -1 left, 1 right)
     const ruleBeside = (x, step) => {
@@ -2780,6 +2793,7 @@ else if (typeof exports === 'object')
       }
       return hit/Math.max(1,bw);
     }
+    // (the same for the bottom side, and for the left and right sides down rows y1..y2)
     function botEdgeCov(y2,x1,x2,band){
       let hit=0; const bw=x2-x1+1;
       for(let x=x1;x<=x2;x++){
@@ -2810,8 +2824,8 @@ else if (typeof exports === 'object')
       }
       return hit/Math.max(1,bh);
     }
+    // Fraction of interior pixels that are dark
     function innerDark(x1,y1,x2,y2,band){
-      // Fraction of interior pixels that are dark
       const ix1=x1+band, iy1=y1+band, ix2=x2-band, iy2=y2-band;
       if(ix1>ix2||iy1>iy2) return 0;
       let dark=0, total=0;
@@ -2897,8 +2911,9 @@ else if (typeof exports === 'object')
     if (!rules.length) return [];
     // Ink, or a field already found
     const taken = Uint8Array.from(inkMap);
-    const take = (f) => { for (let y=Math.max(0, Math.round(f.y*scale)); y<=Math.min(h-1, Math.round((f.y+f.height)*scale)); y++) taken.fill(1, y*w + Math.max(0, Math.round(f.x*scale)), y*w + Math.min(w, Math.round((f.x+f.width)*scale) + 1)); };
-    found.forEach(take);
+    // (marks a field's place as taken, so no area runs into it)
+    const markTaken = (f) => { for (let y=Math.max(0, Math.round(f.y*scale)); y<=Math.min(h-1, Math.round((f.y+f.height)*scale)); y++) taken.fill(1, y*w + Math.max(0, Math.round(f.x*scale)), y*w + Math.min(w, Math.round((f.x+f.width)*scale) + 1)); };
+    found.forEach(markTaken);
     // The containers: the form, then each cell
     const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2)), margin = Math.max(cx1, w - 1 - cx2);
     const boxes = [{ x1: cx1, x2: cx2, y1: 0, y2: h - 1 - margin, form: true }];
@@ -2952,7 +2967,7 @@ else if (typeof exports === 'object')
           const toEnd = c.form && run.y2 >= Math.min(c.y2, foot - Math.round(lineHeight*0.5));
           const y1 = run.y1 + pad, y2 = run.y2 - (c.form && run.y2 >= c.y2 ? 0 : pad), x1 = c.x1 + (c.form ? 0 : pad), x2 = c.x1 + run.r - 1 - (c.form ? 0 : pad);
           const f = { page, x: x1/scale, y: y1/scale, width: (x2-x1)/scale, height: (y2-y1)/scale, type: (y2 - y1) > lineHeight*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(toEnd ? { toEnd: true } : {}) };
-          out.push(f); take(f);
+          out.push(f); markTaken(f);
         }
         run = null;
       }
@@ -2966,18 +2981,18 @@ else if (typeof exports === 'object')
   // an l has a stem, a ! one long stroke), is its colon, and the word gets it.
   function inkColons(read, inkMap, w, h, scale){
     const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
-    read.words.forEach(wd => {
-      if (!/[A-Za-z]$/.test(wd.text)) return;
-      const th = wd.y1 - wd.y0, ya = Math.round(wd.y0*scale), yb = Math.round(wd.y1*scale);
-      const ink = (x) => { for (let y=ya; y<=yb; y++) if (isInk(x,y)) return true; return false; };
-      let x = Math.round(wd.x1*scale);
-      const xz = Math.round((wd.x1 + th*0.6)*scale);
-      while (x <= xz && ink(x)) x++;                               // (the end of the word's last letter)
-      while (x <= xz && !ink(x)) x++;                              // (the gap)
+    read.words.forEach(word => {
+      if (!/[A-Za-z]$/.test(word.text)) return;
+      const textHeight = word.y1 - word.y0, ya = Math.round(word.y0*scale), yb = Math.round(word.y1*scale);
+      const inkInColumn = (x) => { for (let y=ya; y<=yb; y++) if (isInk(x,y)) return true; return false; };
+      let x = Math.round(word.x1*scale);
+      const xz = Math.round((word.x1 + textHeight*0.6)*scale);
+      while (x <= xz && inkInColumn(x)) x++;                               // (the end of the word's last letter)
+      while (x <= xz && !inkInColumn(x)) x++;                              // (the gap)
       if (x > xz) return;
       const x0 = x;
-      while (x <= xz && ink(x)) x++;
-      if (x - x0 > th*0.5*scale || x > xz) return;
+      while (x <= xz && inkInColumn(x)) x++;
+      if (x - x0 > textHeight*0.5*scale || x > xz) return;
       const runs = [];
       for (let y=ya; y<=yb; y++){
         let any = false; for (let xx=x0; xx<x; xx++) if (isInk(xx,y)) { any = true; break; }
@@ -2985,8 +3000,8 @@ else if (typeof exports === 'object')
         const r = runs[runs.length-1];
         if (r && y - r.y2 <= 1) r.y2 = y; else runs.push({ y1: y, y2: y });
       }
-      if (runs.length !== 2 || runs.some(r => r.y2 - r.y1 + 1 >= th*0.5*scale)) return;
-      wd.text += ':'; wd.x1 = x/scale;
+      if (runs.length !== 2 || runs.some(r => r.y2 - r.y1 + 1 >= textHeight*0.5*scale)) return;
+      word.text += ':'; word.x1 = x/scale;
     });
   }
 
@@ -3000,14 +3015,14 @@ else if (typeof exports === 'object')
     const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
     // The page's typical text height (a word far shorter is a speck OCR read, not a label)
-    const hs = read.words.map(wd => wd.y1 - wd.y0).sort((a,b) => a-b), wh = hs.length ? hs[hs.length >> 1] : 0;
+    const hs = read.words.map(word => word.y1 - word.y0).sort((a,b) => a-b), wh = hs.length ? hs[hs.length >> 1] : 0;
     // The phrase a word ends: the words before it on its line, close together
-    const phraseOf = (wd) => {
-      const l = read.lines.find(l => l.words.includes(wd));
-      if (!l) return [wd];
-      const ws = l.words.filter(u => u.x1 <= wd.x1 + 1).sort((a,b) => a.x0 - b.x0), got = [wd];
+    const phraseOf = (word) => {
+      const l = read.lines.find(l => l.words.includes(word));
+      if (!l) return [word];
+      const ws = l.words.filter(u => u.x1 <= word.x1 + 1).sort((a,b) => a.x0 - b.x0), got = [word];
       for (let i = ws.length - 2; i >= 0; i--){
-        if (got[0].x0 - ws[i].x1 > (wd.y1 - wd.y0)*2) break;
+        if (got[0].x0 - ws[i].x1 > (word.y1 - word.y0)*2) break;
         got.unshift(ws[i]);
       }
       return got;
@@ -3019,39 +3034,39 @@ else if (typeof exports === 'object')
     };
     const out = [];
     // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
-    read.words.filter(wd => /:$/.test(wd.text) && (/[A-Za-z]/.test(wd.text) || /^#+:$/.test(wd.text))).forEach(wd => {
-      const th = wd.y1 - wd.y0;                                  // the text's height
-      if (th < wh*0.4) return;
+    read.words.filter(word => /:$/.test(word.text) && (/[A-Za-z]/.test(word.text) || /^#+:$/.test(word.text))).forEach(word => {
+      const textHeight = word.y1 - word.y0;                                  // the text's height
+      if (textHeight < wh*0.4) return;
       // (not the end of a sentence: "... if one of the following is present:", "limited treatment,
       // if required:", a sentence's second line)
-      const ph = phraseOf(wd);
+      const ph = phraseOf(word);
       if (isSentence(ph)) return;
       // (nor a heading in capitals: "REASON FOR REFERRAL:")
       if (ph.length >= 3 && capsText(phraseText(ph))) return;
-      const ya = Math.round(wd.y0*scale), yb = Math.round(wd.y1*scale);
+      const ya = Math.round(word.y0*scale), yb = Math.round(word.y1*scale);
       const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (isInk(x,y)) return true; return false; };
       // the blank after it on its row, up to the next ink or field found, and no further than the
       // form's right edge
-      const ahead = found.concat(out).filter(g => g.x > wd.x1 && Math.min(g.y + g.height, wd.y1) - Math.max(g.y, wd.y0) >= th*0.5).map(g => g.x - 2);
-      const xa = Math.round((wd.x1 + th*0.3)*scale), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*scale));
+      const ahead = found.concat(out).filter(g => g.x > word.x1 && Math.min(g.y + g.height, word.y1) - Math.max(g.y, word.y0) >= textHeight*0.5).map(g => g.x - 2);
+      const xa = Math.round((word.x1 + textHeight*0.3)*scale), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*scale));
       let xb = xa;
       while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
-      const x1 = xa/scale + th*0.2, x2 = xb/scale - th*0.4;
-      if (x2 - x1 < th*4) return;
-      let f = { page, x: x1, y: wd.y0 - th*0.3, width: x2 - x1, height: th*1.6, type: 'text', name: 'text', oscarTag: '' };
+      const x1 = xa/scale + textHeight*0.2, x2 = xb/scale - textHeight*0.4;
+      if (x2 - x1 < textHeight*4) return;
+      let f = { page, x: x1, y: word.y0 - textHeight*0.3, width: x2 - x1, height: textHeight*1.6, type: 'text', name: 'text', oscarTag: '' };
       // room for more lines below it, under the label and beside it, down to the next ink
-      const la = Math.round(wd.x0*scale), lb = Math.round(x2*scale);
+      const la = Math.round(word.x0*scale), lb = Math.round(x2*scale);
       let yc = yb + 1;
       const rowBlank = (y) => { for (let x=la; x<=lb; x++) if (isInk(x,y)) return false; return true; };
-      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*scale) - 2));
+      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > word.y1 && g.x < x2 && g.x + g.width > word.x0).map(g => Math.round(g.y*scale) - 2));
       while (yc < floor && rowBlank(yc + 1)) yc++;
-      if (yc/scale - wd.y1 > th*2.5) f = { ...f, height: yc/scale - th*0.4 - f.y, type: 'textarea' };
+      if (yc/scale - word.y1 > textHeight*2.5) f = { ...f, height: yc/scale - textHeight*0.4 - f.y, type: 'textarea' };
       if (found.concat(out).some(g => overlaps(f, g))) return;
       // (a heading over options: tick boxes on the next row, "Related Medical Issues:")
-      if (ticks.some(b => b.y > wd.y1 - 2 && b.y - wd.y1 < th*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return;
+      if (ticks.some(b => b.y > word.y1 - 2 && b.y - word.y1 < textHeight*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return;
       // (a writing area just below, starting where the label does: the label is its heading)
-      if (found.some(g => (g.type === 'text' || g.type === 'textarea') && g.height > th*2 && g.y >= wd.y1 - 2 && g.y - wd.y1 < th*1.5 &&
-                          Math.abs(g.x - ph[0].x0) < th*2 && g.x + g.width > f.x)) return;
+      if (found.some(g => (g.type === 'text' || g.type === 'textarea') && g.height > textHeight*2 && g.y >= word.y1 - 2 && g.y - word.y1 < textHeight*1.5 &&
+                          Math.abs(g.x - ph[0].x0) < textHeight*2 && g.x + g.width > f.x)) return;
       out.push(f);
     });
     return out;
@@ -3066,11 +3081,12 @@ else if (typeof exports === 'object')
   // Resolves to null where it can't run (no WebAssembly SIMD, or no workers): fields then
   // keep plain names.
   let ocrWorkerReady = null;
+  // Starts Tesseract (OCR) from the copies embedded in this page, once
   function ensureOcrWorker(){
     if (ocrWorkerReady) return ocrWorkerReady;
     ocrWorkerReady = (async () => {
-      const text = (id) => (document.getElementById(id) || {}).textContent || '';
-      const core = text('tesseractCoreSource'), worker = text('tesseractWorkerSource'), eng = text('tesseractEngData').trim();
+      const scriptText = (id) => (document.getElementById(id) || {}).textContent || '';
+      const core = scriptText('tesseractCoreSource'), worker = scriptText('tesseractWorkerSource'), eng = scriptText('tesseractEngData').trim();
       if (!window.Tesseract || !core || !worker || !eng) return null;
       // The smallest module using a SIMD instruction: the embedded engine needs SIMD
       const simd = new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11]);
@@ -3164,7 +3180,9 @@ else if (typeof exports === 'object')
   // Words that make a sentence, not a label: more than six, or several starting in lower case
   // ("... if one of the following is present:", a sentence's second line)
   const isSentence = (ws) => ws.length > 6 || (ws.length >= 3 && /^[a-z]/.test(ws[0].text));
+  // Words as one phrase, without the punctuation at its ends ("Name:" -> "Name")
   const phraseText = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
+  // Whether a phrase ends with a colon
   const endsWithColon = (ws) => !!(ws && ws.length && /:\s*$/.test(ws[ws.length-1].text));
   // The page's words that could be labels (with letters, not inside a tick box), and their
   // typical height
@@ -3172,8 +3190,8 @@ else if (typeof exports === 'object')
     const boxes = fields.filter(f => f.type === 'checkbox' || f.type === 'xbox');
     const inBox = (w) => boxes.some(b => { const cx = (w.x0+w.x1)/2, cy = (w.y0+w.y1)/2; return cx >= b.x-2 && cx <= b.x+b.width+2 && cy >= b.y-2 && cy <= b.y+b.height+2; });
     const words = read.words.filter(w => hasLetters(w.text) && !inBox(w));
-    const wh = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
-    return { boxes, words, wh };
+    const wordHeight = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
+    return { boxes, words, wordHeight };
   }
 
   // Each field's printed label, from the page's words.
@@ -3191,8 +3209,8 @@ else if (typeof exports === 'object')
   // Sets f.label, and f._words, the label's words.
   // ruleAcross(x1, x2, y1, y2): is there a rule across x1..x2 somewhere between y1 and y2?
   function labelFields(fields, read, ruleAcross){
-    const { boxes, words, wh } = labelWordsOf(fields, read);
-    const onRow = (f, w) => { const cy = (w.y0+w.y1)/2; return cy >= f.y - wh*0.3 && cy <= f.y + f.height + wh*0.4; };
+    const { boxes, words, wordHeight } = labelWordsOf(fields, read);
+    const onRow = (f, w) => { const cy = (w.y0+w.y1)/2; return cy >= f.y - wordHeight*0.3 && cy <= f.y + f.height + wordHeight*0.4; };
 
     // Tick boxes first
     const taken = new Set();
@@ -3204,7 +3222,7 @@ else if (typeof exports === 'object')
       const got = [];
       for (const w of row){
         const end = got.length ? got[got.length-1].x1 : right;
-        if (w.x0 - end > wh*(got.length ? 1.5 : 3)) break;
+        if (w.x0 - end > wordHeight*(got.length ? 1.5 : 3)) break;
         got.push(w);
       }
       if (got.length){ f.label = phraseText(got); f._words = got; got.forEach(w => taken.add(w)); }
@@ -3218,10 +3236,10 @@ else if (typeof exports === 'object')
       let above = [];
       // (starting over the field: the end of a longer line to the left, "MENSTRUAL HISTORY", isn't its label;
       // mostly above its top: OCR's box can reach a little lower than the letters, "FIRST NAME")
-      const over = free.filter(w => (w.y0 + w.y1)/2 <= fy1 && fy1 - w.y1 <= wh*2.5 && w.x0 >= f.x - wh && w.x0 < fx2);
+      const over = free.filter(w => (w.y0 + w.y1)/2 <= fy1 && fy1 - w.y1 <= wordHeight*2.5 && w.x0 >= f.x - wordHeight && w.x0 < fx2);
       if (over.length){
         const bottom = Math.max(...over.map(w => w.y1));
-        above = over.filter(w => bottom - w.y1 < wh*0.6).sort((a,b) => a.x0-b.x0);
+        above = over.filter(w => bottom - w.y1 < wordHeight*0.6).sort((a,b) => a.x0-b.x0);
         if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
       // The phrase just left of it on its row: the nearest words, no further apart than a few
@@ -3229,11 +3247,12 @@ else if (typeof exports === 'object')
       // from its blank), not across a tick box (a tick box's words too: "☐ Other: ____" is the box's
       // label and the line's)
       const row = words.filter(w => onRow(f, w) && w.x1 <= f.x + 6).sort((a,b) => b.x1-a.x1);
+      // (the label to its left: the words just before it on its row, taken while they are close)
       const leftOf = () => {
         const got = [];
         for (const w of row){
           const start = got.length ? got[got.length-1].x0 : f.x;
-          if (start - w.x1 > wh*(got.length ? 2.5 : 12)) break;
+          if (start - w.x1 > wordHeight*(got.length ? 2.5 : 12)) break;
           if (boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x + b.width <= start + 2)) break;
           got.push(w);
         }
@@ -3248,14 +3267,14 @@ else if (typeof exports === 'object')
       // after an option, below)
       const fx = f.x + f.width;
       const between = own.length && own.every(w => taken.has(w)) &&
-                      [...boxes.map(b => ({ x0: b.x, y0: b.y, y1: b.y + b.height })), ...words].some(w => onRow(f, w) && w.x0 >= fx - 2 && w.x0 - fx <= wh*2);
+                      [...boxes.map(b => ({ x0: b.x, y0: b.y, y1: b.y + b.height })), ...words].some(w => onRow(f, w) && w.x0 >= fx - 2 && w.x0 - fx <= wordHeight*2);
       if (above.length && f.box && !ownColon && !between){
         f.label = phraseText(above);
         f._words = above;
         const groups = [];
-        above.forEach(w => { const g = groups[groups.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wh*3) g.push(w); else groups.push([w]); });
+        above.forEach(w => { const g = groups[groups.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wordHeight*3) g.push(w); else groups.push([w]); });
         const cuts = groups.map((g, j) => j ? g[0].x0 - 4 : f.x), end = (j) => j+1 < cuts.length ? cuts[j+1] : fx2;
-        if (f.type === 'text' && groups.length > 1 && cuts.every((c, j) => end(j) - c >= wh*3))
+        if (f.type === 'text' && groups.length > 1 && cuts.every((c, j) => end(j) - c >= wordHeight*3))
           f._split = groups.map((g, j) => ({ x: cuts[j], width: end(j) - cuts[j], label: phraseText(g), _words: g }));
         return;
       }
@@ -3263,7 +3282,7 @@ else if (typeof exports === 'object')
       let left = leftOf();
       if (left.length){
         // (with a heading word starting the row: "APPOINTMENT:  Date:")
-        const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wh*6 && capsText(w.text) && !taken.has(w) &&
+        const before = row.filter(w => w.x1 < left[0].x0 && left[0].x0 - w.x1 <= wordHeight*6 && capsText(w.text) && !taken.has(w) &&
                                        !boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x <= left[0].x0));
         // (only a tick box's own label: "☐ FIRST POST-OPERATIVE MAMMOGRAPHY ____")
         if (left.every(w => taken.has(w))) f._afterOption = true;
@@ -3310,7 +3329,7 @@ else if (typeof exports === 'object')
   //    its own ("PRESENT COMPLAINT (Please ...") has no section, nor does one in capitals other
   //    than a short code ("MSP", "PHN"): on such forms the lines above are the rows above.
   function sectionFields(fields, read){
-    const { words, wh } = labelWordsOf(fields, read);
+    const { words, wordHeight } = labelWordsOf(fields, read);
     const ticks = new Set(fields.filter(f => f.type === 'checkbox' || f.type === 'xbox').flatMap(f => f._words || []));
     const free = words.filter(w => !ticks.has(w));
     const texts = fields.filter(f => f.type !== 'checkbox' && f.type !== 'xbox');
@@ -3318,7 +3337,7 @@ else if (typeof exports === 'object')
     texts.forEach(f => {
       if (f.box || (f.type !== 'text' && f.type !== 'textarea')) return;
       const bottom = f.y + f.height;
-      const under = free.filter(w => !labelWords.has(w) && w.y0 >= bottom - wh*0.3 && w.y0 - bottom <= wh*1.2 &&
+      const under = free.filter(w => !labelWords.has(w) && w.y0 >= bottom - wordHeight*0.3 && w.y0 - bottom <= wordHeight*1.2 &&
                                      (w.x0+w.x1)/2 >= f.x && (w.x0+w.x1)/2 <= f.x + f.width);
       if (under.length) f.caption = phraseText(under.sort((a,b) => a.x0-b.x0));
     });
@@ -3385,6 +3404,7 @@ else if (typeof exports === 'object')
     // sides running up or down from both its ends.
     const isLine = (b) => {
       if (!capHeight) return true;
+      // (letters run along at least half the line between rows ya and yb)
       const crowded = (ya, yb) => {
         ya = Math.max(0, ya); yb = Math.min(h-1, yb);
         let n = 0;
@@ -3392,9 +3412,9 @@ else if (typeof exports === 'object')
         return n >= (b.x2-b.x1+1)*0.5;
       };
       if (!crowded(b.y1 - Math.round(capHeight*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
-      const run = (x, ya, yb) => sideRule(inkMap, w, h, x, ya, yb, 0.85, 0);
+      const sideRuleAt = (x, ya, yb) => sideRule(inkMap, w, h, x, ya, yb, 0.85, 0);
       const tall = Math.round(capHeight*1.1);
-      return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => run(b.x1+1, ya, yb) && run(b.x2-1, ya, yb));
+      return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => sideRuleAt(b.x1+1, ya, yb) && sideRuleAt(b.x2-1, ya, yb));
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
@@ -3637,6 +3657,8 @@ else if (typeof exports === 'object')
   // the picture. Pages from scans, faxes, images or flat PDFs are detected from the picture.
   const USE_PDF_FIELDS = true;
   let pdfFieldsDoc = { key: null, doc: null };
+  // A fillable PDF's own form fields on a page, at their places and with their names, when the
+  // page came from one (null otherwise, and Auto Detect works from the picture)
   async function pdfFormFields(pageNo){
     const p = state.pages[pageNo];
     if (!USE_PDF_FIELDS || !window.pdfjsLib || !state.sourcePdf || !state.sourcePdf.data || !p || !p.pdfPage || !p.naturalW) return null;
@@ -3654,8 +3676,9 @@ else if (typeof exports === 'object')
       const vp = page.getViewport({ scale: p.naturalW / base.width });
       const annots = await page.getAnnotations({ intent: 'display' });
       const used = new Set(state.fields.map(f => f.name));
-      const unique = (name) => { let n = name, k = 2; while (used.has(n)) n = `${name}_${k++}`; used.add(n); return n; };
+      const uniqueName = (name) => { let n = name, k = 2; while (used.has(n)) n = `${name}_${k++}`; used.add(n); return n; };
       const fieldNamePart = (v) => String(v || '').replace(/\[\d+\]/g, '').split('.').filter(Boolean).pop() || '';
+      // (a PDF name as a field name: its last part, lowercase words joined by _)
       const tidy = (v) => fieldNamePart(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
       const out = [];
       annots.forEach(a => {
@@ -3675,7 +3698,7 @@ else if (typeof exports === 'object')
           const opt = tidy(a.buttonValue || a.exportValue);
           if (opt && !/^(on|yes|off|\d+)$/.test(opt) && !name.endsWith(opt)) name = `${name}_${opt}`;
         }
-        out.push({ page: pageNo, x, y, width, height, type, name: unique(name), oscarTag: '',
+        out.push({ page: pageNo, x, y, width, height, type, name: uniqueName(name), oscarTag: '',
                    label: fieldNamePart(a.alternativeText || a.fieldName) });
       });
       return out.length ? out : null;
@@ -3700,6 +3723,7 @@ else if (typeof exports === 'object')
       if (0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2] < 150 && ((x+y) & 1) === 0){ xs.push(x); ys.push(y); }
     }
     if (xs.length < 500) return 0;
+    // (how sharply the dark pixels fall into rows when the page is turned by `deg` degrees)
     const score = (deg) => {
       const t = Math.tan(deg*Math.PI/180), rows = new Float64Array(h*2 + 10);
       for (let k=0; k<xs.length; k++){ const r = Math.round(ys[k] - xs[k]*t) + h; if (r >= 0 && r < rows.length) rows[r]++; }
@@ -4007,6 +4031,7 @@ else if (typeof exports === 'object')
       let tN = getPageFields(page).filter(f=>f.type==='text'||f.type==='textarea').length + 1;
       let cN = getPageFields(page).filter(f=>f.type==='checkbox'||f.type==='xbox').length + 1;
       const used = new Set(state.fields.map(k => k.name));
+      // (a label as a field name: lowercase words joined by _, at most 40 characters)
       const tidy = (v) => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40).replace(/_+$/, '');
 
       found.forEach(f => {
