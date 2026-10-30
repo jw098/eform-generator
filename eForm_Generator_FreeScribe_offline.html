@@ -1005,17 +1005,19 @@ else if (typeof exports === 'object')
   }
 
   // ===== Undo =====
+  // Shows how many steps Undo can take back, and turns it off when there are none
   function updateUndoBtn(){
-    const b = $('btnUndo');
-    if (!b) return;
-    b.disabled = state.undoStack.length === 0;
-    b.textContent = state.undoStack.length ? `Undo (${state.undoStack.length})` : 'Undo';
+    const undoBtn = $('btnUndo');
+    if (!undoBtn) return;
+    undoBtn.disabled = state.undoStack.length === 0;
+    undoBtn.textContent = state.undoStack.length ? `Undo (${state.undoStack.length})` : 'Undo';
   }
 
+  // A copy of everything Undo puts back: the pages, fields, selection and display settings
   function snapshotForUndo(){
     return {
       currentPage: state.currentPage,
-      pages: Object.fromEntries(Object.keys(state.pages).map(n => [n, {...state.pages[Number(n)]}])),
+      pages: Object.fromEntries(Object.keys(state.pages).map(page => [page, {...state.pages[Number(page)]}])),
       fields: state.fields.map(f => ({ ...f })),
       selected: [...state.selected],
       nextId: state.nextId,
@@ -1026,36 +1028,38 @@ else if (typeof exports === 'object')
     };
   }
 
-  function restoreFromUndo(snap){
-    if (!snap) return;
-    { const sc=Number(snap.currentPage)||1; state.currentPage=(snap.pages&&snap.pages[sc])?sc:1; }
-    if (snap.pages) {
-      const snapNums = Object.keys(snap.pages).map(Number).filter(n=>n>=1).sort((a,b)=>a-b);
-      Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(n => { if(!snapNums.includes(n)) removeSinglePage(n,true); });
-      snapNums.forEach(n => {
-        if (!state.pages[n]){ state.pages[n]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(n); }
-        Object.assign(state.pages[n], snap.pages[String(n)]);
+  // Puts back what snapshotForUndo copied, adding or removing pages to match
+  function restoreFromUndo(snapshot){
+    if (!snapshot) return;
+    { const page=Number(snapshot.currentPage)||1; state.currentPage=(snapshot.pages&&snapshot.pages[page])?page:1; }
+    if (snapshot.pages) {
+      const snapshotPages = Object.keys(snapshot.pages).map(Number).filter(page=>page>=1).sort((a,b)=>a-b);
+      Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(page => { if(!snapshotPages.includes(page)) removeSinglePage(page,true); });
+      snapshotPages.forEach(page => {
+        if (!state.pages[page]){ state.pages[page]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(page); }
+        Object.assign(state.pages[page], snapshot.pages[String(page)]);
       });
     }
-    state.fields = Array.isArray(snap.fields) ? snap.fields.map(f => ({ ...f })) : [];
-    state.selected = new Set(Array.isArray(snap.selected) ? snap.selected : []);
-    state.nextId = Number(snap.nextId) || (state.fields.reduce((m,f)=>Math.max(m, Number(f.id)||0),0)+1);
-    state.showLabels = snap.showLabels === true;
-    state.showTags = snap.showTags !== false;
-    if (snap.snap && typeof snap.snap === 'object') state.snap = { ...state.snap, ...snap.snap };
+    state.fields = Array.isArray(snapshot.fields) ? snapshot.fields.map(f => ({ ...f })) : [];
+    state.selected = new Set(Array.isArray(snapshot.selected) ? snapshot.selected : []);
+    state.nextId = Number(snapshot.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId, Number(f.id)||0),0)+1);
+    state.showLabels = snapshot.showLabels === true;
+    state.showTags = snapshot.showTags !== false;
+    if (snapshot.snap && typeof snapshot.snap === 'object') state.snap = { ...state.snap, ...snapshot.snap };
 
-    Object.keys(state.pages).map(Number).forEach(n => { const el=$('img'+n); if(el) el.src=state.pages[n].imgData||''; });
+    Object.keys(state.pages).map(Number).forEach(page => { const img=$('img'+page); if(img) img.src=state.pages[page].imgData||''; });
     $('chkLabels').checked = state.showLabels;
     $('chkTags').checked = state.showTags;
     if ($('chkSnap')) $('chkSnap').checked = !!state.snap.enabled;
     if ($('snapPx')) $('snapPx').value = String(state.snap.threshold || 8);
     if ($('chkGuides')) $('chkGuides').checked = !!state.snap.showGuides;
 
-    setPlaceCheckboxMode(!!snap.placeCheckboxMode, true);
+    setPlaceCheckboxMode(!!snapshot.placeCheckboxMode, true);
     setCurrentPage(state.currentPage);
     renderAll();
   }
 
+  // Saves an undo step before a change (up to 80)
   function pushUndo(){
     try{
       state.undoStack.push(snapshotForUndo());
@@ -1064,11 +1068,12 @@ else if (typeof exports === 'object')
     }catch(_){ }
   }
 
+  // "Undo": takes back the last change
   function doUndo(){
     if (!state.undoStack.length){ msg('Nothing to undo.', 'warn'); return; }
-    const snap = state.undoStack.pop();
+    const snapshot = state.undoStack.pop();
     updateUndoBtn();
-    restoreFromUndo(snap);
+    restoreFromUndo(snapshot);
     msg('Undid last action.', 'ok');
   }
 
@@ -1288,27 +1293,30 @@ else if (typeof exports === 'object')
   }
 
   // ===== Reading an imported eForm's HTML =====
+  // A length in an inline style ("left:12px"), with its unit (px or %), or null
   function parseStylePx(styleText, prop){
-    const m = String(styleText || '').match(new RegExp(prop + '\\s*:\\s*([-0-9.]+)(px|%)?', 'i'));
-    if (!m) return null;
-    return { val: parseFloat(m[1]), unit: (m[2] || 'px').toLowerCase() };
+    const match = String(styleText || '').match(new RegExp(prop + '\\s*:\\s*([-0-9.]+)(px|%)?', 'i'));
+    if (!match) return null;
+    return { val: parseFloat(match[1]), unit: (match[2] || 'px').toLowerCase() };
   }
+  // An element's attribute, trimmed ('' when it has none)
   function parseAttr(el, attr){ return (el.getAttribute(attr) || '').trim(); }
 
   // The page an element is on, from the page wrapper it sits in ("page2", "page_3", "copy2")
   function inferPage(el){
-    let cur = el;
-    while (cur && cur !== cur.ownerDocument.body){
-      const s = ((cur.id || '') + ' ' + (cur.className || '').toString()).toLowerCase();
-      const m = s.match(/(?:page|copy)[_\- ]?(\d{1,2})(?!\d)/);
-      if (m && +m[1] >= 1) return Math.min(+m[1], 10);
-      if (/second/.test(s)) return 2;
-      cur = cur.parentElement;
+    let ancestor = el;
+    while (ancestor && ancestor !== ancestor.ownerDocument.body){
+      const idAndClass = ((ancestor.id || '') + ' ' + (ancestor.className || '').toString()).toLowerCase();
+      const match = idAndClass.match(/(?:page|copy)[_\- ]?(\d{1,2})(?!\d)/);
+      if (match && +match[1] >= 1) return Math.min(+match[1], 10);
+      if (/second/.test(idAndClass)) return 2;
+      ancestor = ancestor.parentElement;
     }
     return 1;
   }
 
-
+  // The text just before an input in the eForm (up to five nodes back), else its parent's text:
+  // its label, as near as the HTML says
   function nearestLabelText(el){
     let text = '';
     let prev = el.previousSibling;
@@ -1325,39 +1333,43 @@ else if (typeof exports === 'object')
     return text.replace(/\s+/g, ' ').trim();
   }
 
+  // The names of the functions a script defines
   function extractFunctionNames(js){
-    const out = [];
-    const re = /function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g;
-    let m;
-    while ((m = re.exec(js))) out.push(m[1]);
-    return out;
+    const names = [];
+    const functionRe = /function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g;
+    let match;
+    while ((match = functionRe.exec(js))) names.push(match[1]);
+    return names;
   }
 
+  // Where an input sits in the eForm: the left/top of it or the nearest ancestor placed in px
+  // (up to 8 levels up), with a width and height from its style or attributes. `ref` is the
+  // element the position came from.
   function getPositionedBox(el){
-    let cur = el;
+    let ancestor = el;
     let depth = 0;
-    while (cur && cur.ownerDocument && cur !== cur.ownerDocument.body && depth < 8){
-      const style = parseAttr(cur, 'style');
-      const l = parseStylePx(style, 'left');
-      const t = parseStylePx(style, 'top');
-      if (l && t && l.unit !== '%' && t.unit !== '%'){
+    while (ancestor && ancestor.ownerDocument && ancestor !== ancestor.ownerDocument.body && depth < 8){
+      const style = parseAttr(ancestor, 'style');
+      const left = parseStylePx(style, 'left');
+      const top = parseStylePx(style, 'top');
+      if (left && top && left.unit !== '%' && top.unit !== '%'){
         let w = parseStylePx(style, 'width');
         let h = parseStylePx(style, 'height');
 
-        if ((!w || !h) && cur !== el){
+        if ((!w || !h) && ancestor !== el){
           const ownStyle = parseAttr(el, 'style');
           w = w || parseStylePx(ownStyle, 'width');
           h = h || parseStylePx(ownStyle, 'height');
         }
 
-        const aw = parseFloat(el.getAttribute('width') || cur.getAttribute('width') || '');
-        const ah = parseFloat(el.getAttribute('height') || cur.getAttribute('height') || '');
-        if (!w && Number.isFinite(aw)) w = { val: aw, unit: 'px' };
-        if (!h && Number.isFinite(ah)) h = { val: ah, unit: 'px' };
+        const widthAttr = parseFloat(el.getAttribute('width') || ancestor.getAttribute('width') || '');
+        const heightAttr = parseFloat(el.getAttribute('height') || ancestor.getAttribute('height') || '');
+        if (!w && Number.isFinite(widthAttr)) w = { val: widthAttr, unit: 'px' };
+        if (!h && Number.isFinite(heightAttr)) h = { val: heightAttr, unit: 'px' };
 
-        return { x: l.val, y: t.val, width: w ? w.val : null, height: h ? h.val : null, ref: cur };
+        return { x: left.val, y: top.val, width: w ? w.val : null, height: h ? h.val : null, ref: ancestor };
       }
-      cur = cur.parentElement;
+      ancestor = ancestor.parentElement;
       depth++;
     }
     return null;
@@ -1369,6 +1381,9 @@ else if (typeof exports === 'object')
     'faxnumber','current_user_id','faxno'
   ]);
 
+  // Reads an imported eForm's HTML: its positioned fields with their tags, a name↔tag map, and
+  // the scripts, onload calls, buttons and signature images worth keeping. An eForm this app
+  // made is read more exactly (its pages' widths, signature stamps, tick boxes).
   function parseTemplateHtml(text, fileName){
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/html');
@@ -1396,38 +1411,38 @@ else if (typeof exports === 'object')
 
     if (isGenerated) {
       // Read per-page export widths from the page wrapper divs
-      for (let pg = 1; pg <= 10; pg++) {
-        const pageDiv = doc.getElementById('page' + pg);
+      for (let page = 1; page <= 10; page++) {
+        const pageDiv = doc.getElementById('page' + page);
         if (!pageDiv) break;
         const style = parseAttr(pageDiv, 'style');
         const w = parseStylePx(style, 'width');
         const h = parseStylePx(style, 'height');
-        if (w && w.unit === 'px') template.pageExportW[pg] = { w: w.val, h: h ? h.val : 0 };
+        if (w && w.unit === 'px') template.pageExportW[page] = { w: w.val, h: h ? h.val : 0 };
       }
 
       // ── Signature fields from CanvasProSignature divs ──────────────────────
-      for (let pg = 1; pg <= 10; pg++) {
-        const sigDiv = doc.getElementById(pg === 1 ? 'CanvasProSignature' : 'CanvasProSignature' + pg);
+      for (let page = 1; page <= 10; page++) {
+        const sigDiv = doc.getElementById(page === 1 ? 'CanvasProSignature' : 'CanvasProSignature' + page);
         if (!sigDiv) continue;
         const style = parseAttr(sigDiv, 'style');
-        const l = parseStylePx(style, 'left');
-        const t = parseStylePx(style, 'top');
+        const left = parseStylePx(style, 'left');
+        const top = parseStylePx(style, 'top');
         const sigImg = sigDiv.querySelector('img');
-        if (!l || !t || !sigImg) continue;
+        if (!left || !top || !sigImg) continue;
         const w = parseFloat(sigImg.getAttribute('width') || '') || 120;
         const h = parseFloat(sigImg.getAttribute('height') || '') || 30;
         template.fields.push({
-          id: `tpl_${fileName}_sig${pg}`,
-          page: pg,
-          x: l.val,
-          y: t.val,
+          id: `tpl_${fileName}_sig${page}`,
+          page,
+          x: left.val,
+          y: top.val,
           width: w,
           height: h,
           type: 'signature',
           name: 'signature',
           oscarTag: '',
           label: '',
-          _exportW: template.pageExportW[pg] ? template.pageExportW[pg].w : 750
+          _exportW: template.pageExportW[page] ? template.pageExportW[page].w : 750
         });
       }
     }
@@ -1436,7 +1451,7 @@ else if (typeof exports === 'object')
     elements.forEach((el, idx) => {
       const tagName   = el.tagName.toLowerCase();
       const typeAttr  = (parseAttr(el, 'type') || '').toLowerCase();
-      const cls       = (el.className || '').toLowerCase();
+      const className = (el.className || '').toLowerCase();
       const elName    = (parseAttr(el, 'name') || '').toLowerCase().replace(/[^a-z0-9]/g,'');
       const elId      = (parseAttr(el, 'id')   || '').toLowerCase().replace(/[^a-z0-9]/g,'');
 
@@ -1456,7 +1471,7 @@ else if (typeof exports === 'object')
       else if (typeAttr === 'checkbox' || typeAttr === 'radio') type = 'checkbox';
       else if (typeAttr === 'date') type = 'date';
       // Restore checkbox type from generated eForm marker class
-      else if (isGenerated && cls.includes('xmarkonly')) type = 'checkbox';
+      else if (isGenerated && className.includes('xmarkonly')) type = 'checkbox';
 
       const oscarTag = parseAttr(el, 'oscarDB') || parseAttr(el, 'oscardb') || '';
       const rawName  = parseAttr(el, 'name') || parseAttr(el, 'id') || `field_${idx+1}`;
@@ -1502,25 +1517,25 @@ else if (typeof exports === 'object')
     });
 
     const scripts = Array.from(doc.querySelectorAll('script'));
-    scripts.forEach(sc => {
-      const src    = parseAttr(sc, 'src');
-      const inline = (sc.textContent || '').trim();
+    scripts.forEach(script => {
+      const src    = parseAttr(script, 'src');
+      const inline = (script.textContent || '').trim();
       if (src) { if (/eform|oscar|jquery|fax|print|signature|sign/i.test(src)) template.snippets.externalSrc.push(src); }
       if (inline) {
         if (/fax|print|setfax|onbodyload|onload|sign|signature|loadsig/i.test(inline)) {
           template.snippets.inlineScripts.push(inline);
-          extractFunctionNames(inline).forEach(fn => { if (/fax|print|sign|signature|loadsig/i.test(fn)) template.snippets.actionFns.push(fn); });
+          extractFunctionNames(inline).forEach(fnName => { if (/fax|print|sign|signature|loadsig/i.test(fnName)) template.snippets.actionFns.push(fnName); });
         }
       }
     });
 
     // Only extract button snippets from non-generated templates (generated ones have no useful imported buttons)
     if (!isGenerated) {
-      const btns = Array.from(doc.querySelectorAll('button,input[type="button"],a,input[type="submit"]'));
-      btns.forEach(b => {
-        const onclick  = parseAttr(b, 'onclick');
-        const textVal  = (b.tagName.toLowerCase()==='input' ? parseAttr(b,'value') : (b.textContent || '')).trim();
-        if (/fax|print|signature|sign/i.test(onclick + ' ' + textVal)) template.snippets.buttonHtml.push(b.outerHTML);
+      const buttons = Array.from(doc.querySelectorAll('button,input[type="button"],a,input[type="submit"]'));
+      buttons.forEach(button => {
+        const onclick  = parseAttr(button, 'onclick');
+        const buttonText = (button.tagName.toLowerCase()==='input' ? parseAttr(button,'value') : (button.textContent || '')).trim();
+        if (/fax|print|signature|sign/i.test(onclick + ' ' + buttonText)) template.snippets.buttonHtml.push(button.outerHTML);
       });
     }
 
@@ -1553,15 +1568,15 @@ else if (typeof exports === 'object')
   $('fileTemplates').addEventListener('change', async (e)=>{
     const file = e.target.files && e.target.files[0]; if (!file) return;
     try{
-      const text = await readAsText(file), tpl = parseTemplateHtml(text, file.name);
+      const text = await readAsText(file), template = parseTemplateHtml(text, file.name);
       clearTemplate();
       state.templateName = file.name;
-      state.templateFields = dedupeFields(tpl.fields);
+      state.templateFields = dedupeFields(template.fields);
       state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(nameKey(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(nameKey(f.label), f.oscarTag); }});
-      tpl.nameTagMap.forEach((v,k)=> state.templateNameTagMap.set(k,v));
-      const sn = tpl.snippets;
-      state.snippets = { externalSrc: new Set(sn.externalSrc), inlineScripts: [...new Set(sn.inlineScripts)], actionFns: new Set(sn.actionFns),
-                         onloads: new Set(sn.onloads), buttonHtml: sn.buttonHtml.slice(), signatureHtml: sn.signatureHtml.slice() };
+      template.nameTagMap.forEach((tag,key)=> state.templateNameTagMap.set(key,tag));
+      const snippets = template.snippets;
+      state.snippets = { externalSrc: new Set(snippets.externalSrc), inlineScripts: [...new Set(snippets.inlineScripts)], actionFns: new Set(snippets.actionFns),
+                         onloads: new Set(snippets.onloads), buttonHtml: snippets.buttonHtml.slice(), signatureHtml: snippets.signatureHtml.slice() };
       $('templateImportPanel').open = true;
       renderAll();
       msg(`Imported ${file.name}: ${state.templateFields.length} field(s).`, 'ok');
@@ -1579,61 +1594,65 @@ else if (typeof exports === 'object')
   $('btnApplyTemplateFields').addEventListener('click', ()=>{
     if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
     const onPages = state.templateFields.filter(tf => state.pages[Number(tf.page)]);
-    const have = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
-    if (have && !confirm(`These pages already have ${have} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
+    const alreadyThere = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
+    if (alreadyThere && !confirm(`These pages already have ${alreadyThere} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
     pushUndo();
     onPages.forEach(tf => {
       // A field from an eForm this app made (it has _exportW) is rescaled from the width it was
       // exported at to the page image's
-      const p = state.pages[Number(tf.page)];
+      const pageInfo = state.pages[Number(tf.page)];
       let x = tf.x, y = tf.y, w = tf.width, h = tf.height;
-      if (tf._exportW > 0 && p.naturalW > 0) {
-        const scale = p.naturalW / tf._exportW;
+      if (tf._exportW > 0 && pageInfo.naturalW > 0) {
+        const scale = pageInfo.naturalW / tf._exportW;
         x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
       }
       addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
         oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '' });
     });
     renderAll();
-    const off = state.templateFields.length - onPages.length;
-    msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (off ? `; ${off} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
+    const leftOut = state.templateFields.length - onPages.length;
+    msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (leftOut ? `; ${leftOut} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
   });
 
+  // "Auto-tag untagged": tags each untagged field from the imported eForm's name↔tag map, or
+  // else from its name and label
   function autoTagUnmapped(){
     pushUndo();
     let changed=0;
     state.fields.forEach(f => {
       if (f.oscarTag) return;
       const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
-      const g = fromMap || guessTag(f.name, f.type, f.label);
-      if (g){ f.oscarTag=g; changed++; }
+      const tag = fromMap || guessTag(f.name, f.type, f.label);
+      if (tag){ f.oscarTag=tag; changed++; }
     });
     renderAll(); msg(changed ? `Auto-tagged ${changed} field(s).` : 'No fields were auto-tagged.', changed ? 'ok':'warn');
   }
   $('btnAutoTag').addEventListener('click', autoTagUnmapped);
 
 
+  // Lists the imported eForm's fields (the first 300) and says which eForm is loaded
   function renderTemplateFieldList(){
-    const box=$('templateFieldList'); box.innerHTML='';
-    const nt=state.templateFields.length, name=state.templateName;
+    const list=$('templateFieldList'); list.innerHTML='';
+    const fieldCount=state.templateFields.length, name=state.templateName;
     $('templateCount').textContent = name ? `· ${name}` : '';
-    $('templateLoaded').innerHTML = name ? `Loaded: <b>${escHtml(name)}</b> (${nt} field${nt!==1?'s':''})` : 'No eForm HTML loaded.';
+    $('templateLoaded').innerHTML = name ? `Loaded: <b>${escHtml(name)}</b> (${fieldCount} field${fieldCount!==1?'s':''})` : 'No eForm HTML loaded.';
     $('btnClearTemplate').disabled = !name;
-    if(!state.templateFields.length){ box.innerHTML='<div class="list-item">No eForm HTML loaded.</div>'; return; }
-    state.templateFields.slice(0,300).forEach(f=>{ const d=document.createElement('div'); d.className='list-item mono'; d.textContent=`p${f.page} ${Math.round(f.x)},${Math.round(f.y)} ${Math.round(f.width)}x${Math.round(f.height)}  ${f.name}${f.oscarTag ? ' -> ' + f.oscarTag : ''}`; box.appendChild(d); });
-    if(state.templateFields.length>300){ const d=document.createElement('div'); d.className='list-item'; d.textContent=`... ${state.templateFields.length-300} more`; box.appendChild(d); }
+    if(!state.templateFields.length){ list.innerHTML='<div class="list-item">No eForm HTML loaded.</div>'; return; }
+    state.templateFields.slice(0,300).forEach(f=>{ const item=document.createElement('div'); item.className='list-item mono'; item.textContent=`p${f.page} ${Math.round(f.x)},${Math.round(f.y)} ${Math.round(f.width)}x${Math.round(f.height)}  ${f.name}${f.oscarTag ? ' -> ' + f.oscarTag : ''}`; list.appendChild(item); });
+    if(state.templateFields.length>300){ const item=document.createElement('div'); item.className='list-item'; item.textContent=`... ${state.templateFields.length-300} more`; list.appendChild(item); }
   }
 
+  // Lists what was taken from the imported eForm's scripts and buttons
   function renderSnippetList(){
-    const box=$('snippetBox'); box.innerHTML=''; const rows=[];
+    const list=$('snippetBox'); list.innerHTML=''; const rows=[];
     if(state.snippets.externalSrc.size) rows.push(`External scripts: ${state.snippets.externalSrc.size}`);
     if(state.snippets.inlineScripts.length) rows.push(`Inline script blocks: ${state.snippets.inlineScripts.length}`);
     if(state.snippets.actionFns.size) rows.push(`Detected action fns: ${[...state.snippets.actionFns].join(', ')}`);
     if(state.snippets.onloads.size) rows.push(`Body onload hooks: ${state.snippets.onloads.size}`);
     if(state.snippets.buttonHtml.length) rows.push(`Template button snippets detected: ${state.snippets.buttonHtml.length} (informational — output uses generated Submit/Fax/Print buttons)`);
     if(state.snippets.signatureHtml.length) rows.push(`Signature image snippets: ${state.snippets.signatureHtml.length}`);
-    if(!rows.length){ box.innerHTML='<div class="list-item">No snippets extracted yet.</div>'; return; }
-    rows.forEach(r=>{ const d=document.createElement('div'); d.className='list-item'; d.textContent=r; box.appendChild(d); });
+    if(!rows.length){ list.innerHTML='<div class="list-item">No snippets extracted yet.</div>'; return; }
+    rows.forEach(row=>{ const item=document.createElement('div'); item.className='list-item'; item.textContent=row; list.appendChild(item); });
   }
 
   // ===== Pages and fields on the canvas =====
@@ -2258,6 +2277,8 @@ else if (typeof exports === 'object')
   });
 
   // ===== Sessions: save, load, leave and reset =====
+  // Everything a saved session keeps: the pages and their images, the fields, the imported
+  // eForm, the settings and the export draft
   function serializeSession(){
     return {
       app: 'oscar-eform-mapper',
@@ -2290,22 +2311,24 @@ else if (typeof exports === 'object')
     };
   }
 
-  function loadSessionObject(obj){
-    if (!obj || typeof obj !== 'object') throw new Error('Invalid session file.');
-    if (!obj.pages || !obj.fields) throw new Error('Session missing pages/fields.');
+  // Opens a saved session in place of what is open, checking each value as it goes (a session
+  // from an older version of the app opens too)
+  function loadSessionObject(session){
+    if (!session || typeof session !== 'object') throw new Error('Invalid session file.');
+    if (!session.pages || !session.fields) throw new Error('Session missing pages/fields.');
 
-    const sessionNums = Object.keys(obj.pages||{}).map(Number).filter(n=>Number.isFinite(n)&&n>=1).sort((a,b)=>a-b);
-    Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(n => { if(!sessionNums.includes(n)) removeSinglePage(n,true); });
-    sessionNums.forEach(n => {
-      const pd = obj.pages[String(n)] || obj.pages[n] || {};
-      if (!state.pages[n]){ state.pages[n]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(n); }
-      state.pages[n] = { imgData:pd.imgData||null, naturalW:Number(pd.naturalW)||0, naturalH:Number(pd.naturalH)||0, fileName:pd.fileName||'', pdfPage:Number(pd.pdfPage)||null };
-      const imgEl=$('img'+n); if(imgEl) imgEl.src=state.pages[n].imgData||'';
+    const sessionPages = Object.keys(session.pages||{}).map(Number).filter(page=>Number.isFinite(page)&&page>=1).sort((a,b)=>a-b);
+    Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(page => { if(!sessionPages.includes(page)) removeSinglePage(page,true); });
+    sessionPages.forEach(page => {
+      const saved = session.pages[String(page)] || session.pages[page] || {};
+      if (!state.pages[page]){ state.pages[page]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(page); }
+      state.pages[page] = { imgData:saved.imgData||null, naturalW:Number(saved.naturalW)||0, naturalH:Number(saved.naturalH)||0, fileName:saved.fileName||'', pdfPage:Number(saved.pdfPage)||null };
+      const imgEl=$('img'+page); if(imgEl) imgEl.src=state.pages[page].imgData||'';
     });
 
     // (a field saved with a tag that is no longer offered keeps no tag; one tagged as the old
     // signature stamp is a signature field)
-    state.fields = (obj.fields || []).map((f, i) => {
+    state.fields = (session.fields || []).map((f, i) => {
       const tag = normalizeTag(f.oscarTag || '');
       return {
         id: Number(f.id) || (i+1),
@@ -2320,46 +2343,46 @@ else if (typeof exports === 'object')
         label: String(f.label || '')
       };
     });
-    state.nextId = Math.max(1, Number(obj.nextId) || (state.fields.reduce((m,f)=>Math.max(m,Number(f.id)||0),0)+1));
+    state.nextId = Math.max(1, Number(session.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId,Number(f.id)||0),0)+1));
     state.selected.clear();
 
-    state.sourcePdf = (obj.sourcePdf && obj.sourcePdf.data) ? obj.sourcePdf : null;
+    state.sourcePdf = (session.sourcePdf && session.sourcePdf.data) ? session.sourcePdf : null;
     fsShowPdf();
-    state.showLabels = obj.showLabels === true;
+    state.showLabels = session.showLabels === true;
     $('chkLabels').checked = state.showLabels;
-    state.showTags = obj.showTags !== false;
+    state.showTags = session.showTags !== false;
     $('chkTags').checked = state.showTags;
 
-    state.templateNameTagMap = new Map((obj.templateNameTagMap || []).filter(a => Array.isArray(a) && a.length>=2));
-    state.templateFields = Array.isArray(obj.templateFields) ? obj.templateFields : [];
-    state.templateName = String(obj.templateName || (state.templateFields.length ? 'eForm from saved session' : ''));
-    const sn = obj.snippets || {};
+    state.templateNameTagMap = new Map((session.templateNameTagMap || []).filter(entry => Array.isArray(entry) && entry.length>=2));
+    state.templateFields = Array.isArray(session.templateFields) ? session.templateFields : [];
+    state.templateName = String(session.templateName || (state.templateFields.length ? 'eForm from saved session' : ''));
+    const snippets = session.snippets || {};
     state.snippets = {
-      externalSrc: new Set(sn.externalSrc || []),
-      inlineScripts: Array.isArray(sn.inlineScripts) ? sn.inlineScripts : [],
-      actionFns: new Set(sn.actionFns || []),
-      onloads: new Set(sn.onloads || []),
-      buttonHtml: Array.isArray(sn.buttonHtml) ? sn.buttonHtml : [],
-      signatureHtml: Array.isArray(sn.signatureHtml) ? sn.signatureHtml : []
+      externalSrc: new Set(snippets.externalSrc || []),
+      inlineScripts: Array.isArray(snippets.inlineScripts) ? snippets.inlineScripts : [],
+      actionFns: new Set(snippets.actionFns || []),
+      onloads: new Set(snippets.onloads || []),
+      buttonHtml: Array.isArray(snippets.buttonHtml) ? snippets.buttonHtml : [],
+      signatureHtml: Array.isArray(snippets.signatureHtml) ? snippets.signatureHtml : []
     };
 
-    setTuning(obj.tuning || {});
+    setTuning(session.tuning || {});
     syncTuningMarker();
-    $('exportEditor').value = typeof obj.exportDraft === 'string' ? obj.exportDraft : '';
-    state.exportTitle = String(obj.exportTitle || 'Generated OSCAR eForm');
+    $('exportEditor').value = typeof session.exportDraft === 'string' ? session.exportDraft : '';
+    state.exportTitle = String(session.exportTitle || 'Generated OSCAR eForm');
     if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
-    state.exportAuthor = String(obj.exportAuthor || '');
+    state.exportAuthor = String(session.exportAuthor || '');
     if ($('eformAuthor')) $('eformAuthor').value = state.exportAuthor;
-    state.formId = /^[a-z0-9]{4,12}$/.test(String(obj.formId || '')) ? String(obj.formId) : newFormId();
-    if (obj.snap && typeof obj.snap === 'object') {
-      state.snap = { ...state.snap, ...obj.snap };
+    state.formId = /^[a-z0-9]{4,12}$/.test(String(session.formId || '')) ? String(session.formId) : newFormId();
+    if (session.snap && typeof session.snap === 'object') {
+      state.snap = { ...state.snap, ...session.snap };
       if ($('chkSnap')) $('chkSnap').checked = !!state.snap.enabled;
       if ($('snapPx')) $('snapPx').value = String(state.snap.threshold || 8);
       if ($('chkGuides')) $('chkGuides').checked = !!state.snap.showGuides;
     }
 
-    const cp = Number(obj.currentPage)||1;
-    state.currentPage = state.pages[cp] ? cp : 1;
+    const savedPage = Number(session.currentPage)||1;
+    state.currentPage = state.pages[savedPage] ? savedPage : 1;
     state.undoStack = [];
     updateUndoBtn();
     setCurrentPage(state.currentPage);
@@ -2370,8 +2393,8 @@ else if (typeof exports === 'object')
   // were at the last Save Session or Load Session. The browser asks before leaving when it has
   // changed since (or was never saved) and there is any.
   function workSignature(){
-    const pages = Object.entries(state.pages).filter(([,p]) => p.imgData)
-      .map(([n,p]) => [n, p.fileName, p.naturalW, p.naturalH, String(p.imgData).length]);
+    const pages = Object.entries(state.pages).filter(([,pageInfo]) => pageInfo.imgData)
+      .map(([page,pageInfo]) => [page, pageInfo.fileName, pageInfo.naturalW, pageInfo.naturalH, String(pageInfo.imgData).length]);
     if (!pages.length && !state.fields.length) return '';
     return JSON.stringify([pages, state.fields, state.templateName, $('exportEditor').value,
       $('eformTitle').value, $('eformAuthor').value, getTuning()]);
@@ -2382,18 +2405,19 @@ else if (typeof exports === 'object')
     if (work && work !== savedWork){ e.preventDefault(); e.returnValue = ''; }
   });
 
+  // "Save Session": downloads the session as eform_mapper_session_<date>_<time>.json
   $('btnSaveSession').addEventListener('click', ()=>{
     try{
-      const data = serializeSession();
+      const session = serializeSession();
       savedWork = workSignature();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      const d = new Date();
-      const ts = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-      a.download = `eform_mapper_session_${ts}.json`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      const blob = new Blob([JSON.stringify(session, null, 2)], {type:'application/json'});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+      link.download = `eform_mapper_session_${timestamp}.json`;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
       msg('Session saved.', 'ok');
     }catch(err){ msg('Save session failed: ' + (err.message || err), 'err'); }
   });
@@ -2402,21 +2426,21 @@ else if (typeof exports === 'object')
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     try{
-      const txt = await readAsText(file);
-      const obj = JSON.parse(txt);
-      loadSessionObject(obj);
+      const text = await readAsText(file);
+      loadSessionObject(JSON.parse(text));
       savedWork = workSignature();
       msg(`Session loaded from ${file.name}.`, 'ok');
     }catch(err){ msg('Load session failed: ' + (err.message || err), 'err'); }
     finally { e.target.value=''; }
   });
 
+  // "Reset Everything": back to one empty page, after asking (Undo brings it back)
   function resetEverything(){
     const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, snippets, and export draft.');
     if(!ok) return;
     pushUndo();
     state.currentPage = 1;
-    Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(n => { if(n>1) removeSinglePage(n,true); });
+    Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(page => { if(page>1) removeSinglePage(page,true); });
     state.pages[1] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
     state.fields = [];
     state.selected.clear();
@@ -2424,8 +2448,8 @@ else if (typeof exports === 'object')
 
     clearTemplate();
 
-    const _ri=$('img1'); if(_ri) _ri.src='';
-    Object.keys(state.pages).map(Number).forEach(n=>{ const fi=$('fileImg'+n); if(fi) fi.value=''; });
+    const firstImg=$('img1'); if(firstImg) firstImg.src='';
+    Object.keys(state.pages).map(Number).forEach(page=>{ const fileInput=$('fileImg'+page); if(fileInput) fileInput.value=''; });
     $('fileTemplates').value = '';
     $('exportEditor').value = '';
     state.exportTitle = 'Generated OSCAR eForm';
@@ -2439,23 +2463,26 @@ else if (typeof exports === 'object')
   $('btnResetAll').addEventListener('click', resetEverything);
 
   // ===== Auto Detect tuning (Settings) =====
+  // The tuning boxes' ids
   const TUNING_IDS = ['minCb','maxCb','tolCb','lineMinPct','darkBias','gradMult'];
+  // The tuning's values, by id (saved with a session), and setting them back
   function getTuning(){
-    const out = {};
+    const tuning = {};
     TUNING_IDS.forEach(id => {
-      const el = $(id); if (!el) return;
-      const v = Number(el.value);
-      out[id] = Number.isFinite(v) ? v : el.value;
+      const input = $(id); if (!input) return;
+      const value = Number(input.value);
+      tuning[id] = Number.isFinite(value) ? value : input.value;
     });
-    return out;
+    return tuning;
   }
-  function setTuning(t){
-    if (!t || typeof t !== 'object') return;
+  function setTuning(tuning){
+    if (!tuning || typeof tuning !== 'object') return;
     TUNING_IDS.forEach(id => {
-      if (t[id] == null) return;
-      const el = $(id); if (el) el.value = String(t[id]);
+      if (tuning[id] == null) return;
+      const input = $(id); if (input) input.value = String(tuning[id]);
     });
   }
+  // The tuning presets: the standard values Auto Detect is tested with, and three others
   const DETECT_PRESETS = {
     standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
     small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, lineMinPct:7.5},
@@ -2486,11 +2513,12 @@ else if (typeof exports === 'object')
     $('detectionTuningPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   TUNING_IDS.forEach(id => { if ($(id)) $(id).addEventListener('input', syncTuningMarker); });
+  // A preset's buttons ("Reset to standard", "Small boxes"…): puts its values in the tuning
   async function applyDetectPreset(name){
-    const p = DETECT_PRESETS[name]; if (!p) return;
-    const set = (id,v) => { const el=$(''+id); if(el) el.value = String(v); };
-    set('minCb',p.minCb); set('maxCb',p.maxCb); set('tolCb',p.tolCb);
-    set('darkBias',p.darkBias); set('gradMult',p.gradMult); set('lineMinPct',p.lineMinPct);
+    const preset = DETECT_PRESETS[name]; if (!preset) return;
+    const setValue = (id,value) => { const input=$(''+id); if(input) input.value = String(value); };
+    setValue('minCb',preset.minCb); setValue('maxCb',preset.maxCb); setValue('tolCb',preset.tolCb);
+    setValue('darkBias',preset.darkBias); setValue('gradMult',preset.gradMult); setValue('lineMinPct',preset.lineMinPct);
     syncTuningMarker();
     msg(name === 'standard' ? 'Auto Detect tuning reset to standard.' : 'Preset "' + name + '" applied. Run Auto Detect to use it.', 'ok');
   }
@@ -4983,13 +5011,13 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     console.assert(intersects({left:0,top:0,right:10,bottom:10},{left:5,top:5,right:11,bottom:11})===true, 'intersects');
 
     // Added tests for checkbox geometry helpers
-    const testArr = new Uint8Array([
+    const testInk = new Uint8Array([
       1,1,1,1,
       1,0,0,1,
       1,0,0,1,
       1,1,1,1
     ]);
-    console.assert(countOnInRect(testArr,4,4,0,0,3,3)===12, 'countOnInRect');
+    console.assert(countOnInRect(testInk,4,4,0,0,3,3)===12, 'countOnInRect');
     console.assert(normalizeTag(' Patient Name ')==='Patient_Name', 'normalizeTag');
     console.assert(isRemovedTag('signature')===true, 'removed tag signature');
     console.assert(guessTag('signature')==='' && guessTag('', 'signature')==='', 'signature guess');
@@ -5013,37 +5041,44 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   state.sourcePdf = state.sourcePdf || null;
   const FS = { token: '', busy: false };
 
+  // Bytes as base64 text, a chunk at a time (a whole PDF at once is too many arguments)
   function fsBytesToBase64(buffer){
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(binary);
   }
+  // Keeps the PDF the pages came from (saved with the session), for FreeScribe to read
   function fsCapturePdf(name, buffer){
     try { state.sourcePdf = { name: String(name || 'form.pdf'), data: fsBytesToBase64(buffer) }; }
     catch(_){ state.sourcePdf = null; }
     fsShowPdf();
   }
+  // Says in the FreeScribe panel which PDF FreeScribe will read, if any
   function fsShowPdf(){
-    const el = $('fsPdfName');
-    if (!el) return;
-    el.textContent = state.sourcePdf ? `Source PDF: ${state.sourcePdf.name}`
+    const pdfName = $('fsPdfName');
+    if (!pdfName) return;
+    pdfName.textContent = state.sourcePdf ? `Source PDF: ${state.sourcePdf.name}`
                                      : 'No source PDF: the page images will be read with OCR. If the form came from a PDF, choosing it gives exact positions:';
   }
+  // Asks FreeScribe's server something (POST with a body, else GET) and returns its answer
   async function fsRequest(path, body){
     const headers = { 'X-FreeScribe-Token': FS.token };
     if (body) headers['Content-Type'] = 'application/json';
-    const res = await fetch(path, { method: body ? 'POST' : 'GET', headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+    const response = await fetch(path, { method: body ? 'POST' : 'GET', headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
     let data = {};
-    try { data = await res.json(); } catch(_){}
-    if (!res.ok) throw new Error(data.error || `FreeScribe answered ${res.status}.`);
+    try { data = await response.json(); } catch(_){}
+    if (!response.ok) throw new Error(data.error || `FreeScribe answered ${response.status}.`);
     return data;
   }
+  // The pages FreeScribe should read: every page with an image, or just the current one
   function fsTargetPages(){
-    const loaded = Object.keys(state.pages).map(Number).filter(n => state.pages[n] && state.pages[n].imgData).sort((a,b) => a-b);
+    const loaded = Object.keys(state.pages).map(Number).filter(page => state.pages[page] && state.pages[page].imgData).sort((a,b) => a-b);
     if ($('fsScope').value === 'all') return loaded;
     return loaded.includes(Number(state.currentPage)) ? [Number(state.currentPage)] : [];
   }
+  // "Find fields" (FreeScribe): FreeScribe reads the source PDF, or the page images with OCR, and
+  // its fields are added (in place of those on the pages when "Replace" is ticked)
   async function fsFindFields(){
     if (FS.busy) return;
     const pages = fsTargetPages();
@@ -5058,13 +5093,13 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       const request = { tagCatalog: [...STANDARD_TAGS], takenNames: kept.map(f => f.name) };
       if (state.sourcePdf){
         request.pdf = state.sourcePdf.data;
-        request.pages = pages.map(n => ({ page: n, pdfPage: state.pages[n].pdfPage || n,
-                                          naturalW: state.pages[n].naturalW, naturalH: state.pages[n].naturalH }));
+        request.pages = pages.map(page => ({ page, pdfPage: state.pages[page].pdfPage || page,
+                                          naturalW: state.pages[page].naturalW, naturalH: state.pages[page].naturalH }));
       } else {
-        request.images = pages.map(n => ({ page: n, data: state.pages[n].imgData }));
+        request.images = pages.map(page => ({ page, data: state.pages[page].imgData }));
       }
-      const res = await fsRequest('/api/detect', request);
-      const found = res.fields || [];
+      const response = await fsRequest('/api/detect', request);
+      const found = response.fields || [];
       pushUndo();
       if (replace) state.fields = kept;
       found.forEach(f => addField({ page: f.page, x: f.x, y: f.y, width: f.width, height: f.height, type: f.type,
@@ -5077,7 +5112,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       const tagNote = `${byRules} tagged from their labels` + (byAI ? `, ${byAI} tag(s) suggested by the AI (check those)` : '') + '.';
       const where = pages.length === 1 ? `page ${pages[0]}` : `${pages.length} pages`;
       const replaced = replace && before ? ` Replaced the ${before} field(s) that were there (Undo brings them back).` : '';
-      const scannedPages = (res.summary && res.summary.pagesReadWithOcr) || 0;
+      const scannedPages = (response.summary && response.summary.pagesReadWithOcr) || 0;
       const ocrNote = scannedPages ? ` ${scannedPages === pages.length ? 'Read' : scannedPages + ' page(s) read'} from the picture with OCR: check the labels and box sizes.` : '';
       msg(found.length
           ? `Found ${found.length} field(s) on ${where}: ${boxes} checkbox(es) and ${found.length - boxes} other. ${tagNote}${ocrNote}${replaced} Check them before exporting.`
@@ -5085,6 +5120,8 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     }catch(err){ msg('Find fields failed: ' + (err.message || err), 'err'); }
     finally{ FS.busy = false; $('btnFsDetect').disabled = false; }
   }
+  // Connects to FreeScribe when the page was opened from it (its address carries "#fs=<token>"),
+  // and shows the FreeScribe panel
   async function fsConnect(){
     const match = /(?:^|[#&])fs=([A-Za-z0-9_-]+)/.exec(location.hash || '');
     let token = match ? match[1] : '';
