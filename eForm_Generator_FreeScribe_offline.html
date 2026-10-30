@@ -352,28 +352,6 @@
     </div>
     <div class="small">Tags untagged fields from their names and labels, using imported templates' name↔tag map when there is one.</div>
 
-    <div class="hr"></div>
-    <details id="detectionTuningPanel">
-      <summary class="collapsible-summary"><span id="tuningPlus" class="plus-pill">+</span><span>Detection tuning</span></summary>
-      <div style="margin-top:8px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          <button id="btnPresetStandard" class="btn btn-small" title="Default balanced settings">Standard</button>
-          <button id="btnPresetSmall" class="btn btn-small" title="For dense forms with small PDF checkboxes (10-16px)">Small boxes</button>
-          <button id="btnPresetLarge" class="btn btn-small" title="For larger hand-drawn or printed checkbox squares (20-35px)">Large boxes</button>
-          <button id="btnPresetLines" class="btn btn-small" title="Text input lines only, skip checkbox detection">Lines only</button>
-        </div>
-        <div class="grid3">
-          <label title="In pixels on a page 1500 px across; scaled with the page">Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
-          <label title="In pixels on a page 1500 px across; scaled with the page">Max checkbox px<input id="maxCb" type="number" value="32" min="8" max="100"/></label>
-          <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
-        </div>
-        <div class="grid3" style="margin-top:8px">
-          <label>Line min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
-          <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
-          <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
-        </div>
-      </div>
-    </details>
 
     <div class="hr"></div>
     <div class="panel-title">Interaction</div>
@@ -457,6 +435,30 @@
     <div class="small">Edit this output directly before final export. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible).</div>
     <textarea id="exportEditor" class="export-editor mono" placeholder="Build draft to populate editable HTML..." style="margin-top:8px"></textarea>
     
+
+    <div class="hr"></div>
+    <details id="detectionTuningPanel">
+      <summary class="collapsible-summary"><span id="tuningPlus" class="plus-pill">+</span><span>Auto Detect tuning (advanced)</span><span id="tuningCustom" class="small"></span></summary>
+      <div style="margin-top:8px">
+        <div class="small" style="margin-bottom:8px">Auto Detect is tested with the standard values; other values can find fewer or wrong fields.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <button id="btnPresetStandard" class="btn btn-small" title="The default values, the ones Auto Detect is tested with">Reset to standard</button>
+          <button id="btnPresetSmall" class="btn btn-small" title="For dense forms with small PDF checkboxes (10-16px)">Small boxes</button>
+          <button id="btnPresetLarge" class="btn btn-small" title="For larger hand-drawn or printed checkbox squares (20-35px)">Large boxes</button>
+          <button id="btnPresetLines" class="btn btn-small" title="Text input lines only, skip checkbox detection">Lines only</button>
+        </div>
+        <div class="grid3">
+          <label title="In pixels on a page 1500 px across; scaled with the page">Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
+          <label title="In pixels on a page 1500 px across; scaled with the page">Max checkbox px<input id="maxCb" type="number" value="32" min="8" max="100"/></label>
+          <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
+        </div>
+        <div class="grid3" style="margin-top:8px">
+          <label>Line min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
+          <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
+          <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
+        </div>
+      </div>
+    </details>
 
     <div class="hr"></div>
     <details id="converterPanel">
@@ -996,7 +998,7 @@ else if (typeof exports === 'object')
     msg('Undid last action.', 'ok');
   }
 
-  const TUNING_IDS = ['minCb','targetCb','tolCb','lineMinPct','darkBias','gradMult'];
+  const TUNING_IDS = ['minCb','maxCb','tolCb','lineMinPct','darkBias','gradMult'];
   function getTuning(){
     const out = {};
     TUNING_IDS.forEach(id => {
@@ -1719,7 +1721,7 @@ else if (typeof exports === 'object')
     const ov = getPageOverlay(page);
     const rect = ov.getBoundingClientRect();
     const { sx, sy } = getPageScale(page);
-    const cbSize = Math.max(6, Number($('manualCbSize')?.value) || Number($('targetCb')?.value) || 20);
+    const cbSize = Math.max(6, Number($('manualCbSize')?.value) || Math.round(((Number($('minCb')?.value) || 8) + (Number($('maxCb')?.value) || 32)) / 2));
     const xPx = clamp(clientX - rect.left, 0, rect.width);
     const yPx = clamp(clientY - rect.top, 0, rect.height);
     const x = clamp(xPx / (sx || 1) - cbSize/2, 0, Math.max(0, p.naturalW - cbSize));
@@ -2169,6 +2171,7 @@ else if (typeof exports === 'object')
     };
 
     setTuning(obj.tuning || {});
+    syncTuningMarker();
     $('exportEditor').value = typeof obj.exportDraft === 'string' ? obj.exportDraft : '';
     state.exportTitle = String(obj.exportTitle || 'Generated OSCAR eForm');
     if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
@@ -2571,18 +2574,27 @@ else if (typeof exports === 'object')
   }
 
 
+  const DETECT_PRESETS = {
+    standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
+    small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, lineMinPct:7.5},
+    large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
+    lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
+  };
+  // The tuning panel's heading says "· custom" while any value isn't the standard one, so a
+  // change shows with the panel closed (it is saved with the session too)
+  function syncTuningMarker(){
+    const std = DETECT_PRESETS.standard;
+    const custom = TUNING_IDS.some(id => $(id) && Number($(id).value) !== std[id]);
+    $('tuningCustom').textContent = custom ? '· custom' : '';
+  }
+  TUNING_IDS.forEach(id => { if ($(id)) $(id).addEventListener('input', syncTuningMarker); });
   async function applyDetectPreset(name){
-    const presets = {
-      standard: { minCb:8,  maxCb:32, tolCb:8,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
-      small:    { minCb:6,  maxCb:20, tolCb:6,  darkBias:12, gradMult:0.7, lineMinPct:7.5},
-      large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
-      lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
-    };
-    const p = presets[name]; if (!p) return;
+    const p = DETECT_PRESETS[name]; if (!p) return;
     const set = (id,v) => { const el=$(''+id); if(el) el.value = String(v); };
     set('minCb',p.minCb); set('maxCb',p.maxCb); set('tolCb',p.tolCb);
     set('darkBias',p.darkBias); set('gradMult',p.gradMult); set('lineMinPct',p.lineMinPct);
-    msg('Preset "' + name + '" applied. Run Auto Detect to use it.', 'ok');
+    syncTuningMarker();
+    msg(name === 'standard' ? 'Auto Detect tuning reset to standard.' : 'Preset "' + name + '" applied. Run Auto Detect to use it.', 'ok');
   }
   if ($('btnPresetStandard')) $('btnPresetStandard').addEventListener('click', ()=>applyDetectPreset('standard'));
   if ($('btnPresetSmall')) $('btnPresetSmall').addEventListener('click', ()=>applyDetectPreset('small'));
@@ -4760,6 +4772,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
 
   mountConverterTop();
   initCollapse('detectionTuningPanel', 'tuningPlus');
+  syncTuningMarker();
   initCollapse('templateImportPanel', 'templatePlus');
   initConverter();
   updateUndoBtn();
