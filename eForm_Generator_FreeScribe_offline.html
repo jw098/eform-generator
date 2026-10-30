@@ -4644,20 +4644,27 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     };
     if (!controls.file) return;
     let pdfDoc = null;
-    let busy = false;
     let previewUrl = null;
     const canvasCtx = controls.canvas.getContext('2d', {willReadFrequently:true});
 
     // Shows a line under the converter (red for an error)
     function showStatus(text, err=false){ controls.status.textContent = text || ''; controls.status.style.color = err ? '#b91c1c' : '#374151'; }
-    // Marks the converter busy, turning its buttons off while it works (and while no PDF is loaded)
-    function setBusy(isBusy){
-      busy = isBusy;
-      const disabled = isBusy || !pdfDoc;
+    // Turns the converter's buttons off while no PDF is loaded
+    function updateButtons(){
+      const disabled = !pdfDoc;
       controls.btnPreview.disabled = disabled;
       controls.btnConvertDownload.disabled = disabled;
       controls.btnLoadOnly.disabled = disabled;
       controls.btnConvertAll.disabled = disabled;
+    }
+    // The converter's jobs (loading a PDF, a preview, a convert) all draw on one canvas, so they
+    // take turns: each waits for the one before to finish, rather than being turned away while
+    // it runs. Returns the job's result.
+    let lastJob = Promise.resolve();
+    function runInTurn(job){
+      const result = lastJob.then(() => job());
+      lastJob = result.catch(() => {});
+      return result;
     }
     // A file size for people: "512 B", "3.4 KB", "1.25 MB"
     function formatBytes(byteCount){ if(byteCount<1024) return `${byteCount} B`; if(byteCount<1024*1024) return `${(byteCount/1024).toFixed(1)} KB`; return `${(byteCount/1048576).toFixed(2)} MB`; }
@@ -4750,22 +4757,24 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     // Opens a PDF in the converter, lists its pages and shows the first
     async function loadPdf(file){
       if (!window.pdfjsLib){ showStatus('pdf.js failed to load from this file.', true); return; }
-      try{
-        setBusy(true);
-        showStatus('Loading PDF...');
-        const pdfBytes = await file.arrayBuffer();
-        fsCapturePdf(file.name, pdfBytes.slice(0));
-        await ensurePdfWorker();
-        pdfDoc = await pdfjsLib.getDocument({data:pdfBytes, StandardFontDataFactory: EmbeddedStandardFonts, useWorkerFetch: false}).promise;
-        controls.page.innerHTML = '';
-        for(let i=1;i<=pdfDoc.numPages;i++){
-          const option=document.createElement('option'); option.value=String(i); option.textContent=`Page ${i}`; controls.page.appendChild(option);
-        }
-        controls.page.disabled = false;
-        showStatus(`Loaded ${pdfDoc.numPages} page(s).`);
-        await renderPreview();
-      }catch(err){ showStatus('Could not read PDF: ' + (err.message || err), true); }
-      finally{ setBusy(false); }
+      const loaded = await runInTurn(async () => {
+        try{
+          showStatus('Loading PDF...');
+          const pdfBytes = await file.arrayBuffer();
+          fsCapturePdf(file.name, pdfBytes.slice(0));
+          await ensurePdfWorker();
+          pdfDoc = await pdfjsLib.getDocument({data:pdfBytes, StandardFontDataFactory: EmbeddedStandardFonts, useWorkerFetch: false}).promise;
+          controls.page.innerHTML = '';
+          for(let i=1;i<=pdfDoc.numPages;i++){
+            const option=document.createElement('option'); option.value=String(i); option.textContent=`Page ${i}`; controls.page.appendChild(option);
+          }
+          controls.page.disabled = false;
+          showStatus(`Loaded ${pdfDoc.numPages} page(s).`);
+          return true;
+        }catch(err){ showStatus('Could not read PDF: ' + (err.message || err), true); return false; }
+        finally{ updateButtons(); }
+      });
+      if (loaded) await renderPreview();
     }
 
     // Applies "Grayscale", "Optimize levels" (rounds each pixel to one of `Levels` greys or
@@ -4811,22 +4820,26 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       return new Promise(resolve => controls.canvas.toBlob(resolve, 'image/png'));
     }
 
-    // Shows the selected page as it will be converted
-    async function renderPreview(){
-      if(!pdfDoc || busy) return;
-      try{
-        setBusy(true);
-        const pageNo = Number(controls.page.value || 1);
-        showStatus('Rendering preview...');
-        const size = await renderPdfPage(pageNo);
-        const blob = await canvasToPngBlob();
-        if (!blob) throw new Error('Preview blob failed');
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        previewUrl = URL.createObjectURL(blob);
-        controls.preview.src = previewUrl;
-        showStatus(`Preview ready — ${size.w}×${size.h}px (${formatBytes(blob.size)}).`);
-      }catch(err){ showStatus('Preview failed: ' + (err.message || err), true); }
-      finally{ setBusy(false); }
+    // Shows the selected page as it will be converted, once the jobs before it are done. Asked for
+    // several times in a row (settings changed one after another), only the last is drawn.
+    let previewsAsked = 0;
+    function renderPreview(){
+      const previewNo = ++previewsAsked;
+      return runInTurn(async () => {
+        if(!pdfDoc || previewNo !== previewsAsked) return;
+        try{
+          const pageNo = Number(controls.page.value || 1);
+          showStatus('Rendering preview...');
+          const size = await renderPdfPage(pageNo);
+          const blob = await canvasToPngBlob();
+          if (!blob) throw new Error('Preview blob failed');
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          previewUrl = URL.createObjectURL(blob);
+          controls.preview.src = previewUrl;
+          const pagesText = pdfDoc.numPages === 1 ? '1 page' : `${pdfDoc.numPages} pages`;
+          showStatus(`${pagesText} · Preview ready — ${size.w}×${size.h}px (${formatBytes(blob.size)}).`);
+        }catch(err){ showStatus('Preview failed: ' + (err.message || err), true); }
+      });
     }
 
     // Converts the selected page, or every page ("All pages" mode), to PNG images named as the
@@ -4886,44 +4899,48 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       showStatus(`Loaded ${loaded} page(s) into mapper.`);
     }
 
+    // (a second convert while one waits or runs is a double click: it is ignored)
+    let convertWaiting = false;
     // "Convert + Download" and "Convert + Download + Load": converts, downloads, and loads the
     // images into the mapper when `load`
     async function runConvertAction(opts){
-      if(!pdfDoc || busy) return;
+      if(!pdfDoc || convertWaiting) return;
       const { download=false, load=false } = opts || {};
-      try{
-        setBusy(true);
-        showStatus('Converting...');
-        const outputs = await convertPages(download);
-        const pagesText = outputs.length === 1 ? '1 page' : `${outputs.length} pages`;
-        if(load){
-          await loadOutputsIntoMapper(outputs);
-          showStatus(`Done: ${pagesText} converted, downloaded, and loaded.`);
-        } else {
-          showStatus(`Done: ${pagesText} converted${download ? ' and download triggered' : ''}.`);
+      convertWaiting = true;
+      await runInTurn(async () => {
+        try{
+          showStatus('Converting...');
+          const outputs = await convertPages(download);
+          const pagesText = outputs.length === 1 ? '1 page' : `${outputs.length} pages`;
+          if(load){
+            await loadOutputsIntoMapper(outputs);
+            showStatus(`Done: ${pagesText} converted, downloaded, and loaded.`);
+          } else {
+            showStatus(`Done: ${pagesText} converted${download ? ' and download triggered' : ''}.`);
+          }
+        }catch(err){
+          showStatus('Conversion failed: ' + (err.message || err), true);
+        }finally{
+          convertWaiting = false;
         }
-      }catch(err){
-        showStatus('Conversion failed: ' + (err.message || err), true);
-      }finally{
-        setBusy(false);
-        await renderPreview();
-      }
+      });
     }
 
     // "Load to Mapper": converts and loads the images into the mapper without downloading them
     async function runLoadOnly(){
-      if(!pdfDoc || busy) return;
-      try{
-        setBusy(true);
-        showStatus('Converting for load...');
-        const outputs = await convertPages(false);
-        await loadOutputsIntoMapper(outputs);
-      }catch(err){
-        showStatus('Load failed: ' + (err.message || err), true);
-      }finally{
-        setBusy(false);
-        await renderPreview();
-      }
+      if(!pdfDoc || convertWaiting) return;
+      convertWaiting = true;
+      await runInTurn(async () => {
+        try{
+          showStatus('Converting for load...');
+          const outputs = await convertPages(false);
+          await loadOutputsIntoMapper(outputs);
+        }catch(err){
+          showStatus('Load failed: ' + (err.message || err), true);
+        }finally{
+          convertWaiting = false;
+        }
+      });
     }
 
     controls.file.addEventListener('change', e => {
@@ -4939,6 +4956,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     controls.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
     controls.btnClear.addEventListener('click', ()=>{ controls.links.innerHTML=''; showStatus('Cleared links.'); });
 
+    updateButtons();
     showStatus('Converter ready (PNG output). Use Convert+Download or Load to Mapper.');
   }
 
