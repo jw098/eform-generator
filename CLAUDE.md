@@ -172,7 +172,10 @@ size it against the page.
 
 ## Style
 
-- Match the existing code: compact JavaScript, short local names, small arrow helpers.
+- Match the existing code: compact JavaScript, small arrow helpers.
+- Variable and function names are clear and descriptive: a name says what the value is or
+  what the function does.
+- Every function has a brief comment above it describing its purpose.
 - Comments are plain English that say what a rule is for, with the printed text that shows it
   in quotes ("Referring Physician: ____", "☐ OTHER, SPECIFY: ____"). Keep them up to date when
   a rule changes.
