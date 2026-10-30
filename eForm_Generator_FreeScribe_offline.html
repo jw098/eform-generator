@@ -1104,7 +1104,7 @@ else if (typeof exports === 'object')
   // Whether a tag is one of those
   function isRemovedTag(tag){ return REMOVED_TAGS.has(String(tag||'').trim().toLowerCase()); }
 
-  // Whether a field type is a tick box: a tick box never takes a tag
+  // Whether a field type is a tick box: the app never tags one itself (a user still can)
   const isTickType = (type) => type === 'checkbox' || type === 'xbox';
 
   const GENERIC_NAME_RE = /^(gen_inputid\d+|page\d+_\d+|field_\d+|input\d+|checkbox\d*)$/i;
@@ -1502,8 +1502,7 @@ else if (typeof exports === 'object')
       // Restore checkbox type from generated eForm marker class
       else if (isGenerated && className.includes('xmarkonly')) type = 'checkbox';
 
-      // (a tick box's tag is dropped: a tick box never takes one)
-      const oscarTag = type === 'checkbox' ? '' : parseAttr(el, 'oscarDB') || parseAttr(el, 'oscardb') || '';
+      const oscarTag = parseAttr(el, 'oscarDB') || parseAttr(el, 'oscardb') || '';
       const rawName  = parseAttr(el, 'name') || parseAttr(el, 'id') || `field_${idx+1}`;
       const label    = nearestLabelText(el);
 
@@ -1644,8 +1643,8 @@ else if (typeof exports === 'object')
     msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (leftOut ? `; ${leftOut} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
   });
 
-  // "Auto-tag untagged": tags each untagged field from the imported eForm's name↔tag map, or
-  // else from its name and label
+  // "Auto-tag untagged": tags each untagged field but a tick box from the imported eForm's
+  // name↔tag map, or else from its name and label
   function autoTagUnmapped(){
     pushUndo();
     let changed=0;
@@ -1686,16 +1685,14 @@ else if (typeof exports === 'object')
   }
 
   // ===== Pages and fields on the canvas =====
-  // Adds a field to the form, filling in what `partial` leaves out, and returns it (a tick box
-  // without a tag)
+  // Adds a field to the form, filling in what `partial` leaves out, and returns it
   function addField(partial){
-    const type = partial.type || 'text';
     const f = {
       id: state.nextId++, page: Number((partial.page ?? state.currentPage)),
       x: partial.x || 20, y: partial.y || 20,
       width: partial.width || 180, height: partial.height || 24,
-      type, name: partial.name || `field_${state.nextId}`,
-      oscarTag: isTickType(type) ? '' : partial.oscarTag || '', label: partial.label || ''
+      type: partial.type || 'text', name: partial.name || `field_${state.nextId}`,
+      oscarTag: partial.oscarTag || '', label: partial.label || ''
     };
     state.fields.push(f);
     return f;
@@ -2229,12 +2226,6 @@ else if (typeof exports === 'object')
   }
   // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
   function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
-  // Turns the Selected field editor's tag controls off for a tick box, which never takes a tag
-  function lockTagForTick(type){
-    const tick = isTickType(type);
-    ['fTag','fTagSelect','btnUseTag','btnGuessTag'].forEach(id => { $(id).disabled = tick; });
-    $('fTag').placeholder = tick ? 'no tag for a tick box' : 'patient_name';
-  }
   // Fills the Selected field editor from the selected field, or hides it unless one is selected
   function renderSelectedEditor(){
     if (state.selected.size === 1){
@@ -2247,7 +2238,6 @@ else if (typeof exports === 'object')
       $('fX').value = Math.round(f.x); $('fY').value = Math.round(f.y); $('fW').value = Math.round(f.width); $('fH').value = Math.round(f.height);
       const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
       showTagWarn(f.oscarTag);
-      lockTagForTick(f.type);
       syncingEditor = false;
     } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
   }
@@ -2263,9 +2253,6 @@ else if (typeof exports === 'object')
     const name = $('fName').value.trim();
     if (name) f.name = name;
     f.type = $('fType').value || f.type;
-    // (a field made a tick box loses its tag)
-    if (isTickType(f.type)) $('fTag').value = '';
-    lockTagForTick(f.type);
     const tag = normalizeTag($('fTag').value);
     f.oscarTag = tag;
     $('fTagSelect').value = STANDARD_TAGS.has(tag) ? tag : '';
@@ -2368,10 +2355,10 @@ else if (typeof exports === 'object')
       const imgEl=$('img'+page); if(imgEl) imgEl.src=state.pages[page].imgData||'';
     });
 
-    // (a field saved with a tag that is no longer offered keeps no tag, nor does a tick box; one
-    // tagged as the old signature stamp is a signature field)
+    // (a field saved with a tag that is no longer offered keeps no tag; one tagged as the old
+    // signature stamp is a signature field)
     state.fields = (session.fields || []).map((f, i) => {
-      const tag = isTickType(f.type) ? '' : normalizeTag(f.oscarTag || '');
+      const tag = normalizeTag(f.oscarTag || '');
       return {
         id: Number(f.id) || (i+1),
         page: Number(f.page) >= 1 ? Number(f.page) : 1,
@@ -4167,19 +4154,17 @@ function sanitizeUniqueFieldNames(fields){
   });
 }
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
-// that a click turns on and off, never tagged) or a text input; `inlinePosStyle` places it on
-// the page
+// that a click turns on and off) or a text input; `inlinePosStyle` places it on the page
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
-  const tick = f.type === 'checkbox' || f.type === 'xbox';
-  const tag = tick ? '' : escAttr(f.oscarTag || '');
+  const tag = escAttr(f.oscarTag || '');
   const id = escAttr((f._safeName || f.name || 'field') + '_' + (f.id ?? ''));
   const dbAttr = tag ? ` oscarDB="${tag}"` : '';
 
   if (f.type === 'textarea') {
     return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;"></textarea>`;
   }
-  if (tick) {
+  if (f.type === 'checkbox' || f.type === 'xbox') {
     // X-only marker over printed checkbox outlines: no browser checkbox boundary.
     // We render as readonly text input that toggles X on click/space/enter.
     const style = `${inlinePosStyle} border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;`;
