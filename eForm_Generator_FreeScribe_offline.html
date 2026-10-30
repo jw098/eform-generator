@@ -90,8 +90,10 @@
     background:rgba(255,255,255,.8);border-radius:3px;padding:0 3px}
   .field-tag.above{left:0;bottom:calc(100% + 2px);background:#065f46;color:#fff;border-radius:4px;padding:1px 4px}
   .field-tag.above.tick{left:50%;transform:translateX(-50%)}
-  /* A textarea's font size buttons, where the eForm will show them (drawn only, not clickable) */
-  .field-font{position:absolute;background:yellow;border:1px solid #000;color:#000;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;box-sizing:border-box}
+  /* A textarea's font size buttons (▲ over ▼), as the eForm will show them; dragged as one */
+  .field.fontbuttons{border:0;background:transparent;border-radius:0}
+  .field.fontbuttons.selected{outline:2px solid #2563eb;outline-offset:1px}
+  .field-font{position:absolute;left:0;width:100%;background:yellow;border:1px solid #000;color:#000;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;box-sizing:border-box}
   .resize{
     position:absolute;width:9px;height:9px;border:1px solid #fff;background:#2563eb;
   }
@@ -427,10 +429,11 @@
             <option value="xbox">xbox</option>
             <option value="date">date</option>
             <option value="signature">signature</option>
+            <option value="fontbuttons" disabled>font size buttons</option>
           </select>
         </label>
       </div>
-      <label style="margin-top:8px;display:block">OSCAR tag
+      <label id="fTagBlock" style="margin-top:8px;display:block">OSCAR tag
         <div class="row" style="align-items:stretch">
           <input id="fTag" type="text" list="tagSuggestions" placeholder="patient_name"/>
           <select id="fTagSelect" style="min-width:150px"><option value="">Choose tag...</option></select>
@@ -440,6 +443,7 @@
         <datalist id="tagSuggestions"></datalist>
       </label>
       <div id="fTagWarn" class="small" style="display:none;color:var(--red);margin-top:4px">Not a standard OSCAR 12 tag: OSCAR may not fill it in.</div>
+      <div id="fButtonsNote" class="small" style="display:none;margin-top:8px"></div>
       <div id="fFontRow" class="row small" style="display:none;margin-top:8px">
         <label><input id="fFontButtons" type="checkbox"/> Font size buttons (&#9650;&#9660;) on the eForm</label>
         <label>Font size <input id="fFontSize" type="number" min="6" max="48" step="1" style="width:64px"/> px</label>
@@ -1136,7 +1140,7 @@ else if (typeof exports === 'object')
   // label (Auto Detect passes only the label: a section heading in a name is only for the name).
   // A label written as a tag's own name ("current_user_id") keeps that tag.
   function guessTag(name='', type='text', label='', owner=''){
-    if (type === 'signature' || isTickType(type)) return '';      // (a signature is its type, not a tag; a tick box has none)
+    if (type === 'signature' || isTickType(type) || type === 'fontbuttons') return '';   // (a signature is its type, not a tag; a tick box and font size buttons have none)
     // (a question asks for an answer, not the details it names: "ARE YOU THE PATIENT'S REGULAR
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
@@ -1497,6 +1501,9 @@ else if (typeof exports === 'object')
     }
 
     const elements = Array.from(doc.querySelectorAll('input,textarea,select'));
+    const textareaByName = new Map();
+    // (the textarea a font size button changes: "changeFontSize('reason', 1)")
+    const fontButtonTarget = (b) => (parseAttr(b, 'onclick').match(/changeFontSize\(\s*['"]([^'"]+)['"]/) || [])[1] || '';
     elements.forEach((el, idx) => {
       const tagName   = el.tagName.toLowerCase();
       const typeAttr  = (parseAttr(el, 'type') || '').toLowerCase();
@@ -1552,7 +1559,8 @@ else if (typeof exports === 'object')
       // (a textarea keeps its font size, and its font size buttons if it has them: a hidden
       // "<name>_fontsize" input saves the size the buttons set)
       const fontSize = type === 'textarea' ? (parseStylePx(parseAttr(el, 'style'), 'font-size') || {}).val : null;
-      const fontButtons = type === 'textarea' && Array.from(doc.querySelectorAll('input')).some(h => parseAttr(h, 'name') === rawName + '_fontsize');
+      const fontButtons = type === 'textarea' && (Array.from(doc.querySelectorAll('input')).some(h => parseAttr(h, 'name') === rawName + '_fontsize') ||
+                                                  Array.from(doc.querySelectorAll('[onclick]')).some(b => fontButtonTarget(b) === rawName));
       const field = {
         id: `tpl_${fileName}_${idx}`,
         page,
@@ -1568,6 +1576,22 @@ else if (typeof exports === 'object')
         ...(exportW ? { _exportW: exportW } : {})
       };
       template.fields.push(field);
+      if (type === 'textarea') textareaByName.set(rawName, field);
+    });
+
+    // A textarea's font size buttons ("changeFontSize('reason', 1)"), where the eForm put them
+    const buttonsByTarget = new Map();
+    Array.from(doc.querySelectorAll('[onclick]')).forEach(b => {
+      const target = fontButtonTarget(b), box = target && textareaByName.has(target) && getPositionedBox(b);
+      if (!box) return;
+      const at = buttonsByTarget.get(target);
+      buttonsByTarget.set(target, at ? { x: Math.min(at.x, box.x), y: Math.min(at.y, box.y) } : { x: box.x, y: box.y });
+    });
+    buttonsByTarget.forEach((at, target) => {
+      const textarea = textareaByName.get(target);
+      template.fields.push({ id: `${textarea.id}_buttons`, page: textarea.page, x: at.x, y: at.y, width: FONT_BUTTON_W, height: FONT_BUTTON_GAP + FONT_BUTTON_H,
+                             type: 'fontbuttons', name: textarea.name, oscarTag: '', label: '', targetTpl: textarea.id,
+                             ...(textarea._exportW ? { _exportW: textarea._exportW } : {}) });
     });
 
     const scripts = Array.from(doc.querySelectorAll('script'));
@@ -1651,7 +1675,10 @@ else if (typeof exports === 'object')
     const alreadyThere = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
     if (alreadyThere && !confirm(`These pages already have ${alreadyThere} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
     pushUndo();
-    onPages.forEach(tf => {
+    // (font size buttons go on their textarea's copy: added after the fields, with its new id)
+    const addedIds = new Map();
+    [...onPages].sort((a, b) => (a.type === 'fontbuttons') - (b.type === 'fontbuttons')).forEach(tf => {
+      if (tf.type === 'fontbuttons' && !addedIds.has(tf.targetTpl)) return;
       // A field from an eForm this app made (it has _exportW) is rescaled from the width it was
       // exported at to the page image's
       const pageInfo = state.pages[Number(tf.page)];
@@ -1660,9 +1687,10 @@ else if (typeof exports === 'object')
         const scale = pageInfo.naturalW / tf._exportW;
         x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
       }
-      addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
+      const added = addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
         oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '',
-        fontSize: tf.fontSize, fontButtons: tf.fontButtons });
+        fontSize: tf.fontSize, fontButtons: tf.fontButtons, target: tf.type === 'fontbuttons' ? addedIds.get(tf.targetTpl) : null });
+      addedIds.set(tf.id, added.id);
     });
     renderAll();
     const leftOut = state.templateFields.length - onPages.length;
@@ -1675,7 +1703,7 @@ else if (typeof exports === 'object')
     pushUndo();
     let changed=0;
     state.fields.forEach(f => {
-      if (f.oscarTag || isTickType(f.type)) return;
+      if (f.oscarTag || isTickType(f.type) || f.type === 'fontbuttons') return;
       const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
       const tag = fromMap || guessTag(f.name, f.type, f.label);
       if (tag){ f.oscarTag=tag; changed++; }
@@ -1722,11 +1750,57 @@ else if (typeof exports === 'object')
     };
     if (partial.fontSize) f.fontSize = partial.fontSize;
     if (partial.fontButtons === false) f.fontButtons = false;
+    if (partial.target != null) f.target = partial.target;
     state.fields.push(f);
     return f;
   }
   // The fields on a page
   function getPageFields(page){ const pageNo = Number(page); return state.fields.filter(f => Number(f.page) === pageNo); }
+  // The fields that are a form's own (not a textarea's font size buttons): what counts, gets a
+  // name on the eForm, a tag, a duplicate warning
+  function dataFields(fields){ return fields.filter(f => f.type !== 'fontbuttons'); }
+
+  // Keeps each textarea's font size buttons in step with it. The buttons are a field of their own
+  // (type 'fontbuttons', `target` the textarea's id), so they can be dragged anywhere. A textarea
+  // gets them unless they were turned off (fontButtons: false), at first just right of its
+  // top-right corner; they go when it does (or stops being a textarea); and they follow it: when
+  // its top-right corner moves (dragged, nudged, resized, typed in), they move as much
+  // (`anchor` is where that corner was). They are always a button's size on the eForm.
+  function syncFontButtons(){
+    let byId = new Map(state.fields.map(f => [f.id, f]));
+    const keeps = (b) => { const t = byId.get(b.target); return t && t.type === 'textarea' && t.fontButtons !== false && samePage(t.page, b.page); };
+    const owned = new Set();
+    state.fields = state.fields.filter(f => {
+      if (f.type !== 'fontbuttons') return true;
+      if (!keeps(f) || owned.has(f.target)){ state.selected.delete(f.id); return false; }
+      owned.add(f.target); return true;
+    });
+    state.fields.filter(t => t.type === 'textarea' && t.fontButtons !== false && !owned.has(t.id)).forEach(t => {
+      const pageInfo = state.pages[t.page]; if (!pageInfo || !pageInfo.naturalW) return;
+      const k = EXPORT_PAGE_W / pageInfo.naturalW;
+      const spots = fontButtonSpots(t.x*k, t.y*k, t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k);
+      addField({ page: t.page, x: spots.x/k, y: spots.upY/k, type: 'fontbuttons', name: t.name, target: t.id });
+    });
+    byId = new Map(state.fields.map(f => [f.id, f]));
+    state.fields.forEach(b => {
+      if (b.type !== 'fontbuttons') return;
+      const t = byId.get(b.target), pageInfo = state.pages[b.page]; if (!t || !pageInfo || !pageInfo.naturalW) return;
+      const k = EXPORT_PAGE_W / pageInfo.naturalW, corner = { x: t.x + t.width, y: t.y };
+      b.name = t.name; b.width = FONT_BUTTON_W / k; b.height = (FONT_BUTTON_GAP + FONT_BUTTON_H) / k;
+      if (b.anchor){ b.x += corner.x - b.anchor.x; b.y += corner.y - b.anchor.y; }
+      b.x = clamp(b.x, 0, Math.max(0, pageInfo.naturalW - b.width)); b.y = clamp(b.y, 0, Math.max(0, pageInfo.naturalH - b.height));
+      b.anchor = corner;
+    });
+  }
+  // Removes the selected fields (a textarea's buttons go with it); taking away a textarea's
+  // buttons on their own turns them off for it
+  function deleteSelectedFields(){
+    state.fields.forEach(b => {
+      if (b.type !== 'fontbuttons' || !state.selected.has(b.id) || state.selected.has(b.target)) return;
+      const t = state.fields.find(k => k.id === b.target); if (t) t.fontButtons = false;
+    });
+    state.fields = state.fields.filter(f => !state.selected.has(f.id)); state.selected.clear(); renderAll();
+  }
   // A page's image, its wrapper and the overlay its fields are drawn on
   function getPageImgEl(page){ return $('img'+page); }
   function getPageWrap(page){ return $('canvas'+page+'Wrap'); }
@@ -1744,7 +1818,7 @@ else if (typeof exports === 'object')
   }
 
   // Shows the current page and the number of fields on it and in all
-  function renderCounts(){ const page = Number(state.currentPage) || 1; $('kvPage').textContent = String(page); $('kvCount').textContent = String(getPageFields(page).length); $('kvTotal').textContent = String(state.fields.length); }
+  function renderCounts(){ const page = Number(state.currentPage) || 1; $('kvPage').textContent = String(page); $('kvCount').textContent = String(dataFields(getPageFields(page)).length); $('kvTotal').textContent = String(dataFields(state.fields).length); }
 
   // The lasso's rectangle, in screen pixels on its page's overlay
   function lassoRectPx(lasso){ const left = Math.min(lasso.startX, lasso.curX), top = Math.min(lasso.startY, lasso.curY); const width = Math.abs(lasso.curX - lasso.startX), height = Math.abs(lasso.curY - lasso.startY); return { left, top, width, height, right:left+width, bottom:top+height }; }
@@ -1772,6 +1846,18 @@ else if (typeof exports === 'object')
     fieldDiv.className = 'field' + (state.selected.has(f.id) ? ' selected' : '');
     fieldDiv.style.left = (f.x * sx) + 'px'; fieldDiv.style.top = (f.y * sy) + 'px'; fieldDiv.style.width = (f.width * sx) + 'px'; fieldDiv.style.height = (f.height * sy) + 'px';
     fieldDiv.dataset.id = String(f.id);
+    // (a textarea's font size buttons: ▲ over ▼ as on the eForm, no tag, label or resize handle)
+    if (f.type === 'fontbuttons'){
+      fieldDiv.classList.add('fontbuttons');
+      const share = FONT_BUTTON_H / (FONT_BUTTON_GAP + FONT_BUTTON_H);
+      [['&#9650;', 0], ['&#9660;', 1 - share]].forEach(([arrow, top]) => {
+        const button = document.createElement('div'); button.className = 'field-font'; button.innerHTML = arrow;
+        button.style.top = (top * 100) + '%'; button.style.height = (share * 100) + '%'; button.style.fontSize = Math.max(6, f.height * sy * share * 0.65) + 'px';
+        fieldDiv.appendChild(button);
+      });
+      fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
+      return fieldDiv;
+    }
     // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
     // the edges of a field shorter than the text, so it stays on the field's own row), else
     // above it; a tick box's always above, centred over it
@@ -1783,18 +1869,6 @@ else if (typeof exports === 'object')
       // (with the tag shown, the label is just the name, raised over a tag above the field)
       const labelDiv = document.createElement('div'); labelDiv.className = 'field-label' + (above ? ' raised' : '');
       labelDiv.textContent = f.name + (f.oscarTag && !state.showTags ? ' · ' + f.oscarTag : ''); fieldDiv.appendChild(labelDiv);
-    }
-    if (hasFontButtons(f)){
-      // (in the eForm's pixels, then back to this page's on screen; the field's 2px border moves its children)
-      const pageInfo = state.pages[page], k = EXPORT_PAGE_W / (pageInfo.naturalW || EXPORT_PAGE_W);
-      const spots = fontButtonSpots(Math.round(f.x*k), Math.round(f.y*k), Math.round(f.width*k), Math.round(f.height*k), Math.round(pageInfo.naturalW*k), Math.round(pageInfo.naturalH*k));
-      [['&#9650;', spots.upY], ['&#9660;', spots.downY]].forEach(([arrow, y]) => {
-        const button = document.createElement('div'); button.className = 'field-font'; button.innerHTML = arrow;
-        button.style.left = ((spots.x/k - f.x) * sx - 2) + 'px'; button.style.top = ((y/k - f.y) * sy - 2) + 'px';
-        button.style.width = (FONT_BUTTON_W/k * sx) + 'px'; button.style.height = (FONT_BUTTON_H/k * sy) + 'px';
-        button.style.fontSize = Math.max(6, 11/k * sy) + 'px';
-        fieldDiv.appendChild(button);
-      });
     }
     if (state.selected.size === 1 && state.selected.has(f.id)){ const resizeHandle = document.createElement('div'); resizeHandle.className='resize se'; resizeHandle.dataset.handle='se'; fieldDiv.appendChild(resizeHandle); }
     fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
@@ -1833,6 +1907,7 @@ else if (typeof exports === 'object')
 
   // Redraws every page and the panels that list or count fields
   function renderAll(){
+    syncFontButtons();
     Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(n => renderPage(n));
     renderCounts(); renderSelectedEditor(); renderTemplateFieldList(); renderSnippetList();
   }
@@ -2053,6 +2128,7 @@ else if (typeof exports === 'object')
       const pageInfo = state.pages[page];
       state.selected.forEach(id => {
         const f = state.fields.find(k => k.id===id && samePage(k.page,page)); if (!f) return;
+        if (f.type === 'fontbuttons' && state.selected.has(f.target)) return;   // (they follow their textarea)
         const startPos = startPositions[id];
         f.x = clamp((startPos?.x ?? f.x)+dx,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
         f.y = clamp((startPos?.y ?? f.y)+dy,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
@@ -2082,7 +2158,8 @@ else if (typeof exports === 'object')
 
   // Copies the selected fields, keeping their places relative to each other
   function copySelectedFields(){
-    const selectedFields = state.fields.filter(f => state.selected.has(f.id));
+    // (a textarea's buttons go with it, and come back on it; buttons without their textarea don't)
+    const selectedFields = state.fields.filter(f => f.type === 'fontbuttons' ? state.selected.has(f.target) : state.selected.has(f.id));
     if (!selectedFields.length){ msg('No selected fields to copy.', 'warn'); return; }
     const minX = Math.min(...selectedFields.map(f=>f.x));
     const minY = Math.min(...selectedFields.map(f=>f.y));
@@ -2095,9 +2172,11 @@ else if (typeof exports === 'object')
       type: f.type,
       name: f.name,
       oscarTag: f.oscarTag || '',
-      fontSize: f.fontSize, fontButtons: f.fontButtons
+      fontSize: f.fontSize, fontButtons: f.fontButtons,
+      copiedId: f.id, target: f.target
     }));
-    msg(`Copied ${selectedFields.length} field${selectedFields.length===1?'':'s'}.`, 'ok');
+    const copied = dataFields(selectedFields).length;
+    msg(`Copied ${copied} field${copied===1?'':'s'}.`, 'ok');
   }
 
   // Pastes the copied fields on the current page and selects them, each paste a little further
@@ -2111,7 +2190,10 @@ else if (typeof exports === 'object')
     const offset = 14 * (pastesBefore + 1);
     state.pasteCount = pastesBefore + 1;
     state.selected.clear();
-    state.clipboardFields.forEach((copied, i) => {
+    // (the buttons last, each on its textarea's copy)
+    const pastedIds = new Map();
+    [...state.clipboardFields].sort((a, b) => (a.type === 'fontbuttons') - (b.type === 'fontbuttons')).forEach((copied, i) => {
+      if (copied.type === 'fontbuttons' && !pastedIds.has(copied.target)) return;
       const w = Math.max(8, Number(copied.width)||20), h = Math.max(8, Number(copied.height)||20);
       const f = addField({
         page,
@@ -2122,12 +2204,15 @@ else if (typeof exports === 'object')
         type: copied.type || 'text',
         name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
         oscarTag: copied.oscarTag || '',
-        fontSize: copied.fontSize, fontButtons: copied.fontButtons
+        fontSize: copied.fontSize, fontButtons: copied.fontButtons,
+        target: copied.type === 'fontbuttons' ? pastedIds.get(copied.target) : null
       });
+      pastedIds.set(copied.copiedId, f.id);
       state.selected.add(f.id);
     });
     renderAll();
-    msg(`Pasted ${state.clipboardFields.length} field${state.clipboardFields.length===1?'':'s'}.`, 'ok');
+    const pasted = dataFields(state.clipboardFields).length;
+    msg(`Pasted ${pasted} field${pasted===1?'':'s'}.`, 'ok');
   }
 
   // Copies the selected fields and pastes them straight away
@@ -2163,9 +2248,10 @@ else if (typeof exports === 'object')
     const keys=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Delete','Backspace']; if(!keys.includes(e.key)) return;
     e.preventDefault(); const nudge = e.shiftKey ? 10 : 1, pageInfo = state.pages[state.currentPage];
     pushUndo();
-    if (e.key==='Delete' || e.key==='Backspace'){ state.fields = state.fields.filter(f => !state.selected.has(f.id)); state.selected.clear(); renderAll(); return; }
+    if (e.key==='Delete' || e.key==='Backspace'){ deleteSelectedFields(); return; }
     state.selected.forEach(id => {
       const f = state.fields.find(k => k.id===id && samePage(k.page,state.currentPage)); if(!f) return;
+      if (f.type === 'fontbuttons' && state.selected.has(f.target)) return;   // (they follow their textarea)
       if (e.key==='ArrowUp') f.y = clamp(f.y-nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       if (e.key==='ArrowDown') f.y = clamp(f.y+nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       if (e.key==='ArrowLeft') f.x = clamp(f.x-nudge,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
@@ -2314,7 +2400,7 @@ else if (typeof exports === 'object')
     setPlaceCheckboxMode(!state.placeCheckboxMode);
   });
 
-  $('btnDeleteSel').addEventListener('click', ()=>{ if(!state.selected.size) return; pushUndo(); state.fields = state.fields.filter(f => !state.selected.has(f.id)); state.selected.clear(); renderAll(); });
+  $('btnDeleteSel').addEventListener('click', ()=>{ if(!state.selected.size) return; pushUndo(); deleteSelectedFields(); });
   $('btnCopySel').addEventListener('click', copySelectedFields);
   $('btnPasteSel').addEventListener('click', pasteCopiedFields);
   $('btnDuplicateSel').addEventListener('click', duplicateSelectedFields);
@@ -2337,6 +2423,13 @@ else if (typeof exports === 'object')
     $('fFontRow').style.display = f.type === 'textarea' ? 'flex' : 'none';
     $('fFontButtons').checked = hasFontButtons(f);
     $('fFontSize').value = fieldFontSize(f);
+    // (a textarea's font size buttons have only a place: no name, type, tag or size of their own)
+    const buttons = f.type === 'fontbuttons';
+    $('fTagBlock').style.display = buttons ? 'none' : 'block';
+    if (buttons) $('fTagWarn').style.display = 'none';
+    ['fName','fType','fW','fH'].forEach(id => { $(id).disabled = buttons; });
+    $('fButtonsNote').style.display = buttons ? 'block' : 'none';
+    if (buttons) $('fButtonsNote').textContent = `The font size buttons (▲▼) of "${f.name}". Drag them anywhere: they follow the textarea when it moves, and go when it does.`;
   }
   // Fills the Selected field editor from the selected field, or hides it unless one is selected
   function renderSelectedEditor(){
@@ -2375,6 +2468,7 @@ else if (typeof exports === 'object')
       const size = Math.round(Number($('fFontSize').value));
       if (size >= 6 && size <= 48) f.fontSize = size;
     }
+    syncFontButtons();
     showFontRow(f);
 
     // A signature field is the provider signature image stamp
@@ -2486,12 +2580,13 @@ else if (typeof exports === 'object')
         y: Number(f.y) || 0,
         width: Math.max(8, Number(f.width) || 20),
         height: Math.max(8, Number(f.height) || 20),
-        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature'].includes(f.type) ? f.type : 'text',
+        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','fontbuttons'].includes(f.type) ? f.type : 'text',
         name: String(f.name || `field_${i+1}`),
         oscarTag: isRemovedTag(tag) ? '' : tag,
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
-        ...(f.fontButtons === false ? { fontButtons: false } : {})
+        ...(f.fontButtons === false ? { fontButtons: false } : {}),
+        ...(f.type === 'fontbuttons' ? { target: Number(f.target), ...(f.anchor ? { anchor: { x: Number(f.anchor.x), y: Number(f.anchor.y) } } : {}) } : {})
       };
     });
     state.nextId = Math.max(1, Number(session.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId,Number(f.id)||0),0)+1));
@@ -4230,7 +4325,7 @@ else if (typeof exports === 'object')
       });
       if (read) tagFields(found, read, boxOf);
       found.forEach(f => {
-        const dup = state.fields.some(k =>
+        const dup = dataFields(state.fields).some(k =>
           samePage(k.page,page) &&
           Math.abs(k.x-f.x)<4 && Math.abs(k.y-f.y)<4 &&
           Math.abs(k.width-f.width)<6 && Math.abs(k.height-f.height)<6
@@ -4287,12 +4382,11 @@ function fontButtonSpots(x, y, w, h, pageW, pageH){
            upY: Math.max(0, Math.min(y, pageH - FONT_BUTTON_GAP - FONT_BUTTON_H)),
            downY: Math.max(0, Math.min(y, pageH - FONT_BUTTON_GAP - FONT_BUTTON_H)) + FONT_BUTTON_GAP };
 }
-// A textarea's font size buttons on the eForm (not printed) and the hidden input that saves the
-// size they set, "<name>_fontsize"
-function fontButtonsMarkup(f, x, y, w, h, pageW, pageH){
-  const name = f._safeName || f.name || 'field', spots = fontButtonSpots(x, y, w, h, pageW, pageH);
-  const button = (arrow, title, top, delta) => `<span class="DoNotPrint FontSizeChange" title="${title}" style="left:${spots.x}px; top:${top}px;" onclick="changeFontSize('${name}', ${delta});">${arrow}</span>`;
-  return [button('&#9650;', 'Increase font size', spots.upY, 1), button('&#9660;', 'Decrease font size', spots.downY, -1),
+// A textarea's font size buttons on the eForm (not printed), ▲ at (x, y) over ▼, and the hidden
+// input that saves the size they set, "<name>_fontsize"; `name` is the textarea's on the eForm
+function fontButtonsMarkup(name, x, y){
+  const button = (arrow, title, top, delta) => `<span class="DoNotPrint FontSizeChange" title="${title}" style="left:${x}px; top:${top}px;" onclick="changeFontSize('${name}', ${delta});">${arrow}</span>`;
+  return [button('&#9650;', 'Increase font size', y, 1), button('&#9660;', 'Decrease font size', y + FONT_BUTTON_GAP, -1),
           `<input type="hidden" name="${name}_fontsize" id="${name}_fontsize">`].join('\n');
 }
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
@@ -4337,7 +4431,7 @@ function preflightChecks(htmlText=''){
   out.push({ level: hasOscarDb ? 'ok':'warn', text: hasOscarDb ? 'oscarDB tags detected.' : 'No oscarDB tags detected (fields may not autofill).' });
 
   const nameCounts = new Map();
-  state.fields.forEach(f => {
+  dataFields(state.fields).forEach(f => {
     const name = String(f.name||'').trim();
     if (!name) return;
     nameCounts.set(name, (nameCounts.get(name)||0)+1);
@@ -4352,7 +4446,7 @@ function preflightChecks(htmlText=''){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
-  const untagged = state.fields.filter(f => !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature');
+  const untagged = dataFields(state.fields).filter(f => !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature');
   out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
   const outOfBounds = [];
@@ -4443,6 +4537,7 @@ function repairImagePlaceholders(){
 // stamp, OSCAR's scripts, any scripts taken from an imported eForm, and the Submit / Fax / Print
 // buttons
 function buildExportHtml(){
+  syncFontButtons();
   const firstPage=state.pages[1];
   if(!firstPage||!firstPage.naturalW) throw new Error('Page 1 image is required before export.');
 
@@ -4470,8 +4565,9 @@ function buildExportHtml(){
     const y = Math.round(clamp(scaledY, 0, Math.max(0, scaled(naturalH, scale) - scaledH)));
     const w = Math.round(clamp(scaledW, 6, scaled(naturalW, scale)));
     const h = Math.round(clamp(scaledH, 6, scaled(naturalH, scale)));
+    if (f.type === 'fontbuttons') return fontButtonsMarkup(f._safeName, x, y);
     const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:${fieldFontSize(f)}px; background-color:transparent;`;
-    return inputMarkup(f, inlinePos) + (hasFontButtons(f) ? '\n' + fontButtonsMarkup(f, x, y, w, h, scaled(naturalW, scale), scaled(naturalH, scale)) : '');
+    return inputMarkup(f, inlinePos);
   }
 
   // The signature stamp for a page's signature field: OSCAR's CanvasProSignature image
@@ -4665,7 +4761,7 @@ function formSubmitAndFax(){
 
   let bodyOnloadParts = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
   // (font size buttons: their script and style, and the saved sizes put back on load, only when a field has them)
-  const usesFontButtons = exportPages.some(page => getPageFields(page).some(hasFontButtons));
+  const usesFontButtons = exportPages.some(page => getPageFields(page).some(f => f.type === 'fontbuttons'));
   // (first: it needs nothing else, so a failing step after it can't stop it)
   if (usesFontButtons) bodyOnloadParts.unshift('loadFontSize()');
   const fontButtonScript = !usesFontButtons ? '' : `<script>
@@ -4778,7 +4874,10 @@ ${(function(){
   return exportPages.map((page, idx) => {
     const pageInfo = state.pages[page];
     const scale = pageInfo.naturalW ? (EXPORT_W / pageInfo.naturalW) : 1;
-    const pageFields = sanitizeUniqueFieldNames(getPageFields(page));
+    // (font size buttons take their textarea's name on the eForm, and no name of their own)
+    const namedFields = sanitizeUniqueFieldNames(dataFields(getPageFields(page)));
+    const eformName = new Map(namedFields.map(f => [f.id, f._safeName]));
+    const pageFields = [...namedFields, ...getPageFields(page).filter(b => b.type === 'fontbuttons' && eformName.has(b.target)).map(b => ({ ...b, _safeName: eformName.get(b.target) }))];
     const sigFields = pageFields.filter(f => isSignatureField(f));
     if (sigFields.length > 1) console.warn(`Page ${page}: ${sigFields.length} signature fields found; only the first will be rendered.`);
     const sigField = sigFields[0] || null;

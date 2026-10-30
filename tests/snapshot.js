@@ -57,7 +57,7 @@ const fs = require('fs'), path = require('path');
         T.state.fields = [];
         T.setCurrentPage(1);
         await T.detectCurrentPage();
-        return T.state.fields.map(f => [f.type, f.name, f.oscarTag || '', f.x.toFixed(2), f.y.toFixed(2), f.width.toFixed(2), f.height.toFixed(2)].join(' | '));
+        return T.state.fields.filter(f => f.type !== 'fontbuttons').map(f => [f.type, f.name, f.oscarTag || '', f.x.toFixed(2), f.y.toFixed(2), f.width.toFixed(2), f.height.toFixed(2)].join(' | '));
       }, base + img);
       console.log(`### ${img} (${lines.length})`);
       lines.forEach(l => console.log(l));

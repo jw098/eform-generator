@@ -122,7 +122,8 @@
     T.setCurrentPage(n);
     await T.detectCurrentPage(opts);
     onShow.set(n, keep ? T.state.fields.slice() : []);
-    return T.state.fields.map(f => ({ kind: kindOf(f.type), x: f.x, y: f.y, width: f.width, height: f.height, tag: f.oscarTag || '', id: f.name || '' }));
+    // (a textarea's font size buttons are the app's own, not a field Auto Detect found)
+    return T.state.fields.filter(f => f.type !== 'fontbuttons').map(f => ({ kind: kindOf(f.type), x: f.x, y: f.y, width: f.width, height: f.height, tag: f.oscarTag || '', id: f.name || '' }));
   }
   const showAll = () => { T.state.fields = [...onShow.values()].flat(); T.setCurrentPage(1); };
 
