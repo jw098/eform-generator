@@ -172,6 +172,10 @@
   .custom-badge{position:absolute;top:-9px;right:-6px;padding:1px 6px;font-size:10px;line-height:14px;border-radius:999px;
     background:#d97706;border:1px solid #fff;color:#fff;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.25)}
   .custom-badge[hidden]{display:none}
+  .detect-progress{margin-top:8px;max-width:680px;font-size:12px;color:#374151}
+  .detect-progress[hidden]{display:none}
+  .detect-progress-track{margin-top:4px;height:6px;border-radius:999px;background:#ede9fe;overflow:hidden}
+  .detect-progress-bar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#7c3aed);transition:width .2s ease}
   .tab{
     border-radius:999px;
     border:1px solid #c8d7ff;
@@ -281,6 +285,7 @@
       <button id="btnLoadSession">Load Session</button>
       <input id="fileSession" type="file" accept="application/json,.json" hidden />
     </div>
+    <div id="detectProgress" class="detect-progress" hidden role="status"><div id="detectProgressText"></div><div class="detect-progress-track"><div id="detectProgressBar" class="detect-progress-bar"></div></div></div>
 
     <!-- FreeScribe connection (added by FreeScribe): shown only when FreeScribe opens this page -->
     <div id="fsPanel" class="fs-panel" hidden>
@@ -956,6 +961,17 @@ else if (typeof exports === 'object')
     m.className = cls;
     m.textContent = text || '';
   };
+
+  // Shows how far Auto Detect has got, under its button: what it is doing, and a bar filled to
+  // `fraction` (0 to 1). No text hides it.
+  const showDetectProgress = (text, fraction = 0) => {
+    $('detectProgress').hidden = !text;
+    $('detectProgressText').textContent = text || '';
+    $('detectProgressBar').style.width = Math.round(Math.max(0, Math.min(1, fraction)) * 100) + '%';
+  };
+  // Waits for the browser to draw the page (Auto Detect's steps run without a break otherwise, and
+  // its progress wouldn't show); the timeout carries on in a tab that isn't drawn (hidden)
+  const letPagePaint = () => new Promise(done => { requestAnimationFrame(() => setTimeout(done, 0)); setTimeout(done, 100); });
 
   // ===== Small helpers used throughout =====
   // A name as a lookup key, to match names however they are written: "Patient Name" -> "patient_name"
@@ -3081,6 +3097,9 @@ else if (typeof exports === 'object')
   // Resolves to null where it can't run (no WebAssembly SIMD, or no workers): fields then
   // keep plain names.
   let ocrWorkerReady = null;
+  // Where the worker's progress goes, as Tesseract reports it ({ status, progress }): set by
+  // readPageWords for each page it reads
+  let ocrProgress = null;
   // Starts Tesseract (OCR) from the copies embedded in this page, once
   function ensureOcrWorker(){
     if (ocrWorkerReady) return ocrWorkerReady;
@@ -3096,7 +3115,8 @@ else if (typeof exports === 'object')
         "self.fetch=function(u){if(String(u).endsWith('eng.traineddata.gz')){const r=atob(self.__engGz),a=new Uint8Array(r.length);" +
         "for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return Promise.resolve(new Response(a));}return __fetch.apply(this,arguments);};\n";
       const src = URL.createObjectURL(new Blob([shim, core, '\n', worker], { type: 'application/javascript' }));
-      const ocr = await Tesseract.createWorker('eng', 1, { workerPath: src, workerBlobURL: false, langPath: 'embedded', cacheMethod: 'none', gzip: true });
+      const ocr = await Tesseract.createWorker('eng', 1, { workerPath: src, workerBlobURL: false, langPath: 'embedded', cacheMethod: 'none', gzip: true,
+                                                logger: (m) => ocrProgress && ocrProgress(m) });
       // A form's labels are scattered words, not paragraphs: read it as sparse text, which
       // misses fewer of them ("CITY/TOWN" between ADDRESS and POSTAL CODE)
       await ocr.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
@@ -3106,9 +3126,11 @@ else if (typeof exports === 'object')
   }
   // The page's printed words and lines, or null when they can't be read
   // boxes: tick boxes found on the page, rubbed out too (OCR reads a box's edge as a letter: "Jves")
-  async function readPageWords(imgData, boxes = []){
+  // onProgress: told how far the reading has got ({ status, progress } from Tesseract), if given
+  async function readPageWords(imgData, boxes = [], onProgress = null){
+    ocrProgress = onProgress;
     const ocr = await ensureOcrWorker();
-    if (!ocr) return null;
+    if (!ocr){ ocrProgress = null; return null; }
     try {
       // Small print reads far better enlarged: aim for a page about 3000 pixels wide
       const img = await loadImage(imgData);
@@ -3152,6 +3174,8 @@ else if (typeof exports === 'object')
     } catch (err) {
       console.warn('Could not read the page\'s words:', err);
       return null;
+    } finally {
+      ocrProgress = null;
     }
   }
 
@@ -3765,7 +3789,11 @@ else if (typeof exports === 'object')
     const lineMinPct = Number($('lineMinPct').value) || 7.5;
     const darkBias = Number($('darkBias').value) || 8;
     const gradMult = Number($('gradMult').value) || 0.9;
+    // (the steps' share of the bar: pass 1 up to 15%, reading the words up to 90%, the rest naming
+    // and tagging; a pause after each step lets the page show it)
+    const progress = async (text, fraction) => { showDetectProgress(text, fraction); await letPagePaint(); };
     try {
+      await progress('Finding the lines and tick boxes…', 0);
       const img = await loadImage(p.imgData);
       // Detect on the page at most 1600 pixels on its long side. A small page (under 1200,
       // scanned at a low resolution) is enlarged to that, up to twice its size, so its tick
@@ -3843,6 +3871,7 @@ else if (typeof exports === 'object')
         }
       }
 
+      await progress('Finding the lines and tick boxes…', 0.05);
       const newFields = [];
       // Detect long thin horizontal lines -> text boxes.
       const minSeg = Math.round(w*(lineMinPct/100));
@@ -3964,6 +3993,7 @@ else if (typeof exports === 'object')
         if(!dup) dedupCb.push(cand);
       });
 
+      await progress(`Found ${dedupCb.length} tick box(es). Finding the places to write…`, 0.1);
       // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
       // write in: above a fill-in line, or between two rules (a table row or a box), beside or
       // under its printed label. Lines with words sitting on them (underlined headings, the
@@ -3988,8 +4018,16 @@ else if (typeof exports === 'object')
       // Name each field after its printed label and suggest its tag (tick boxes get no tag:
       // an OSCAR tag on a tick box fills nothing useful)
       let found = [...newFields, ...dedupCb];
-      msg('Reading the page\'s words to name the fields…', 'small');
-      const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
+      const foundSoFar = `Found ${dedupCb.length} tick box(es) and ${newFields.length} place(s) to write.`;
+      let read = null;
+      if (opts.readWords !== false){
+        await progress(`${foundSoFar} Reading the page's words to name them…`, 0.15);
+        // (the word reader starts once, the first time: Tesseract reports its loading steps first)
+        read = await readPageWords(p.imgData, dedupCb, ({ status, progress: done }) => status === 'recognizing text'
+          ? showDetectProgress(`${foundSoFar} Reading the page's words to name them… ${Math.round(done*100)}%`, 0.15 + 0.75*done)
+          : showDetectProgress(`${foundSoFar} Starting the word reader (the first time only)…`, 0.15));
+        await progress('Naming the fields and suggesting tags…', 0.9);
+      }
       // Is there a rule across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
       const ruleAcross = (x1, x2, y1, y2) => {
         const a = Math.max(0, Math.round(x1*scale)), z = Math.min(w-1, Math.round(x2*scale));
@@ -4059,9 +4097,15 @@ else if (typeof exports === 'object')
       msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + custom + unread, added>0 ? 'ok' : 'warn');
     } catch(err) {
       msg('Detection failed: ' + (err.message || err), 'err');
+    } finally {
+      showDetectProgress(null);
     }
   }
-  $('btnDetect').addEventListener('click', () => detectCurrentPage());
+  // (the button is off while it runs, so a second click doesn't start it again)
+  $('btnDetect').addEventListener('click', async () => {
+    $('btnDetect').disabled = true;
+    try { await detectCurrentPage(); } finally { $('btnDetect').disabled = false; }
+  });
 
 
   
