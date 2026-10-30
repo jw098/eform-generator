@@ -168,6 +168,10 @@
   .btn-amber{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#d97706;color:#fff}
   .btn-red{background:linear-gradient(180deg,#ef4444,#dc2626);border-color:#dc2626;color:#fff}
   .btn-small{padding:4px 8px;font-size:12px;border-radius:8px;}
+  .detect-wrap{position:relative;display:inline-flex}
+  .custom-badge{position:absolute;top:-9px;right:-6px;padding:1px 6px;font-size:10px;line-height:14px;border-radius:999px;
+    background:#d97706;border:1px solid #fff;color:#fff;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .custom-badge[hidden]{display:none}
   .tab{
     border-radius:999px;
     border:1px solid #c8d7ff;
@@ -262,7 +266,7 @@
       <button id="btnAddPage" class="btn-blue">+ Add Page</button>
       <button id="btnRemovePage" class="btn-red">&#8722; Remove Last Page</button>
 
-      <button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button>
+      <span class="detect-wrap"><button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button><button id="detectCustom" class="custom-badge" type="button" hidden title="Auto Detect is using tuning values that aren't the standard ones, so it may find fewer or wrong fields. Click to see them in Settings.">custom</button></span>
       <button id="btnAdd" class="btn-green">Add Field</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
@@ -2584,15 +2588,29 @@ else if (typeof exports === 'object')
     large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
     lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
   };
-  // The tuning panel's heading says "· custom" while any value isn't the standard one, and the
-  // Settings heading "· tuning custom", so a change shows with the panels closed (it is saved
-  // with the session too)
-  function syncTuningMarker(){
+  // The tuning values that aren't the standard ones, as "Min checkbox px 10 (standard 8)"
+  function tuningChanges(){
     const std = DETECT_PRESETS.standard;
-    const custom = TUNING_IDS.some(id => $(id) && Number($(id).value) !== std[id]);
+    return TUNING_IDS.filter(id => $(id) && Number($(id).value) !== std[id]).map(id => {
+      const label = $(id).closest('label');
+      const name = label ? label.firstChild.textContent.trim() : id;
+      return `${name} ${$(id).value} (standard ${std[id]})`;
+    });
+  }
+  // While any value isn't the standard one, the tuning panel's heading says "· custom", the
+  // Settings heading "· tuning custom" and the Auto Detect button wears a "custom" badge, so a
+  // change shows with the panels closed (it is saved with the session too)
+  function syncTuningMarker(){
+    const custom = tuningChanges().length > 0;
     $('tuningCustom').textContent = custom ? '· custom' : '';
     $('settingsCustom').textContent = custom ? '· tuning custom' : '';
+    $('detectCustom').hidden = !custom;
   }
+  // The badge opens the tuning, where "Reset to standard" is
+  $('detectCustom').addEventListener('click', () => {
+    $('settingsPanel').open = true; $('detectionTuningPanel').open = true;
+    $('detectionTuningPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   TUNING_IDS.forEach(id => { if ($(id)) $(id).addEventListener('input', syncTuningMarker); });
   async function applyDetectPreset(name){
     const p = DETECT_PRESETS[name]; if (!p) return;
@@ -3901,7 +3919,9 @@ else if (typeof exports === 'object')
       const added = getPageFields(page).length - before;
       renderAll();
       const unread = read || opts.readWords === false ? '' : ' (The page\'s words couldn\'t be read in this browser, so fields have plain names and no tags.)';
-      msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + unread, added>0 ? 'ok' : 'warn');
+      const changes = tuningChanges();
+      const custom = changes.length ? ` Custom tuning used: ${changes.join(', ')}.` : '';
+      msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + custom + unread, added>0 ? 'ok' : 'warn');
     } catch(err) {
       msg('Detection failed: ' + (err.message || err), 'err');
     }
