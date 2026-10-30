@@ -4939,6 +4939,9 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     // Converts the selected page, or every page ("All pages" mode), to PNG images named as the
     // export names page images, listing each and downloading them when `download`
     async function convertPages(download){
+      // (the last convert's images are let go of with their links, or each stays in memory until
+      // the page is closed; the mapper's pages keep copies of their own)
+      controls.links.querySelectorAll('a').forEach(link => URL.revokeObjectURL(link.href));
       controls.links.innerHTML = '';
       const outputs = [];
 
