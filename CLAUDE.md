@@ -175,7 +175,9 @@ size it against the page.
 - Match the existing code: compact JavaScript, small arrow helpers.
 - Variable and function names are clear and descriptive: a name says what the value is or
   what the function does.
-- Every function has a brief comment above it describing its purpose.
+- Every function has a brief comment above it describing its purpose. The exception is a
+  one-line helper inside a function whose name says what it does
+  (`const rowHas = (y, xa, xb) => …`).
 - Comments are plain English that say what a rule is for, with the printed text that shows it
   in quotes ("Referring Physician: ____", "☐ OTHER, SPECIFY: ____"). Keep them up to date when
   a rule changes.
