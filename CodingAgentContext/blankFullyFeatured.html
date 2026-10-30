@@ -434,14 +434,15 @@ function checkGender(){
 		document.getElementById('maleGenderBox').click();
 	}else if (document.getElementById('PatientGender').value == 'F'){
 		// document.getElementById('femaleGenderBox').checked = true;
-		document.getElementById('maleGenderBox').click();
+		document.getElementById('femaleGenderBox').click();
 	}
 }
 
 function SignForm() {
+	if (!document.getElementById('signature')) return; // (no signature image on the form)
 	var provNum = $('#current_user_id').val();
 	document.getElementById('signature').src = "../eform/displayImage.do?imagefile=consult_sig_"+provNum+".png";
-	$('#signature').attr(onerror, "this.style.display='none'");
+	$('#signature').attr('onerror', "this.style.display='none'");
 	document.getElementById('signature').alt= provNum;
 }
 
@@ -661,7 +662,7 @@ function changeFontSize(name, delta) {
 // Requires hidden inputs with format for each field using this feature: 
 // <input type="hidden" name="Input_fontsize" id="Input_fontsize">
 function loadFontSize() {
-	$.each($("input[name*='_fontsize'"), function(index, element) {
+	$.each($("input[name*='_fontsize']"), function(index, element) {
 		var fontSize = element.value;
 
 		if (!!fontSize) {
@@ -716,7 +717,7 @@ function showCircle(i) {
 // Requires hidden inputs with format for each field using this feature: 
 // <input type="hidden" name="name_save" id="name_save">
 function reloadCircle() {
-	$.each($("input[name*='_save'"), function(index, element) {
+	$.each($("input[name*='_save']"), function(index, element) {
 		var state = element.value;
 
 		if (state == 'CIRCLE') {
@@ -790,7 +791,7 @@ function addSubject(i) {
 <input name="secondaryPhone" id="secondaryPhone" type="text" class="noborder" style="position:absolute; left:0px; top:0px; width:0px; font-size:12px; background:transparent;" oscardb=phone>
 
 <input name="patientAddress" id="patientAddress" type="text" class="noborder" style="position:absolute; left:0px; top:0px; width:0px; font-size:12px;" oscarDB=addressline>
-<textarea name="patientAddress" id="patientAddress" type="text" class="noborder" style="position:absolute; left:0px; top:0px; width:0px; height:0px; font-size:12px; background:white;" oscarDB=addressline></textarea>
+<textarea name="patientAddressMultiline" id="patientAddressMultiline" type="text" class="noborder" style="position:absolute; left:0px; top:0px; width:0px; height:0px; font-size:12px; background:white;" oscarDB=addressline></textarea>
 
 <input name="dateOfBirth" id="dateOfBirth" type="text" class="noborder" style="position:absolute; left:0px; top:0px; width:0px; font-size:12px; background:transparent;" oscardb=dobc2>
 
