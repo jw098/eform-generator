@@ -377,8 +377,31 @@ window.TEST_CASE_LIST = [
       "bounceback_0s1c1k_page2.png"
     ],
     "pdf": "BounceBack_Referral_Form_2025.pdf",
-    "todo": {
-      "tags": "the lines after the first of a field the PDF splits over several (name_of_clinic_or_school_2, referrer_name_2, address_2, address_3) take the first line's tag, so OSCAR would fill the clinic's name, the referrer and the address on each: only the first line should have it"
-    }
+    "skip": [
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [1030, 796, 368, 44],
+        "reason": "name_of_clinic_or_school_2 (Name of clinic/school): the PDF makes this a field of its own, a second or third line of \"Name of clinic/school\"; Auto Detect tags it from the PDF's label, the same as the first line's, where the eForm gives only the first line the tag"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [1030, 868, 368, 44],
+        "reason": "referrer_name_2 (Referrer name): the PDF makes this a field of its own, a second or third line of \"Referrer name\"; Auto Detect tags it from the PDF's label, the same as the first line's, where the eForm gives only the first line the tag"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [1030, 1144, 368, 44],
+        "reason": "address_2 (Address): the PDF makes this a field of its own, a second or third line of \"Address\"; Auto Detect tags it from the PDF's label, the same as the first line's, where the eForm gives only the first line the tag"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [1030, 1180, 368, 44],
+        "reason": "address_3 (Address): the PDF makes this a field of its own, a second or third line of \"Address\"; Auto Detect tags it from the PDF's label, the same as the first line's, where the eForm gives only the first line the tag"
+      }
+    ]
   }
 ];

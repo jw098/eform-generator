@@ -179,8 +179,7 @@ reason, so it shows as "to do" rather than as a failure:
 }
 ```
 
-(One case has a to-do of its own at the moment, the BounceBack referral's `tags`; some have one
-for a variation.)
+(None of the cases has a to-do of its own at the moment; some have one for a variation.)
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
 and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once
