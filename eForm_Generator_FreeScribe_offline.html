@@ -496,12 +496,12 @@
         <label style="display:flex;align-items:center;gap:6px"><input id="convOpt" type="checkbox" checked/> Optimize levels</label>
         <label style="display:flex;align-items:center;gap:6px"><input id="convStrip" type="checkbox" checked/> Strip alpha</label>
         <label style="display:flex;align-items:center;gap:6px">Levels<input id="convLevels" type="number" min="8" max="64" value="24" style="width:78px"/></label>
-        <span class="small">Tip: Use <b>Load to Mapper</b> to import converted pages without downloading.</span>
+        <span class="small">Tip: <b>Load into Mapper</b> puts the pages in the mapper without saving them.</span>
       </div>
       <div class="row" style="margin-top:8px">
-        <button id="btnConvConvertDownload" class="btn-blue">Convert + Download</button>
-        <button id="btnConvLoadOnly" class="btn-violet">Load to Mapper</button>
-        <button id="btnConvConvertAll" class="btn-green">Convert + Download + Load</button>
+        <button id="btnConvLoadOnly" class="btn-violet">Load into Mapper</button>
+        <button id="btnConvConvertDownload" class="btn-blue">Save as PNG</button>
+        <button id="btnConvConvertAll" class="btn-green">Load + Save as PNG</button>
       </div>
       <div id="convStatus" class="small" style="margin-top:6px"></div>
       <img id="convPreview" alt="converter preview" hidden style="width:100%;max-height:240px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px"/>
@@ -4998,8 +4998,8 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
 
     // (a second convert while one waits or runs is a double click: it is ignored)
     let convertWaiting = false;
-    // "Convert + Download" and "Convert + Download + Load": converts, downloads, and loads the
-    // images into the mapper when `load`
+    // "Save as PNG" and "Load + Save as PNG": converts, downloads, and loads the images into the
+    // mapper when `load`
     async function runConvertAction(opts){
       if(!pdfDoc || convertWaiting) return;
       const { download=false, load=false } = opts || {};
@@ -5023,7 +5023,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       });
     }
 
-    // "Load to Mapper": converts and loads the images into the mapper without downloading them
+    // "Load into Mapper": converts and loads the images into the mapper without downloading them
     async function runLoadOnly(){
       if(!pdfDoc || convertWaiting) return;
       convertWaiting = true;
@@ -5052,7 +5052,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     controls.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
 
     updateButtons();
-    showStatus('Converter ready (PNG output). Use Convert+Download or Load to Mapper.');
+    showStatus('Converter ready (PNG output). Use Load into Mapper or Save as PNG.');
   }
 
   // ===== Start-up =====
