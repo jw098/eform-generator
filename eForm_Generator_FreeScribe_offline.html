@@ -942,7 +942,7 @@ else if (typeof exports === 'object')
     snap: { enabled: true, threshold: 8, showGuides: true },
     snapGuides: { page: 1, x: null, y: null },
     clipboardFields: [],
-    pasteN: 0,
+    pasteCount: 0,
     exportAuthor: '',
   };
   let syncingEditor = false;
@@ -1541,15 +1541,18 @@ else if (typeof exports === 'object')
     return template;
   }
 
+  // The fields without repeats: a field at the same place and size, with the same name, as one
+  // already kept is dropped
   function dedupeFields(fields){
-    const out = [];
+    const kept = [];
     fields.forEach(f => {
-      const dup = out.some(k => samePage(k.page,f.page) && Math.abs(k.x - f.x) < 2 && Math.abs(k.y - f.y) < 2 && Math.abs(k.width - f.width) < 2 && Math.abs(k.height - f.height) < 2 && norm(k.name) === norm(f.name));
-      if (!dup) out.push(f);
+      const isRepeat = kept.some(k => samePage(k.page,f.page) && Math.abs(k.x - f.x) < 2 && Math.abs(k.y - f.y) < 2 && Math.abs(k.width - f.width) < 2 && Math.abs(k.height - f.height) < 2 && norm(k.name) === norm(f.name));
+      if (!isRepeat) kept.push(f);
     });
-    return out;
+    return kept;
   }
 
+  // Adds a field to the form, filling in what `partial` leaves out, and returns it
   function addField(partial){
     const f = {
       id: state.nextId++, page: Number((partial.page ?? state.currentPage)),
@@ -1561,21 +1564,28 @@ else if (typeof exports === 'object')
     state.fields.push(f);
     return f;
   }
-  function getPageFields(page){ const pg = Number(page); return state.fields.filter(f => Number(f.page) === pg); }
+  // The fields on a page
+  function getPageFields(page){ const pageNo = Number(page); return state.fields.filter(f => Number(f.page) === pageNo); }
+  // A page's image, its wrapper and the overlay its fields are drawn on
   function getPageImgEl(page){ return $('img'+page); }
   function getPageWrap(page){ return $('canvas'+page+'Wrap'); }
   function getPageOverlay(page){ return $('overlay'+page); }
+  // The number of the last page
   function getPageCount(){ return Math.max(...Object.keys(state.pages).map(Number)); }
+  // Whether two page numbers are the same page (one may be a string)
   function samePage(a,b){ return Number(a) === Number(b); }
 
+  // How much a page's image is scaled on screen: sx and sy turn image pixels into screen pixels
   function getPageScale(page){
-    const p = state.pages[page], img = getPageImgEl(page);
-    const dw = img.clientWidth || 1, dh = img.clientHeight || 1;
-    return { sx: dw / (p.naturalW || dw || 1), sy: dh / (p.naturalH || dh || 1), dw, dh };
+    const pageInfo = state.pages[page], img = getPageImgEl(page);
+    const shownW = img.clientWidth || 1, shownH = img.clientHeight || 1;
+    return { sx: shownW / (pageInfo.naturalW || shownW || 1), sy: shownH / (pageInfo.naturalH || shownH || 1) };
   }
 
-  function renderCounts(){ const cp = Number(state.currentPage) || 1; $('kvPage').textContent = String(cp); $('kvCount').textContent = String(getPageFields(cp).length); $('kvTotal').textContent = String(state.fields.length); }
+  // Shows the current page and the number of fields on it and in all
+  function renderCounts(){ const page = Number(state.currentPage) || 1; $('kvPage').textContent = String(page); $('kvCount').textContent = String(getPageFields(page).length); $('kvTotal').textContent = String(state.fields.length); }
 
+  // Fills the Selected field editor from the selected field, or hides it unless one is selected
   function renderSelectedEditor(){
     if (state.selected.size === 1){
       const id = [...state.selected][0];
@@ -1591,50 +1601,55 @@ else if (typeof exports === 'object')
     } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
   }
 
-  function lassoRectPx(l){ const left = Math.min(l.startX, l.curX), top = Math.min(l.startY, l.curY); const width = Math.abs(l.curX - l.startX), height = Math.abs(l.curY - l.startY); return { left, top, width, height, right:left+width, bottom:top+height }; }
+  // The lasso's rectangle, in screen pixels on its page's overlay
+  function lassoRectPx(lasso){ const left = Math.min(lasso.startX, lasso.curX), top = Math.min(lasso.startY, lasso.curY); const width = Math.abs(lasso.curX - lasso.startX), height = Math.abs(lasso.curY - lasso.startY); return { left, top, width, height, right:left+width, bottom:top+height }; }
+  // Whether two rectangles overlap (touching counts)
   function intersects(a,b){ return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top; }
 
+  // Selects the fields the lasso touches, added to what was selected before when it is additive
   function applyLassoSelection(){
-    const l = state.lasso; if (!l) return;
-    const page = l.page, r = lassoRectPx(l), { sx, sy } = getPageScale(page), hits = new Set();
+    const lasso = state.lasso; if (!lasso) return;
+    const page = lasso.page, lassoRect = lassoRectPx(lasso), { sx, sy } = getPageScale(page), touched = new Set();
     getPageFields(page).forEach(f => {
-      const fr = { left: f.x*sx, top: f.y*sy, right:(f.x+f.width)*sx, bottom:(f.y+f.height)*sy };
-      if (intersects(r, fr)) hits.add(f.id);
+      const fieldRect = { left: f.x*sx, top: f.y*sy, right:(f.x+f.width)*sx, bottom:(f.y+f.height)*sy };
+      if (intersects(lassoRect, fieldRect)) touched.add(f.id);
     });
-    state.selected = l.additive ? new Set([...l.baseSelected, ...hits]) : hits;
+    state.selected = lasso.additive ? new Set([...lasso.baseSelected, ...touched]) : touched;
   }
 
   // How wide a tag is written on the page (.field-tag's font)
   let tagCtx = null;
   const tagWidth = (t) => { if (!tagCtx){ tagCtx = document.createElement('canvas').getContext('2d'); tagCtx.font = '600 11px ui-monospace,SFMono-Regular,Menlo,monospace'; } return tagCtx.measureText(t).width; };
+  // The box drawn for a field on its page's overlay, with its tag, label and resize handle
   function fieldElement(f, page){
     const { sx, sy } = getPageScale(page);
-    const div = document.createElement('div');
-    div.className = 'field' + (state.selected.has(f.id) ? ' selected' : '');
-    div.style.left = (f.x * sx) + 'px'; div.style.top = (f.y * sy) + 'px'; div.style.width = (f.width * sx) + 'px'; div.style.height = (f.height * sy) + 'px';
-    div.dataset.id = String(f.id);
+    const fieldDiv = document.createElement('div');
+    fieldDiv.className = 'field' + (state.selected.has(f.id) ? ' selected' : '');
+    fieldDiv.style.left = (f.x * sx) + 'px'; fieldDiv.style.top = (f.y * sy) + 'px'; fieldDiv.style.width = (f.width * sx) + 'px'; fieldDiv.style.height = (f.height * sy) + 'px';
+    fieldDiv.dataset.id = String(f.id);
     // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
     // the edges of a field shorter than the text, so it stays on the field's own row), else
     // above it; a tick box's always above, centred over it
     const tag = state.showTags ? String(f.oscarTag || '').trim() : '';
     const tick = f.type === 'checkbox' || f.type === 'xbox';
     const above = !!tag && (tick || tagWidth(tag) + 8 > f.width * sx);
-    if (tag){ const tg = document.createElement('div'); tg.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : ''); tg.textContent = tag; tg.title = tag; div.appendChild(tg); }
+    if (tag){ const tagDiv = document.createElement('div'); tagDiv.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : ''); tagDiv.textContent = tag; tagDiv.title = tag; fieldDiv.appendChild(tagDiv); }
     if (state.showLabels){
       // (with the tag shown, the label is just the name, raised over a tag above the field)
-      const lb = document.createElement('div'); lb.className = 'field-label' + (above ? ' raised' : '');
-      lb.textContent = f.name + (f.oscarTag && !state.showTags ? ' · ' + f.oscarTag : ''); div.appendChild(lb);
+      const labelDiv = document.createElement('div'); labelDiv.className = 'field-label' + (above ? ' raised' : '');
+      labelDiv.textContent = f.name + (f.oscarTag && !state.showTags ? ' · ' + f.oscarTag : ''); fieldDiv.appendChild(labelDiv);
     }
-    if (state.selected.size === 1 && state.selected.has(f.id)){ const r = document.createElement('div'); r.className='resize se'; r.dataset.handle='se'; div.appendChild(r); }
-    div.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
-    return div;
+    if (state.selected.size === 1 && state.selected.has(f.id)){ const resizeHandle = document.createElement('div'); resizeHandle.className='resize se'; resizeHandle.dataset.handle='se'; fieldDiv.appendChild(resizeHandle); }
+    fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
+    return fieldDiv;
   }
 
+  // Draws a page: shows it if it is the current page, and redraws its fields, snap guides and lasso
   function renderPage(page){
-    const wrap = getPageWrap(page), overlay = getPageOverlay(page), p = state.pages[page];
+    const wrap = getPageWrap(page), overlay = getPageOverlay(page), pageInfo = state.pages[page];
     wrap.style.display = (state.currentPage === page) ? 'inline-block' : 'none';
     overlay.style.cursor = (state.placeCheckboxMode && state.currentPage === page) ? 'crosshair' : 'default';
-    if (!p.imgData){ overlay.innerHTML = ''; getPageImgEl(page).style.display='none'; return; }
+    if (!pageInfo.imgData){ overlay.innerHTML = ''; getPageImgEl(page).style.display='none'; return; }
     getPageImgEl(page).style.display='block';
     overlay.innerHTML='';
     getPageFields(page).forEach(f => overlay.appendChild(fieldElement(f, page)));
@@ -1644,52 +1659,60 @@ else if (typeof exports === 'object')
       // Faint candidate lines for every field were removed — with more than a
       // few fields on a page they cluttered the canvas and obscured the form.
       if (Number.isFinite(state.snapGuides.x)){
-        const v = document.createElement('div'); v.className='guide-v';
-        v.style.left=(state.snapGuides.x*sx - 1)+'px'; overlay.appendChild(v);
+        const verticalGuide = document.createElement('div'); verticalGuide.className='guide-v';
+        verticalGuide.style.left=(state.snapGuides.x*sx - 1)+'px'; overlay.appendChild(verticalGuide);
       }
       if (Number.isFinite(state.snapGuides.y)){
-        const h = document.createElement('div'); h.className='guide-h';
-        h.style.top=(state.snapGuides.y*sy - 1)+'px'; overlay.appendChild(h);
+        const horizontalGuide = document.createElement('div'); horizontalGuide.className='guide-h';
+        horizontalGuide.style.top=(state.snapGuides.y*sy - 1)+'px'; overlay.appendChild(horizontalGuide);
       }
       if (Number.isFinite(state.snapGuides.x) && Number.isFinite(state.snapGuides.y)){
-        const d = document.createElement('div'); d.className='guide-dot';
-        d.style.left=(state.snapGuides.x*sx-5)+'px'; d.style.top=(state.snapGuides.y*sy-5)+'px'; overlay.appendChild(d);
+        const guideDot = document.createElement('div'); guideDot.className='guide-dot';
+        guideDot.style.left=(state.snapGuides.x*sx-5)+'px'; guideDot.style.top=(state.snapGuides.y*sy-5)+'px'; overlay.appendChild(guideDot);
       }
     }
-    if (state.lasso && samePage(state.lasso.page,page)){ const lr = lassoRectPx(state.lasso); const box=document.createElement('div'); box.className='lasso-box'; box.style.left=lr.left+'px'; box.style.top=lr.top+'px'; box.style.width=lr.width+'px'; box.style.height=lr.height+'px'; overlay.appendChild(box); }
+    if (state.lasso && samePage(state.lasso.page,page)){ const lassoRect = lassoRectPx(state.lasso); const lassoBox=document.createElement('div'); lassoBox.className='lasso-box'; lassoBox.style.left=lassoRect.left+'px'; lassoBox.style.top=lassoRect.top+'px'; lassoBox.style.width=lassoRect.width+'px'; lassoBox.style.height=lassoRect.height+'px'; overlay.appendChild(lassoBox); }
   }
 
+  // Redraws every page and the panels that list or count fields
   function renderAll(){
     Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(n => renderPage(n));
     renderCounts(); renderSelectedEditor(); renderTemplateFieldList(); renderSnippetList();
   }
+  // Makes a page the one shown and edited, and marks its tab
   function setCurrentPage(page){
     state.currentPage = page;
-    Object.keys(state.pages).map(Number).forEach(n => { const t=$('tab'+n); if(t) t.classList.toggle('active', n===page); });
+    Object.keys(state.pages).map(Number).forEach(pageNo => { const tab=$('tab'+pageNo); if(tab) tab.classList.toggle('active', pageNo===page); });
     renderAll();
   }
+  // Selects just this field
   function selectOne(id){ state.selected = new Set([id]); }
+  // Adds a field to the selection, or takes it out if it is in it
   function toggleSelect(id){ if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id); }
 
-  function setPlaceCheckboxMode(on, silent=false){
-    state.placeCheckboxMode = !!on;
+  // Turns "Place Checkbox" mode on or off: while it is on, a click on the page puts a tick box
+  // there. `silent` skips the message.
+  function setPlaceCheckboxMode(enabled, silent=false){
+    state.placeCheckboxMode = !!enabled;
     const btn = $('btnAddCheckbox');
     if (btn){
       btn.classList.toggle('btn-active', state.placeCheckboxMode);
       btn.textContent = state.placeCheckboxMode ? 'Placing… click on form' : 'Place Checkbox';
       btn.title = state.placeCheckboxMode ? 'Click button again to exit checkbox placement mode' : '';
     }
-    Object.keys(state.pages).map(Number).forEach(n => renderPage(n));
+    Object.keys(state.pages).map(Number).forEach(pageNo => renderPage(pageNo));
     if (!silent){
       msg(state.placeCheckboxMode ? 'Checkbox placement mode ON: click on form to place. Click button again to exit.' : 'Checkbox placement mode OFF.', 'ok');
     }
   }
 
 
+  // The selected fields on a page
   function getSelectedOnPage(page){
     return state.fields.filter(f => samePage(f.page,page) && state.selected.has(f.id));
   }
 
+  // The rectangle around a group of fields, with its centre and size
   function groupBounds(fields){
     if (!fields.length) return null;
     let left=Infinity, top=Infinity, right=-Infinity, bottom=-Infinity;
@@ -1697,10 +1720,12 @@ else if (typeof exports === 'object')
     return { left, top, right, bottom, cx:(left+right)/2, cy:(top+bottom)/2, w:right-left, h:bottom-top };
   }
 
+  // What a dragged field can snap to: the page's edges and centre, and the other fields' edges
+  // and centres (xs across, ys down)
   function getSnapCandidates(page, excludedIds=new Set()){
-    const p = state.pages[page];
-    const xs = [0, (p.naturalW||0)/2, (p.naturalW||0)];
-    const ys = [0, (p.naturalH||0)/2, (p.naturalH||0)];
+    const pageInfo = state.pages[page];
+    const xs = [0, (pageInfo.naturalW||0)/2, (pageInfo.naturalW||0)];
+    const ys = [0, (pageInfo.naturalH||0)/2, (pageInfo.naturalH||0)];
     state.fields.forEach(f=>{
       if (!samePage(f.page,page) || excludedIds.has(f.id)) return;
       xs.push(f.x, f.x + f.width/2, f.x + f.width);
@@ -1709,61 +1734,68 @@ else if (typeof exports === 'object')
     return { xs, ys };
   }
 
+  // How far to move the dragged fields, snapped: when an edge or centre of the group comes within
+  // the snap distance of a candidate (getSnapCandidates), the move is adjusted to line them up,
+  // and guideX / guideY say where to draw the guide
   function snapDeltaForDrag(page, movingFields, rawDx, rawDy){
-    const t = Number(state.snap.threshold)||8;
-    if (!state.snap.enabled || !movingFields.length || t<=0) return {dx:rawDx, dy:rawDy, guideX:null, guideY:null};
+    const snapDistance = Number(state.snap.threshold)||8;
+    if (!state.snap.enabled || !movingFields.length || snapDistance<=0) return {dx:rawDx, dy:rawDy, guideX:null, guideY:null};
 
     const moved = movingFields.map(f=>({ ...f, x:f.x+rawDx, y:f.y+rawDy }));
-    const gb = groupBounds(moved); if (!gb) return {dx:rawDx,dy:rawDy,guideX:null,guideY:null};
+    const bounds = groupBounds(moved); if (!bounds) return {dx:rawDx,dy:rawDy,guideX:null,guideY:null};
     const excluded = new Set(movingFields.map(f=>f.id));
-    const cands = getSnapCandidates(page, excluded);
+    const candidates = getSnapCandidates(page, excluded);
 
-    let bestX = null, bestY = null, dxAdj = rawDx, dyAdj = rawDy;
-    const xLines = [gb.left, gb.cx, gb.right], yLines = [gb.top, gb.cy, gb.bottom];
+    let bestX = null, bestY = null, snappedDx = rawDx, snappedDy = rawDy;
+    const xLines = [bounds.left, bounds.cx, bounds.right], yLines = [bounds.top, bounds.cy, bounds.bottom];
 
     xLines.forEach(xLine=>{
-      cands.xs.forEach(cx=>{
-        const d = cx - xLine;
-        if (Math.abs(d) <= t && (!bestX || Math.abs(d) < Math.abs(bestX.d))) bestX = { d, line: cx };
+      candidates.xs.forEach(candidateX=>{
+        const offset = candidateX - xLine;
+        if (Math.abs(offset) <= snapDistance && (!bestX || Math.abs(offset) < Math.abs(bestX.offset))) bestX = { offset, line: candidateX };
       });
     });
     yLines.forEach(yLine=>{
-      cands.ys.forEach(cy=>{
-        const d = cy - yLine;
-        if (Math.abs(d) <= t && (!bestY || Math.abs(d) < Math.abs(bestY.d))) bestY = { d, line: cy };
+      candidates.ys.forEach(candidateY=>{
+        const offset = candidateY - yLine;
+        if (Math.abs(offset) <= snapDistance && (!bestY || Math.abs(offset) < Math.abs(bestY.offset))) bestY = { offset, line: candidateY };
       });
     });
 
-    if (bestX) dxAdj += bestX.d;
-    if (bestY) dyAdj += bestY.d;
-    return { dx:dxAdj, dy:dyAdj, guideX:bestX ? bestX.line : null, guideY:bestY ? bestY.line : null };
+    if (bestX) snappedDx += bestX.offset;
+    if (bestY) snappedDy += bestY.offset;
+    return { dx:snappedDx, dy:snappedDy, guideX:bestX ? bestX.line : null, guideY:bestY ? bestY.line : null };
   }
 
+  // Puts a tick box on a page, centred where it was clicked ("Place Checkbox" mode), sized by
+  // "Checkbox px"
   function placeCheckboxAtClient(page, clientX, clientY){
-    const p = state.pages[page];
-    if (!p.naturalW){ msg('Upload page image first.', 'warn'); return; }
-    const ov = getPageOverlay(page);
-    const rect = ov.getBoundingClientRect();
+    const pageInfo = state.pages[page];
+    if (!pageInfo.naturalW){ msg('Upload page image first.', 'warn'); return; }
+    const overlay = getPageOverlay(page);
+    const rect = overlay.getBoundingClientRect();
     const { sx, sy } = getPageScale(page);
-    const cbSize = Math.max(6, Number($('manualCbSize')?.value) || Math.round(((Number($('minCb')?.value) || 8) + (Number($('maxCb')?.value) || 32)) / 2));
+    const boxSize = Math.max(6, Number($('manualCbSize')?.value) || Math.round(((Number($('minCb')?.value) || 8) + (Number($('maxCb')?.value) || 32)) / 2));
     const xPx = clamp(clientX - rect.left, 0, rect.width);
     const yPx = clamp(clientY - rect.top, 0, rect.height);
-    const x = clamp(xPx / (sx || 1) - cbSize/2, 0, Math.max(0, p.naturalW - cbSize));
-    const y = clamp(yPx / (sy || 1) - cbSize/2, 0, Math.max(0, p.naturalH - cbSize));
+    const x = clamp(xPx / (sx || 1) - boxSize/2, 0, Math.max(0, pageInfo.naturalW - boxSize));
+    const y = clamp(yPx / (sy || 1) - boxSize/2, 0, Math.max(0, pageInfo.naturalH - boxSize));
 
     pushUndo();
     const f = addField({
       page,
       x, y,
-      width: cbSize, height: cbSize,
+      width: boxSize, height: boxSize,
       type: 'checkbox',
-      name: `checkbox_${getPageFields(page).filter(x=>x.type==='checkbox'||x.type==='xbox').length + 1}`,
+      name: `checkbox_${getPageFields(page).filter(k=>k.type==='checkbox'||k.type==='xbox').length + 1}`,
       oscarTag: ''
     });
     selectOne(f.id);
     renderAll();
   }
 
+  // Pressing on a field: selects it (Shift/Ctrl/Cmd adds to the selection), then starts resizing
+  // it from its handle or dragging the selection
   function onFieldMouseDown(e, f, page){
     if (state.placeCheckboxMode) return;
     e.preventDefault(); e.stopPropagation();
@@ -1774,12 +1806,14 @@ else if (typeof exports === 'object')
       state.resize = { id: f.id, page, startX:e.clientX, startY:e.clientY, startW:f.width, startH:f.height, sx:scale.sx||1, sy:scale.sy||1, undoPushed:false };
     } else {
       const startPositions = {};
-      state.selected.forEach(id => { const ff = state.fields.find(x => x.id === id); if (ff) startPositions[id] = {x:ff.x,y:ff.y}; });
+      state.selected.forEach(id => { const selectedField = state.fields.find(k => k.id === id); if (selectedField) startPositions[id] = {x:selectedField.x,y:selectedField.y}; });
       state.drag = { page, startX:e.clientX, startY:e.clientY, sx:scale.sx||1, sy:scale.sy||1, startPositions, undoPushed:false };
     }
     renderAll();
   }
 
+  // Pressing on the page away from any field: starts a lasso there (Shift/Ctrl/Cmd keeps the
+  // selection and adds to it)
   function startLasso(e, page){
     const overlay = getPageOverlay(page), rect = overlay.getBoundingClientRect();
     const x = clamp(e.clientX - rect.left, 0, rect.width), y = clamp(e.clientY - rect.top, 0, rect.height);
@@ -1789,6 +1823,7 @@ else if (typeof exports === 'object')
     renderAll();
   }
 
+  // Moving the mouse: drags the selected fields (snapped), resizes one, or grows the lasso
   document.addEventListener('mousemove', (e) => {
     if (state.drag){
       const { page, startX, startY, sx, sy, startPositions } = state.drag;
@@ -1802,40 +1837,43 @@ else if (typeof exports === 'object')
       dx = snapped.dx; dy = snapped.dy;
       state.snapGuides = { page, x:snapped.guideX, y:snapped.guideY };
 
-      const p = state.pages[page];
+      const pageInfo = state.pages[page];
       state.selected.forEach(id => {
-        const f = state.fields.find(x => x.id===id && samePage(x.page,page)); if (!f) return;
-        const sp = startPositions[id];
-        f.x = clamp((sp?.x ?? f.x)+dx,0,Math.max(0,(p.naturalW||1)-f.width));
-        f.y = clamp((sp?.y ?? f.y)+dy,0,Math.max(0,(p.naturalH||1)-f.height));
+        const f = state.fields.find(k => k.id===id && samePage(k.page,page)); if (!f) return;
+        const startPos = startPositions[id];
+        f.x = clamp((startPos?.x ?? f.x)+dx,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
+        f.y = clamp((startPos?.y ?? f.y)+dy,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       });
       renderAll();
     } else if (state.resize){
-      const r = state.resize, f = state.fields.find(x => x.id === r.id); if (!f) return;
-      const dx=(e.clientX-r.startX)/r.sx, dy=(e.clientY-r.startY)/r.sy, p = state.pages[f.page];
-      if (!r.undoPushed && (Math.abs(dx) > 0.2 || Math.abs(dy) > 0.2)){ pushUndo(); r.undoPushed = true; }
-      f.width = clamp(r.startW+dx,8,Math.max(8,(p.naturalW||1)-f.x)); f.height = clamp(r.startH+dy,8,Math.max(8,(p.naturalH||1)-f.y));
+      const resize = state.resize, f = state.fields.find(k => k.id === resize.id); if (!f) return;
+      const dx=(e.clientX-resize.startX)/resize.sx, dy=(e.clientY-resize.startY)/resize.sy, pageInfo = state.pages[f.page];
+      if (!resize.undoPushed && (Math.abs(dx) > 0.2 || Math.abs(dy) > 0.2)){ pushUndo(); resize.undoPushed = true; }
+      f.width = clamp(resize.startW+dx,8,Math.max(8,(pageInfo.naturalW||1)-f.x)); f.height = clamp(resize.startH+dy,8,Math.max(8,(pageInfo.naturalH||1)-f.y));
       renderAll();
     } else if (state.lasso){
-      const l = state.lasso, overlay = getPageOverlay(l.page), rect = overlay.getBoundingClientRect();
-      l.curX = clamp(e.clientX - rect.left, 0, rect.width); l.curY = clamp(e.clientY - rect.top, 0, rect.height);
+      const lasso = state.lasso, overlay = getPageOverlay(lasso.page), rect = overlay.getBoundingClientRect();
+      lasso.curX = clamp(e.clientX - rect.left, 0, rect.width); lasso.curY = clamp(e.clientY - rect.top, 0, rect.height);
       applyLassoSelection(); renderAll();
     }
   });
+  // Letting go of the mouse ends a drag, resize or lasso
   document.addEventListener('mouseup', ()=>{ state.drag=null; state.resize=null; state.snapGuides={page:state.currentPage,x:null,y:null}; if(state.lasso){ state.lasso=null; renderAll(); } else { renderAll(); } });
 
-  function isTypingTarget(t){
-    if (!t) return false;
-    const tag=(t.tagName||'').toLowerCase();
-    return tag==='input' || tag==='textarea' || tag==='select' || t.isContentEditable;
+  // Whether a key press is going into a text box or list (so it isn't a canvas shortcut)
+  function isTypingTarget(target){
+    if (!target) return false;
+    const tagName=(target.tagName||'').toLowerCase();
+    return tagName==='input' || tagName==='textarea' || tagName==='select' || target.isContentEditable;
   }
 
+  // Copies the selected fields, keeping their places relative to each other
   function copySelectedFields(){
-    const sel = state.fields.filter(f => state.selected.has(f.id));
-    if (!sel.length){ msg('No selected fields to copy.', 'warn'); return; }
-    const minX = Math.min(...sel.map(f=>f.x));
-    const minY = Math.min(...sel.map(f=>f.y));
-    state.clipboardFields = sel.map(f => ({
+    const selectedFields = state.fields.filter(f => state.selected.has(f.id));
+    if (!selectedFields.length){ msg('No selected fields to copy.', 'warn'); return; }
+    const minX = Math.min(...selectedFields.map(f=>f.x));
+    const minY = Math.min(...selectedFields.map(f=>f.y));
+    state.clipboardFields = selectedFields.map(f => ({
       page: f.page,
       rx: f.x - minX,
       ry: f.y - minY,
@@ -1845,29 +1883,31 @@ else if (typeof exports === 'object')
       name: f.name,
       oscarTag: f.oscarTag || ''
     }));
-    msg(`Copied ${sel.length} field${sel.length===1?'':'s'}.`, 'ok');
+    msg(`Copied ${selectedFields.length} field${selectedFields.length===1?'':'s'}.`, 'ok');
   }
 
+  // Pastes the copied fields on the current page and selects them, each paste a little further
+  // down and right so copies don't land on each other
   function pasteCopiedFields(){
     if (!state.clipboardFields.length){ msg('Clipboard empty.', 'warn'); return; }
     pushUndo();
     const page = state.currentPage;
-    const p = state.pages[page];
-    const step = Number(state.pasteN||0);
-    const bump = 14 * (step + 1);
-    state.pasteN = step + 1;
+    const pageInfo = state.pages[page];
+    const pastesBefore = Number(state.pasteCount||0);
+    const offset = 14 * (pastesBefore + 1);
+    state.pasteCount = pastesBefore + 1;
     state.selected.clear();
-    state.clipboardFields.forEach((cf, i) => {
-      const w = Math.max(8, Number(cf.width)||20), h = Math.max(8, Number(cf.height)||20);
+    state.clipboardFields.forEach((copied, i) => {
+      const w = Math.max(8, Number(copied.width)||20), h = Math.max(8, Number(copied.height)||20);
       const f = addField({
         page,
-        x: clamp((cf.rx||0)+bump, 0, Math.max(0,(p.naturalW||1)-w)),
-        y: clamp((cf.ry||0)+bump, 0, Math.max(0,(p.naturalH||1)-h)),
+        x: clamp((copied.rx||0)+offset, 0, Math.max(0,(pageInfo.naturalW||1)-w)),
+        y: clamp((copied.ry||0)+offset, 0, Math.max(0,(pageInfo.naturalH||1)-h)),
         width: w,
         height: h,
-        type: cf.type || 'text',
-        name: cf.name ? `${cf.name}_copy` : `field_${state.nextId+i}`,
-        oscarTag: cf.oscarTag || ''
+        type: copied.type || 'text',
+        name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
+        oscarTag: copied.oscarTag || ''
       });
       state.selected.add(f.id);
     });
@@ -1875,11 +1915,14 @@ else if (typeof exports === 'object')
     msg(`Pasted ${state.clipboardFields.length} field${state.clipboardFields.length===1?'':'s'}.`, 'ok');
   }
 
+  // Copies the selected fields and pastes them straight away
   function duplicateSelectedFields(){
     copySelectedFields();
     pasteCopiedFields();
   }
 
+  // Canvas shortcuts: Ctrl/Cmd+C, V and D copy, paste and duplicate; the arrow keys nudge the
+  // selected fields (Shift: 10 px); Delete or Backspace removes them
   document.addEventListener('keydown', (e) => {
     if (isTypingTarget(e.target)) return;
 
@@ -1903,27 +1946,29 @@ else if (typeof exports === 'object')
 
     if (!state.selected.size) return;
     const keys=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Delete','Backspace']; if(!keys.includes(e.key)) return;
-    e.preventDefault(); const step = e.shiftKey ? 10 : 1, p = state.pages[state.currentPage];
+    e.preventDefault(); const nudge = e.shiftKey ? 10 : 1, pageInfo = state.pages[state.currentPage];
     pushUndo();
     if (e.key==='Delete' || e.key==='Backspace'){ state.fields = state.fields.filter(f => !state.selected.has(f.id)); state.selected.clear(); renderAll(); return; }
     state.selected.forEach(id => {
-      const f = state.fields.find(x => x.id===id && samePage(x.page,state.currentPage)); if(!f) return;
-      if (e.key==='ArrowUp') f.y = clamp(f.y-step,0,Math.max(0,(p.naturalH||1)-f.height));
-      if (e.key==='ArrowDown') f.y = clamp(f.y+step,0,Math.max(0,(p.naturalH||1)-f.height));
-      if (e.key==='ArrowLeft') f.x = clamp(f.x-step,0,Math.max(0,(p.naturalW||1)-f.width));
-      if (e.key==='ArrowRight') f.x = clamp(f.x+step,0,Math.max(0,(p.naturalW||1)-f.width));
+      const f = state.fields.find(k => k.id===id && samePage(k.page,state.currentPage)); if(!f) return;
+      if (e.key==='ArrowUp') f.y = clamp(f.y-nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
+      if (e.key==='ArrowDown') f.y = clamp(f.y+nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
+      if (e.key==='ArrowLeft') f.x = clamp(f.x-nudge,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
+      if (e.key==='ArrowRight') f.x = clamp(f.x+nudge,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
     });
     renderAll();
   });
 
+  // Pressing on a page: on a field, as onFieldMouseDown; on blank page, places a tick box in
+  // "Place Checkbox" mode, else starts a lasso
   function onOverlayMouseDown(e, page){
-    const ov = getPageOverlay(page);
-    if (!ov) return;
+    const overlay = getPageOverlay(page);
+    if (!overlay) return;
     // Fallback delegated field handling (helps in browsers where direct per-field listeners can be flaky)
     const fieldEl = e.target && e.target.closest ? e.target.closest('.field') : null;
-    if (fieldEl && ov.contains(fieldEl)){
+    if (fieldEl && overlay.contains(fieldEl)){
       const id = Number(fieldEl.dataset.id);
-      const f = state.fields.find(x => x.id === id && samePage(x.page,page));
+      const f = state.fields.find(k => k.id === id && samePage(k.page,page));
       if (f){
         onFieldMouseDown(e, f, page);
         return;
@@ -1931,7 +1976,7 @@ else if (typeof exports === 'object')
     }
 
     // Blank canvas interaction: place checkbox or lasso
-    if (e.target === ov || (e.target && e.target.classList && e.target.classList.contains('lasso-box'))){
+    if (e.target === overlay || (e.target && e.target.classList && e.target.classList.contains('lasso-box'))){
       if (state.placeCheckboxMode){
         e.preventDefault(); e.stopPropagation();
         placeCheckboxAtClient(page, e.clientX, e.clientY);
@@ -1940,74 +1985,81 @@ else if (typeof exports === 'object')
       startLasso(e, page);
     }
   }
+  // Listens for presses on a page's overlay, by mouse, pen or touch
   function bindOverlayPointer(page){
-    const ov = getPageOverlay(page);
-    if (!ov) return;
-    ov.addEventListener('mousedown', (e)=> onOverlayMouseDown(e,page));
-    ov.addEventListener('pointerdown', (e)=>{ if(e.pointerType&&e.pointerType!=='mouse') onOverlayMouseDown(e,page); });
+    const overlay = getPageOverlay(page);
+    if (!overlay) return;
+    overlay.addEventListener('mousedown', (e)=> onOverlayMouseDown(e,page));
+    overlay.addEventListener('pointerdown', (e)=>{ if(e.pointerType&&e.pointerType!=='mouse') onOverlayMouseDown(e,page); });
   }
 
   const MAX_PAGES = 10;
 
-  function createPageDOM(n){
-    if ($('canvas'+n+'Wrap')) return;
+  // Makes a page's parts: its image and overlay, its "Upload Page n image" button and its tab
+  function createPageDOM(page){
+    if ($('canvas'+page+'Wrap')) return;
     const wrap = document.createElement('div');
-    wrap.id='canvas'+n+'Wrap'; wrap.className='canvas-wrap'; wrap.style.display='none';
-    const img = document.createElement('img'); img.id='img'+n; img.alt='Page '+n;
-    const ov = document.createElement('div'); ov.id='overlay'+n; ov.className='overlay';
-    wrap.appendChild(img); wrap.appendChild(ov);
+    wrap.id='canvas'+page+'Wrap'; wrap.className='canvas-wrap'; wrap.style.display='none';
+    const img = document.createElement('img'); img.id='img'+page; img.alt='Page '+page;
+    const overlay = document.createElement('div'); overlay.id='overlay'+page; overlay.className='overlay';
+    wrap.appendChild(img); wrap.appendChild(overlay);
     $('canvasContainer').appendChild(wrap);
-    bindOverlayPointer(n);
+    bindOverlayPointer(page);
 
-    const btn = document.createElement('button');
-    btn.id='btnUpload'+n; btn.className='btn-blue'; btn.textContent='Upload Page '+n+' image';
-    const inp = document.createElement('input');
-    inp.id='fileImg'+n; inp.type='file'; inp.accept='image/png,image/jpeg,image/jpg'; inp.hidden=true;
-    btn.addEventListener('click', ()=> inp.click());
-    inp.addEventListener('change', e => { handleImageUpload(e.target.files[0], n); e.target.value=''; });
-    $('uploadButtonsRow').appendChild(btn);
-    $('uploadButtonsRow').appendChild(inp);
+    const uploadBtn = document.createElement('button');
+    uploadBtn.id='btnUpload'+page; uploadBtn.className='btn-blue'; uploadBtn.textContent='Upload Page '+page+' image';
+    const fileInput = document.createElement('input');
+    fileInput.id='fileImg'+page; fileInput.type='file'; fileInput.accept='image/png,image/jpeg,image/jpg'; fileInput.hidden=true;
+    uploadBtn.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', e => { handleImageUpload(e.target.files[0], page); e.target.value=''; });
+    $('uploadButtonsRow').appendChild(uploadBtn);
+    $('uploadButtonsRow').appendChild(fileInput);
 
     const tab = document.createElement('button');
-    tab.id='tab'+n; tab.className='tab'; tab.textContent='Edit Page '+n;
-    tab.addEventListener('click', ()=> setCurrentPage(n));
+    tab.id='tab'+page; tab.className='tab'; tab.textContent='Edit Page '+page;
+    tab.addEventListener('click', ()=> setCurrentPage(page));
     $('tabsRow').appendChild(tab);
   }
 
-  function removeSinglePage(n, silent=false){
-    if (n<=1) return false;
-    const flds = getPageFields(n);
-    if (!silent && (flds.length>0 || (state.pages[n]&&state.pages[n].imgData))){
-      if (!confirm('Remove page '+n+'? This will delete its image and '+flds.length+' field(s).')) return false;
+  // Removes a page (never page 1) with its image and fields, asking first when it has either
+  // unless `silent`. Returns whether it was removed.
+  function removeSinglePage(page, silent=false){
+    if (page<=1) return false;
+    const pageFields = getPageFields(page);
+    if (!silent && (pageFields.length>0 || (state.pages[page]&&state.pages[page].imgData))){
+      if (!confirm('Remove page '+page+'? This will delete its image and '+pageFields.length+' field(s).')) return false;
     }
-    state.fields = state.fields.filter(f => Number(f.page)!==n);
-    delete state.pages[n];
-    const w=$('canvas'+n+'Wrap'); if(w) w.remove();
-    const b=$('btnUpload'+n); if(b) b.remove();
-    const i=$('fileImg'+n); if(i) i.remove();
-    const t=$('tab'+n); if(t) t.remove();
+    state.fields = state.fields.filter(f => Number(f.page)!==page);
+    delete state.pages[page];
+    const wrap=$('canvas'+page+'Wrap'); if(wrap) wrap.remove();
+    const uploadBtn=$('btnUpload'+page); if(uploadBtn) uploadBtn.remove();
+    const fileInput=$('fileImg'+page); if(fileInput) fileInput.remove();
+    const tab=$('tab'+page); if(tab) tab.remove();
     return true;
   }
 
+  // "+ Add Page": adds an empty page after the last and shows it
   function addPage(){
-    const n = getPageCount()+1;
-    if (n>MAX_PAGES){ msg('Maximum '+MAX_PAGES+' pages supported.','warn'); return; }
+    const page = getPageCount()+1;
+    if (page>MAX_PAGES){ msg('Maximum '+MAX_PAGES+' pages supported.','warn'); return; }
     pushUndo();
-    state.pages[n] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
-    createPageDOM(n);
-    setCurrentPage(n);
-    msg('Page '+n+' added. Upload an image for it.','ok');
+    state.pages[page] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
+    createPageDOM(page);
+    setCurrentPage(page);
+    msg('Page '+page+' added. Upload an image for it.','ok');
   }
 
+  // "− Remove Last Page": removes the last page, unless it is the only one
   function removePage(){
-    const n = getPageCount();
-    if (n<=1){ msg('Cannot remove the only page.','warn'); return; }
+    const lastPage = getPageCount();
+    if (lastPage<=1){ msg('Cannot remove the only page.','warn'); return; }
     pushUndo();
-    if (!removeSinglePage(n)){ state.undoStack.pop(); updateUndoBtn(); return; }
-    setCurrentPage(Math.min(state.currentPage, n-1));
-    msg('Removed page '+n+'.','ok');
+    if (!removeSinglePage(lastPage)){ state.undoStack.pop(); updateUndoBtn(); return; }
+    setCurrentPage(Math.min(state.currentPage, lastPage-1));
+    msg('Removed page '+lastPage+'.','ok');
   }
 
+  // Loads a PNG or JPEG file as a page's image
   async function handleImageUpload(file, page){
     if (!file) return;
     if (!/^image\//i.test(file.type) && !/\.(png|jpe?g)$/i.test(file.name)) { msg('Please upload PNG/JPG image.', 'err'); return; }
@@ -2044,15 +2096,16 @@ else if (typeof exports === 'object')
   $('btnPasteSel').addEventListener('click', pasteCopiedFields);
   $('btnDuplicateSel').addEventListener('click', duplicateSelectedFields);
   $('btnUndo').addEventListener('click', doUndo);
-  $('btnClearPage').addEventListener('click', ()=>{ const pg=state.currentPage; pushUndo(); state.fields = state.fields.filter(f=>!samePage(f.page,pg)); state.selected.clear(); renderAll(); msg(`Cleared fields on page ${pg}.`, 'ok'); });
+  $('btnClearPage').addEventListener('click', ()=>{ const page=state.currentPage; pushUndo(); state.fields = state.fields.filter(f=>!samePage(f.page,page)); state.selected.clear(); renderAll(); msg(`Cleared fields on page ${page}.`, 'ok'); });
   $('btnResetAll').addEventListener('click', resetEverything);
 
   syncingEditor = false;
+  // Copies the Selected field editor's values onto the selected field as they are typed
   function applyEditorToSelected(){
     if (syncingEditor) return;
     if (state.selected.size !== 1) return;
     const id = [...state.selected][0];
-    const f = state.fields.find(x=>x.id===id);
+    const f = state.fields.find(k=>k.id===id);
     if (!f) return;
     const name = $('fName').value.trim();
     if (name) f.name = name;
@@ -2065,45 +2118,46 @@ else if (typeof exports === 'object')
     // A signature field is the provider signature image stamp
     if (f.type === 'signature' && (!f.name || /^field_\d+$/i.test(f.name) || /^text_\d+$/i.test(f.name))) f.name = 'signature';
 
-    const nx = Number($('fX').value), ny = Number($('fY').value), nw = Number($('fW').value), nh = Number($('fH').value);
-    if (Number.isFinite(nx)) f.x = nx;
-    if (Number.isFinite(ny)) f.y = ny;
-    if (Number.isFinite(nw)) f.width = Math.max(8, nw);
-    if (Number.isFinite(nh)) f.height = Math.max(8, nh);
+    const newX = Number($('fX').value), newY = Number($('fY').value), newW = Number($('fW').value), newH = Number($('fH').value);
+    if (Number.isFinite(newX)) f.x = newX;
+    if (Number.isFinite(newY)) f.y = newY;
+    if (Number.isFinite(newW)) f.width = Math.max(8, newW);
+    if (Number.isFinite(newH)) f.height = Math.max(8, newH);
 
     renderPage(f.page);
     renderCounts();
   }
 
-  const liveIds = ['fName','fTag','fX','fY','fW','fH'];
-  liveIds.forEach(id => {
-    const el=$(id);
-    if(!el) return;
-    el.addEventListener('focus', ()=>{ if (state.selected.size===1) pushUndo(); });
-    el.addEventListener('input', applyEditorToSelected);
+  // (an undo step when an editor box is entered, so one undo takes back what was typed in it)
+  const editorInputIds = ['fName','fTag','fX','fY','fW','fH'];
+  editorInputIds.forEach(id => {
+    const input=$(id);
+    if(!input) return;
+    input.addEventListener('focus', ()=>{ if (state.selected.size===1) pushUndo(); });
+    input.addEventListener('input', applyEditorToSelected);
   });
   $('fType').addEventListener('focus', ()=>{ if (state.selected.size===1) pushUndo(); });
   $('fType').addEventListener('change', applyEditorToSelected);
 
   $('btnUseTag').addEventListener('click', ()=>{
-    const v = $('fTagSelect').value;
-    if(!v) return;
-    $('fTag').value = v;
+    const chosenTag = $('fTagSelect').value;
+    if(!chosenTag) return;
+    $('fTag').value = chosenTag;
     applyEditorToSelected();
   });
   $('fTagSelect').addEventListener('change', ()=>{
-    const v = $('fTagSelect').value;
-    if(!v) return;
-    $('fTag').value = v;
+    const chosenTag = $('fTagSelect').value;
+    if(!chosenTag) return;
+    $('fTag').value = chosenTag;
     applyEditorToSelected();
   });
 
   $('btnGuessTag').addEventListener('click', ()=>{
     if (state.selected.size !== 1) return;
-    const id=[...state.selected][0], f=state.fields.find(x=>x.id===id); if(!f) return;
-    const g = guessTag(f.name, f.type, f.label);
-    if(g){
-      $('fTag').value = g;
+    const id=[...state.selected][0], f=state.fields.find(k=>k.id===id); if(!f) return;
+    const guessedTag = guessTag(f.name, f.type, f.label);
+    if(guessedTag){
+      $('fTag').value = guessedTag;
       applyEditorToSelected();
     }
   });
