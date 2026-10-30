@@ -69,6 +69,7 @@
     position:relative; display:inline-block; max-width:100%;
   }
   .canvas-wrap img{display:block;max-width:100%;height:auto;user-select:none;pointer-events:none}
+  .zoom-level{min-width:56px}
   .overlay{position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none}
   .field{
     position:absolute;border:2px solid #10b981;background:rgba(16,185,129,.16);
@@ -322,6 +323,14 @@
       <div><b>Page</b><div id="kvPage" class="small">1</div></div>
       <div><b>Fields on page</b><div id="kvCount" class="small">0</div></div>
       <div><b>Total fields</b><div id="kvTotal" class="small">0</div></div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <span class="small"><b>Zoom</b></span>
+      <button id="btnZoomOut" type="button" title="Zoom out">&minus;</button>
+      <button id="btnZoomFit" class="zoom-level" type="button" title="Fit the page to the box">100%</button>
+      <button id="btnZoomIn" type="button" title="Zoom in">+</button>
+      <span class="small">Ctrl/Cmd+scroll over the page zooms</span>
     </div>
 
     <div id="canvasContainer"></div>
@@ -940,6 +949,7 @@ else if (typeof exports === 'object')
     resize: null,
     lasso: null,
     placeCheckboxMode: false,
+    zoom: 1,
     undoStack: [],
     exportTitle: 'Generated OSCAR eForm',
     snap: { enabled: true, threshold: 8, showGuides: true },
@@ -1801,7 +1811,63 @@ else if (typeof exports === 'object')
     state.currentPage = page;
     Object.keys(state.pages).map(Number).forEach(pageNo => { const tab=$('tab'+pageNo); if(tab) tab.classList.toggle('active', pageNo===page); });
     renderAll();
+    applyZoom();
   }
+
+  // ===== Zoom =====
+  // The zoom steps, as a share of the page fitted to its box (1, where it starts)
+  const ZOOM_STEPS = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6];
+  // Shows the current page at state.zoom: fitted to the box's width at 1, as the page has always
+  // been shown (no wider than the image itself), else that fitted width times the zoom. The box
+  // keeps the size it has at 1 and scrolls. `anchor` ({x, y} in screen pixels) is the point that
+  // stays where it is on screen (the mouse for Ctrl+scroll; else the box's middle).
+  function applyZoom(anchor){
+    const box = $('canvasContainer'), page = state.currentPage, pageInfo = state.pages[page];
+    const wrap = getPageWrap(page), img = getPageImgEl(page);
+    $('btnZoomFit').textContent = Math.round(state.zoom * 100) + '%';
+    $('btnZoomOut').disabled = state.zoom <= ZOOM_STEPS[0];
+    $('btnZoomIn').disabled = state.zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1];
+    if (!box || !wrap || !img || !pageInfo || !pageInfo.naturalW){ if (box){ box.style.height = ''; box.style.overflow = ''; } return; }
+    const boxRect = box.getBoundingClientRect(), oldW = img.offsetWidth || 1;
+    const at = anchor || { x: boxRect.left + box.clientWidth / 2, y: boxRect.top + box.clientHeight / 2 };
+    // (where the anchor is on the image, as a share of its size, before the zoom)
+    const imgRect = img.getBoundingClientRect();
+    const share = { x: (at.x - imgRect.left) / (imgRect.width || 1), y: (at.y - imgRect.top) / (imgRect.height || 1) };
+    // (the page's border and margin around the image; the box's own width, not counting its scroll bar)
+    const chromeW = wrap.offsetWidth - img.offsetWidth, chromeH = wrap.offsetHeight - img.offsetHeight + (parseFloat(getComputedStyle(wrap).marginTop) || 0);
+    const fitW = Math.min(pageInfo.naturalW, boxRect.width - chromeW);
+    if (state.zoom <= 1){
+      img.style.width = ''; img.style.maxWidth = ''; wrap.style.maxWidth = ''; box.style.height = ''; box.style.overflow = '';
+    } else {
+      box.style.overflow = 'auto';
+      box.style.height = Math.ceil(fitW * pageInfo.naturalH / pageInfo.naturalW + chromeH) + 'px';
+      wrap.style.maxWidth = 'none'; img.style.maxWidth = 'none';
+      img.style.width = (fitW * state.zoom) + 'px';
+    }
+    if (img.offsetWidth === oldW) return;
+    // (scrolls so the anchor's point on the image is back under it)
+    const newRect = img.getBoundingClientRect();
+    box.scrollLeft += newRect.left + share.x * newRect.width - at.x;
+    box.scrollTop += newRect.top + share.y * newRect.height - at.y;
+  }
+  // Zooms to the next step in (+1) or out (-1), around `anchor` (see applyZoom)
+  function stepZoom(direction, anchor){
+    const next = direction > 0 ? ZOOM_STEPS.find(z => z > state.zoom + 1e-6) : [...ZOOM_STEPS].reverse().find(z => z < state.zoom - 1e-6);
+    if (next == null) return;
+    state.zoom = next;
+    applyZoom(anchor);
+  }
+  $('btnZoomIn').addEventListener('click', () => stepZoom(1));
+  $('btnZoomOut').addEventListener('click', () => stepZoom(-1));
+  $('btnZoomFit').addEventListener('click', () => { state.zoom = 1; applyZoom(); });
+  // (Ctrl/Cmd+scroll over the page zooms the page, not the browser, around the mouse)
+  $('canvasContainer').addEventListener('wheel', (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    stepZoom(e.deltaY < 0 ? 1 : -1, { x: e.clientX, y: e.clientY });
+  }, { passive: false });
+  // (the fitted width follows the box: the browser zoomed or the window resized)
+  if (window.ResizeObserver) new ResizeObserver(() => applyZoom()).observe($('canvasContainer'));
   // Selects just this field
   function selectOne(id){ state.selected = new Set([id]); }
   // Adds a field to the selection, or takes it out if it is in it
@@ -2122,9 +2188,14 @@ else if (typeof exports === 'object')
     wrap.appendChild(img); wrap.appendChild(overlay);
     $('canvasContainer').appendChild(wrap);
     bindOverlayPointer(page);
-    // (the fields are placed in screen pixels: when the image is shown at another size, the
-    // browser zoomed or the window resized, its fields are drawn again over the same places)
-    if (window.ResizeObserver) new ResizeObserver(() => { if (state.pages[page]) renderPage(page); }).observe(img);
+    // (the fields are placed in screen pixels: when the image is shown at another size, zoomed,
+    // the browser zoomed or the window resized, its fields are drawn again over the same places;
+    // a new image on the page shown is zoomed as the page before it was)
+    if (window.ResizeObserver) new ResizeObserver(() => {
+      if (!state.pages[page]) return;
+      renderPage(page);
+      if (page === state.currentPage) applyZoom();
+    }).observe(img);
 
     const uploadBtn = document.createElement('button');
     uploadBtn.id='btnUpload'+page; uploadBtn.className='btn-blue'; uploadBtn.textContent='Upload Page '+page+' image';
