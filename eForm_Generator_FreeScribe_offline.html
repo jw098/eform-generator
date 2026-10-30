@@ -253,7 +253,7 @@
 <div class="wrap">
   <section class="card pane pane-left">
     <h1>OSCAR eForm Mapper <span class="pill">Standalone / Offline</span></h1>
-    <div class="muted">Import existing eForm HTMLs for field/tag extraction + fax/print snippets. Supports up to 10 pages, multi-select, local detection, and export.</div>
+    <div class="muted">Import an existing eForm's HTML for its fields, tags and fax/print scripts. Supports up to 10 pages, multi-select, local detection, and export.</div>
 
     <div id="converterTopMount"></div>
 
@@ -325,17 +325,18 @@
 
   <aside class="card pane pane-right">
     <details id="templateImportPanel">
-      <summary class="collapsible-summary"><span id="templatePlus" class="plus-pill">+</span><span>Template HTML import</span><span id="templateCount" class="small"></span></summary>
+      <summary class="collapsible-summary"><span id="templatePlus" class="plus-pill">+</span><span>eForm HTML import</span><span id="templateCount" class="small"></span></summary>
       <div style="margin-top:8px">
+        <div id="templateLoaded" class="small" style="margin-bottom:8px"></div>
         <div class="row">
-          <button id="btnTemplate" class="btn-amber">Import template HTML(s)</button>
-          <input id="fileTemplates" type="file" accept=".html,.htm,text/html" multiple hidden />
-          <button id="btnApplyTemplateFields">Add fields from template(s)</button>
-          <button id="btnMatchByPosition">Transfer tags by position</button>
+          <button id="btnTemplate" class="btn-amber">Import eForm HTML</button>
+          <input id="fileTemplates" type="file" accept=".html,.htm,text/html" hidden />
+          <button id="btnApplyTemplateFields">Add fields/tags from HTML</button>
+          <button id="btnClearTemplate">Remove</button>
         </div>
-        <div class="small" style="margin-top:6px">Parses positioned fields, oscarDB labels, fax/print/signature snippets, and body onload handlers from uploaded template HTML files. Imported tags are added to dropdown suggestions.</div>
+        <div class="small" style="margin-top:6px">Reads one eForm's positioned fields, oscarDB tags, fax/print/signature scripts and body onload handlers; importing another replaces it. <b>Add fields/tags from HTML</b> adds the eForm's fields with their tags; if your pages already have fields, they come as a second set.</div>
 
-        <div class="small" style="margin-top:8px"><b>Parsed fields</b></div>
+        <div class="small" style="margin-top:8px"><b>Fields in the eForm</b></div>
         <div id="templateFieldList" class="list small"></div>
 
         <div class="small" style="margin-top:8px"><b>Extracted snippets</b></div>
@@ -894,7 +895,7 @@ else if (typeof exports === 'object')
     showTags: false,
     nextId: 1,
 
-    templateFiles: [],
+    templateName: '',   // the imported eForm HTML's file name (one at a time)
     templateNameTagMap: new Map(),
     templateFields: [],
     snippets: {
@@ -1267,16 +1268,19 @@ else if (typeof exports === 'object')
   }
   function parseAttr(el, attr){ return (el.getAttribute(attr) || '').trim(); }
 
+  // The page an element is on, from the page wrapper it sits in ("page2", "page_3", "copy2")
   function inferPage(el){
     let cur = el;
     while (cur && cur !== cur.ownerDocument.body){
-      const id = (cur.id || '').toLowerCase();
-      const cls = (cur.className || '').toString().toLowerCase();
-      if (/page[_\- ]?2|copy[_\- ]?2|second|page2/.test(id + ' ' + cls)) return 2;
+      const s = ((cur.id || '') + ' ' + (cur.className || '').toString()).toLowerCase();
+      const m = s.match(/(?:page|copy)[_\- ]?(\d{1,2})(?!\d)/);
+      if (m && +m[1] >= 1) return Math.min(+m[1], 10);
+      if (/second/.test(s)) return 2;
       cur = cur.parentElement;
     }
     return 1;
   }
+
 
   function nearestLabelText(el){
     let text = '';
@@ -2090,6 +2094,7 @@ else if (typeof exports === 'object')
       nextId: state.nextId,
       showLabels: state.showLabels,
       showTags: state.showTags,
+      templateName: state.templateName,
       templateNameTagMap: [...state.templateNameTagMap.entries()],
       templateFields: state.templateFields,
       snippets: {
@@ -2152,6 +2157,7 @@ else if (typeof exports === 'object')
 
     state.templateNameTagMap = new Map((obj.templateNameTagMap || []).filter(a => Array.isArray(a) && a.length>=2));
     state.templateFields = Array.isArray(obj.templateFields) ? obj.templateFields : [];
+    state.templateName = String(obj.templateName || (state.templateFields.length ? 'eForm from saved session' : ''));
     const sn = obj.snippets || {};
     state.snippets = {
       externalSrc: new Set(sn.externalSrc || []),
@@ -2236,67 +2242,61 @@ else if (typeof exports === 'object')
     sync();
   }
 
+  // One eForm HTML at a time: its fields, name↔tag map and scripts
+  function clearTemplate(){
+    state.templateName = '';
+    state.templateNameTagMap = new Map();
+    state.templateFields = [];
+    state.snippets = { externalSrc: new Set(), inlineScripts: [], actionFns: new Set(), onloads: new Set(), buttonHtml: [], signatureHtml: [] };
+  }
   $('btnTemplate').addEventListener('click', ()=> $('fileTemplates').click());
   $('fileTemplates').addEventListener('change', async (e)=>{
-    const files = Array.from(e.target.files || []); if (!files.length) return;
+    const file = e.target.files && e.target.files[0]; if (!file) return;
     try{
-      let parsedFields = 0;
-      for (const file of files){
-        const text = await readAsText(file), tpl = parseTemplateHtml(text, file.name);
-        state.templateFiles.push(tpl);
-        tpl.fields.forEach(f => { state.templateFields.push(f); if(f.oscarTag){ state.templateNameTagMap.set(norm(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(norm(f.label), f.oscarTag); }});
-        tpl.nameTagMap.forEach((v,k)=> state.templateNameTagMap.set(k,v));
-        tpl.snippets.externalSrc.forEach(s => state.snippets.externalSrc.add(s));
-        tpl.snippets.inlineScripts.forEach(s => state.snippets.inlineScripts.push(s));
-        tpl.snippets.actionFns.forEach(fn => state.snippets.actionFns.add(fn));
-        tpl.snippets.onloads.forEach(o => state.snippets.onloads.add(o));
-        tpl.snippets.buttonHtml.forEach(b => state.snippets.buttonHtml.push(b));
-        tpl.snippets.signatureHtml.forEach(s => state.snippets.signatureHtml.push(s));
-        parsedFields += tpl.fields.length;
-      }
-      state.templateFields = dedupeFields(state.templateFields);
+      const text = await readAsText(file), tpl = parseTemplateHtml(text, file.name);
+      clearTemplate();
+      state.templateName = file.name;
+      state.templateFields = dedupeFields(tpl.fields);
+      state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(norm(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(norm(f.label), f.oscarTag); }});
+      tpl.nameTagMap.forEach((v,k)=> state.templateNameTagMap.set(k,v));
+      const sn = tpl.snippets;
+      state.snippets = { externalSrc: new Set(sn.externalSrc), inlineScripts: [...new Set(sn.inlineScripts)], actionFns: new Set(sn.actionFns),
+                         onloads: new Set(sn.onloads), buttonHtml: sn.buttonHtml.slice(), signatureHtml: sn.signatureHtml.slice() };
       $('templateImportPanel').open = true;
       renderAll();
-      msg(`Imported ${files.length} template file(s). Parsed ${parsedFields} fields.`, 'ok');
-    }catch(err){ msg('Template import failed: ' + (err.message || err), 'err'); }
+      msg(`Imported ${file.name}: ${state.templateFields.length} field(s).`, 'ok');
+    }catch(err){ msg('eForm HTML import failed: ' + (err.message || err), 'err'); }
     finally { e.target.value=''; }
   });
+  $('btnClearTemplate').addEventListener('click', ()=>{
+    if (!state.templateName) return;
+    const name = state.templateName;
+    clearTemplate(); renderAll(); msg(`Removed ${name}.`, 'ok');
+  });
 
+  // The eForm's fields, with their tags, added to your pages as they are. Fields already on those
+  // pages (Auto Detect's, or your own) are left alone, so the eForm's come as a second set.
   $('btnApplyTemplateFields').addEventListener('click', ()=>{
-    if (!state.templateFields.length){ msg('No template fields parsed yet.', 'warn'); return; }
+    if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
+    const onPages = state.templateFields.filter(tf => state.pages[Number(tf.page)]);
+    const have = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
+    if (have && !confirm(`These pages already have ${have} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
     pushUndo();
-    let added=0; const existing=state.fields.slice();
-    state.templateFields.forEach(tf => {
-      // If field came from a generated eForm (has _exportW), rescale coordinates
-      // to the natural image resolution loaded into the mapper.
+    onPages.forEach(tf => {
+      // A field from an eForm this app made (it has _exportW) is rescaled from the width it was
+      // exported at to the page image's
+      const p = state.pages[Number(tf.page)];
       let x = tf.x, y = tf.y, w = tf.width, h = tf.height;
-      if (tf._exportW && tf._exportW > 0) {
-        const p = state.pages[Number(tf.page)];
-        const natW = p && p.naturalW ? p.naturalW : 0;
-        const natH = p && p.naturalH ? p.naturalH : 0;
-        if (natW > 0) {
-          const scale = natW / tf._exportW;
-          x = Math.round(x * scale);
-          y = Math.round(y * scale);
-          w = Math.round(w * scale);
-          h = Math.round(h * scale);
-        }
+      if (tf._exportW > 0 && p.naturalW > 0) {
+        const scale = p.naturalW / tf._exportW;
+        x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
       }
-      const dup = existing.some(f =>
-        samePage(f.page, tf.page) &&
-        Math.abs(f.x - x) < 4 && Math.abs(f.y - y) < 4 &&
-        Math.abs(f.width - w) < 6 && Math.abs(f.height - h) < 6 &&
-        norm(f.name) === norm(tf.name)
-      );
-      if (!dup) {
-        addField({ page:tf.page, x, y, width:w, height:h,
-          type:tf.type, name:tf.name,
-          oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label),
-          label: tf.label || '' });
-        added++;
-      }
+      addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
+        oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '' });
     });
-    renderAll(); msg(`Added ${added} field(s) from template(s).`, added ? 'ok' : 'warn');
+    renderAll();
+    const off = state.templateFields.length - onPages.length;
+    msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (off ? `; ${off} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
   });
 
   function autoTagUnmapped(){
@@ -2312,30 +2312,14 @@ else if (typeof exports === 'object')
   }
   $('btnAutoTag').addEventListener('click', autoTagUnmapped);
 
-  function transferTagsByPosition(){
-    if (!state.templateFields.length){ msg('Import template HTML first.', 'warn'); return; }
-    pushUndo();
-    let changed=0;
-    state.fields.forEach(f => {
-      if (f.oscarTag) return;
-      let best=null, bestD=Infinity;
-      state.templateFields.forEach(tf => {
-        if (!samePage(tf.page,f.page) || !tf.oscarTag) return;
-        const cx1=f.x+f.width/2, cy1=f.y+f.height/2, cx2=tf.x+tf.width/2, cy2=tf.y+tf.height/2;
-        const d=Math.hypot(cx1-cx2, cy1-cy2), sizeClose=Math.abs(f.width-tf.width)<=20 && Math.abs(f.height-tf.height)<=20;
-        if(d<bestD && (sizeClose || d<40)){bestD=d; best=tf;}
-      });
-      if(best && bestD<60){ f.oscarTag=best.oscarTag; changed++; }
-    });
-    renderAll(); msg(changed ? `Transferred ${changed} tag(s) by position.` : 'No positional tag matches found.', changed ? 'ok':'warn');
-  }
-  $('btnMatchByPosition').addEventListener('click', transferTagsByPosition);
 
   function renderTemplateFieldList(){
     const box=$('templateFieldList'); box.innerHTML='';
-    const nt=state.templateFields.length;
-    $('templateCount').textContent = nt ? `· ${nt} field${nt>1?'s':''}` : '';
-    if(!state.templateFields.length){ box.innerHTML='<div class="list-item">No template fields parsed yet.</div>'; return; }
+    const nt=state.templateFields.length, name=state.templateName;
+    $('templateCount').textContent = name ? `· ${name}` : '';
+    $('templateLoaded').innerHTML = name ? `Loaded: <b>${escHtml(name)}</b> (${nt} field${nt!==1?'s':''})` : 'No eForm HTML loaded.';
+    $('btnClearTemplate').disabled = !name;
+    if(!state.templateFields.length){ box.innerHTML='<div class="list-item">No eForm HTML loaded.</div>'; return; }
     state.templateFields.slice(0,300).forEach(f=>{ const d=document.createElement('div'); d.className='list-item mono'; d.textContent=`p${f.page} ${Math.round(f.x)},${Math.round(f.y)} ${Math.round(f.width)}x${Math.round(f.height)}  ${f.name}${f.oscarTag ? ' -> ' + f.oscarTag : ''}`; box.appendChild(d); });
     if(state.templateFields.length>300){ const d=document.createElement('div'); d.className='list-item'; d.textContent=`... ${state.templateFields.length-300} more`; box.appendChild(d); }
   }
@@ -2561,7 +2545,7 @@ else if (typeof exports === 'object')
   }
 
   function resetEverything(){
-    const ok = confirm('Reset everything? This clears images, fields, imported templates, snippets, and export draft.');
+    const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, snippets, and export draft.');
     if(!ok) return;
     pushUndo();
     state.currentPage = 1;
@@ -2571,17 +2555,7 @@ else if (typeof exports === 'object')
     state.selected.clear();
     state.nextId = 1;
 
-    state.templateFiles = [];
-    state.templateNameTagMap = new Map();
-    state.templateFields = [];
-    state.snippets = {
-      externalSrc: new Set(),
-      inlineScripts: [],
-      actionFns: new Set(),
-      onloads: new Set(),
-      buttonHtml: [],
-      signatureHtml: []
-    };
+    clearTemplate();
 
     const _ri=$('img1'); if(_ri) _ri.src='';
     Object.keys(state.pages).map(Number).forEach(n=>{ const fi=$('fileImg'+n); if(fi) fi.value=''; });
