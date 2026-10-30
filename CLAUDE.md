@@ -44,8 +44,10 @@ fax. A rule may rely on that: a tick box is empty (`isRealBox` turns away ink in
 middle, which is how a letter such as the B in "Bilat." is told from a box), and nothing is
 filled in or ticked by hand. Don't loosen a rule for filled-in forms.
 
-A fillable PDF's own form fields are taken as they are, when the page came from one
-(`pdfFormFields`). Otherwise Auto Detect works from the picture, in two passes.
+Auto Detect works from the picture, in two passes. When the page came from a fillable PDF,
+the PDF's own form fields are taken as they are (`pdfFormFields`: positions, names and labels)
+in place of the fields pass 1 finds; pass 1 still reads the page's rules, and pass 2 only what's
+printed around them (`sectionFields`) and their tags (`tagFields`).
 
 **Pass 1: the picture only, no OCR.** It must not rely on OCR: it finds the fields from the
 ink alone, so it works where the words can't be read (no WebAssembly SIMD, no workers;

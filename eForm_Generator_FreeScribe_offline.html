@@ -1142,6 +1142,7 @@ else if (typeof exports === 'object')
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no' },                       // (OSCAR 12 has no tag for their email)
     family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (OSCAR may well not have their phone, fax or address)
+    guardian:  {},                                               // (OSCAR 12 has no tags for their details)
     office:    {}                                                // ("FOR OFFICE USE ONLY": the receiving office fills these in)
   };
   // What a field asks for, from the whole words of its label (nameKey()'d: words joined by "_").
@@ -1205,14 +1206,16 @@ else if (typeof exports === 'object')
   // when nothing says. In a bordered box, it looks only inside the box, and is the patient's
   // when nothing there says (a box of the referring doctor's details is headed so). A table cell looks up first: its column's header says whose, and the cell
   // to its left can be another table's ("PATIENT | REFERRING MD" side by side).
-  // The owner is the patient, the referring clinician (current_user), the family doctor (doctor,
-  // the patient's MRP) or the receiving office ("FOR OFFICE USE ONLY"); guessTag turns it into
-  // the tag (TAG_FOR).
+  // The owner is the patient ("Participant information" too), the referring clinician
+  // (current_user), the family doctor (doctor, the patient's MRP), someone else of the patient's
+  // ("Parent/guardian contact information", "Emergency contact") or the receiving office ("FOR
+  // OFFICE USE ONLY"); guessTag turns it into the tag (TAG_FOR).
   const OWNER_CUES = [
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk)\b/],
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
+    ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
     ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|md|np|mw|dr|doctor|signature|clinic|office)\b/],
-    ['patient', /\b(patients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
+    ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
   ];
   // Whose details a text names ("Referring physician" -> clinician), from OWNER_CUES, or ''
   const ownerCue = (text) => { const t = String(text || '').toLowerCase(); for (const [o, re] of OWNER_CUES) if (re.test(t)) return o; return ''; };
@@ -1254,7 +1257,10 @@ else if (typeof exports === 'object')
       for (const p of above){
         const g = p.words.map(fieldOfWord).find(g => g && g !== f);
         if (g){ if (owner.get(g)) return owner.get(g); continue; }
-        if (!isSentence(p.words)){ const o = ownerCue(p.text); if (o) return o; }
+        // (a heading's aside in brackets doesn't make it a sentence: "Parent/guardian contact
+        // information (for adolescents age 13–18 only)")
+        const aside = p.words.findIndex(w => /^\(/.test(w.text)), lead = aside > 0 ? p.words.slice(0, aside) : p.words;
+        if (!isSentence(lead)){ const o = ownerCue(lead.map(w => w.text).join(' ')); if (o) return o; }
       }
       return '';
     };
@@ -3766,20 +3772,9 @@ else if (typeof exports === 'object')
   async function detectCurrentPage(opts = {}){
     const page = state.currentPage, p = state.pages[page];
     if (!p.imgData || !p.naturalW) { msg('Upload page image first.', 'warn'); return; }
+    // A fillable PDF's own fields are taken as they are (exact positions and names): the picture
+    // is still read, for the page's rules and words, so pass 2 can tell whose each field is and tag it
     const fromPdf = await pdfFormFields(page);
-    if (fromPdf){
-      pushUndo();
-      const before = getPageFields(page).length;
-      fromPdf.forEach(f => {
-        const dup = state.fields.some(k => samePage(k.page,page) && Math.abs(k.x-f.x)<4 && Math.abs(k.y-f.y)<4 &&
-                                           Math.abs(k.width-f.width)<6 && Math.abs(k.height-f.height)<6);
-        if (!dup) addField(f);
-      });
-      const added = getPageFields(page).length - before;
-      renderAll();
-      msg(`This page came from a fillable PDF: took ${added} field(s) straight from the PDF's own form fields (exact positions and names).`, added ? 'ok' : 'warn');
-      return;
-    }
     const minCb = Number($('minCb').value) || 8;
     const maxCb = Number($('maxCb').value) || 32;
     const tolCb = Number($('tolCb').value) || 8;
@@ -4015,13 +4010,15 @@ else if (typeof exports === 'object')
 
       // Name each field after its printed label and suggest its tag (tick boxes get no tag:
       // an OSCAR tag on a tick box fills nothing useful)
-      let found = [...newFields, ...dedupCb];
-      const foundSoFar = `Found ${dedupCb.length} tick box(es) and ${newFields.length} place(s) to write.`;
+      let found = fromPdf || [...newFields, ...dedupCb];
+      const ticks = found.filter(f => f.type === 'checkbox' || f.type === 'xbox');
+      const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
+                                 : `Found ${dedupCb.length} tick box(es) and ${newFields.length} place(s) to write.`;
       let read = null;
       if (opts.readWords !== false){
         await progress(`${foundSoFar} Reading the page's words to name them…`, 0.15);
         // (the word reader starts once, the first time: Tesseract reports its loading steps first)
-        read = await readPageWords(p.imgData, dedupCb, ({ status, progress: done }) => status === 'recognizing text'
+        read = await readPageWords(p.imgData, ticks, ({ status, progress: done }) => status === 'recognizing text'
           ? showDetectProgress(`${foundSoFar} Reading the page's words to name them… ${Math.round(done*100)}%`, 0.15 + 0.75*done)
           : showDetectProgress(`${foundSoFar} Starting the word reader (the first time only)…`, 0.15));
         await progress('Naming the fields and suggesting tags…', 0.9);
@@ -4037,8 +4034,10 @@ else if (typeof exports === 'object')
       };
       // Pass 2, with the words: a field after a label ending with a colon and blank page after it;
       // each field's label; the fields the labels split or rule out; then what's printed around
-      // the fields, for their names and tags
-      if (read){
+      // the fields, for their names and tags. A fillable PDF's fields are the PDF's, labels too
+      // (its author's, which OCR can only do worse): only what's printed around them.
+      if (read && fromPdf) sectionFields(found, read);
+      else if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its rules' furthest end)
         inkColons(read, inkMap, w, h, scale);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
@@ -4070,7 +4069,8 @@ else if (typeof exports === 'object')
       // (a label as a field name: lowercase words joined by _, at most 40 characters)
       const tidy = (v) => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40).replace(/_+$/, '');
 
-      found.forEach(f => {
+      // (a fillable PDF's fields keep the PDF's names)
+      if (!fromPdf) found.forEach(f => {
         const box = f.type==='checkbox'||f.type==='xbox';
         const base = f.label ? tidy((f.section ? f.section + ' ' : '') + f.label) : '';
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
@@ -4092,7 +4092,8 @@ else if (typeof exports === 'object')
       const unread = read || opts.readWords === false ? '' : ' (The page\'s words couldn\'t be read in this browser, so fields have plain names and no tags.)';
       const changes = tuningChanges();
       const custom = changes.length ? ` Custom tuning used: ${changes.join(', ')}.` : '';
-      msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + custom + unread, added>0 ? 'ok' : 'warn');
+      if (fromPdf) msg(`This page came from a fillable PDF: took ${added} field(s) straight from the PDF's own form fields (exact positions and names).` + unread, added ? 'ok' : 'warn');
+      else msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + custom + unread, added>0 ? 'ok' : 'warn');
     } catch(err) {
       msg('Detection failed: ' + (err.message || err), 'err');
     } finally {
