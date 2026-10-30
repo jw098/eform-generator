@@ -2122,6 +2122,9 @@ else if (typeof exports === 'object')
     wrap.appendChild(img); wrap.appendChild(overlay);
     $('canvasContainer').appendChild(wrap);
     bindOverlayPointer(page);
+    // (the fields are placed in screen pixels: when the image is shown at another size, the
+    // browser zoomed or the window resized, its fields are drawn again over the same places)
+    if (window.ResizeObserver) new ResizeObserver(() => { if (state.pages[page]) renderPage(page); }).observe(img);
 
     const uploadBtn = document.createElement('button');
     uploadBtn.id='btnUpload'+page; uploadBtn.className='btn-blue'; uploadBtn.textContent='Upload Page '+page+' image';
