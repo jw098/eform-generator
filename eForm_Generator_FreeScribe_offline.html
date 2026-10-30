@@ -4611,8 +4611,10 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     });
   }
 
+  // The PDF → PNG converter: renders a PDF's pages as PNG images to download or to load straight
+  // onto the mapper's pages
   function initConverter(){
-    const c = {
+    const controls = {
       file: $('convFile'),
       mode: $('convMode'),
       page: $('convPage'),
@@ -4631,47 +4633,52 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       links: $('convLinks'),
       canvas: $('convCanvas')
     };
-    if (!c.file) return;
+    if (!controls.file) return;
     let pdfDoc = null;
     let busy = false;
     let previewUrl = null;
-    const cctx = c.canvas.getContext('2d', {willReadFrequently:true});
+    const canvasCtx = controls.canvas.getContext('2d', {willReadFrequently:true});
 
-    function cstatus(t, err=false){ c.status.textContent = t || ''; c.status.style.color = err ? '#b91c1c' : '#374151'; }
-    function setBusy(v){
-      busy = v;
-      const disabled = v || !pdfDoc;
-      c.btnPreview.disabled = disabled;
-      c.btnConvertDownload.disabled = disabled;
-      c.btnLoadOnly.disabled = disabled;
-      c.btnConvertAll.disabled = disabled;
+    // Shows a line under the converter (red for an error)
+    function showStatus(text, err=false){ controls.status.textContent = text || ''; controls.status.style.color = err ? '#b91c1c' : '#374151'; }
+    // Marks the converter busy, turning its buttons off while it works (and while no PDF is loaded)
+    function setBusy(isBusy){
+      busy = isBusy;
+      const disabled = isBusy || !pdfDoc;
+      controls.btnPreview.disabled = disabled;
+      controls.btnConvertDownload.disabled = disabled;
+      controls.btnLoadOnly.disabled = disabled;
+      controls.btnConvertAll.disabled = disabled;
     }
-    function safe(n){ return String(n||'form').replace(/\.[^/.]+$/,'').replace(/[^\w\-]+/g,'_').replace(/^_+|_+$/g,'')||'form'; }
-    function ext(){ return 'png'; }
-    function bytes(n){ if(n<1024) return `${n} B`; if(n<1024*1024) return `${(n/1024).toFixed(1)} KB`; return `${(n/1048576).toFixed(2)} MB`; }
-    function lv(){ const v=Number(c.levels.value); return Number.isFinite(v)?Math.max(8,Math.min(64,Math.round(v))):24; }
-    function wTarget(){ const v=Number(c.width.value); return Number.isFinite(v)?Math.max(200,Math.min(1500,Math.round(v))):1500; }
+    // A file size for people: "512 B", "3.4 KB", "1.25 MB"
+    function formatBytes(byteCount){ if(byteCount<1024) return `${byteCount} B`; if(byteCount<1024*1024) return `${(byteCount/1024).toFixed(1)} KB`; return `${(byteCount/1048576).toFixed(2)} MB`; }
+    // The "Levels" and "Width px" boxes, kept in range (8–64 grey levels, 200–1500 px)
+    function levelCount(){ const value=Number(controls.levels.value); return Number.isFinite(value)?Math.max(8,Math.min(64,Math.round(value))):24; }
+    function targetWidth(){ const value=Number(controls.width.value); return Number.isFinite(value)?Math.max(200,Math.min(1500,Math.round(value))):1500; }
 
-    function addLink(blob, name, auto=true){
+    // Lists a converted image as a link under the converter, and downloads it when `autoDownload`
+    function addLink(blob, name, autoDownload=true){
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = name; a.textContent = `${name} (${bytes(blob.size)})`; a.className='list-item';
-      c.links.prepend(a);
-      if (auto){
-        try{ const t=document.createElement('a'); t.href=url; t.download=name; document.body.appendChild(t); t.click(); t.remove(); }catch(_){}
+      const link = document.createElement('a');
+      link.href = url; link.download = name; link.textContent = `${name} (${formatBytes(blob.size)})`; link.className='list-item';
+      controls.links.prepend(link);
+      if (autoDownload){
+        try{ const downloadLink=document.createElement('a'); downloadLink.href=url; downloadLink.download=name; document.body.appendChild(downloadLink); downloadLink.click(); downloadLink.remove(); }catch(_){}
       }
       return url;
     }
 
+    // A blob's contents as a data: URL
     async function blobToDataUrl(blob){
       return new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = e => resolve(e.target.result);
-        fr.onerror = () => reject(fr.error || new Error('Failed to read blob'));
-        fr.readAsDataURL(blob);
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(reader.error || new Error('Failed to read blob'));
+        reader.readAsDataURL(blob);
       });
     }
 
+    // Puts a converted image on a page of the mapper (making the page if it isn't there yet)
     async function loadBlobIntoMapper(pageNo, blob, fileName='', pdfPage=null){
       const page = Number(pageNo) >= 1 ? Number(pageNo) : 1;
       const dataUrl = await blobToDataUrl(blob);
@@ -4693,6 +4700,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     // Served over http(s) it runs as a real Web Worker from a blob URL; opened as a file
     // (file://), where some browsers refuse workers, it runs on the page's own thread.
     let pdfWorkerReady = null;
+    // Starts pdf.js's worker from the copy embedded in this page (once)
     function ensurePdfWorker(){
       if (pdfWorkerReady) return pdfWorkerReady;
       pdfWorkerReady = (async () => {
@@ -4704,9 +4712,9 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
             URL.createObjectURL(new Blob([source], { type: 'application/javascript' }));
           return;
         }
-        const el = document.createElement('script');
-        el.textContent = source;
-        document.head.appendChild(el);
+        const workerScript = document.createElement('script');
+        workerScript.textContent = source;
+        document.head.appendChild(workerScript);
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'embedded';  // unused: window.pdfjsWorker is set
       })();
       return pdfWorkerReady;
@@ -4717,138 +4725,148 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     class EmbeddedStandardFonts {
       constructor(){
         if (!EmbeddedStandardFonts.files){
-          const el = document.getElementById('pdfjsStandardFonts');
-          EmbeddedStandardFonts.files = el ? JSON.parse(el.textContent) : {};
+          const fontsScript = document.getElementById('pdfjsStandardFonts');
+          EmbeddedStandardFonts.files = fontsScript ? JSON.parse(fontsScript.textContent) : {};
         }
       }
       async fetch({ filename }){
-        const b64 = EmbeddedStandardFonts.files[filename];
-        if (!b64) throw new Error('Font not embedded: ' + filename);
-        const raw = atob(b64), bytes = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-        return bytes;
+        const base64 = EmbeddedStandardFonts.files[filename];
+        if (!base64) throw new Error('Font not embedded: ' + filename);
+        const binary = atob(base64), fontBytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) fontBytes[i] = binary.charCodeAt(i);
+        return fontBytes;
       }
     }
 
+    // Opens a PDF in the converter, lists its pages and shows the first
     async function loadPdf(file){
-      if (!window.pdfjsLib){ cstatus('pdf.js failed to load from this file.', true); return; }
+      if (!window.pdfjsLib){ showStatus('pdf.js failed to load from this file.', true); return; }
       try{
         setBusy(true);
-        cstatus('Loading PDF...');
-        const arr = await file.arrayBuffer();
-        fsCapturePdf(file.name, arr.slice(0));
+        showStatus('Loading PDF...');
+        const pdfBytes = await file.arrayBuffer();
+        fsCapturePdf(file.name, pdfBytes.slice(0));
         await ensurePdfWorker();
-        pdfDoc = await pdfjsLib.getDocument({data:arr, StandardFontDataFactory: EmbeddedStandardFonts, useWorkerFetch: false}).promise;
-        c.page.innerHTML = '';
+        pdfDoc = await pdfjsLib.getDocument({data:pdfBytes, StandardFontDataFactory: EmbeddedStandardFonts, useWorkerFetch: false}).promise;
+        controls.page.innerHTML = '';
         for(let i=1;i<=pdfDoc.numPages;i++){
-          const o=document.createElement('option'); o.value=String(i); o.textContent=`Page ${i}`; c.page.appendChild(o);
+          const option=document.createElement('option'); option.value=String(i); option.textContent=`Page ${i}`; controls.page.appendChild(option);
         }
-        c.page.disabled = false;
-        cstatus(`Loaded ${pdfDoc.numPages} page(s).`);
+        controls.page.disabled = false;
+        showStatus(`Loaded ${pdfDoc.numPages} page(s).`);
         await renderPreview();
-      }catch(err){ cstatus('Could not read PDF: ' + (err.message || err), true); }
+      }catch(err){ showStatus('Could not read PDF: ' + (err.message || err), true); }
       finally{ setBusy(false); }
     }
 
-    function post(){
-      const doGray = c.gray.checked, doOpt = c.opt.checked, strip = c.strip.checked;
-      const levels = lv(), step = levels>1 ? 255/(levels-1) : 255;
-      const img = cctx.getImageData(0,0,c.canvas.width,c.canvas.height), d = img.data;
-      for(let i=0;i<d.length;i+=4){
-        const r=d[i], g=d[i+1], b=d[i+2];
+    // Applies "Grayscale", "Optimize levels" (rounds each pixel to one of `Levels` greys or
+    // shades) and "Strip alpha" to the rendered page on the converter's canvas
+    function postProcessCanvas(){
+      const doGray = controls.gray.checked, doLevels = controls.opt.checked, stripAlpha = controls.strip.checked;
+      const levels = levelCount(), levelStep = levels>1 ? 255/(levels-1) : 255;
+      const imageData = canvasCtx.getImageData(0,0,controls.canvas.width,controls.canvas.height), pixels = imageData.data;
+      for(let i=0;i<pixels.length;i+=4){
+        const r=pixels[i], g=pixels[i+1], b=pixels[i+2];
         if(doGray){
           let gray=Math.round(0.299*r+0.587*g+0.114*b);
-          if(doOpt) gray=Math.round(gray/step)*step;
-          d[i]=d[i+1]=d[i+2]=gray;
-        }else if(doOpt){
-          d[i]=Math.round(r/step)*step; d[i+1]=Math.round(g/step)*step; d[i+2]=Math.round(b/step)*step;
+          if(doLevels) gray=Math.round(gray/levelStep)*levelStep;
+          pixels[i]=pixels[i+1]=pixels[i+2]=gray;
+        }else if(doLevels){
+          pixels[i]=Math.round(r/levelStep)*levelStep; pixels[i+1]=Math.round(g/levelStep)*levelStep; pixels[i+2]=Math.round(b/levelStep)*levelStep;
         }
-        if(strip) d[i+3]=255;
+        if(stripAlpha) pixels[i+3]=255;
       }
-      cctx.putImageData(img,0,0);
+      canvasCtx.putImageData(imageData,0,0);
     }
 
-    async function renderPdfPage(num){
+    // Renders a page of the PDF onto the converter's canvas at the "Width px" width, post-processed,
+    // and returns its size
+    async function renderPdfPage(pageNo){
       if (!pdfDoc) throw new Error('No PDF loaded');
-      const page = await pdfDoc.getPage(num);
-      const base = page.getViewport({scale:1});
-      const outW = wTarget();
-      const scale = outW / base.width;
-      const vp = page.getViewport({scale});
-      c.canvas.width = Math.max(1, Math.floor(vp.width));
-      c.canvas.height = Math.max(1, Math.floor(vp.height));
-      if (c.strip.checked){ cctx.fillStyle='#fff'; cctx.fillRect(0,0,c.canvas.width,c.canvas.height); }
-      else cctx.clearRect(0,0,c.canvas.width,c.canvas.height);
+      const pdfPage = await pdfDoc.getPage(pageNo);
+      const baseViewport = pdfPage.getViewport({scale:1});
+      const scale = targetWidth() / baseViewport.width;
+      const viewport = pdfPage.getViewport({scale});
+      controls.canvas.width = Math.max(1, Math.floor(viewport.width));
+      controls.canvas.height = Math.max(1, Math.floor(viewport.height));
+      if (controls.strip.checked){ canvasCtx.fillStyle='#fff'; canvasCtx.fillRect(0,0,controls.canvas.width,controls.canvas.height); }
+      else canvasCtx.clearRect(0,0,controls.canvas.width,controls.canvas.height);
 
-      await page.render({ canvasContext:cctx, viewport:vp, background:c.strip.checked?'rgb(255,255,255)':'rgba(0,0,0,0)' }).promise;
-      post();
-      return {w:c.canvas.width,h:c.canvas.height};
+      await pdfPage.render({ canvasContext:canvasCtx, viewport, background:controls.strip.checked?'rgb(255,255,255)':'rgba(0,0,0,0)' }).promise;
+      postProcessCanvas();
+      return {w:controls.canvas.width,h:controls.canvas.height};
     }
 
-    async function toBlob(){
-      return new Promise(resolve => c.canvas.toBlob(resolve, 'image/png'));
+    // The converter's canvas as a PNG
+    async function canvasToPngBlob(){
+      return new Promise(resolve => controls.canvas.toBlob(resolve, 'image/png'));
     }
 
+    // Shows the selected page as it will be converted
     async function renderPreview(){
       if(!pdfDoc || busy) return;
       try{
         setBusy(true);
-        const pnum = Number(c.page.value || 1);
-        cstatus('Rendering preview...');
-        const dim = await renderPdfPage(pnum);
-        const blob = await toBlob();
+        const pageNo = Number(controls.page.value || 1);
+        showStatus('Rendering preview...');
+        const size = await renderPdfPage(pageNo);
+        const blob = await canvasToPngBlob();
         if (!blob) throw new Error('Preview blob failed');
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         previewUrl = URL.createObjectURL(blob);
-        c.preview.src = previewUrl;
-        cstatus(`Preview ready — ${dim.w}×${dim.h}px (${bytes(blob.size)}).`);
-      }catch(err){ cstatus('Preview failed: ' + (err.message || err), true); }
+        controls.preview.src = previewUrl;
+        showStatus(`Preview ready — ${size.w}×${size.h}px (${formatBytes(blob.size)}).`);
+      }catch(err){ showStatus('Preview failed: ' + (err.message || err), true); }
       finally{ setBusy(false); }
     }
 
-    async function convertCore(download){
-      c.links.innerHTML = '';
+    // Converts the selected page, or every page ("All pages" mode), to PNG images named as the
+    // export names page images, listing each and downloading them when `download`
+    async function convertPages(download){
+      controls.links.innerHTML = '';
       const outputs = [];
 
-      if(c.mode.value === 'single'){
-        const pnum = Number(c.page.value || 1);
-        const dim = await renderPdfPage(pnum);
-        const blob = await toBlob();
+      if(controls.mode.value === 'single'){
+        const pageNo = Number(controls.page.value || 1);
+        const size = await renderPdfPage(pageNo);
+        const blob = await canvasToPngBlob();
         if(!blob) throw new Error('Blob failed');
         const name = pageImageName(state.currentPage >= 1 ? state.currentPage : 1);
         addLink(blob, name, !!download);
-        outputs.push({ page:pnum, blob, name, dim });
+        outputs.push({ page:pageNo, blob, name, size });
       } else {
         const total = pdfDoc.numPages;
-        for(let p=1;p<=total;p++){
-          cstatus(`Converting ${p}/${total}...`);
-          await renderPdfPage(p);
-          const blob = await toBlob();
-          if(!blob) throw new Error(`Page ${p} failed`);
-          const name = pageImageName(p);
+        for(let pageNo=1;pageNo<=total;pageNo++){
+          showStatus(`Converting ${pageNo}/${total}...`);
+          await renderPdfPage(pageNo);
+          const blob = await canvasToPngBlob();
+          if(!blob) throw new Error(`Page ${pageNo} failed`);
+          const name = pageImageName(pageNo);
           addLink(blob, name, !!download);
-          outputs.push({ page:p, blob, name, dim:{w:c.canvas.width, h:c.canvas.height} });
+          outputs.push({ page:pageNo, blob, name, size:{w:controls.canvas.width, h:controls.canvas.height} });
         }
       }
       return outputs;
     }
 
+    // Puts converted images on the mapper's pages: the selected PDF page on the current page, or
+    // each PDF page on the page of the same number (adding pages, up to 10)
     async function loadOutputsIntoMapper(outputs){
       if(!outputs || !outputs.length){
         throw new Error('Nothing to load. Convert first.');
       }
       let loaded = 0;
 
-      if(c.mode.value === 'single'){
+      if(controls.mode.value === 'single'){
         const targetPage = state.currentPage >= 1 ? state.currentPage : 1;
         await loadBlobIntoMapper(targetPage, outputs[0].blob, pageImageName(targetPage), outputs[0].page);
         loaded = 1;
         setCurrentPage(targetPage);
       } else {
-        for (const out of outputs){
-          if (out.page >= 1 && out.page <= 10){
-            if (out.page > 1 && !state.pages[out.page] && getPageCount() < out.page) addPage();
-            await loadBlobIntoMapper(out.page, out.blob, pageImageName(out.page), out.page);
+        for (const output of outputs){
+          if (output.page >= 1 && output.page <= 10){
+            if (output.page > 1 && !state.pages[output.page] && getPageCount() < output.page) addPage();
+            await loadBlobIntoMapper(output.page, output.blob, pageImageName(output.page), output.page);
             loaded++;
           }
         }
@@ -4856,60 +4874,63 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       }
 
       renderAll();
-      cstatus(`Loaded ${loaded} page(s) into mapper.`);
+      showStatus(`Loaded ${loaded} page(s) into mapper.`);
     }
 
+    // "Convert + Download" and "Convert + Download + Load": converts, downloads, and loads the
+    // images into the mapper when `load`
     async function runConvertAction(opts){
       if(!pdfDoc || busy) return;
       const { download=false, load=false } = opts || {};
       try{
         setBusy(true);
-        cstatus('Converting...');
-        const outputs = await convertCore(download);
+        showStatus('Converting...');
+        const outputs = await convertPages(download);
         const pagesText = outputs.length === 1 ? '1 page' : `${outputs.length} pages`;
         if(load){
           await loadOutputsIntoMapper(outputs);
-          cstatus(`Done: ${pagesText} converted, downloaded, and loaded.`);
+          showStatus(`Done: ${pagesText} converted, downloaded, and loaded.`);
         } else {
-          cstatus(`Done: ${pagesText} converted${download ? ' and download triggered' : ''}.`);
+          showStatus(`Done: ${pagesText} converted${download ? ' and download triggered' : ''}.`);
         }
       }catch(err){
-        cstatus('Conversion failed: ' + (err.message || err), true);
+        showStatus('Conversion failed: ' + (err.message || err), true);
       }finally{
         setBusy(false);
         await renderPreview();
       }
     }
 
+    // "Load to Mapper": converts and loads the images into the mapper without downloading them
     async function runLoadOnly(){
       if(!pdfDoc || busy) return;
       try{
         setBusy(true);
-        cstatus('Converting for load...');
-        const outputs = await convertCore(false);
+        showStatus('Converting for load...');
+        const outputs = await convertPages(false);
         await loadOutputsIntoMapper(outputs);
       }catch(err){
-        cstatus('Load failed: ' + (err.message || err), true);
+        showStatus('Load failed: ' + (err.message || err), true);
       }finally{
         setBusy(false);
         await renderPreview();
       }
     }
 
-    c.file.addEventListener('change', e => {
-      const f=e.target.files && e.target.files[0];
-      if(!f) return;
-      if(f.type !== 'application/pdf'){ cstatus('Please choose a PDF file.', true); return; }
-      loadPdf(f);
+    controls.file.addEventListener('change', e => {
+      const file=e.target.files && e.target.files[0];
+      if(!file) return;
+      if(file.type !== 'application/pdf'){ showStatus('Please choose a PDF file.', true); return; }
+      loadPdf(file);
     });
-    [c.mode,c.page,c.width,c.gray,c.opt,c.strip,c.levels].forEach(el => el.addEventListener('change', ()=>{ if(pdfDoc) renderPreview(); }));
-    c.btnPreview.addEventListener('click', renderPreview);
-    c.btnConvertDownload.addEventListener('click', ()=> runConvertAction({download:true, load:false}));
-    c.btnLoadOnly.addEventListener('click', runLoadOnly);
-    c.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
-    c.btnClear.addEventListener('click', ()=>{ c.links.innerHTML=''; cstatus('Cleared links.'); });
+    [controls.mode,controls.page,controls.width,controls.gray,controls.opt,controls.strip,controls.levels].forEach(control => control.addEventListener('change', ()=>{ if(pdfDoc) renderPreview(); }));
+    controls.btnPreview.addEventListener('click', renderPreview);
+    controls.btnConvertDownload.addEventListener('click', ()=> runConvertAction({download:true, load:false}));
+    controls.btnLoadOnly.addEventListener('click', runLoadOnly);
+    controls.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
+    controls.btnClear.addEventListener('click', ()=>{ controls.links.innerHTML=''; showStatus('Cleared links.'); });
 
-    cstatus('Converter ready (PNG output). Use Convert+Download or Load to Mapper.');
+    showStatus('Converter ready (PNG output). Use Convert+Download or Load to Mapper.');
   }
 
   createPageDOM(1);
