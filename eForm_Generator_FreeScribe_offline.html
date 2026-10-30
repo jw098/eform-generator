@@ -499,14 +499,13 @@
         <span class="small">Tip: Use <b>Load to Mapper</b> to import converted pages without downloading.</span>
       </div>
       <div class="row" style="margin-top:8px">
-        <button id="btnConvPreview">Preview</button>
         <button id="btnConvConvertDownload" class="btn-blue">Convert + Download</button>
         <button id="btnConvLoadOnly" class="btn-violet">Load to Mapper</button>
         <button id="btnConvConvertAll" class="btn-green">Convert + Download + Load</button>
         <button id="btnConvClear">Clear links</button>
       </div>
       <div id="convStatus" class="small" style="margin-top:6px"></div>
-      <img id="convPreview" alt="converter preview" style="width:100%;max-height:240px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px"/>
+      <img id="convPreview" alt="converter preview" hidden style="width:100%;max-height:240px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px"/>
       <div id="convLinks" class="list small" style="margin-top:8px;max-height:140px"></div>
       <canvas id="convCanvas" style="display:none"></canvas>
     </details>
@@ -4729,7 +4728,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       opt: $('convOpt'),
       strip: $('convStrip'),
       levels: $('convLevels'),
-      btnPreview: $('btnConvPreview'),
       btnConvertDownload: $('btnConvConvertDownload'),
       btnLoadOnly: $('btnConvLoadOnly'),
       btnConvertAll: $('btnConvConvertAll'),
@@ -4749,7 +4747,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     // Turns the converter's buttons off while no PDF is loaded
     function updateButtons(){
       const disabled = !pdfDoc;
-      controls.btnPreview.disabled = disabled;
       controls.btnConvertDownload.disabled = disabled;
       controls.btnLoadOnly.disabled = disabled;
       controls.btnConvertAll.disabled = disabled;
@@ -4917,8 +4914,9 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       return new Promise(resolve => controls.canvas.toBlob(resolve, 'image/png'));
     }
 
-    // Shows the selected page as it will be converted, once the jobs before it are done. Asked for
-    // several times in a row (settings changed one after another), only the last is drawn.
+    // Shows the selected page as it will be converted (when a PDF is chosen, and whenever a setting
+    // changes), once the jobs before it are done. Asked for several times in a row (settings
+    // changed one after another), only the last is drawn.
     let previewsAsked = 0;
     function renderPreview(){
       const previewNo = ++previewsAsked;
@@ -4933,6 +4931,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
           if (previewUrl) URL.revokeObjectURL(previewUrl);
           previewUrl = URL.createObjectURL(blob);
           controls.preview.src = previewUrl;
+          controls.preview.hidden = false;
           const pagesText = pdfDoc.numPages === 1 ? '1 page' : `${pdfDoc.numPages} pages`;
           showStatus(`${pagesText} · Preview ready — ${size.w}×${size.h}px (${formatBytes(blob.size)}).`);
         }catch(err){ showStatus('Preview failed: ' + (err.message || err), true); }
@@ -5047,7 +5046,6 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       loadPdf(file);
     });
     [controls.mode,controls.page,controls.width,controls.gray,controls.opt,controls.strip,controls.levels].forEach(control => control.addEventListener('change', ()=>{ if(pdfDoc) renderPreview(); }));
-    controls.btnPreview.addEventListener('click', renderPreview);
     controls.btnConvertDownload.addEventListener('click', ()=> runConvertAction({download:true, load:false}));
     controls.btnLoadOnly.addEventListener('click', runLoadOnly);
     controls.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
