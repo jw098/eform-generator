@@ -90,6 +90,8 @@
     background:rgba(255,255,255,.8);border-radius:3px;padding:0 3px}
   .field-tag.above{left:0;bottom:calc(100% + 2px);background:#065f46;color:#fff;border-radius:4px;padding:1px 4px}
   .field-tag.above.tick{left:50%;transform:translateX(-50%)}
+  /* A textarea's font size buttons, where the eForm will show them (drawn only, not clickable) */
+  .field-font{position:absolute;background:yellow;border:1px solid #000;color:#000;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;box-sizing:border-box}
   .resize{
     position:absolute;width:9px;height:9px;border:1px solid #fff;background:#2563eb;
   }
@@ -438,6 +440,10 @@
         <datalist id="tagSuggestions"></datalist>
       </label>
       <div id="fTagWarn" class="small" style="display:none;color:var(--red);margin-top:4px">Not a standard OSCAR 12 tag: OSCAR may not fill it in.</div>
+      <div id="fFontRow" class="row small" style="display:none;margin-top:8px">
+        <label><input id="fFontButtons" type="checkbox"/> Font size buttons (&#9650;&#9660;) on the eForm</label>
+        <label>Font size <input id="fFontSize" type="number" min="6" max="48" step="1" style="width:64px"/> px</label>
+      </div>
       <div class="grid2" style="margin-top:8px">
         <label>X<input id="fX" type="number"/></label>
         <label>Y<input id="fY" type="number"/></label>
@@ -959,6 +965,10 @@ else if (typeof exports === 'object')
     exportAuthor: '',
   };
   let syncingEditor = false;
+  // The width of an exported eForm's pages, in its pixels
+  const EXPORT_PAGE_W = 750;
+  // The size of a font size button (▲ or ▼) on the eForm, and how far apart the two are, in its pixels
+  const FONT_BUTTON_W = 18, FONT_BUTTON_H = 17, FONT_BUTTON_GAP = 20;
 
 
   // The element with this id
@@ -1539,6 +1549,10 @@ else if (typeof exports === 'object')
         ? template.pageExportW[page].w
         : null;
 
+      // (a textarea keeps its font size, and its font size buttons if it has them: a hidden
+      // "<name>_fontsize" input saves the size the buttons set)
+      const fontSize = type === 'textarea' ? (parseStylePx(parseAttr(el, 'style'), 'font-size') || {}).val : null;
+      const fontButtons = type === 'textarea' && Array.from(doc.querySelectorAll('input')).some(h => parseAttr(h, 'name') === rawName + '_fontsize');
       const field = {
         id: `tpl_${fileName}_${idx}`,
         page,
@@ -1550,6 +1564,7 @@ else if (typeof exports === 'object')
         name: cleanName,
         oscarTag,
         label,
+        ...(type === 'textarea' ? { fontButtons, ...(fontSize > 0 ? { fontSize: Math.round(fontSize) } : {}) } : {}),
         ...(exportW ? { _exportW: exportW } : {})
       };
       template.fields.push(field);
@@ -1646,7 +1661,8 @@ else if (typeof exports === 'object')
         x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
       }
       addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
-        oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '' });
+        oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '',
+        fontSize: tf.fontSize, fontButtons: tf.fontButtons });
     });
     renderAll();
     const leftOut = state.templateFields.length - onPages.length;
@@ -1704,6 +1720,8 @@ else if (typeof exports === 'object')
       type: partial.type || 'text', name: partial.name || `field_${state.nextId}`,
       oscarTag: partial.oscarTag || '', label: partial.label || ''
     };
+    if (partial.fontSize) f.fontSize = partial.fontSize;
+    if (partial.fontButtons === false) f.fontButtons = false;
     state.fields.push(f);
     return f;
   }
@@ -1765,6 +1783,18 @@ else if (typeof exports === 'object')
       // (with the tag shown, the label is just the name, raised over a tag above the field)
       const labelDiv = document.createElement('div'); labelDiv.className = 'field-label' + (above ? ' raised' : '');
       labelDiv.textContent = f.name + (f.oscarTag && !state.showTags ? ' · ' + f.oscarTag : ''); fieldDiv.appendChild(labelDiv);
+    }
+    if (hasFontButtons(f)){
+      // (in the eForm's pixels, then back to this page's on screen; the field's 2px border moves its children)
+      const pageInfo = state.pages[page], k = EXPORT_PAGE_W / (pageInfo.naturalW || EXPORT_PAGE_W);
+      const spots = fontButtonSpots(Math.round(f.x*k), Math.round(f.y*k), Math.round(f.width*k), Math.round(f.height*k), Math.round(pageInfo.naturalW*k), Math.round(pageInfo.naturalH*k));
+      [['&#9650;', spots.upY], ['&#9660;', spots.downY]].forEach(([arrow, y]) => {
+        const button = document.createElement('div'); button.className = 'field-font'; button.innerHTML = arrow;
+        button.style.left = ((spots.x/k - f.x) * sx - 2) + 'px'; button.style.top = ((y/k - f.y) * sy - 2) + 'px';
+        button.style.width = (FONT_BUTTON_W/k * sx) + 'px'; button.style.height = (FONT_BUTTON_H/k * sy) + 'px';
+        button.style.fontSize = Math.max(6, 11/k * sy) + 'px';
+        fieldDiv.appendChild(button);
+      });
     }
     if (state.selected.size === 1 && state.selected.has(f.id)){ const resizeHandle = document.createElement('div'); resizeHandle.className='resize se'; resizeHandle.dataset.handle='se'; fieldDiv.appendChild(resizeHandle); }
     fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
@@ -2064,7 +2094,8 @@ else if (typeof exports === 'object')
       height: f.height,
       type: f.type,
       name: f.name,
-      oscarTag: f.oscarTag || ''
+      oscarTag: f.oscarTag || '',
+      fontSize: f.fontSize, fontButtons: f.fontButtons
     }));
     msg(`Copied ${selectedFields.length} field${selectedFields.length===1?'':'s'}.`, 'ok');
   }
@@ -2090,7 +2121,8 @@ else if (typeof exports === 'object')
         height: h,
         type: copied.type || 'text',
         name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
-        oscarTag: copied.oscarTag || ''
+        oscarTag: copied.oscarTag || '',
+        fontSize: copied.fontSize, fontButtons: copied.fontButtons
       });
       state.selected.add(f.id);
     });
@@ -2300,6 +2332,12 @@ else if (typeof exports === 'object')
   }
   // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
   function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
+  // Shows a textarea's font size and buttons in the Selected field editor (other fields have neither)
+  function showFontRow(f){
+    $('fFontRow').style.display = f.type === 'textarea' ? 'flex' : 'none';
+    $('fFontButtons').checked = hasFontButtons(f);
+    $('fFontSize').value = fieldFontSize(f);
+  }
   // Fills the Selected field editor from the selected field, or hides it unless one is selected
   function renderSelectedEditor(){
     if (state.selected.size === 1){
@@ -2312,6 +2350,7 @@ else if (typeof exports === 'object')
       $('fX').value = Math.round(f.x); $('fY').value = Math.round(f.y); $('fW').value = Math.round(f.width); $('fH').value = Math.round(f.height);
       const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
       showTagWarn(f.oscarTag);
+      showFontRow(f);
       syncingEditor = false;
     } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
   }
@@ -2331,6 +2370,12 @@ else if (typeof exports === 'object')
     f.oscarTag = tag;
     $('fTagSelect').value = STANDARD_TAGS.has(tag) ? tag : '';
     showTagWarn(tag);
+    if (f.type === 'textarea'){
+      if ($('fFontButtons').checked) delete f.fontButtons; else f.fontButtons = false;
+      const size = Math.round(Number($('fFontSize').value));
+      if (size >= 6 && size <= 48) f.fontSize = size;
+    }
+    showFontRow(f);
 
     // A signature field is the provider signature image stamp
     if (f.type === 'signature' && (!f.name || /^field_\d+$/i.test(f.name) || /^text_\d+$/i.test(f.name))) f.name = 'signature';
@@ -2346,7 +2391,7 @@ else if (typeof exports === 'object')
   }
 
   // (an undo step when an editor box is entered, so one undo takes back what was typed in it)
-  const editorInputIds = ['fName','fTag','fX','fY','fW','fH'];
+  const editorInputIds = ['fName','fTag','fX','fY','fW','fH','fFontSize'];
   editorInputIds.forEach(id => {
     const input=$(id);
     if(!input) return;
@@ -2355,6 +2400,7 @@ else if (typeof exports === 'object')
   });
   $('fType').addEventListener('focus', ()=>{ if (state.selected.size===1) pushUndo(); });
   $('fType').addEventListener('change', applyEditorToSelected);
+  $('fFontButtons').addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); });
 
   $('btnUseTag').addEventListener('click', ()=>{
     const chosenTag = $('fTagSelect').value;
@@ -2443,7 +2489,9 @@ else if (typeof exports === 'object')
         type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature'].includes(f.type) ? f.type : 'text',
         name: String(f.name || `field_${i+1}`),
         oscarTag: isRemovedTag(tag) ? '' : tag,
-        label: String(f.label || '')
+        label: String(f.label || ''),
+        ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
+        ...(f.fontButtons === false ? { fontButtons: false } : {})
       };
     });
     state.nextId = Math.max(1, Number(session.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId,Number(f.id)||0),0)+1));
@@ -4227,6 +4275,26 @@ function sanitizeUniqueFieldNames(fields){
     return { ...f, _safeName: `${safeBase}_${count}`, _origName: base };
   });
 }
+// Whether a field has font size buttons on the eForm: a textarea does unless they were turned off
+function hasFontButtons(f){ return f.type === 'textarea' && f.fontButtons !== false; }
+// A field's font size on the eForm: a textarea's own, else 12px
+function fieldFontSize(f){ return f.type === 'textarea' && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
+// Where a textarea's font size buttons go, in the eForm's pixels, given the field and the page:
+// just right of its top-right corner, ▲ over ▼; inside that corner where the page ends first
+function fontButtonSpots(x, y, w, h, pageW, pageH){
+  const outside = x + w + 2;
+  return { x: outside + FONT_BUTTON_W <= pageW ? outside : Math.max(0, x + w - FONT_BUTTON_W),
+           upY: Math.max(0, Math.min(y, pageH - FONT_BUTTON_GAP - FONT_BUTTON_H)),
+           downY: Math.max(0, Math.min(y, pageH - FONT_BUTTON_GAP - FONT_BUTTON_H)) + FONT_BUTTON_GAP };
+}
+// A textarea's font size buttons on the eForm (not printed) and the hidden input that saves the
+// size they set, "<name>_fontsize"
+function fontButtonsMarkup(f, x, y, w, h, pageW, pageH){
+  const name = f._safeName || f.name || 'field', spots = fontButtonSpots(x, y, w, h, pageW, pageH);
+  const button = (arrow, title, top, delta) => `<span class="DoNotPrint FontSizeChange" title="${title}" style="left:${spots.x}px; top:${top}px;" onclick="changeFontSize('${name}', ${delta});">${arrow}</span>`;
+  return [button('&#9650;', 'Increase font size', spots.upY, 1), button('&#9660;', 'Decrease font size', spots.downY, -1),
+          `<input type="hidden" name="${name}_fontsize" id="${name}_fontsize">`].join('\n');
+}
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
 // that a click turns on and off) or a text input; `inlinePosStyle` places it on the page
 function inputMarkup(f, inlinePosStyle=''){
@@ -4384,7 +4452,7 @@ function buildExportHtml(){
   const includeButtons=$('chkIncludeButtons').checked;
   const jqueryMode=($('exportJquery') && $('exportJquery').value) || 'modern';
 
-  const EXPORT_W = 750;
+  const EXPORT_W = EXPORT_PAGE_W;
   const exportPages = Object.keys(state.pages).map(Number)
     .filter(page => state.pages[page] && state.pages[page].naturalW > 0).sort((a,b)=>a-b);
 
@@ -4402,8 +4470,8 @@ function buildExportHtml(){
     const y = Math.round(clamp(scaledY, 0, Math.max(0, scaled(naturalH, scale) - scaledH)));
     const w = Math.round(clamp(scaledW, 6, scaled(naturalW, scale)));
     const h = Math.round(clamp(scaledH, 6, scaled(naturalH, scale)));
-    const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:12px; background-color:transparent;`;
-    return inputMarkup(f, inlinePos);
+    const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:${fieldFontSize(f)}px; background-color:transparent;`;
+    return inputMarkup(f, inlinePos) + (hasFontButtons(f) ? '\n' + fontButtonsMarkup(f, x, y, w, h, scaled(naturalW, scale), scaled(naturalH, scale)) : '');
   }
 
   // The signature stamp for a page's signature field: OSCAR's CanvasProSignature image
@@ -4596,6 +4664,32 @@ function formSubmitAndFax(){
 `;
 
   let bodyOnloadParts = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
+  // (font size buttons: their script and style, and the saved sizes put back on load, only when a field has them)
+  const usesFontButtons = exportPages.some(page => getPageFields(page).some(hasFontButtons));
+  // (first: it needs nothing else, so a failing step after it can't stop it)
+  if (usesFontButtons) bodyOnloadParts.unshift('loadFontSize()');
+  const fontButtonScript = !usesFontButtons ? '' : `<script>
+// Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
+// its hidden "<name>_fontsize" input so it is saved with the form
+function changeFontSize(name, delta){
+  var box = document.getElementsByName(name)[0], saved = document.getElementsByName(name + '_fontsize')[0];
+  if (!box) return;
+  var size = Math.max(6, (parseInt(window.getComputedStyle(box).fontSize, 10) || 12) + delta);
+  box.style.fontSize = size + 'px';
+  if (saved){ saved.value = size; saved.setAttribute('value', size); }
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On load: gives each textarea back the font size saved with the form
+function loadFontSize(){
+  var saved = document.querySelectorAll("input[name$='_fontsize']");
+  for (var i = 0; i < saved.length; i++){
+    if (!saved[i].value) continue;
+    var box = document.getElementsByName(saved[i].name.slice(0, -'_fontsize'.length))[0];
+    if (box) box.style.fontSize = saved[i].value + 'px';
+  }
+}
+<\/script>
+`;
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       const onloadCall = String(onload||'').trim();
@@ -4656,6 +4750,7 @@ function formSubmitAndFax(){
  .xBox { text-align:center; font-weight:bold; }
  .sig img { display:block; }
  .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; background:transparent; text-align:center; font-weight:bold; }
+ .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
  html, body { margin:0; padding:0; }
  img[id^="BGImage"] { display:block; }
 </style>
@@ -4674,7 +4769,7 @@ function formSubmitAndFax(){
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${addonScripts}
+${fontButtonScript}${addonScripts}
 </head>
 <body onload="${escAttr(bodyOnload)}">
 <form method="post" action="" name="FormName" id="FormName">
