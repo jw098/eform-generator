@@ -2577,12 +2577,12 @@ else if (typeof exports === 'object')
     return n / ((ix2-ix1+1)*(iy2-iy1+1));
   }
 
-  function isRealBox(clean,w,h,x1,y1,x2,y2,gray){
+  function isRealBox(inkMap,w,h,x1,y1,x2,y2,gray){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
     // (under 7 pixels a small letter such as e or o can't be told from a box)
     if (sz < 7 || x1 < 2 || y1 < 2 || x2 >= w-2 || y2 >= h-2) return false;
     const band = Math.max(1, Math.round(sz*0.14));
-    const on = (x,y) => clean[y*w+x] === 1;
+    const isInk = (x,y) => inkMap[y*w+x] === 1;
     // Longest unbroken stretch along a side (single-pixel gaps allowed), as a share of its length
     function straight(len, hit){
       let best=0, cur=0, gap=0;
@@ -2593,8 +2593,8 @@ else if (typeof exports === 'object')
       }
       return best/Math.max(1,len);
     }
-    const colHas = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(on(x,y)) return true; return false; };
-    const rowHas = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(on(x,y)) return true; return false; };
+    const colHas = (x,ya,yb) => { for(let y=ya;y<=yb;y++) if(isInk(x,y)) return true; return false; };
+    const rowHas = (y,xa,xb) => { for(let x=xa;x<=xb;x++) if(isInk(x,y)) return true; return false; };
     const top    = straight(bw, i => colHas(x1+i, y1, y1+band-1));
     const bottom = straight(bw, i => colHas(x1+i, y2-band+1, y2));
     const left   = straight(bh, i => rowHas(y1+i, x1, x1+band-1));
@@ -2615,7 +2615,7 @@ else if (typeof exports === 'object')
                    straight(bh, i => rowDark(y1+i, x1, x1+band-1)), straight(bh, i => rowDark(y1+i, x2-band+1, x2))) < 0.7) return false;
     }
     // Square corners: ink right at each corner (an O's curve leaves its corners empty)
-    const corner = (cx,cy) => countOnInRect(clean,w,h,cx,cy,cx+band-1,cy+band-1) > 0;
+    const corner = (cx,cy) => countOnInRect(inkMap,w,h,cx,cy,cx+band-1,cy+band-1) > 0;
     if (!(corner(x1,y1) && corner(x2-band+1,y1) && corner(x1,y2-band+1) && corner(x2-band+1,y2-band+1))) return false;
     // Inside: empty, as on a blank form. Its middle (two side bands in, past a blurred side's
     // halo) is paper, on the grey image, but a speck: a letter's middle has its strokes (the bowls
@@ -2658,15 +2658,15 @@ else if (typeof exports === 'object')
     const limit = Math.max(1, Math.round(sz*0.12));
     let t=0, b=0, l=0, r=0;
     for(let x=x1;x<=x2;x++){
-      if(on(x,y1) && on(x,y1-1) && on(x,y1-2)) t++;
-      if(on(x,y2) && on(x,y2+1) && on(x,y2+2)) b++;
+      if(isInk(x,y1) && isInk(x,y1-1) && isInk(x,y1-2)) t++;
+      if(isInk(x,y2) && isInk(x,y2+1) && isInk(x,y2+2)) b++;
     }
     for(let y=y1;y<=y2;y++){
-      if(on(x1,y) && on(x1-1,y) && on(x1-2,y)) l++;
-      if(on(x2,y) && on(x2+1,y) && on(x2+2,y)) r++;
+      if(isInk(x1,y) && isInk(x1-1,y) && isInk(x1-2,y)) l++;
+      if(isInk(x2,y) && isInk(x2+1,y) && isInk(x2+2,y)) r++;
     }
     const reach = Math.max(2, Math.round(sz*0.6)), near = Math.max(3, Math.round(sz*0.4));
-    const colRule = (x) => x >= 1 && x < w-1 && sideRule(clean, w, h, x, y1 - reach, y2 + reach, 0.85, 0);
+    const colRule = (x) => x >= 1 && x < w-1 && sideRule(inkMap, w, h, x, y1 - reach, y2 + reach, 0.85, 0);
     // (a side at x, with the outside towards step: -1 left, 1 right)
     const ruleBeside = (x, step) => {
       for (let k=0; k<band; k++) if (colRule(x - step*k)) return false;            // (the side is a rule itself)
@@ -2676,13 +2676,13 @@ else if (typeof exports === 'object')
     const rowRule = (y) => {
       if (y < 1 || y >= h-1) return false;
       const a = Math.max(0, x1 - reach), z = Math.min(w-1, x2 + reach);
-      let n = 0; for (let x=a; x<=z; x++) if (on(x,y-1) || on(x,y) || on(x,y+1)) n++;
+      let n = 0; for (let x=a; x<=z; x++) if (isInk(x,y-1) || isInk(x,y) || isInk(x,y+1)) n++;
       return n >= (z-a+1)*0.85;
     };
     const paperRow = (y) => { for (let x=x1; x<=x2; x++) if (gray[y*w+x] < hi - (hi - lo)*0.05) return false; return true; };
     // (a side at y, with the outside towards step: -1 above, 1 below)
     const ruleOver = (y, step) => {
-      if (hi - lo < GREY_RANGE || !standsApart(clean,w,h,x1,y1,x2,y2)) return false;
+      if (hi - lo < GREY_RANGE || !standsApart(inkMap,w,h,x1,y1,x2,y2)) return false;
       for (let k=0; k<band; k++) if (rowRule(y - step*k)) return false;              // (the side is a rule itself)
       let gap = false;
       for (let k=1; k<=near; k++){ if (paperRow(y + step*k)) gap = true; if (gap && rowRule(y + step*k)) return true; }
@@ -2695,11 +2695,11 @@ else if (typeof exports === 'object')
   // A round option button: a thin, unbroken ring with an empty middle and empty corners,
   // standing apart from other letters (an O inside a word has letters right beside it).
   // (Added by FreeScribe.)
-  function isRealCircle(clean,w,h,x1,y1,x2,y2){
+  function isRealCircle(inkMap,w,h,x1,y1,x2,y2){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
     if (sz < 7 || x1 < 3 || y1 < 3 || x2 >= w-3 || y2 >= h-3) return false;
     if (bw/bh < 0.85 || bw/bh > 1.18) return false;
-    const on = (x,y) => clean[y*w+x] === 1;
+    const isInk = (x,y) => inkMap[y*w+x] === 1;
     const cx = (x1+x2)/2, cy = (y1+y2)/2, r = (bw+bh)/4;
     const band = Math.max(1.5, r*0.22);
     let ring = 0; const N = 48;
@@ -2708,7 +2708,7 @@ else if (typeof exports === 'object')
       let hit = false;
       for (let d=r-band; d<=r+0.5 && !hit; d+=0.5){
         const x = Math.round(cx + ca*d), y = Math.round(cy + sa*d);
-        if (on(x,y)) hit = true;
+        if (isInk(x,y)) hit = true;
       }
       if (hit) ring++;
     }
@@ -2718,27 +2718,27 @@ else if (typeof exports === 'object')
     const ri = Math.max(1, r - band - 1.5);
     for (let y=Math.floor(cy-ri); y<=Math.ceil(cy+ri); y++)
       for (let x=Math.floor(cx-ri); x<=Math.ceil(cx+ri); x++)
-        if ((x-cx)*(x-cx)+(y-cy)*(y-cy) <= ri*ri){ innerN++; if(on(x,y)) inner++; }
+        if ((x-cx)*(x-cx)+(y-cy)*(y-cy) <= ri*ri){ innerN++; if(isInk(x,y)) inner++; }
     if (innerN && inner/innerN > 0.45) return false;
     // Empty corners: a ring, not a square
     const cs = Math.max(1, Math.round(sz*0.12));
-    if (countOnInRect(clean,w,h,x1,y1,x1+cs-1,y1+cs-1) + countOnInRect(clean,w,h,x2-cs+1,y1,x2,y1+cs-1) +
-        countOnInRect(clean,w,h,x1,y2-cs+1,x1+cs-1,y2) + countOnInRect(clean,w,h,x2-cs+1,y2-cs+1,x2,y2) > 2) return false;
-    return standsApart(clean,w,h,x1,y1,x2,y2);
+    if (countOnInRect(inkMap,w,h,x1,y1,x1+cs-1,y1+cs-1) + countOnInRect(inkMap,w,h,x2-cs+1,y1,x2,y1+cs-1) +
+        countOnInRect(inkMap,w,h,x1,y2-cs+1,x1+cs-1,y2) + countOnInRect(inkMap,w,h,x2-cs+1,y2-cs+1,x2,y2) > 2) return false;
+    return standsApart(inkMap,w,h,x1,y1,x2,y2);
   }
   // Stands apart from letters: nothing within a third of its size on either side, across the
   // middle of its height (a letter in a word has the next letter right beside it)
-  function standsApart(clean,w,h,x1,y1,x2,y2){
+  function standsApart(inkMap,w,h,x1,y1,x2,y2){
     const sz = Math.min(x2-x1+1, y2-y1+1), bh = y2-y1+1, gap = Math.max(3, Math.round(sz*0.35));
     const ya = Math.round(y1 + bh*0.2), yb = Math.round(y2 - bh*0.2);
-    return countOnInRect(clean,w,h,x2+2,ya,Math.min(w-1,x2+gap),yb) === 0 &&
-           countOnInRect(clean,w,h,Math.max(0,x1-gap),ya,x1-2,yb) === 0;
+    return countOnInRect(inkMap,w,h,x2+2,ya,Math.min(w-1,x2+gap),yb) === 0 &&
+           countOnInRect(inkMap,w,h,Math.max(0,x1-gap),ya,x1-2,yb) === 0;
   }
 
   // Explicit 4-sided rectangle scan — finds hollow square outlines without needing
   // them to be a single connected component. Robust against thin PDF borders and
   // corner gaps that defeat the connected-component approach.
-  function rectScan(bin, w, h, minSz, maxSz, sideCovTh, innerMaxTh, accept){
+  function rectScan(inkMap, w, h, minSz, maxSz, sideCovTh, innerMaxTh, accept){
     const results = [];
     // Build row-runs of dark pixels for fast horizontal lookup
     // rowRun[y] = sorted array of {x1,x2} runs
@@ -2746,10 +2746,10 @@ else if (typeof exports === 'object')
     for(let y=0;y<h;y++){
       const runs=[]; let x=0;
       while(x<w){
-        while(x<w && !bin[y*w+x]) x++;
+        while(x<w && !inkMap[y*w+x]) x++;
         if(x>=w) break;
         const x1=x;
-        while(x<w && bin[y*w+x]) x++;
+        while(x<w && inkMap[y*w+x]) x++;
         runs.push({x1,x2:x-1});
       }
       rowRun[y]=runs;
@@ -2759,10 +2759,10 @@ else if (typeof exports === 'object')
     for(let x=0;x<w;x++){
       const runs=[]; let y=0;
       while(y<h){
-        while(y<h && !bin[y*w+x]) y++;
+        while(y<h && !inkMap[y*w+x]) y++;
         if(y>=h) break;
         const y1=y;
-        while(y<h && bin[y*w+x]) y++;
+        while(y<h && inkMap[y*w+x]) y++;
         runs.push({y1,y2:y-1});
       }
       colRun[x]=runs;
@@ -2818,7 +2818,7 @@ else if (typeof exports === 'object')
       for(let y=iy1;y<=iy2;y++){
         for(let x=ix1;x<=ix2;x++){
           total++;
-          if(bin[y*w+x]) dark++;
+          if(inkMap[y*w+x]) dark++;
         }
       }
       return dark/Math.max(1,total);
@@ -2865,20 +2865,20 @@ else if (typeof exports === 'object')
   // A side rule at x (give or take `shift` pixels) from row ya to yb: ink within a pixel of it
   // in at least `share` of the rows (nearly every row). A box's sides, a table's dividers; with
   // share 1 and no shift, a divider running unbroken from rule to rule.
-  function sideRule(clean, w, h, x, ya, yb, share = 0.85, shift = 2){
+  function sideRule(inkMap, w, h, x, ya, yb, share = 0.85, shift = 2){
     if (yb - ya < 4) return false;
     for (const xx of [x, x-1, x+1, x-2, x+2].slice(0, 1 + shift*2)){
       if (xx < 0 || xx >= w) continue;
       let n = 0;
-      for (let y=Math.max(0,ya); y<=Math.min(h-1,yb); y++) if (clean[y*w+xx] || (xx > 0 && clean[y*w+xx-1]) || (xx < w-1 && clean[y*w+xx+1])) n++;
+      for (let y=Math.max(0,ya); y<=Math.min(h-1,yb); y++) if (inkMap[y*w+xx] || (xx > 0 && inkMap[y*w+xx-1]) || (xx < w-1 && inkMap[y*w+xx+1])) n++;
       if (n >= (yb-ya+1)*share) return true;
     }
     return false;
   }
   // Two rules, T over B, joined by side rules at xa and xb (a box, a table's row or cell): the
   // sides are looked for from `gap` pixels under T to `gap` pixels over B
-  function joinedBySides(clean, w, h, T, B, xa, xb, gap){
-    return sideRule(clean, w, h, xa, T.y2 + gap, B.y1 - gap) && sideRule(clean, w, h, xb, T.y2 + gap, B.y1 - gap);
+  function joinedBySides(inkMap, w, h, T, B, xa, xb, gap){
+    return sideRule(inkMap, w, h, xa, T.y2 + gap, B.y1 - gap) && sideRule(inkMap, w, h, xb, T.y2 + gap, B.y1 - gap);
   }
 
   // ===== Open writing areas =====
@@ -2893,11 +2893,11 @@ else if (typeof exports === 'object')
   // label ending with a colon (checked once the words are read): the blank page where a form
   // ends ("Return To ... Fax 1-877-..." over half a page left empty) is no writing area.
   // rules: the page's rules, top to bottom; line: one written line's height (canvas px).
-  function areaFields(clean, w, h, s, rules, line, page, found){
+  function areaFields(inkMap, w, h, scale, rules, lineHeight, page, found){
     if (!rules.length) return [];
     // Ink, or a field already found
-    const taken = Uint8Array.from(clean);
-    const take = (f) => { for (let y=Math.max(0, Math.round(f.y*s)); y<=Math.min(h-1, Math.round((f.y+f.height)*s)); y++) taken.fill(1, y*w + Math.max(0, Math.round(f.x*s)), y*w + Math.min(w, Math.round((f.x+f.width)*s) + 1)); };
+    const taken = Uint8Array.from(inkMap);
+    const take = (f) => { for (let y=Math.max(0, Math.round(f.y*scale)); y<=Math.min(h-1, Math.round((f.y+f.height)*scale)); y++) taken.fill(1, y*w + Math.max(0, Math.round(f.x*scale)), y*w + Math.min(w, Math.round((f.x+f.width)*scale) + 1)); };
     found.forEach(take);
     // The containers: the form, then each cell
     const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2)), margin = Math.max(cx1, w - 1 - cx2);
@@ -2908,12 +2908,12 @@ else if (typeof exports === 'object')
       for (let j=i+1; j<rules.length; j++){
         const B = rules[j];
         const x1 = Math.max(A.x1, B.x1), x2 = Math.min(A.x2, B.x2);
-        if (B.y1 - A.y2 < line*1.5 || x2 - x1 < line*3) continue;
+        if (B.y1 - A.y2 < lineHeight*1.5 || x2 - x1 < lineHeight*3) continue;
         const xs = [];
-        for (let x=x1; x<=x2; x++) if (sideRule(clean, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
+        for (let x=x1; x<=x2; x++) if (sideRule(inkMap, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
         for (let k=0; k+1<xs.length; k++){
           const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 };
-          if (c.x2 - c.x1 >= line*3 && !boxes.some(o => o.x1 === c.x1 && o.x2 === c.x2 && o.y1 === c.y1)) boxes.push(c);
+          if (c.x2 - c.x1 >= lineHeight*3 && !boxes.some(o => o.x1 === c.x1 && o.x2 === c.x2 && o.y1 === c.y1)) boxes.push(c);
         }
         break;
       }
@@ -2921,24 +2921,24 @@ else if (typeof exports === 'object')
     // The foot of the form: above its last line of print when that is a footer ("CL489 (042019)
     // ... Page 3 of 3"), a line of text with only the margin under it. Blank page down to it
     // runs to the end of the form.
-    const inkRow = (y) => { let n = 0; for (let x=cx1; x<=cx2; x++) if (clean[y*w+x]) n++; return n; };
+    const inkRow = (y) => { let n = 0; for (let x=cx1; x<=cx2; x++) if (inkMap[y*w+x]) n++; return n; };
     let foot = boxes[0].y2, last = foot, top = -1;
     while (last > 0 && !inkRow(last)) last--;
-    for (let y=last; y > last - line; y--){
+    for (let y=last; y > last - lineHeight; y--){
       const n = inkRow(y);
       if (n > (cx2-cx1+1)*0.6){ top = -1; break; }                 // (a rule: no footer)
-      if (n) top = y; else if (top - y > line*0.3) break;
+      if (n) top = y; else if (top - y > lineHeight*0.3) break;
     }
-    if (top > 0 && last - top <= line*0.8 && foot - last <= line*0.5) foot = top - 1;
+    if (top > 0 && last - top <= lineHeight*0.8 && foot - last <= lineHeight*0.5) foot = top - 1;
     const out = [];
     boxes.forEach(c => {
-      const cw = c.x2 - c.x1 + 1, wide = c.form ? cw : cw*0.5, tall = line*(c.form ? 2.5 : 1.1), pad = c.form ? Math.round(line*0.3) : 2;
+      const cw = c.x2 - c.x1 + 1, wide = c.form ? cw : cw*0.5, tall = lineHeight*(c.form ? 2.5 : 1.1), pad = c.form ? Math.round(lineHeight*0.3) : 2;
       // (blank page from the left, in row y)
       const blank = (y) => { let x = c.x1; while (x <= c.x2 && !taken[y*w+x]) x++; return x - c.x1; };
       // (a label just above: ink in the container, below any rule across it)
       const label = (y) => {
-        for (let yy=y-1; yy>=Math.max(c.y1, y - Math.round(line*0.8)); yy--){
-          let n = 0; for (let x=c.x1; x<=c.x2; x++) if (clean[yy*w+x]) n++;
+        for (let yy=y-1; yy>=Math.max(c.y1, y - Math.round(lineHeight*0.8)); yy--){
+          let n = 0; for (let x=c.x1; x<=c.x2; x++) if (inkMap[yy*w+x]) n++;
           if (n > cw*0.6) return false;
           if (n) return true;
         }
@@ -2949,9 +2949,9 @@ else if (typeof exports === 'object')
         const r = y <= c.y2 ? blank(y) : 0;
         if (r >= wide - 1){ if (run) { run.y2 = y; run.r = Math.min(run.r, r); } else run = { y1: y, y2: y, r }; continue; }
         if (run && run.y2 - run.y1 + 1 >= tall && label(run.y1)){
-          const toEnd = c.form && run.y2 >= Math.min(c.y2, foot - Math.round(line*0.5));
+          const toEnd = c.form && run.y2 >= Math.min(c.y2, foot - Math.round(lineHeight*0.5));
           const y1 = run.y1 + pad, y2 = run.y2 - (c.form && run.y2 >= c.y2 ? 0 : pad), x1 = c.x1 + (c.form ? 0 : pad), x2 = c.x1 + run.r - 1 - (c.form ? 0 : pad);
-          const f = { page, x: x1/s, y: y1/s, width: (x2-x1)/s, height: (y2-y1)/s, type: (y2 - y1) > line*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(toEnd ? { toEnd: true } : {}) };
+          const f = { page, x: x1/scale, y: y1/scale, width: (x2-x1)/scale, height: (y2-y1)/scale, type: (y2 - y1) > lineHeight*1.8 ? 'textarea' : 'text', name: 'text', oscarTag: '', ...(toEnd ? { toEnd: true } : {}) };
           out.push(f); take(f);
         }
         run = null;
@@ -2964,29 +2964,29 @@ else if (typeof exports === 'object')
   // colon only a few pixels. Right after the word, past a gap, a mark narrower than half the
   // text's height, of two dots one over the other, each shorter than half that height (an i or
   // an l has a stem, a ! one long stroke), is its colon, and the word gets it.
-  function inkColons(read, clean, w, h, s){
-    const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
+  function inkColons(read, inkMap, w, h, scale){
+    const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
     read.words.forEach(wd => {
       if (!/[A-Za-z]$/.test(wd.text)) return;
-      const th = wd.y1 - wd.y0, ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
-      const ink = (x) => { for (let y=ya; y<=yb; y++) if (on(x,y)) return true; return false; };
-      let x = Math.round(wd.x1*s);
-      const xz = Math.round((wd.x1 + th*0.6)*s);
+      const th = wd.y1 - wd.y0, ya = Math.round(wd.y0*scale), yb = Math.round(wd.y1*scale);
+      const ink = (x) => { for (let y=ya; y<=yb; y++) if (isInk(x,y)) return true; return false; };
+      let x = Math.round(wd.x1*scale);
+      const xz = Math.round((wd.x1 + th*0.6)*scale);
       while (x <= xz && ink(x)) x++;                               // (the end of the word's last letter)
       while (x <= xz && !ink(x)) x++;                              // (the gap)
       if (x > xz) return;
       const x0 = x;
       while (x <= xz && ink(x)) x++;
-      if (x - x0 > th*0.5*s || x > xz) return;
+      if (x - x0 > th*0.5*scale || x > xz) return;
       const runs = [];
       for (let y=ya; y<=yb; y++){
-        let any = false; for (let xx=x0; xx<x; xx++) if (on(xx,y)) { any = true; break; }
+        let any = false; for (let xx=x0; xx<x; xx++) if (isInk(xx,y)) { any = true; break; }
         if (!any) continue;
         const r = runs[runs.length-1];
         if (r && y - r.y2 <= 1) r.y2 = y; else runs.push({ y1: y, y2: y });
       }
-      if (runs.length !== 2 || runs.some(r => r.y2 - r.y1 + 1 >= th*0.5*s)) return;
-      wd.text += ':'; wd.x1 = x/s;
+      if (runs.length !== 2 || runs.some(r => r.y2 - r.y1 + 1 >= th*0.5*scale)) return;
+      wd.text += ':'; wd.x1 = x/scale;
     });
   }
 
@@ -2996,8 +2996,8 @@ else if (typeof exports === 'object')
   // down, under the label and beside it, for more than a line ("Address:" over room for two
   // lines), the field takes that too. Not where a field was found already, nor after a heading
   // over a writing area found just below it ("EXAM(s) REQUESTED:").
-  function colonFields(read, clean, w, h, s, page, found, right){
-    const on = (x,y) => x >= 0 && x < w && y >= 0 && y < h && clean[y*w+x] === 1;
+  function colonFields(read, inkMap, w, h, scale, page, found, right){
+    const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
     // The page's typical text height (a word far shorter is a speck OCR read, not a label)
     const hs = read.words.map(wd => wd.y1 - wd.y0).sort((a,b) => a-b), wh = hs.length ? hs[hs.length >> 1] : 0;
@@ -3028,24 +3028,24 @@ else if (typeof exports === 'object')
       if (isSentence(ph)) return;
       // (nor a heading in capitals: "REASON FOR REFERRAL:")
       if (ph.length >= 3 && capsText(phraseText(ph))) return;
-      const ya = Math.round(wd.y0*s), yb = Math.round(wd.y1*s);
-      const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (on(x,y)) return true; return false; };
+      const ya = Math.round(wd.y0*scale), yb = Math.round(wd.y1*scale);
+      const inkCol = (x, y0, y1) => { for (let y=y0; y<=y1; y++) if (isInk(x,y)) return true; return false; };
       // the blank after it on its row, up to the next ink or field found, and no further than the
       // form's right edge
       const ahead = found.concat(out).filter(g => g.x > wd.x1 && Math.min(g.y + g.height, wd.y1) - Math.max(g.y, wd.y0) >= th*0.5).map(g => g.x - 2);
-      const xa = Math.round((wd.x1 + th*0.3)*s), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*s));
+      const xa = Math.round((wd.x1 + th*0.3)*scale), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*scale));
       let xb = xa;
       while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
-      const x1 = xa/s + th*0.2, x2 = xb/s - th*0.4;
+      const x1 = xa/scale + th*0.2, x2 = xb/scale - th*0.4;
       if (x2 - x1 < th*4) return;
       let f = { page, x: x1, y: wd.y0 - th*0.3, width: x2 - x1, height: th*1.6, type: 'text', name: 'text', oscarTag: '' };
       // room for more lines below it, under the label and beside it, down to the next ink
-      const la = Math.round(wd.x0*s), lb = Math.round(x2*s);
+      const la = Math.round(wd.x0*scale), lb = Math.round(x2*scale);
       let yc = yb + 1;
-      const rowBlank = (y) => { for (let x=la; x<=lb; x++) if (on(x,y)) return false; return true; };
-      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*s) - 2));
+      const rowBlank = (y) => { for (let x=la; x<=lb; x++) if (isInk(x,y)) return false; return true; };
+      const floor = Math.min(h - 1, ...found.concat(out).filter(g => g.y > wd.y1 && g.x < x2 && g.x + g.width > wd.x0).map(g => Math.round(g.y*scale) - 2));
       while (yc < floor && rowBlank(yc + 1)) yc++;
-      if (yc/s - wd.y1 > th*2.5) f = { ...f, height: yc/s - th*0.4 - f.y, type: 'textarea' };
+      if (yc/scale - wd.y1 > th*2.5) f = { ...f, height: yc/scale - th*0.4 - f.y, type: 'textarea' };
       if (found.concat(out).some(g => overlaps(f, g))) return;
       // (a heading over options: tick boxes on the next row, "Related Medical Issues:")
       if (ticks.some(b => b.y > wd.y1 - 2 && b.y - wd.y1 < th*2 && b.x < f.x + f.width && b.x + b.width > ph[0].x0)) return;
@@ -3116,13 +3116,13 @@ else if (typeof exports === 'object')
       const run = Math.round(img.width*0.03 * k), wipe = new Uint8Array(W*H);
       for (let y=0; y<H; y++) for (let x=0; x<W; ){
         if (!dark[y*W+x]){ x++; continue; }
-        const s = x; while (x<W && dark[y*W+x]) x++;
-        if (x - s >= run) wipe.fill(1, y*W+s, y*W+x);
+        const runStart = x; while (x<W && dark[y*W+x]) x++;
+        if (x - runStart >= run) wipe.fill(1, y*W+runStart, y*W+x);
       }
       for (let x=0; x<W; x++) for (let y=0; y<H; ){
         if (!dark[y*W+x]){ y++; continue; }
-        const s = y; while (y<H && dark[y*W+x]) y++;
-        if (y - s >= run) for (let t=s; t<y; t++) wipe[t*W+x] = 1;
+        const runStart = y; while (y<H && dark[y*W+x]) y++;
+        if (y - runStart >= run) for (let t=runStart; t<y; t++) wipe[t*W+x] = 1;
       }
       for (let i=0, j=0; i<wipe.length; i++, j+=4) if (wipe[i]){ px[j] = px[j+1] = px[j+2] = 255; }
       ctx.putImageData(id, 0, 0);
@@ -3347,19 +3347,19 @@ else if (typeof exports === 'object')
 
   // Typical height of the page's printed capitals, in canvas px (0 when it can't be told):
   // the median height of letter-sized blobs of ink.
-  function textCapHeight(clean, w, h){
+  function textCapHeight(inkMap, w, h){
     const seen = new Uint8Array(w*h), stack = [], hs = [];
     for (let st=0; st<w*h; st++){
-      if (!clean[st] || seen[st]) continue;
+      if (!inkMap[st] || seen[st]) continue;
       seen[st] = 1; stack.length = 0; stack.push(st);
       let minx=w, maxx=0, miny=h, maxy=0;
       while (stack.length){
         const i = stack.pop(), y = (i/w)|0, x = i - y*w;
         if (x<minx) minx=x; if (x>maxx) maxx=x; if (y<miny) miny=y; if (y>maxy) maxy=y;
-        if (x>0 && clean[i-1] && !seen[i-1]){ seen[i-1]=1; stack.push(i-1); }
-        if (x<w-1 && clean[i+1] && !seen[i+1]){ seen[i+1]=1; stack.push(i+1); }
-        if (y>0 && clean[i-w] && !seen[i-w]){ seen[i-w]=1; stack.push(i-w); }
-        if (y<h-1 && clean[i+w] && !seen[i+w]){ seen[i+w]=1; stack.push(i+w); }
+        if (x>0 && inkMap[i-1] && !seen[i-1]){ seen[i-1]=1; stack.push(i-1); }
+        if (x<w-1 && inkMap[i+1] && !seen[i+1]){ seen[i+1]=1; stack.push(i+1); }
+        if (y>0 && inkMap[i-w] && !seen[i-w]){ seen[i-w]=1; stack.push(i-w); }
+        if (y<h-1 && inkMap[i+w] && !seen[i+w]){ seen[i+w]=1; stack.push(i+w); }
       }
       const bw = maxx-minx+1, bh = maxy-miny+1;
       if (bh >= 5 && bh <= h*0.03 && bw <= bh*1.5) hs.push(bh);
@@ -3373,27 +3373,27 @@ else if (typeof exports === 'object')
   // ===== Text fields from lines (added by FreeScribe) =====
   // bands: the page's rules, top to bottom; line: one written line's height; ticks: the tick
   // boxes found on the page (all canvas px).
-  function textFieldsFromLines(clean, w, h, s, bands, line, page, ticks){
+  function textFieldsFromLines(inkMap, w, h, scale, bands, lineHeight, page, ticks){
     const maxThick = Math.max(3, Math.round(h*0.012));
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
-    const capH = textCapHeight(clean, w, h);
+    const capHeight = textCapHeight(inkMap, w, h);
     // Is this band really a line? Words drawn as one: an underline has letters standing just
     // above it along most of its length, and the tops of a run of bold capitals merge into a
     // "line" with the letters hanging right under it. (The row touching the band is skipped: a
     // line's soft edge.) A box's edge or a table row's rule can have words as close, but has
     // sides running up or down from both its ends.
     const isLine = (b) => {
-      if (!capH) return true;
+      if (!capHeight) return true;
       const crowded = (ya, yb) => {
         ya = Math.max(0, ya); yb = Math.min(h-1, yb);
         let n = 0;
-        for (let x=b.x1; x<=b.x2; x++) for (let y=ya; y<=yb; y++) if (clean[y*w+x]) { n++; break; }
+        for (let x=b.x1; x<=b.x2; x++) for (let y=ya; y<=yb; y++) if (inkMap[y*w+x]) { n++; break; }
         return n >= (b.x2-b.x1+1)*0.5;
       };
-      if (!crowded(b.y1 - Math.round(capH*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
-      const run = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb, 0.85, 0);
-      const tall = Math.round(capH*1.1);
+      if (!crowded(b.y1 - Math.round(capHeight*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
+      const run = (x, ya, yb) => sideRule(inkMap, w, h, x, ya, yb, 0.85, 0);
+      const tall = Math.round(capHeight*1.1);
       return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => run(b.x1+1, ya, yb) && run(b.x2-1, ya, yb));
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
@@ -3401,17 +3401,17 @@ else if (typeof exports === 'object')
     const lines = bands.map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
                        .filter(isLine)
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
-    const rowLine = capH ? Math.min(line, capH*1.6) : line;
-    const on = (x,y) => clean[y*w+x] === 1;
+    const rowLine = capHeight ? Math.min(lineHeight, capHeight*1.6) : lineHeight;
+    const isInk = (x,y) => inkMap[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
     // A vertical rule at x between rows ya..yb (dark in nearly every row, allowing a pixel either side)
-    const rule = (x, ya, yb) => sideRule(clean, w, h, x, ya, yb);
+    const rule = (x, ya, yb) => sideRule(inkMap, w, h, x, ya, yb);
     // Does a rule run down (or up) from x on this line, for at least a text line? A side rule
     // is thin, with blank page beside it; ink on both sides is something solid (more rules
     // stacked under a fill-in line, a shaded bar), not a side.
     const side = (x, ya, yb) => rule(x, ya, yb) && !(rule(Math.max(1, x-5), ya, yb) && rule(Math.min(w-2, x+5), ya, yb));
-    const ruleDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(line*0.7)));
-    const ruleUp = (x, y) => side(x, Math.max(0, y-Math.round(line*0.7)), y-2);
+    const ruleDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(lineHeight*0.7)));
+    const ruleUp = (x, y) => side(x, Math.max(0, y-Math.round(lineHeight*0.7)), y-2);
     const fields = [];
     // A writing area ruled with blank lines ("CURRENT MEDICATIONS" over three lines, or two
     // columns of them) is one text area. Taken one at a time, each of its lines would close a
@@ -3421,15 +3421,15 @@ else if (typeof exports === 'object')
     // lines are one area.
     const ruled = new Set();
     {
-      const near = (a, b) => Math.abs(a - b) <= line*0.5;
+      const near = (a, b) => Math.abs(a - b) <= lineHeight*0.5;
       const sideless = (L) => ![L.x1+1, L.x2-1].some(x => ruleUp(x, L.y1));
-      const blank = (xa, xb, ya, yb) => { for (let y=ya; y<=yb; y++) for (let x=xa; x<=xb; x++) if (on(x,y)) return false; return true; };
+      const blank = (xa, xb, ya, yb) => { for (let y=ya; y<=yb; y++) for (let x=xa; x<=xb; x++) if (isInk(x,y)) return false; return true; };
       // (no label: hardly any columns of ink just before the line, on its row; a box's side is one or two)
       const unlabelled = (L) => {
-        const ya = Math.max(0, L.y1 - Math.round(line*0.6)), xa = Math.max(0, L.x1 - Math.round(line*3));
+        const ya = Math.max(0, L.y1 - Math.round(lineHeight*0.6)), xa = Math.max(0, L.x1 - Math.round(lineHeight*3));
         let cols = 0;
-        for (let x=xa; x<L.x1-4; x++){ for (let y=ya; y<L.y1-1; y++) if (on(x,y)){ cols++; break; } }
-        return cols <= line*0.3;
+        for (let x=xa; x<L.x1-4; x++){ for (let y=ya; y<L.y1-1; y++) if (isInk(x,y)){ cols++; break; } }
+        return cols <= lineHeight*0.3;
       };
       const cand = lines.filter(L => sideless(L) && unlabelled(L)), used = new Set(), stacks = [];
       cand.forEach(L => {
@@ -3437,32 +3437,32 @@ else if (typeof exports === 'object')
         const st = [L];
         for (let A = L;;){
           const B = cand.find(M => !used.has(M) && M !== A && !st.includes(M) && near(M.x1, L.x1) && near(M.x2, L.x2) &&
-                                   M.y1 - A.y2 >= line*0.5 && M.y1 - A.y2 <= line*1.5 && blank(L.x1, L.x2, A.y2 + 2, M.y1 - 2));
+                                   M.y1 - A.y2 >= lineHeight*0.5 && M.y1 - A.y2 <= lineHeight*1.5 && blank(L.x1, L.x2, A.y2 + 2, M.y1 - 2));
           if (!B) break;
           st.push(B); A = B;
         }
         if (st.length < 2) return;
         const pitch = st.slice(1).map((M, k) => M.y1 - st[k].y1);
-        if (Math.max(...pitch) - Math.min(...pitch) > line*0.3) return;
+        if (Math.max(...pitch) - Math.min(...pitch) > lineHeight*0.3) return;
         st.forEach(M => used.add(M));
         const step = pitch.reduce((a, b) => a + b, 0) / pitch.length;
         stacks.push({ st, x1: Math.min(...st.map(M => M.x1)), x2: Math.max(...st.map(M => M.x2)), y1: Math.round(st[0].y1 - step*0.9), y2: st[st.length-1].y1 - 2 });
       });
       const areas = [];
       stacks.sort((a, b) => a.x1 - b.x1).forEach(k => {
-        const a = areas.find(a => a.st.length === k.st.length && near(a.y1, k.y1) && near(a.y2, k.y2) && k.x1 > a.x2 && k.x1 - a.x2 <= line*3);
+        const a = areas.find(a => a.st.length === k.st.length && near(a.y1, k.y1) && near(a.y2, k.y2) && k.x1 > a.x2 && k.x1 - a.x2 <= lineHeight*3);
         if (a){ a.x2 = k.x2; a.st = a.st.concat(k.st); } else areas.push({ ...k });
       });
       areas.forEach(a => {
         a.st.forEach(M => ruled.add(M));
-        fields.push({ page, x: a.x1/s, y: a.y1/s, width: (a.x2-a.x1)/s, height: (a.y2-a.y1)/s, type: 'textarea', name: 'text', oscarTag: '', box: false });
+        fields.push({ page, x: a.x1/scale, y: a.y1/scale, width: (a.x2-a.x1)/scale, height: (a.y2-a.y1)/scale, type: 'textarea', name: 'text', oscarTag: '', box: false });
       });
     }
     // The form's margins: where its rules start and end. A rule running from one to the other is
     // a page-wide rule (a table drawn without sides, "Dr: ____ Billing #: ____" between two such
     // rules); a fill-in line starts after its label, in from the margin.
     const marginL = Math.min(...lines.map(L => L.x1)), marginR = Math.max(...lines.map(L => L.x2));
-    const pageWide = (L) => L.x1 - marginL <= line*1.5 && marginR - L.x2 <= line*1.5;
+    const pageWide = (L) => L.x1 - marginL <= lineHeight*1.5 && marginR - L.x2 <= lineHeight*1.5;
     lines.forEach((L, i) => {
       if (ruled.has(L)) return;
       // The nearest line above that spans most of this one
@@ -3481,10 +3481,10 @@ else if (typeof exports === 'object')
       // table). Any other line is a fill-in line: two lines one over the other without sides
       // ("Name: ____" over "Address: ____", a line over a box's edge) are no row.
       let bounded = false;
-      if (top && (L.y1 - top.y2) <= line*8){
+      if (top && (L.y1 - top.y2) <= lineHeight*8){
         const xa = Math.max(L.x1, top.x1) + 1, xb = Math.min(L.x2, top.x2) - 1;
-        bounded = joinedBySides(clean, w, h, top, L, xa, xb, 2) ||
-                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= line*2.2 && !topEdge);
+        bounded = joinedBySides(inkMap, w, h, top, L, xa, xb, 2) ||
+                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= lineHeight*2.2 && !topEdge);
       }
       // (no field above a table's top edge)
       if (!bounded && topEdge) return;
@@ -3495,7 +3495,7 @@ else if (typeof exports === 'object')
       // on the line's own row ends less than its height above the line)
       const above = bounded ? null : lines.filter(M => M.y2 < L.y1 - 2 && overlap(M, L) > 0).sort((a,b) => b.y2 - a.y2)[0];
       const options = bounded ? [] : ticks.filter(t => t.x2 > L.x1 && t.x1 < L.x2 && t.y2 + (t.y2 - t.y1) < L.y1).map(t => Math.round(t.y2) + 2);
-      const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(line*1.25), above ? above.y2 + 2 : 0, ...options);
+      const ceil = bounded ? top.y2 + 2 : Math.max(0, L.y1 - Math.round(lineHeight*1.25), above ? above.y2 + 2 : 0, ...options);
       const floor = L.y1 - 2;
       // (any field is at least most of a table row's height: "PHN ____" just under a box's top edge)
       if (floor - ceil < rowLine*0.45) return;
@@ -3503,7 +3503,7 @@ else if (typeof exports === 'object')
       const cuts = [L.x1];
       if (bounded){
         // A divider runs unbroken from rule to rule; a letter's stem in a short row leaves a gap
-        const divider = (x) => sideRule(clean, w, h, x, top.y2, L.y1, 1, 0);
+        const divider = (x) => sideRule(inkMap, w, h, x, top.y2, L.y1, 1, 0);
         for (let x=L.x1+3; x<L.x2-3; x++){
           if (divider(x)){ cuts.push(x); x += 3; }
         }
@@ -3512,7 +3512,7 @@ else if (typeof exports === 'object')
       const cells = [];                                    // (the row's cells, placed once all are read)
       for (let k=0; k<cuts.length-1; k++){
         const x1 = cuts[k] + 3, x2 = cuts[k+1] - 3;
-        if (x2 - x1 < line*1.2) continue;
+        if (x2 - x1 < lineHeight*1.2) continue;
         // A cell the row's top rule doesn't reach over is a taller box beside the row (a "Name of
         // physician" box beside several rows of a table): its own top is the first rule above
         // that spans it, when its sides run up to it
@@ -3521,7 +3521,7 @@ else if (typeof exports === 'object')
           for (let j=i-1; j>=0; j--){
             const M = lines[j];
             if (M.y2 >= top.y1 || overlap(M, { x1, x2 }) < (x2-x1+1)*0.5) continue;
-            if (L.y1 - M.y2 <= line*8 && joinedBySides(clean, w, h, M, L, x1-3, x2+3, 2)) cellCeil = M.y2 + 2;
+            if (L.y1 - M.y2 <= lineHeight*8 && joinedBySides(inkMap, w, h, M, L, x1-3, x2+3, 2)) cellCeil = M.y2 + 2;
             break;
           }
         }
@@ -3533,7 +3533,7 @@ else if (typeof exports === 'object')
         const blocks = [];                                 // lines of label text, top to bottom
         for (let y=y1; y<=y2; y++){
           let n = 0, last = -1;
-          for (let x=x1; x<=x2; x++) if (on(x,y)){ n++; last = x; }
+          for (let x=x1; x<=x2; x++) if (isInk(x,y)){ n++; last = x; }
           if (n >= 2 && n > cellW*0.03){
             if (highInk < 0) highInk = y; lowInk = y; if (last > rightInk) rightInk = last;
             const b = blocks[blocks.length-1];
@@ -3542,62 +3542,62 @@ else if (typeof exports === 'object')
           }
         }
         // Faint marks under the label (the YYYY | MM | DD ticks at the foot of a date box) aren't label
-        if (blocks.length > 1 && blocks.slice(1).every(b => b.most < blocks[0].most*0.3 && b.most < line*0.5)){
+        if (blocks.length > 1 && blocks.slice(1).every(b => b.most < blocks[0].most*0.3 && b.most < lineHeight*0.5)){
           highInk = blocks[0].y1; lowInk = blocks[0].y2; rightInk = blocks[0].right; blocks.length = 1;
         }
         // Stop short of marks left in the blank part (tick boxes at the right end)
         const trim = (ya) => {
           let first = -1;
-          for (let x=x1; x<=x2 && first < 0; x++) for (let y=ya; y<=y2; y++) if (on(x,y)){ first = x; break; }
-          return first > x1 + cellW*0.5 ? first - Math.round(line*0.3) : x2;
+          for (let x=x1; x<=x2 && first < 0; x++) for (let y=ya; y<=y2; y++) if (isInk(x,y)){ first = x; break; }
+          return first > x1 + cellW*0.5 ? first - Math.round(lineHeight*0.3) : x2;
         };
         const fs = [];
         let below = null;                                  // (the top of a field under its label)
         // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
         const labelled = () => {
-          const xa = Math.max(0, L.x1 - Math.round(line*2)), ya = Math.max(0, floor - Math.round(rowLine));
-          for (let y=ya; y<=floor; y++) for (let x=xa; x<L.x1-2; x++) if (on(x,y)) return true;
+          const xa = Math.max(0, L.x1 - Math.round(lineHeight*2)), ya = Math.max(0, floor - Math.round(rowLine));
+          for (let y=ya; y<=floor; y++) for (let x=xa; x<L.x1-2; x++) if (isInk(x,y)) return true;
           return false;
         };
         if (lowInk < 0){
-          const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : line));
+          const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : lineHeight));
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
         }
-        else if (y2 - lowInk >= line*0.6){
+        else if (y2 - lowInk >= lineHeight*0.6){
           // (below any ink right under the label: its descenders, "stamp)")
           let ya = lowInk + 3;
-          const inkAt = (y) => { for (let x=x1; x<=x2; x++) if (on(x,y)) return true; return false; };
-          while (ya < y2 - line*0.6 && inkAt(ya)) ya++;
+          const inkAt = (y) => { for (let x=x1; x<=x2; x++) if (isInk(x,y)) return true; return false; };
+          while (ya < y2 - lineHeight*0.6 && inkAt(ya)) ya++;
           fs.push({ x1, y1: ya, x2: trim(ya), y2 });
           below = ya;
         }
-        else if (!capH || lowInk - highInk <= capH*1.6 || (blocks.length > 1 && blocks[blocks.length-1].y2 - blocks[blocks.length-1].y1 <= capH*1.6)){
+        else if (!capHeight || lowInk - highInk <= capHeight*1.6 || (blocks.length > 1 && blocks[blocks.length-1].y2 - blocks[blocks.length-1].y1 <= capHeight*1.6)){
           // Labels on the row ("Dr: ____ Billing #: ____ Date: ____"): a field in each wide blank
           // after a label. A lone colon set apart from its label stays with the label.
           // With more than one line of text (a paragraph of instructions leaves no field beside
           // it), only the last line, and only when it has several labels spaced along it
           // ("MENSTRUAL HISTORY" over "LMP (DATE): ____ MENOPAUSE (AGE): ____").
-          const several = capH && lowInk - highInk > capH*1.6;
+          const several = capHeight && lowInk - highInk > capHeight*1.6;
           const hi = several ? blocks[blocks.length-1].y1 : highInk, lo = several ? blocks[blocks.length-1].y2 : lowInk;
           const groups = [];
           for (let x=x1; x<=x2; x++){
             let ink = false;
-            for (let y=hi; y<=lo && !ink; y++) if (on(x,y)) ink = true;
+            for (let y=hi; y<=lo && !ink; y++) if (isInk(x,y)) ink = true;
             if (!ink) continue;
             const g = groups[groups.length-1];
-            if (g && x - g.x2 <= Math.max(3, (capH || line)*0.6)) g.x2 = x; else groups.push({ x1: x, x2: x });
+            if (g && x - g.x2 <= Math.max(3, (capHeight || lineHeight)*0.6)) g.x2 = x; else groups.push({ x1: x, x2: x });
           }
-          const labels = [], speck = capH ? capH*0.5 : line*0.15;
+          const labels = [], speck = capHeight ? capHeight*0.5 : lineHeight*0.15;
           groups.forEach(g => {
             const prev = labels[labels.length-1];
             if (prev && g.x2 - g.x1 < speck) prev.x2 = g.x2; else labels.push({ ...g });
           });
           // (in the line under a heading: below the heading, and a bullet "▪" isn't a label)
-          const ya = Math.max(y1, y2 - Math.round(line), several ? blocks[blocks.length-2].y2 + 3 : 0);
-          if (several && labels.filter(g => g.x2 - g.x1 >= (capH || line*0.3)).length < 2) labels.length = 0;
+          const ya = Math.max(y1, y2 - Math.round(lineHeight), several ? blocks[blocks.length-2].y2 + 3 : 0);
+          if (several && labels.filter(g => g.x2 - g.x1 >= (capHeight || lineHeight*0.3)).length < 2) labels.length = 0;
           labels.forEach((g, j) => {
-            const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(line*0.3) : x2;
-            if (end - g.x2 >= line*2.5) fs.push({ x1: g.x2 + Math.round(line*0.3), y1: ya, x2: end, y2, lone: labels.length === 1 });
+            const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(lineHeight*0.3) : x2;
+            if (end - g.x2 >= lineHeight*2.5) fs.push({ x1: g.x2 + Math.round(lineHeight*0.3), y1: ya, x2: end, y2, lone: labels.length === 1 });
           });
         }
         // In a box of its own: a rule above and below, and rules down both sides (a table cell, a
@@ -3613,18 +3613,18 @@ else if (typeof exports === 'object')
       // "(WAD, SPRAIN, STRAIN)"). Not when tick boxes are there: they are the cell's options, and
       // it has no field ("ORIENTATION" over "☐ Left ☐ Right"). More than a line is a paragraph,
       // with no room to write.
-      if (bounded && capH) cells.forEach(c => {
+      if (bounded && capHeight) cells.forEach(c => {
         if (c.below != null || c.lowInk < 0) return;
         const sib = cells.find(b => b.below != null && c.highInk <= b.lowInk && c.lowInk >= b.below);
         if (!sib) return;
-        if (c.lowInk - sib.lowInk > capH*1.6) return;
+        if (c.lowInk - sib.lowInk > capHeight*1.6) return;
         if (ticks.some(t => t.x2 > c.x1 && t.x1 < c.x2 && t.y2 > sib.below && t.y1 < c.y2)) return;
         c.fs = [{ x1: c.x1, y1: sib.below, x2: c.trim(sib.below), y2: c.y2 }];
       });
       cells.forEach(c => c.fs.forEach(f => {
-        if (f.x2 - f.x1 < line*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
-        const tall = (f.y2 - f.y1) > line*1.8;
-        fields.push({ page, x: f.x1/s, y: f.y1/s, width: (f.x2-f.x1)/s, height: (f.y2-f.y1)/s,
+        if (f.x2 - f.x1 < lineHeight*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
+        const tall = (f.y2 - f.y1) > lineHeight*1.8;
+        fields.push({ page, x: f.x1/scale, y: f.y1/scale, width: (f.x2-f.x1)/scale, height: (f.y2-f.y1)/scale,
                       type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone });
       }));
     });
@@ -3655,8 +3655,8 @@ else if (typeof exports === 'object')
       const annots = await page.getAnnotations({ intent: 'display' });
       const used = new Set(state.fields.map(f => f.name));
       const unique = (name) => { let n = name, k = 2; while (used.has(n)) n = `${name}_${k++}`; used.add(n); return n; };
-      const clean = (v) => String(v || '').replace(/\[\d+\]/g, '').split('.').filter(Boolean).pop() || '';
-      const tidy = (v) => clean(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+      const fieldNamePart = (v) => String(v || '').replace(/\[\d+\]/g, '').split('.').filter(Boolean).pop() || '';
+      const tidy = (v) => fieldNamePart(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
       const out = [];
       annots.forEach(a => {
         if (a.subtype !== 'Widget' || a.hidden || a.pushButton) return;
@@ -3676,7 +3676,7 @@ else if (typeof exports === 'object')
           if (opt && !/^(on|yes|off|\d+)$/.test(opt) && !name.endsWith(opt)) name = `${name}_${opt}`;
         }
         out.push({ page: pageNo, x, y, width, height, type, name: unique(name), oscarTag: '',
-                   label: clean(a.alternativeText || a.fieldName) });
+                   label: fieldNamePart(a.alternativeText || a.fieldName) });
       });
       return out.length ? out : null;
     } catch (err) {
@@ -3747,9 +3747,9 @@ else if (typeof exports === 'object')
       // scanned at a low resolution) is enlarged to that, up to twice its size, so its tick
       // boxes' thin sides don't break up; the smoothing would only blur a page near that size.
       const maxDim = 1600, longSide = Math.max(img.width, img.height);
-      const s = longSide < 1200 ? Math.min(2, maxDim / longSide) : Math.min(1, maxDim / longSide);
-      const w = Math.max(1, Math.round(img.width * s));
-      const h = Math.max(1, Math.round(img.height * s));
+      const scale = longSide < 1200 ? Math.min(2, maxDim / longSide) : Math.min(1, maxDim / longSide);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
 
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
@@ -3805,7 +3805,7 @@ else if (typeof exports === 'object')
       }
 
       // Denoise: remove isolated pixels, bridge near gaps.
-      const clean = new Uint8Array(bin);
+      const inkMap = new Uint8Array(bin);
       for(let y=1;y<h-1;y++){
         for(let x=1;x<w-1;x++){
           const idx = y*w+x;
@@ -3814,8 +3814,8 @@ else if (typeof exports === 'object')
             if(xx===0 && yy===0) continue;
             n += bin[(y+yy)*w+(x+xx)];
           }
-          if (bin[idx] && n<=1) clean[idx]=0;
-          else if (!bin[idx] && n>=7) clean[idx]=1;
+          if (bin[idx] && n<=1) inkMap[idx]=0;
+          else if (!bin[idx] && n>=7) inkMap[idx]=1;
         }
       }
 
@@ -3826,11 +3826,11 @@ else if (typeof exports === 'object')
       for(let y=0;y<h;y++){
         let x=0;
         while(x<w){
-          while(x<w && !clean[y*w+x]) x++;
+          while(x<w && !inkMap[y*w+x]) x++;
           if(x>=w) break;
           const start = x; let end = x, gap=0;
           while(x<w){
-            if(clean[y*w+x]){ end=x; gap=0; }
+            if(inkMap[y*w+x]){ end=x; gap=0; }
             else { gap++; if(gap>2) break; }
             x++;
           }
@@ -3840,7 +3840,7 @@ else if (typeof exports === 'object')
       segs.sort((a,b)=>a.y-b.y);
       // The page's rules, top to bottom (each at least minSeg long), and the height of one
       // written line, in canvas px
-      const bands = [], line = p.naturalH*0.026*s;
+      const bands = [], lineHeight = p.naturalH*0.026*scale;
       segs.forEach(sg=>{
         let merged=false;
         for(let i=bands.length-1;i>=0;i--){
@@ -3871,7 +3871,7 @@ else if (typeof exports === 'object')
       for(let y0=0;y0<h;y0++){
         for(let x0=0;x0<w;x0++){
           const st = y0*w+x0;
-          if(!clean[st] || visited[st]) continue;
+          if(!inkMap[st] || visited[st]) continue;
           visited[st] = 1;
           stack.length = 0;
           stack.push(st);
@@ -3882,14 +3882,14 @@ else if (typeof exports === 'object')
             const y = (idx/w)|0, x = idx - y*w;
             if(x<minx) minx=x; if(x>maxx) maxx=x; if(y<miny) miny=y; if(y>maxy) maxy=y;
 
-            const n1=idx-1; if(x>0   && clean[n1] && !visited[n1]){visited[n1]=1; stack.push(n1);}
-            const n2=idx+1; if(x<w-1 && clean[n2] && !visited[n2]){visited[n2]=1; stack.push(n2);}
-            const n3=idx-w; if(y>0   && clean[n3] && !visited[n3]){visited[n3]=1; stack.push(n3);}
-            const n4=idx+w; if(y<h-1 && clean[n4] && !visited[n4]){visited[n4]=1; stack.push(n4);}
+            const n1=idx-1; if(x>0   && inkMap[n1] && !visited[n1]){visited[n1]=1; stack.push(n1);}
+            const n2=idx+1; if(x<w-1 && inkMap[n2] && !visited[n2]){visited[n2]=1; stack.push(n2);}
+            const n3=idx-w; if(y>0   && inkMap[n3] && !visited[n3]){visited[n3]=1; stack.push(n3);}
+            const n4=idx+w; if(y<h-1 && inkMap[n4] && !visited[n4]){visited[n4]=1; stack.push(n4);}
           }
 
           const bw = maxx-minx+1, bh = maxy-miny+1;
-          const wNat = bw/s, hNat = bh/s;
+          const wNat = bw/scale, hNat = bh/scale;
           const sizeNat = (wNat + hNat) / 2;
 
           if(wNat<minNat || hNat<minNat || wNat>maxNat || hNat>maxNat) continue;
@@ -3899,15 +3899,15 @@ else if (typeof exports === 'object')
           if(aspect < 0.82 || aspect > 1.22) continue;
 
           // Round option buttons (○) are real fields too; anything else must pass isRealBox
-          const round = isRealCircle(clean,w,h,minx,miny,maxx,maxy);
-          if(!round && !isRealBox(clean,w,h,minx,miny,maxx,maxy,gray)) continue;
+          const round = isRealCircle(inkMap,w,h,minx,miny,maxx,maxy);
+          if(!round && !isRealBox(inkMap,w,h,minx,miny,maxx,maxy,gray)) continue;
 
           // classify as xbox if interior has significant marks.
           const type = 'checkbox';
           const size = Math.max(8, sizeNat);
           cb.push({
             page,
-            x:minx/s, y:miny/s,
+            x:minx/scale, y:miny/scale,
             width:size, height:size,
             type, name:'checkbox', oscarTag:''
           });
@@ -3916,17 +3916,17 @@ else if (typeof exports === 'object')
 
       // ── Rect scan pass: explicit 4-sided rectangle finder ─────────────────
       // Robust for thin-border PDF checkboxes that don't form a single connected component.
-      const minSzPx = Math.max(4, Math.round(minNat * s));
-      const maxSzPx = Math.round(maxNat * s);
+      const minSzPx = Math.max(4, Math.round(minNat * scale));
+      const maxSzPx = Math.round(maxNat * scale);
       // (isRealBox judges the inside, on the grey image, where a blurred side's halo isn't ink)
-      const rectCandidates = rectScan(clean, w, h, minSzPx, maxSzPx, 0.40, 1,
-        (x1,y1,x2,y2) => isRealBox(clean, w, h, x1, y1, x2, y2, gray));
+      const rectCandidates = rectScan(inkMap, w, h, minSzPx, maxSzPx, 0.40, 1,
+        (x1,y1,x2,y2) => isRealBox(inkMap, w, h, x1, y1, x2, y2, gray));
       rectCandidates.forEach(r => {
         const bw = r.x2-r.x1+1, bh = r.y2-r.y1+1;
-        const wNat = bw/s, hNat = bh/s;
+        const wNat = bw/scale, hNat = bh/scale;
         const sizeNat = (wNat+hNat)/2;
         if(sizeNat >= minNat && sizeNat <= maxNat) {
-          cb.push({ page, x:r.x1/s, y:r.y1/s, width:sizeNat, height:sizeNat, type:'checkbox', name:'checkbox', oscarTag:'' });
+          cb.push({ page, x:r.x1/scale, y:r.y1/scale, width:sizeNat, height:sizeNat, type:'checkbox', name:'checkbox', oscarTag:'' });
         }
       });
 
@@ -3945,15 +3945,15 @@ else if (typeof exports === 'object')
       // under its printed label. Lines with words sitting on them (underlined headings, the
       // bottoms of bold words, table rules under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
-      const tickRects = dedupCb.map(f => ({ x1: f.x*s, y1: f.y*s, x2: (f.x + f.width)*s, y2: (f.y + f.height)*s }));
-      textFieldsFromLines(clean, w, h, s, bands, line, page, tickRects).forEach(f => newFields.push(f));
+      const tickRects = dedupCb.map(f => ({ x1: f.x*scale, y1: f.y*scale, x2: (f.x + f.width)*scale, y2: (f.y + f.height)*scale }));
+      textFieldsFromLines(inkMap, w, h, scale, bands, lineHeight, page, tickRects).forEach(f => newFields.push(f));
       // Open writing areas under a heading, with no line or box around them, on the page or in a
       // table's cells
-      areaFields(clean, w, h, s, bands, line, page, newFields).forEach(f => newFields.push(f));
+      areaFields(inkMap, w, h, scale, bands, lineHeight, page, newFields).forEach(f => newFields.push(f));
 
       if (skew){
         // Back onto the tilted page: turn each field's centre by the page's tilt
-        const W = w/s, H = h/s, cs = Math.cos(skew), sn = Math.sin(skew);
+        const W = w/scale, H = h/scale, cs = Math.cos(skew), sn = Math.sin(skew);
         [...newFields, ...dedupCb].forEach(f => {
           const cx = f.x + f.width/2 - W/2, cy = f.y + f.height/2 - H/2;
           f.x = cx*cs - cy*sn + W/2 - f.width/2;
@@ -3968,9 +3968,9 @@ else if (typeof exports === 'object')
       const read = opts.readWords === false ? null : await readPageWords(p.imgData, dedupCb);
       // Is there a rule across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
       const ruleAcross = (x1, x2, y1, y2) => {
-        const a = Math.max(0, Math.round(x1*s)), z = Math.min(w-1, Math.round(x2*s));
-        for (let y=Math.max(0, Math.round(y1*s)); y<=Math.min(h-1, Math.round(y2*s)); y++){
-          let n = 0; for (let x=a; x<=z; x++) if (clean[y*w+x]) n++;
+        const a = Math.max(0, Math.round(x1*scale)), z = Math.min(w-1, Math.round(x2*scale));
+        for (let y=Math.max(0, Math.round(y1*scale)); y<=Math.min(h-1, Math.round(y2*scale)); y++){
+          let n = 0; for (let x=a; x<=z; x++) if (inkMap[y*w+x]) n++;
           if (n >= (z-a+1)*0.8) return true;
         }
         return false;
@@ -3979,9 +3979,9 @@ else if (typeof exports === 'object')
       // each field's label; the fields the labels split or rule out; then what's printed around
       // the fields, for their names and tags
       if (read){
-        const right = bands.length ? Math.max(...bands.map(b => b.x2))/s : w/s;   // (the form's right edge: its rules' furthest end)
-        inkColons(read, clean, w, h, s);
-        found = found.concat(colonFields(read, clean, w, h, s, page, found, right));
+        const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its rules' furthest end)
+        inkColons(read, inkMap, w, h, scale);
+        found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
         labelFields(found, read, ruleAcross);
         found = fieldsFromLabels(found);
         sectionFields(found, read);
@@ -3990,14 +3990,14 @@ else if (typeof exports === 'object')
       // and below that span it, joined by sides down from both ends of the top one (page-image
       // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
       const boxOf = (x0, f) => {
-        const a = x0*s, z = (f.x + f.width)*s, top = f.y*s, bottom = (f.y + f.height)*s;
+        const a = x0*scale, z = (f.x + f.width)*scale, top = f.y*scale, bottom = (f.y + f.height)*scale;
         const spans = (b) => b.x1 <= a + 3 && b.x2 >= z - 3;
         const tops = bands.filter(b => b.y2 < top && spans(b)).sort((p,q) => q.y2 - p.y2).slice(0, 8);
         const bots = bands.filter(b => b.y1 > bottom - 2 && spans(b)).sort((p,q) => p.y1 - q.y1).slice(0, 8);
         for (const T of tops) for (const B of bots){
           if (B.y1 - T.y2 < 4) continue;
-          if (joinedBySides(clean, w, h, T, B, T.x1 + 1, T.x2 - 1, 1))
-            return { x0: T.x1/s, x1: T.x2/s, y0: T.y1/s, y1: B.y2/s };
+          if (joinedBySides(inkMap, w, h, T, B, T.x1 + 1, T.x2 - 1, 1))
+            return { x0: T.x1/scale, x1: T.x2/scale, y0: T.y1/scale, y1: B.y2/scale };
         }
         return null;
       };

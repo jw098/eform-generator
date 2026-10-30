@@ -52,7 +52,7 @@ ink alone, so it works where the words can't be read (no WebAssembly SIMD, no wo
 `readWords: false` runs it so). Never move a call to `readPageWords`, or anything using its
 words, into pass 1.
 1. Straighten (`estimateSkew`), stretch a faint page's grey levels (`stretchGrey`, also on
-   the copy OCR reads), make an ink map (`clean`) and find the rules (`bands`). The ink map
+   the copy OCR reads), make an ink map (`inkMap`) and find the rules (`bands`). The ink map
    drops lone pixels: keep that, even for clean PDFs (a lone pixel on the Diabetes form's top
    edge becomes a writing area without it). It also drops a small colon's one-pixel dots
    ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a rule can't rely on every colon.
@@ -188,7 +188,7 @@ size it against the page.
   other forms, the rule is probably the wrong one: look for the general fact instead.
 - Prefer one shared test over another copy with its own thresholds, and size thresholds
   against the page (its rules, its printed text), not fixed pixel counts. Know which pixels a
-  threshold counts: the canvas Auto Detect works on (`clean`, `bands`, `line`, `capH`) is the
+  threshold counts: the canvas Auto Detect works on (`inkMap`, `bands`, `lineHeight`, `capHeight`) is the
   page resized to about 1600 px on its long side (twice the size for a page under 800 px), so
   it is already sized to the page; page-image pixels (OCR's words, the fields) are not (the
   cases are 850 to 1500 px wide, the variations 0.7× to 3× that).
