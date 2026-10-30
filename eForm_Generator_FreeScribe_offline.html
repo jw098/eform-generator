@@ -324,6 +324,43 @@
   </section>
 
   <aside class="card pane pane-right">
+    <details id="settingsPanel">
+      <summary class="collapsible-summary"><span id="settingsPlus" class="plus-pill">+</span><span>Settings</span><span id="settingsCustom" class="small"></span></summary>
+      <div style="margin-top:8px">
+        <div class="panel-title" style="margin-top:0">Interaction</div>
+        <div class="row">
+          <label style="display:flex;align-items:center;gap:6px"><input id="chkSnap" type="checkbox" checked/> Snap while dragging</label>
+          <label>Snap px <input id="snapPx" type="number" value="8" min="1" max="40" style="width:78px"/></label>
+          <label style="display:flex;align-items:center;gap:6px"><input id="chkGuides" type="checkbox" checked/> Show guides</label>
+        </div>
+        <div class="small">Juno-style alignment help: selected fields can snap to nearby edges/centers.</div>
+        <div class="hr"></div>
+        <details id="detectionTuningPanel">
+          <summary class="collapsible-summary"><span id="tuningPlus" class="plus-pill">+</span><span>Auto Detect tuning (advanced)</span><span id="tuningCustom" class="small"></span></summary>
+          <div style="margin-top:8px">
+            <div class="small" style="margin-bottom:8px">Auto Detect is tested with the standard values; other values can find fewer or wrong fields.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <button id="btnPresetStandard" class="btn btn-small" title="The default values, the ones Auto Detect is tested with">Reset to standard</button>
+              <button id="btnPresetSmall" class="btn btn-small" title="For dense forms with small PDF checkboxes (10-16px)">Small boxes</button>
+              <button id="btnPresetLarge" class="btn btn-small" title="For larger hand-drawn or printed checkbox squares (20-35px)">Large boxes</button>
+              <button id="btnPresetLines" class="btn btn-small" title="Text input lines only, skip checkbox detection">Lines only</button>
+            </div>
+            <div class="grid3">
+              <label title="In pixels on a page 1500 px across; scaled with the page">Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
+              <label title="In pixels on a page 1500 px across; scaled with the page">Max checkbox px<input id="maxCb" type="number" value="32" min="8" max="100"/></label>
+              <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
+            </div>
+            <div class="grid3" style="margin-top:8px">
+              <label>Line min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
+              <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
+              <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <div class="hr"></div>
     <details id="templateImportPanel">
       <summary class="collapsible-summary"><span id="templatePlus" class="plus-pill">+</span><span>eForm HTML import</span><span id="templateCount" class="small"></span></summary>
       <div style="margin-top:8px">
@@ -352,15 +389,6 @@
     </div>
     <div class="small">Tags untagged fields from their names and labels, using imported templates' name↔tag map when there is one.</div>
 
-
-    <div class="hr"></div>
-    <div class="panel-title">Interaction</div>
-    <div class="row">
-      <label style="display:flex;align-items:center;gap:6px"><input id="chkSnap" type="checkbox" checked/> Snap while dragging</label>
-      <label>Snap px <input id="snapPx" type="number" value="8" min="1" max="40" style="width:78px"/></label>
-      <label style="display:flex;align-items:center;gap:6px"><input id="chkGuides" type="checkbox" checked/> Show guides</label>
-    </div>
-    <div class="small">Juno-style alignment help: selected fields can snap to nearby edges/centers.</div>
 
     <div class="hr"></div>
     <div class="panel-title">Selected field</div>
@@ -435,30 +463,6 @@
     <div class="small">Edit this output directly before final export. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible).</div>
     <textarea id="exportEditor" class="export-editor mono" placeholder="Build draft to populate editable HTML..." style="margin-top:8px"></textarea>
     
-
-    <div class="hr"></div>
-    <details id="detectionTuningPanel">
-      <summary class="collapsible-summary"><span id="tuningPlus" class="plus-pill">+</span><span>Auto Detect tuning (advanced)</span><span id="tuningCustom" class="small"></span></summary>
-      <div style="margin-top:8px">
-        <div class="small" style="margin-bottom:8px">Auto Detect is tested with the standard values; other values can find fewer or wrong fields.</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          <button id="btnPresetStandard" class="btn btn-small" title="The default values, the ones Auto Detect is tested with">Reset to standard</button>
-          <button id="btnPresetSmall" class="btn btn-small" title="For dense forms with small PDF checkboxes (10-16px)">Small boxes</button>
-          <button id="btnPresetLarge" class="btn btn-small" title="For larger hand-drawn or printed checkbox squares (20-35px)">Large boxes</button>
-          <button id="btnPresetLines" class="btn btn-small" title="Text input lines only, skip checkbox detection">Lines only</button>
-        </div>
-        <div class="grid3">
-          <label title="In pixels on a page 1500 px across; scaled with the page">Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
-          <label title="In pixels on a page 1500 px across; scaled with the page">Max checkbox px<input id="maxCb" type="number" value="32" min="8" max="100"/></label>
-          <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
-        </div>
-        <div class="grid3" style="margin-top:8px">
-          <label>Line min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
-          <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
-          <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
-        </div>
-      </div>
-    </details>
 
     <div class="hr"></div>
     <details id="converterPanel">
@@ -2580,12 +2584,14 @@ else if (typeof exports === 'object')
     large:    { minCb:16, maxCb:50, tolCb:10, darkBias:6,  gradMult:1.0, lineMinPct:7.5},
     lines:    { minCb:999,maxCb:999,tolCb:1,  darkBias:8,  gradMult:0.9, lineMinPct:7.5},
   };
-  // The tuning panel's heading says "· custom" while any value isn't the standard one, so a
-  // change shows with the panel closed (it is saved with the session too)
+  // The tuning panel's heading says "· custom" while any value isn't the standard one, and the
+  // Settings heading "· tuning custom", so a change shows with the panels closed (it is saved
+  // with the session too)
   function syncTuningMarker(){
     const std = DETECT_PRESETS.standard;
     const custom = TUNING_IDS.some(id => $(id) && Number($(id).value) !== std[id]);
     $('tuningCustom').textContent = custom ? '· custom' : '';
+    $('settingsCustom').textContent = custom ? '· tuning custom' : '';
   }
   TUNING_IDS.forEach(id => { if ($(id)) $(id).addEventListener('input', syncTuningMarker); });
   async function applyDetectPreset(name){
@@ -4771,6 +4777,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   if ($('btnRemovePage')) $('btnRemovePage').addEventListener('click', removePage);
 
   mountConverterTop();
+  initCollapse('settingsPanel', 'settingsPlus');
   initCollapse('detectionTuningPanel', 'tuningPlus');
   syncTuningMarker();
   initCollapse('templateImportPanel', 'templatePlus');
