@@ -437,8 +437,7 @@
         <div class="row" style="align-items:stretch">
           <input id="fTag" type="text" list="tagSuggestions" placeholder="patient_name"/>
           <select id="fTagSelect" style="min-width:150px"><option value="">Choose tag...</option></select>
-          <button id="btnUseTag" type="button">Use</button>
-          <button id="btnGuessTag" type="button">Guess</button>
+          <button id="btnGuessTag" type="button" title="Guesses the OSCAR tag based on the field's name.">Guess tag</button>
         </div>
         <datalist id="tagSuggestions"></datalist>
       </label>
@@ -2496,12 +2495,6 @@ else if (typeof exports === 'object')
   $('fType').addEventListener('change', applyEditorToSelected);
   $('fFontButtons').addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); });
 
-  $('btnUseTag').addEventListener('click', ()=>{
-    const chosenTag = $('fTagSelect').value;
-    if(!chosenTag) return;
-    $('fTag').value = chosenTag;
-    applyEditorToSelected();
-  });
   $('fTagSelect').addEventListener('change', ()=>{
     const chosenTag = $('fTagSelect').value;
     if(!chosenTag) return;
