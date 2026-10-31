@@ -4773,13 +4773,14 @@ function formSubmitAndFax(){
 <\/script>
 `;
 
-  let bodyOnloadParts = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
+  // (the steps of startup(), which the body's onload calls)
+  let startupSteps = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
   // (font size buttons: their script and style, and the saved sizes put back on load, only when a field has them)
   const usesFontButtons = exportPages.some(page => getPageFields(page).some(f => f.type === 'fontbuttons'));
   // (first: it needs nothing else, so a failing step after it can't stop it)
-  if (usesFontButtons) bodyOnloadParts.unshift('loadFontSize()');
+  if (usesFontButtons) startupSteps.unshift('loadFontSize()');
   // (each page's background image, first of all, so the page shows whatever else fails)
-  bodyOnloadParts.unshift(...exportPages.map(page => `changeImage('${pageImageName(page)}', 'BGImage${page}')`));
+  startupSteps.unshift(...exportPages.map(page => `changeImage('${pageImageName(page)}', 'BGImage${page}')`));
   const fontButtonScript = !usesFontButtons ? '' : `<script>
 // Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
 // its hidden "<name>_fontsize" input so it is saved with the form
@@ -4804,12 +4805,20 @@ function loadFontSize(){
 `;
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
-      // (an imported eForm's own changeImage calls name its old image files: ours replace them)
-      const onloadCall = String(onload||'').replace(/\bchangeImage\s*\([^)]*\)\s*;?/g, '').trim();
-      if (onloadCall && !/^SignForm\(\)\s*;?$/i.test(onloadCall)) bodyOnloadParts.push(onloadCall);
+      // (an imported eForm's own changeImage calls name its old image files, and its startup() is
+      // the one this export's replaces)
+      const onloadCall = String(onload||'').replace(/\b(changeImage\s*\([^)]*\)|startup\s*\(\s*\))\s*;?/g, '').trim();
+      if (onloadCall && !/^SignForm\(\)\s*;?$/i.test(onloadCall)) startupSteps.push(onloadCall);
     });
   }
-  const bodyOnload = bodyOnloadParts.join('; ');
+  // (last in the head, so it is the startup() an imported eForm's scripts may also define)
+  const startupScript = `<script>
+// On load: shows each page's background image, then sets up the fax number, signature and the rest
+function startup(){
+${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<\\/')).join('\n')}
+}
+<\/script>
+`;
 
   const docTitle = (state.exportTitle && String(state.exportTitle).trim()) ? String(state.exportTitle).trim() : 'Generated OSCAR eForm';
   const docAuthor = String(state.exportAuthor || '').trim();
@@ -4882,9 +4891,8 @@ function loadFontSize(){
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}
-</head>
-<body onload="${escAttr(bodyOnload)}">
+${fontButtonScript}${addonScripts}${startupScript}</head>
+<body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
   const hiddenCurrentUser = '<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">';
