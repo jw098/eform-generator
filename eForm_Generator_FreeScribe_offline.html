@@ -4637,6 +4637,20 @@ ${jqueryMode === 'legacy' ? '' : `<script type="text/javascript" src="https://cd
 <script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\\/script>')<\/script>
 
 <script>
+// Points a page's background image at its file: in OSCAR's image folder once the eForm is in
+// OSCAR (opened over http), or beside the eForm's HTML when it is opened from disk
+function changeImage(img, imgId){
+  var bg = document.getElementById(imgId);
+  if (bg) bg.src = resourceLink(img);
+}
+// A file's address: "\${oscar_image_path}page1.png" in OSCAR, "page1.png" opened from disk
+function resourceLink(resource){
+  var prefix = (window.location.href.toLowerCase().indexOf('http') != -1) ? '\${oscar_image_path}' : '';
+  return prefix + resource;
+}
+<\/script>
+
+<script>
 $(document).ready(function() {
   $('[class^="child-"]').hide();
   $('.parent-field').click(function() {
@@ -4764,6 +4778,8 @@ function formSubmitAndFax(){
   const usesFontButtons = exportPages.some(page => getPageFields(page).some(f => f.type === 'fontbuttons'));
   // (first: it needs nothing else, so a failing step after it can't stop it)
   if (usesFontButtons) bodyOnloadParts.unshift('loadFontSize()');
+  // (each page's background image, first of all, so the page shows whatever else fails)
+  bodyOnloadParts.unshift(...exportPages.map(page => `changeImage('${pageImageName(page)}', 'BGImage${page}')`));
   const fontButtonScript = !usesFontButtons ? '' : `<script>
 // Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
 // its hidden "<name>_fontsize" input so it is saved with the form
@@ -4788,7 +4804,8 @@ function loadFontSize(){
 `;
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
-      const onloadCall = String(onload||'').trim();
+      // (an imported eForm's own changeImage calls name its old image files: ours replace them)
+      const onloadCall = String(onload||'').replace(/\bchangeImage\s*\([^)]*\)\s*;?/g, '').trim();
       if (onloadCall && !/^SignForm\(\)\s*;?$/i.test(onloadCall)) bodyOnloadParts.push(onloadCall);
     });
   }
