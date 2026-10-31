@@ -2145,8 +2145,13 @@ else if (typeof exports === 'object')
       applyLassoSelection(); renderAll();
     }
   });
-  // Letting go of the mouse ends a drag, resize or lasso
-  document.addEventListener('mouseup', ()=>{ state.drag=null; state.resize=null; state.snapGuides={page:state.currentPage,x:null,y:null}; if(state.lasso){ state.lasso=null; renderAll(); } else { renderAll(); } });
+  // Letting go of the mouse ends a drag, resize or lasso. Only then is the page drawn again: a
+  // redraw on every mouseup would reset the editor's dropdowns as a click opens them
+  document.addEventListener('mouseup', ()=>{
+    const wasMoving = state.drag || state.resize || state.lasso;
+    state.drag=null; state.resize=null; state.lasso=null; state.snapGuides={page:state.currentPage,x:null,y:null};
+    if (wasMoving) renderAll();
+  });
 
   // Whether a key press is going into a text box or list (so it isn't a canvas shortcut)
   function isTypingTarget(target){
