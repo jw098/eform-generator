@@ -449,7 +449,7 @@
         <label id="fCustomTextBlock" style="display:none;margin-top:8px">Text
           <input id="fCustomText" type="text" placeholder="Text shown in the field"/>
         </label>
-        <div class="small" style="margin-top:4px">Not exported yet: the field is exported with no tag for now.</div>
+        <div id="fCustomNotYet" class="small" style="margin-top:4px">Not exported yet: the field is exported with no tag for now.</div>
       </div>
       <label id="fTagBlock" style="margin-top:8px;display:block">OSCAR tag
         <div class="row" style="align-items:stretch">
@@ -2447,11 +2447,11 @@ else if (typeof exports === 'object')
   // ===== The Selected field editor =====
   // What a field can be filled with in place of an oscarDB tag, for what OSCAR 12's tags can't
   // do (tick the box for the patient's sex) or give (more than one phone, a fixed text); `for`
-  // is the kind of field each suits. (The export doesn't write them yet: a field with one is
-  // exported untagged.)
+  // is the kind of field each suits, and `exported` says the export writes it (a field with one
+  // it doesn't write yet is exported untagged)
   const CUSTOM_ACTIONS = [
-    { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick' },
-    { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick' },
+    { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick', exported: true },
+    { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick', exported: true },
     { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text' },
     { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text' },
     { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text' },
@@ -2485,6 +2485,7 @@ else if (typeof exports === 'object')
     $('fCustomAction').value = f.fill ? (f.fill.action || '') : '';
     const action = f.fill && customActionById(f.fill.action);
     $('fCustomTextBlock').style.display = action && action.takesText ? 'block' : 'none';
+    $('fCustomNotYet').style.display = action && !action.exported ? 'block' : 'none';
     $('fCustomText').value = f.fill ? (f.fill.text || '') : '';
   }
   // The tag list and suggestions: the standard tags, which never change
@@ -4490,9 +4491,16 @@ function fontButtonsMarkup(name, x, y){
   return [button('&#9650;', 'Increase font size', y, 1), button('&#9660;', 'Decrease font size', y + FONT_BUTTON_GAP, -1),
           `<input type="hidden" name="${name}_fontsize" id="${name}_fontsize">`].join('\n');
 }
+// The sex ("M" or "F") a tick box is ticked for when the form opens, from its custom fill
+// ("Check this box if gender is Male"), or '' for any other field
+function sexToTick(f){
+  if (!usesCustomFill(f) || (f.type !== 'checkbox' && f.type !== 'xbox')) return '';
+  return f.fill.action === 'sex_male' ? 'M' : f.fill.action === 'sex_female' ? 'F' : '';
+}
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
 // that a click turns on and off) or a text input; `inlinePosStyle` places it on the page. (A
-// field with a custom fill has no tag; its action isn't exported yet.)
+// field with a custom fill has no tag: a tick box for a sex carries it as data-tick-if-sex, and
+// the other actions aren't exported yet.)
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = usesCustomFill(f) ? '' : escAttr(f.oscarTag || '');
@@ -4506,7 +4514,8 @@ function inputMarkup(f, inlinePosStyle=''){
     // (a read-only text box over the printed box, with no border of its own: a click, Space or
     // Enter writes an X in it or takes it out)
     const style = `${inlinePosStyle} border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;`;
-    return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
+    const sex = sexToTick(f), sexAttr = sex ? ` data-tick-if-sex="${sex}"` : '';
+    return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr}${sexAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
   }
   // (a date field is a plain text input too, which OSCAR fills with text)
   return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
@@ -4909,6 +4918,34 @@ function loadFontSize(){
 }
 <\/script>
 `;
+  // (tick boxes for the patient's sex: OSCAR fills a hidden field tagged "sex" with "M" or "F",
+  // and on a new form the box for it is ticked; a saved form keeps its boxes as saved, which
+  // the hidden "newForm" flag, turned off on submit, tells apart)
+  const usesSexBoxes = exportPages.some(page => getPageFields(page).some(f => sexToTick(f)));
+  const sexBoxScript = !usesSexBoxes ? '' : `<script>
+// On a new form, ticks each box for the patient's sex (data-tick-if-sex="M" or "F"), from the
+// hidden PatientGender field that OSCAR fills; a saved form's boxes are left as they were saved
+function tickSexBoxes(){
+  var flag = document.getElementById('newForm'), sexField = document.getElementById('PatientGender');
+  if (!flag || flag.value !== 'True' || !sexField) return;
+  var sex = String(sexField.value || '').trim().toUpperCase();
+  var boxes = document.querySelectorAll('[data-tick-if-sex]');
+  for (var i = 0; i < boxes.length; i++){
+    if (sex && boxes[i].getAttribute('data-tick-if-sex') === sex) boxes[i].value = 'X';
+  }
+}
+// Marks the form saved, so the next time it opens its boxes aren't ticked again
+function markFormSaved(){
+  var flag = document.getElementById('newForm');
+  if (flag){ flag.value = 'False'; flag.setAttribute('value', 'False'); }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var form = document.getElementById('FormName');
+  if (form) form.addEventListener('submit', markFormSaved);
+});
+<\/script>
+`;
+  if (usesSexBoxes) startupSteps.push('tickSexBoxes()');
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -4997,11 +5034,12 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}${startupScript}</head>
+${fontButtonScript}${addonScripts}${sexBoxScript}${startupScript}</head>
 <body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
   const hiddenCurrentUser = '<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">';
+  const hiddenSexFields = '<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">\n<input type="hidden" id="newForm" name="newForm" value="True">';
   return exportPages.map((page, idx) => {
     const pageInfo = state.pages[page];
     const scale = pageInfo.naturalW ? (EXPORT_W / pageInfo.naturalW) : 1;
@@ -5016,7 +5054,7 @@ ${(function(){
     const imageSrc = '${oscar_image_path}' + pageImageName(page);
     const isLast = idx === exportPages.length - 1;
     const tailHtml = '';
-    const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCurrentUser : '';
+    const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCurrentUser + (usesSexBoxes ? '\n' + hiddenSexFields : '') : '';
     return pageMarkup(page, fields, sigField, pageInfo.naturalW, pageInfo.naturalH, imageSrc, scale, !isLast, tailHtml, afterHtml);
   }).join('');
 })()}
