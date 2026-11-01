@@ -96,6 +96,10 @@
   /* A textarea's font size buttons (▲ over ▼), as the eForm will show them; dragged as one */
   .field.fontbuttons{border:0;background:transparent;border-radius:0}
   .field.fontbuttons.selected{outline:2px solid #2563eb;outline-offset:1px}
+  /* A phone field's phone selector, drawn as the dropdown it is on the eForm */
+  .field.phoneselect{border:1px solid var(--violet);background:#fff;border-radius:3px;color:var(--violet);
+    display:flex;align-items:center;justify-content:space-between;padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
+  .field.phoneselect.selected{outline:2px solid #2563eb;outline-offset:1px}
   .field-font{position:absolute;left:0;width:100%;background:yellow;border:1px solid #000;color:#000;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;box-sizing:border-box}
   .resize{
     position:absolute;width:9px;height:9px;border:1px solid #fff;background:#2563eb;
@@ -433,6 +437,7 @@
             <option value="date">date</option>
             <option value="signature">signature</option>
             <option value="fontbuttons" disabled>font size buttons</option>
+            <option value="phoneselect" disabled>phone selector</option>
           </select>
         </label>
       </div>
@@ -990,6 +995,8 @@ else if (typeof exports === 'object')
   const EXPORT_PAGE_W = 750;
   // The size of a font size button (▲ or ▼) on the eForm, and how far apart the two are, in its pixels
   const FONT_BUTTON_W = 18, FONT_BUTTON_H = 17, FONT_BUTTON_GAP = 20;
+  // The size of a phone field's phone selector on the eForm, in its pixels
+  const PHONE_SELECT_W = 100, PHONE_SELECT_H = 20;
 
 
   // The element with this id
@@ -1162,7 +1169,7 @@ else if (typeof exports === 'object')
   // label (Auto Detect passes only the label: a section heading in a name is only for the name).
   // A label written as a tag's own name ("current_user_id") keeps that tag.
   function guessTag(name='', type='text', label='', owner=''){
-    if (type === 'signature' || isTickType(type) || type === 'fontbuttons') return '';   // (a signature is its type, not a tag; a tick box and font size buttons have none)
+    if (type === 'signature' || isTickType(type) || isAttachedType(type)) return '';   // (a signature is its type, not a tag; a tick box and a field's controls have none)
     // (a question asks for an answer, not the details it names: "ARE YOU THE PATIENT'S REGULAR
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
@@ -1729,7 +1736,7 @@ else if (typeof exports === 'object')
     pushUndo();
     let changed=0;
     state.fields.forEach(f => {
-      if (f.oscarTag || usesCustomFill(f) || isTickType(f.type) || f.type === 'fontbuttons') return;
+      if (f.oscarTag || usesCustomFill(f) || isTickType(f.type) || isAttachedType(f.type)) return;
       const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
       const tag = fromMap || guessTag(f.name, f.type, f.label);
       if (tag){ f.oscarTag=tag; changed++; }
@@ -1783,50 +1790,65 @@ else if (typeof exports === 'object')
   }
   // The fields on a page
   function getPageFields(page){ const pageNo = Number(page); return state.fields.filter(f => Number(f.page) === pageNo); }
-  // The fields that are a form's own (not a textarea's font size buttons): what counts, gets a
-  // name on the eForm, a tag, a duplicate warning
-  function dataFields(fields){ return fields.filter(f => f.type !== 'fontbuttons'); }
+  // The fields that are a form's own (not a field's font size buttons or phone selector): what
+  // counts, gets a name on the eForm, a tag, a duplicate warning
+  function dataFields(fields){ return fields.filter(f => !isAttachedType(f.type)); }
 
-  // Keeps each textarea's font size buttons in step with it. The buttons are a field of their own
-  // (type 'fontbuttons', `target` the textarea's id), so they can be dragged anywhere. A textarea
-  // gets them unless they were turned off (fontButtons: false), at first just right of its
-  // top-right corner; they go when it does (or stops being a textarea); and they follow it: when
-  // its top-right corner moves (dragged, nudged, resized, typed in), they move as much
-  // (`anchor` is where that corner was). They are always a button's size on the eForm.
+  // The controls a field has on the eForm that are fields of their own, so they can be dragged
+  // anywhere (`target` the field's id): a textarea's font size buttons, and the phone selector
+  // of a field filled with "Phone: controlled by selector dropdown". Each says which fields have
+  // one, its size on the eForm, and where it goes at first: just right of the field's top-right
+  // corner (inside it where the page ends), `below` that much lower in the eForm's pixels (a
+  // textarea's phone selector, under its font size buttons)
+  const ATTACHED_CONTROLS = {
+    fontbuttons: { has: hasFontButtons, w: FONT_BUTTON_W, h: FONT_BUTTON_GAP + FONT_BUTTON_H, below: () => 0 },
+    phoneselect: { has: hasPhoneSelect, w: PHONE_SELECT_W, h: PHONE_SELECT_H, below: t => hasFontButtons(t) ? FONT_BUTTON_GAP + FONT_BUTTON_H + 4 : 0 },
+  };
+  // Keeps each field's controls in step with it. A field gets each control it has (font size
+  // buttons unless they were turned off, fontButtons: false); one goes when its field does (or
+  // stops having it); and it follows its field: when the field's top-right corner moves (dragged,
+  // nudged, resized, typed in), it moves as much (`anchor` is where that corner was). It is always
+  // its own size on the eForm.
   function syncFontButtons(){
     let byId = new Map(state.fields.map(f => [f.id, f]));
-    const keeps = (b) => { const t = byId.get(b.target); return t && t.type === 'textarea' && t.fontButtons !== false && samePage(t.page, b.page); };
+    const keeps = (b) => { const t = byId.get(b.target); return t && ATTACHED_CONTROLS[b.type].has(t) && samePage(t.page, b.page); };
     const owned = new Set();
     state.fields = state.fields.filter(f => {
-      if (f.type !== 'fontbuttons') return true;
-      if (!keeps(f) || owned.has(f.target)){ state.selected.delete(f.id); return false; }
-      owned.add(f.target); return true;
+      if (!isAttachedType(f.type)) return true;
+      const key = f.type + ':' + f.target;
+      if (!keeps(f) || owned.has(key)){ state.selected.delete(f.id); return false; }
+      owned.add(key); return true;
     });
-    state.fields.filter(t => t.type === 'textarea' && t.fontButtons !== false && !owned.has(t.id)).forEach(t => {
-      const pageInfo = state.pages[t.page]; if (!pageInfo || !pageInfo.naturalW) return;
-      const k = EXPORT_PAGE_W / pageInfo.naturalW;
-      const spots = fontButtonSpots(t.x*k, t.y*k, t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k);
-      addField({ page: t.page, x: spots.x/k, y: spots.upY/k, type: 'fontbuttons', name: t.name, target: t.id });
+    Object.entries(ATTACHED_CONTROLS).forEach(([type, control]) => {
+      state.fields.filter(t => !isAttachedType(t.type) && control.has(t) && !owned.has(type + ':' + t.id)).forEach(t => {
+        const pageInfo = state.pages[t.page]; if (!pageInfo || !pageInfo.naturalW) return;
+        const k = EXPORT_PAGE_W / pageInfo.naturalW;
+        const spots = fontButtonSpots(t.x*k, t.y*k + control.below(t), t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k, control.w, control.h);
+        addField({ page: t.page, x: spots.x/k, y: spots.upY/k, type, name: t.name, target: t.id });
+      });
     });
     byId = new Map(state.fields.map(f => [f.id, f]));
     state.fields.forEach(b => {
-      if (b.type !== 'fontbuttons') return;
+      if (!isAttachedType(b.type)) return;
       const t = byId.get(b.target), pageInfo = state.pages[b.page]; if (!t || !pageInfo || !pageInfo.naturalW) return;
       const k = EXPORT_PAGE_W / pageInfo.naturalW, corner = { x: t.x + t.width, y: t.y };
-      b.name = t.name; b.width = FONT_BUTTON_W / k; b.height = (FONT_BUTTON_GAP + FONT_BUTTON_H) / k;
+      b.name = t.name; b.width = ATTACHED_CONTROLS[b.type].w / k; b.height = ATTACHED_CONTROLS[b.type].h / k;
       if (b.anchor){ b.x += corner.x - b.anchor.x; b.y += corner.y - b.anchor.y; }
       b.x = clamp(b.x, 0, Math.max(0, pageInfo.naturalW - b.width)); b.y = clamp(b.y, 0, Math.max(0, pageInfo.naturalH - b.height));
       b.anchor = corner;
     });
   }
-  // Removes the selected fields (a textarea's buttons go with it); taking away a textarea's
-  // buttons on their own turns them off for it
+  // Removes the selected fields (a field's controls go with it); taking away a textarea's
+  // buttons on their own turns them off for it. A phone selector stays while its field has the
+  // phone action: it goes when the action changes.
   function deleteSelectedFields(){
     state.fields.forEach(b => {
       if (b.type !== 'fontbuttons' || !state.selected.has(b.id) || state.selected.has(b.target)) return;
       const t = state.fields.find(k => k.id === b.target); if (t) t.fontButtons = false;
     });
-    state.fields = state.fields.filter(f => !state.selected.has(f.id)); state.selected.clear(); renderAll();
+    const keepsSelector = (f) => f.type === 'phoneselect' && !state.selected.has(f.target);
+    if (state.fields.some(f => state.selected.has(f.id) && keepsSelector(f))) msg('A phone selector goes when its field\'s custom action changes.', 'warn');
+    state.fields = state.fields.filter(f => !state.selected.has(f.id) || keepsSelector(f)); state.selected.clear(); renderAll();
   }
   // A page's image, its wrapper and the overlay its fields are drawn on
   function getPageImgEl(page){ return $('img'+page); }
@@ -1882,6 +1904,13 @@ else if (typeof exports === 'object')
         button.style.top = (top * 100) + '%'; button.style.height = (share * 100) + '%'; button.style.fontSize = Math.max(6, f.height * sy * share * 0.65) + 'px';
         fieldDiv.appendChild(button);
       });
+      fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
+      return fieldDiv;
+    }
+    // (a phone field's phone selector: a dropdown, no tag, label or resize handle)
+    if (f.type === 'phoneselect'){
+      fieldDiv.classList.add('phoneselect'); fieldDiv.style.fontSize = Math.max(6, f.height * sy * 0.6) + 'px';
+      fieldDiv.innerHTML = '<span>\u260E\uFE0E phone</span><span>\u25BE</span>'; fieldDiv.title = `The phone selector of "${f.name}"`;
       fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
       return fieldDiv;
     }
@@ -2157,7 +2186,7 @@ else if (typeof exports === 'object')
       const pageInfo = state.pages[page];
       state.selected.forEach(id => {
         const f = state.fields.find(k => k.id===id && samePage(k.page,page)); if (!f) return;
-        if (f.type === 'fontbuttons' && state.selected.has(f.target)) return;   // (they follow their textarea)
+        if (isAttachedType(f.type) && state.selected.has(f.target)) return;   // (they follow their field)
         const startPos = startPositions[id];
         f.x = clamp((startPos?.x ?? f.x)+dx,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
         f.y = clamp((startPos?.y ?? f.y)+dy,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
@@ -2192,8 +2221,8 @@ else if (typeof exports === 'object')
 
   // Copies the selected fields, keeping their places relative to each other
   function copySelectedFields(){
-    // (a textarea's buttons go with it, and come back on it; buttons without their textarea don't)
-    const selectedFields = state.fields.filter(f => f.type === 'fontbuttons' ? state.selected.has(f.target) : state.selected.has(f.id));
+    // (a field's controls go with it, and come back on it; controls without their field don't)
+    const selectedFields = state.fields.filter(f => isAttachedType(f.type) ? state.selected.has(f.target) : state.selected.has(f.id));
     if (!selectedFields.length){ msg('No selected fields to copy.', 'warn'); return; }
     const minX = Math.min(...selectedFields.map(f=>f.x));
     const minY = Math.min(...selectedFields.map(f=>f.y));
@@ -2224,10 +2253,10 @@ else if (typeof exports === 'object')
     const offset = 14 * (pastesBefore + 1);
     state.pasteCount = pastesBefore + 1;
     state.selected.clear();
-    // (the buttons last, each on its textarea's copy)
+    // (the controls last, each on its field's copy)
     const pastedIds = new Map();
-    [...state.clipboardFields].sort((a, b) => (a.type === 'fontbuttons') - (b.type === 'fontbuttons')).forEach((copied, i) => {
-      if (copied.type === 'fontbuttons' && !pastedIds.has(copied.target)) return;
+    [...state.clipboardFields].sort((a, b) => isAttachedType(a.type) - isAttachedType(b.type)).forEach((copied, i) => {
+      if (isAttachedType(copied.type) && !pastedIds.has(copied.target)) return;
       const w = Math.max(8, Number(copied.width)||20), h = Math.max(8, Number(copied.height)||20);
       const f = addField({
         page,
@@ -2239,7 +2268,7 @@ else if (typeof exports === 'object')
         name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
         oscarTag: copied.oscarTag || '',
         fontSize: copied.fontSize, fontButtons: copied.fontButtons, fill: copied.fill,
-        target: copied.type === 'fontbuttons' ? pastedIds.get(copied.target) : null
+        target: isAttachedType(copied.type) ? pastedIds.get(copied.target) : null
       });
       pastedIds.set(copied.copiedId, f.id);
       state.selected.add(f.id);
@@ -2285,7 +2314,7 @@ else if (typeof exports === 'object')
     if (e.key==='Delete' || e.key==='Backspace'){ deleteSelectedFields(); return; }
     state.selected.forEach(id => {
       const f = state.fields.find(k => k.id===id && samePage(k.page,state.currentPage)); if(!f) return;
-      if (f.type === 'fontbuttons' && state.selected.has(f.target)) return;   // (they follow their textarea)
+      if (isAttachedType(f.type) && state.selected.has(f.target)) return;   // (they follow their field)
       if (e.key==='ArrowUp') f.y = clamp(f.y-nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       if (e.key==='ArrowDown') f.y = clamp(f.y+nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       if (e.key==='ArrowLeft') f.x = clamp(f.x-nudge,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
@@ -2452,7 +2481,7 @@ else if (typeof exports === 'object')
   const CUSTOM_ACTIONS = [
     { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick', exported: true },
     { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick', exported: true },
-    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text' },
+    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text', exported: true },
     { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text' },
     { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text' },
     { id: 'static_text', label: 'Display static custom text', short: 'text', for: 'text', takesText: true },
@@ -2474,7 +2503,7 @@ else if (typeof exports === 'object')
   // Shows the tag or the custom action, as the field is filled, and the actions that suit its
   // type; the action and text it had stay filled in while it uses its tag
   function showFillMode(f){
-    const custom = usesCustomFill(f), buttons = f.type === 'fontbuttons';
+    const custom = usesCustomFill(f), buttons = isAttachedType(f.type);
     $('fFillBlock').style.display = buttons ? 'none' : 'block';
     $('fFillMode').value = custom ? 'custom' : 'tag';
     $('fTagBlock').style.display = buttons || custom ? 'none' : 'block';
@@ -2504,13 +2533,14 @@ else if (typeof exports === 'object')
     $('fFontRow').style.display = f.type === 'textarea' ? 'flex' : 'none';
     $('fFontButtons').checked = hasFontButtons(f);
     $('fFontSize').value = fieldFontSize(f);
-    // (a textarea's font size buttons have only a place: no name, type, tag or size of their own)
-    const buttons = f.type === 'fontbuttons';
+    // (a field's controls have only a place: no name, type, tag or size of their own)
+    const buttons = isAttachedType(f.type);
     $('fTagBlock').style.display = buttons ? 'none' : 'block';
     if (buttons) $('fTagWarn').style.display = 'none';
     ['fName','fType','fW','fH'].forEach(id => { $(id).disabled = buttons; });
     $('fButtonsNote').style.display = buttons ? 'block' : 'none';
-    if (buttons) $('fButtonsNote').textContent = `The font size buttons (▲▼) of "${f.name}". Drag them anywhere: they follow the textarea when it moves, and go when it does.`;
+    if (f.type === 'fontbuttons') $('fButtonsNote').textContent = `The font size buttons (▲▼) of "${f.name}". Drag them anywhere: they follow the textarea when it moves, and go when it does.`;
+    if (f.type === 'phoneselect') $('fButtonsNote').textContent = `The phone selector of "${f.name}": on the eForm, it chooses which of the patient's phones the field shows (not printed). Drag it anywhere: it follows the field when it moves, and goes when the field's action changes.`;
   }
   // Fills the Selected field editor from the selected field, or hides it unless one is selected
   function renderSelectedEditor(){
@@ -2540,13 +2570,15 @@ else if (typeof exports === 'object')
     if (!f) return;
     const name = $('fName').value.trim();
     if (name) f.name = name;
+    // (a field just made a textarea gets its font size buttons: the box is read only once it shows)
+    const wasTextarea = f.type === 'textarea';
     f.type = $('fType').value || f.type;
     const tag = normalizeTag($('fTag').value);
     f.oscarTag = tag;
     $('fTagSelect').value = STANDARD_TAGS.has(tag) ? tag : '';
     showTagWarn(tag);
     if (f.type === 'textarea'){
-      if ($('fFontButtons').checked) delete f.fontButtons; else f.fontButtons = false;
+      if (wasTextarea && !$('fFontButtons').checked) f.fontButtons = false; else delete f.fontButtons;
       const size = Math.round(Number($('fFontSize').value));
       if (size >= 6 && size <= 48) f.fontSize = size;
     }
@@ -2556,7 +2588,6 @@ else if (typeof exports === 'object')
       const action = customActionById($('fCustomAction').value), text = $('fCustomText').value;
       f.fill = { on: true, action: action ? action.id : '', ...(text ? { text } : {}) };
     } else if (f.fill) f.fill.on = false;
-    syncFontButtons();
     showFontRow(f);
     showFillMode(f);
 
@@ -2569,6 +2600,8 @@ else if (typeof exports === 'object')
     if (Number.isFinite(newY)) f.y = newY;
     if (Number.isFinite(newW)) f.width = Math.max(8, newW);
     if (Number.isFinite(newH)) f.height = Math.max(8, newH);
+    // (after the field's new place, so its controls follow it)
+    syncFontButtons();
 
     renderPage(f.page);
     renderCounts();
@@ -2667,14 +2700,14 @@ else if (typeof exports === 'object')
         y: Number(f.y) || 0,
         width: Math.max(8, Number(f.width) || 20),
         height: Math.max(8, Number(f.height) || 20),
-        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','fontbuttons'].includes(f.type) ? f.type : 'text',
+        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','fontbuttons','phoneselect'].includes(f.type) ? f.type : 'text',
         name: String(f.name || `field_${i+1}`),
         oscarTag: isRemovedTag(tag) ? '' : tag,
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
         ...(f.fontButtons === false ? { fontButtons: false } : {}),
         ...(f.fill && typeof f.fill === 'object' ? { fill: { on: f.fill.on !== false, action: String(f.fill.action || ''), ...(f.fill.text != null ? { text: String(f.fill.text) } : {}) } } : {}),
-        ...(f.type === 'fontbuttons' ? { target: Number(f.target), ...(f.anchor ? { anchor: { x: Number(f.anchor.x), y: Number(f.anchor.y) } } : {}) } : {})
+        ...(isAttachedType(f.type) ? { target: Number(f.target), ...(f.anchor ? { anchor: { x: Number(f.anchor.x), y: Number(f.anchor.y) } } : {}) } : {})
       };
     });
     state.nextId = Math.max(1, Number(session.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId,Number(f.id)||0),0)+1));
@@ -4474,15 +4507,28 @@ function sanitizeUniqueFieldNames(fields){
 function usesCustomFill(f){ return !!f.fill && f.fill.on !== false; }
 // Whether a field has font size buttons on the eForm: a textarea does unless they were turned off
 function hasFontButtons(f){ return f.type === 'textarea' && f.fontButtons !== false; }
+// Whether a field has a phone selector on the eForm: a text field filled with "Phone: controlled
+// by selector dropdown" does
+function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) && usesCustomFill(f) && f.fill.action === 'phone_select'; }
+// Whether fields of a type are another field's control (font size buttons, a phone selector),
+// with only a place of their own
+function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect'; }
 // A field's font size on the eForm: a textarea's own, else 12px
 function fieldFontSize(f){ return f.type === 'textarea' && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
-// Where a textarea's font size buttons go, in the eForm's pixels, given the field and the page:
-// just right of its top-right corner, ▲ over ▼; inside that corner where the page ends first
-function fontButtonSpots(x, y, w, h, pageW, pageH){
+// Where a field's control goes (a textarea's font size buttons, ▲ over ▼, unless another size
+// is given), in the eForm's pixels, given the field and the page: just right of its top-right
+// corner; inside that corner where the page ends first
+function fontButtonSpots(x, y, w, h, pageW, pageH, controlW = FONT_BUTTON_W, controlH = FONT_BUTTON_GAP + FONT_BUTTON_H){
   const outside = x + w + 2;
-  return { x: outside + FONT_BUTTON_W <= pageW ? outside : Math.max(0, x + w - FONT_BUTTON_W),
-           upY: Math.max(0, Math.min(y, pageH - FONT_BUTTON_GAP - FONT_BUTTON_H)),
-           downY: Math.max(0, Math.min(y, pageH - FONT_BUTTON_GAP - FONT_BUTTON_H)) + FONT_BUTTON_GAP };
+  return { x: outside + controlW <= pageW ? outside : Math.max(0, x + w - controlW),
+           upY: Math.max(0, Math.min(y, pageH - controlH)),
+           downY: Math.max(0, Math.min(y, pageH - controlH)) + FONT_BUTTON_GAP };
+}
+// A phone field's phone selector on the eForm (not printed), at (x, y): choosing home, cell or
+// work writes that phone in the field; `name` is the field's on the eForm
+function phoneSelectMarkup(name, x, y){
+  const options = [['', 'Choose phone…'], ['home', 'Home'], ['cell', 'Cell'], ['work', 'Work']].map(([value, text]) => `<option value="${value}">${text}</option>`).join('');
+  return `<select class="DoNotPrint" data-phone-for="${name}" title="Which of the patient's phones the field shows" style="position:absolute; left:${x}px; top:${y}px; width:${PHONE_SELECT_W}px; height:${PHONE_SELECT_H}px; font-size:12px; z-index:5;" onchange="choosePhone('${name}', this.value);">${options}</select>`;
 }
 // A textarea's font size buttons on the eForm (not printed), ▲ at (x, y) over ▼, and the hidden
 // input that saves the size they set, "<name>_fontsize"; `name` is the textarea's on the eForm
@@ -4500,7 +4546,7 @@ function sexToTick(f){
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
 // that a click turns on and off) or a text input; `inlinePosStyle` places it on the page. (A
 // field with a custom fill has no tag: a tick box for a sex carries it as data-tick-if-sex, and
-// the other actions aren't exported yet.)
+// static text and the 2 or 3 phones aren't exported yet.)
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = usesCustomFill(f) ? '' : escAttr(f.oscarTag || '');
@@ -4677,6 +4723,7 @@ function buildExportHtml(){
     const w = Math.round(clamp(scaledW, 6, scaled(naturalW, scale)));
     const h = Math.round(clamp(scaledH, 6, scaled(naturalH, scale)));
     if (f.type === 'fontbuttons') return fontButtonsMarkup(f._safeName, x, y);
+    if (f.type === 'phoneselect') return phoneSelectMarkup(f._safeName, x, y);
     const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:${fieldFontSize(f)}px; background-color:transparent;`;
     return inputMarkup(f, inlinePos);
   }
@@ -4918,23 +4965,18 @@ function loadFontSize(){
 }
 <\/script>
 `;
-  // (tick boxes for the patient's sex: OSCAR fills a hidden field tagged "sex" with "M" or "F",
-  // and on a new form the box for it is ticked; a saved form keeps its boxes as saved, which
-  // the hidden "newForm" flag, turned off on submit, tells apart)
+  // (what OSCAR fills in once, on a new form: the box for the patient's sex, a phone field's
+  // phone. OSCAR fills hidden fields tagged "sex", "phone", "cell" and "phone2"; a saved form
+  // keeps what it was saved with, which the hidden "newForm" flag, turned off on submit, tells)
   const usesSexBoxes = exportPages.some(page => getPageFields(page).some(f => sexToTick(f)));
-  const sexBoxScript = !usesSexBoxes ? '' : `<script>
-// On a new form, ticks each box for the patient's sex (data-tick-if-sex="M" or "F"), from the
-// hidden PatientGender field that OSCAR fills; a saved form's boxes are left as they were saved
-function tickSexBoxes(){
-  var flag = document.getElementById('newForm'), sexField = document.getElementById('PatientGender');
-  if (!flag || flag.value !== 'True' || !sexField) return;
-  var sex = String(sexField.value || '').trim().toUpperCase();
-  var boxes = document.querySelectorAll('[data-tick-if-sex]');
-  for (var i = 0; i < boxes.length; i++){
-    if (sex && boxes[i].getAttribute('data-tick-if-sex') === sex) boxes[i].value = 'X';
-  }
+  const usesPhoneSelect = exportPages.some(page => getPageFields(page).some(f => f.type === 'phoneselect'));
+  const newFormScript = !usesSexBoxes && !usesPhoneSelect ? '' : `<script>
+// Whether the form is new (not opened again after it was saved)
+function isNewForm(){
+  var flag = document.getElementById('newForm');
+  return !!flag && flag.value === 'True';
 }
-// Marks the form saved, so the next time it opens its boxes aren't ticked again
+// Marks the form saved, so the next time it opens what it was saved with stays
 function markFormSaved(){
   var flag = document.getElementById('newForm');
   if (flag){ flag.value = 'False'; flag.setAttribute('value', 'False'); }
@@ -4944,8 +4986,54 @@ document.addEventListener('DOMContentLoaded', function(){
   if (form) form.addEventListener('submit', markFormSaved);
 });
 <\/script>
-`;
+` + (!usesSexBoxes ? '' : `<script>
+// On a new form, ticks each box for the patient's sex (data-tick-if-sex="M" or "F"), from the
+// hidden PatientGender field that OSCAR fills
+function tickSexBoxes(){
+  var sexField = document.getElementById('PatientGender');
+  if (!isNewForm() || !sexField) return;
+  var sex = String(sexField.value || '').trim().toUpperCase();
+  var boxes = document.querySelectorAll('[data-tick-if-sex]');
+  for (var i = 0; i < boxes.length; i++){
+    if (sex && boxes[i].getAttribute('data-tick-if-sex') === sex) boxes[i].value = 'X';
+  }
+}
+<\/script>
+`) + (!usesPhoneSelect ? '' : `<script>
+// The patient's phone of a kind ("home", "cell" or "work"), from the hidden fields OSCAR fills
+function patientPhone(kind){
+  var field = document.getElementById({ home: 'PatientPhoneHome', cell: 'PatientPhoneCell', work: 'PatientPhoneWork' }[kind]);
+  return field ? String(field.value || '').trim() : '';
+}
+// Writes the patient's phone of a kind in the field called \`name\`: "604-555-0100, cell", or
+// nothing when they have no phone of that kind
+function writePhone(name, kind){
+  var box = document.getElementsByName(name)[0];
+  if (!box || !kind) return;
+  var number = patientPhone(kind);
+  box.value = number ? number + ', ' + kind : '';
+}
+// A phone selector's choice: writes that phone in its field
+function choosePhone(name, kind){
+  writePhone(name, kind);
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On a new form, each phone field shows the patient's first phone of home, cell and work, and
+// its selector says which
+function fillDefaultPhones(){
+  if (!isNewForm()) return;
+  var kinds = ['home', 'cell', 'work'], kind = 'home';
+  for (var i = 0; i < kinds.length; i++){ if (patientPhone(kinds[i])){ kind = kinds[i]; break; } }
+  var selectors = document.querySelectorAll('select[data-phone-for]');
+  for (var j = 0; j < selectors.length; j++){
+    selectors[j].value = kind;
+    writePhone(selectors[j].getAttribute('data-phone-for'), kind);
+  }
+}
+<\/script>
+`);
   if (usesSexBoxes) startupSteps.push('tickSexBoxes()');
+  if (usesPhoneSelect) startupSteps.push('fillDefaultPhones()');
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -5034,19 +5122,24 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}${sexBoxScript}${startupScript}</head>
+${fontButtonScript}${addonScripts}${newFormScript}${startupScript}</head>
 <body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
   const hiddenCurrentUser = '<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">';
-  const hiddenSexFields = '<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">\n<input type="hidden" id="newForm" name="newForm" value="True">';
+  // (the hidden fields OSCAR fills for what a new form fills in once, and the new-form flag)
+  const hiddenNewFormFields = [
+    ...(usesSexBoxes ? ['<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">'] : []),
+    ...(usesPhoneSelect ? [['Home', 'phone'], ['Cell', 'cell'], ['Work', 'phone2']].map(([kind, tag]) => `<input type="hidden" id="PatientPhone${kind}" name="PatientPhone${kind}" oscarDB="${tag}">`) : []),
+    ...(usesSexBoxes || usesPhoneSelect ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
+  ].map(line => '\n' + line).join('');
   return exportPages.map((page, idx) => {
     const pageInfo = state.pages[page];
     const scale = pageInfo.naturalW ? (EXPORT_W / pageInfo.naturalW) : 1;
-    // (font size buttons take their textarea's name on the eForm, and no name of their own)
+    // (a field's controls take its name on the eForm, and no name of their own)
     const namedFields = sanitizeUniqueFieldNames(dataFields(getPageFields(page)));
     const eformName = new Map(namedFields.map(f => [f.id, f._safeName]));
-    const pageFields = [...namedFields, ...getPageFields(page).filter(b => b.type === 'fontbuttons' && eformName.has(b.target)).map(b => ({ ...b, _safeName: eformName.get(b.target) }))];
+    const pageFields = [...namedFields, ...getPageFields(page).filter(b => isAttachedType(b.type) && eformName.has(b.target)).map(b => ({ ...b, _safeName: eformName.get(b.target) }))];
     const sigFields = pageFields.filter(f => isSignatureField(f));
     if (sigFields.length > 1) console.warn(`Page ${page}: ${sigFields.length} signature fields found; only the first will be rendered.`);
     const sigField = sigFields[0] || null;
@@ -5054,7 +5147,7 @@ ${(function(){
     const imageSrc = '${oscar_image_path}' + pageImageName(page);
     const isLast = idx === exportPages.length - 1;
     const tailHtml = '';
-    const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCurrentUser + (usesSexBoxes ? '\n' + hiddenSexFields : '') : '';
+    const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCurrentUser + hiddenNewFormFields : '';
     return pageMarkup(page, fields, sigField, pageInfo.naturalW, pageInfo.naturalH, imageSrc, scale, !isLast, tailHtml, afterHtml);
   }).join('');
 })()}
