@@ -454,7 +454,6 @@
         <label id="fCustomTextBlock" style="display:none;margin-top:8px">Text
           <input id="fCustomText" type="text" placeholder="Text shown in the field"/>
         </label>
-        <div id="fCustomNotYet" class="small" style="margin-top:4px">Not exported yet: the field is exported with no tag for now.</div>
       </div>
       <label id="fTagBlock" style="margin-top:8px;display:block">OSCAR tag
         <div class="row" style="align-items:stretch">
@@ -2476,14 +2475,13 @@ else if (typeof exports === 'object')
   // ===== The Selected field editor =====
   // What a field can be filled with in place of an oscarDB tag, for what OSCAR 12's tags can't
   // do (tick the box for the patient's sex) or give (more than one phone, a fixed text); `for`
-  // is the kind of field each suits, and `exported` says the export writes it (a field with one
-  // it doesn't write yet is exported untagged)
+  // is the kind of field each suits, `short` what the canvas shows for it
   const CUSTOM_ACTIONS = [
-    { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick', exported: true },
-    { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick', exported: true },
-    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text', exported: true },
-    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text', exported: true },
-    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text', exported: true },
+    { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick' },
+    { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick' },
+    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text' },
+    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text' },
+    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text' },
     { id: 'static_text', label: 'Display static custom text', short: 'text', for: 'text', takesText: true },
   ];
   const customActionById = (id) => CUSTOM_ACTIONS.find(a => a.id === id);
@@ -2514,7 +2512,6 @@ else if (typeof exports === 'object')
     $('fCustomAction').value = f.fill ? (f.fill.action || '') : '';
     const action = f.fill && customActionById(f.fill.action);
     $('fCustomTextBlock').style.display = action && action.takesText ? 'block' : 'none';
-    $('fCustomNotYet').style.display = action && !action.exported ? 'block' : 'none';
     $('fCustomText').value = f.fill ? (f.fill.text || '') : '';
   }
   // The tag list and suggestions: the standard tags, which never change
@@ -4549,10 +4546,17 @@ function phonesToShow(f){
   if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
   return f.fill.action === 'phone_home_cell' ? 'home cell' : f.fill.action === 'phone_home_cell_work' ? 'home cell work' : '';
 }
+// The fixed text a field starts with on the eForm, from its custom fill ("Display static custom
+// text"), or '' for any other field
+function staticText(f){
+  if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
+  return f.fill.action === 'static_text' ? String(f.fill.text || '') : '';
+}
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
 // that a click turns on and off) or a text input; `inlinePosStyle` places it on the page. (A
 // field with a custom fill has no tag: a tick box for a sex carries it as data-tick-if-sex, a
-// field listing phones as data-show-phones, and static text isn't exported yet.)
+// field listing phones as data-show-phones, and one with static text starts with it, which a
+// user can still change, and which a saved form's own value takes the place of.)
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = usesCustomFill(f) ? '' : escAttr(f.oscarTag || '');
@@ -4561,7 +4565,7 @@ function inputMarkup(f, inlinePosStyle=''){
   const dbAttr = (tag ? ` oscarDB="${tag}"` : '') + (phones ? ` data-show-phones="${phones}"` : '');
 
   if (f.type === 'textarea') {
-    return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;"></textarea>`;
+    return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;">${escAttr(staticText(f))}</textarea>`;
   }
   if (f.type === 'checkbox' || f.type === 'xbox') {
     // (a read-only text box over the printed box, with no border of its own: a click, Space or
@@ -4571,7 +4575,8 @@ function inputMarkup(f, inlinePosStyle=''){
     return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr}${sexAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
   }
   // (a date field is a plain text input too, which OSCAR fills with text)
-  return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
+  const text = staticText(f), valueAttr = text ? ` value="${escAttr(text)}"` : '';
+  return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
 }
 
 
