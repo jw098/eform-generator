@@ -4927,17 +4927,17 @@ if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
 if (typeof window.checkGender !== 'function') window.checkGender = function(){};
 if (typeof window.loadSig !== 'function') window.loadSig = function(){};
 
-// Shows the current provider's signature image in the signature stamp (hidden if they have none)
+// Shows the current provider's signature image in each page's signature stamp ("signature",
+// "signature2"…; hidden where they have none)
 function SignForm() {
   try {
-    var provNum = $('#current_user_id').val();
-    var sig = document.getElementById('signature');
-    if (!sig) return;
-    sig.src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
-    $('#signature').on('error', function() {
-      $(this).hide();
-    });
-    sig.alt = provNum;
+    var providerField = document.getElementById('current_user_id'), provNum = providerField ? providerField.value : '';
+    var stamps = document.querySelectorAll('[id^="CanvasProSignature"] img');
+    for (var i = 0; i < stamps.length; i++){
+      stamps[i].onerror = function(){ this.style.display = 'none'; };
+      stamps[i].src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+      stamps[i].alt = provNum;
+    }
   } catch(e){}
 }
 // The fax number to send to: the first filled-in fax number field on the form
