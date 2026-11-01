@@ -2494,7 +2494,8 @@ else if (typeof exports === 'object')
 
   // ===== The Selected field editor =====
   // What a field can be filled with in place of an oscarDB tag, for what OSCAR 12's tags can't
-  // do (tick the box for the patient's sex) or give (more than one phone, a fixed text); `for`
+  // do (tick the box for the patient's sex) or give (more than one phone, a fixed text, a part of
+  // the current user's name); `for`
   // is the kind of field each suits, `short` what the canvas shows for it
   const CUSTOM_ACTIONS = [
     { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick' },
@@ -2503,6 +2504,9 @@ else if (typeof exports === 'object')
     { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text' },
     { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text' },
     { id: 'static_text', label: 'Display static custom text', short: 'text', for: 'text', takesText: true },
+    { id: 'user_last', label: 'Name: current user last name', short: 'user last', for: 'text' },
+    { id: 'user_first', label: 'Name: current user first name', short: 'user first', for: 'text' },
+    { id: 'user_first_last', label: 'Name: current user first name + last name', short: 'user first + last', for: 'text' },
   ];
   const customActionById = (id) => CUSTOM_ACTIONS.find(a => a.id === id);
   // What the canvas shows for a field's custom fill, in its tag's place: a gear (drawn as text,
@@ -4538,14 +4542,17 @@ function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) &
 function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect'; }
 // A field's font size on the eForm: its own where it can have one (hasOwnFontSize), else 12px
 function fieldFontSize(f){ return hasOwnFontSize(f) && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
-// Whether a field's font size can be set: a textarea's, and a field's that lists phones or has
-// static text, so its text can be made to fit it
-function hasOwnFontSize(f){ return f.type === 'textarea' || !!phonesToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && ['text','date'].includes(f.type)); }
+// Whether a field's font size can be set: a textarea's, and a field's that lists phones, shows
+// the current user's name or has static text, so its text can be made to fit it
+function hasOwnFontSize(f){ return f.type === 'textarea' || !!phonesToShow(f) || !!userNameToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && ['text','date'].includes(f.type)); }
 // The text the canvas previews in a field, as the eForm will show it: its phones, with a sample
-// number in digits (wider than a placeholder such as "xxx"), or its static text; '' for others
+// number in digits (wider than a placeholder such as "xxx"), the current user's name with a
+// sample one (OSCAR's own example, "Hutten-Czapski, Peter"), or its static text; '' for others
 function previewText(f){
-  const phones = phonesToShow(f);
-  return phones ? phoneListText(phones.split(' ').map(kind => [kind, '555-555-5555'])) : staticText(f);
+  const phones = phonesToShow(f), userName = userNameToShow(f);
+  if (phones) return phoneListText(phones.split(' ').map(kind => [kind, '555-555-5555']));
+  if (userName) return { last: 'Hutten-Czapski', first: 'Peter', 'first last': 'Peter Hutten-Czapski' }[userName];
+  return staticText(f);
 }
 // The patient's phones as a field lists them, given [kind, number] pairs: "(H): 604-555-0100.
 // (C): 778-555-0199." (fillPhoneLists on the eForm writes the same)
@@ -4584,6 +4591,12 @@ function phonesToShow(f){
   if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
   return f.fill.action === 'phone_home_cell' ? 'home cell' : f.fill.action === 'phone_home_cell_work' ? 'home cell work' : '';
 }
+// The part of the current user's name a field shows when the form opens ("last", "first" or
+// "first last"), from its custom fill ("Name: current user last name"), or '' for any other field
+function userNameToShow(f){
+  if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
+  return { user_last: 'last', user_first: 'first', user_first_last: 'first last' }[f.fill.action] || '';
+}
 // The fixed text a field starts with on the eForm, from its custom fill ("Display static custom
 // text"), or '' for any other field
 function staticText(f){
@@ -4593,14 +4606,15 @@ function staticText(f){
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
 // that a click turns on and off) or a text input; `inlinePosStyle` places it on the page. (A
 // field with a custom fill has no tag: a tick box for a sex carries it as data-tick-if-sex, a
-// field listing phones as data-show-phones, and one with static text starts with it, which a
+// field listing phones as data-show-phones, one showing the current user's name as
+// data-user-name, and one with static text starts with it, which a
 // user can still change, and which a saved form's own value takes the place of.)
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = usesCustomFill(f) ? '' : escAttr(f.oscarTag || '');
   const id = escAttr((f._safeName || f.name || 'field') + '_' + (f.id ?? ''));
-  const phones = phonesToShow(f);
-  const dbAttr = (tag ? ` oscarDB="${tag}"` : '') + (phones ? ` data-show-phones="${phones}"` : '');
+  const phones = phonesToShow(f), userName = userNameToShow(f);
+  const dbAttr = (tag ? ` oscarDB="${tag}"` : '') + (phones ? ` data-show-phones="${phones}"` : '') + (userName ? ` data-user-name="${userName}"` : '');
 
   if (f.type === 'textarea') {
     return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;">${escAttr(staticText(f))}</textarea>`;
@@ -5016,13 +5030,15 @@ function loadFontSize(){
 <\/script>
 `;
   // (what OSCAR fills in once, on a new form: the box for the patient's sex, a phone field's
-  // phone or phones. OSCAR fills hidden fields tagged "sex", "phone", "cell" and "phone2"; a saved
-  // form keeps what it was saved with, which the hidden "newForm" flag, turned off on submit, tells)
+  // phone or phones, a part of the current user's name. OSCAR fills hidden fields tagged "sex",
+  // "phone", "cell", "phone2" and "current_user"; a saved form keeps what it was saved with,
+  // which the hidden "newForm" flag, turned off on submit, tells)
   const usesSexBoxes = exportPages.some(page => getPageFields(page).some(f => sexToTick(f)));
   const usesPhoneSelect = exportPages.some(page => getPageFields(page).some(f => f.type === 'phoneselect'));
   const usesPhoneLists = exportPages.some(page => dataFields(getPageFields(page)).some(f => phonesToShow(f)));
   const usesPhones = usesPhoneSelect || usesPhoneLists;
-  const newFormScript = !usesSexBoxes && !usesPhones ? '' : `<script>
+  const usesUserNames = exportPages.some(page => dataFields(getPageFields(page)).some(f => userNameToShow(f)));
+  const newFormScript = !usesSexBoxes && !usesPhones && !usesUserNames ? '' : `<script>
 // Whether the form is new (not opened again after it was saved)
 function isNewForm(){
   var flag = document.getElementById('newForm');
@@ -5056,6 +5072,19 @@ function tickSexBoxes(){
 function patientPhone(kind){
   var field = document.getElementById({ home: 'PatientPhoneHome', cell: 'PatientPhoneCell', work: 'PatientPhoneWork' }[kind]);
   return field ? String(field.value || '').trim() : '';
+}
+<\/script>
+`) + (!usesUserNames ? '' : `<script>
+// On a new form, each field showing the current user's name (data-user-name="last", "first" or
+// "first last") shows that part of it, from the hidden CurrentUserName field that OSCAR fills
+// with "Last, First"
+function fillUserNames(){
+  var nameField = document.getElementById('CurrentUserName');
+  if (!isNewForm() || !nameField) return;
+  var parts = String(nameField.value || '').split(','), last = (parts[0] || '').trim(), first = (parts[1] || '').trim();
+  var names = { 'last': last, 'first': first, 'first last': (first + ' ' + last).trim() };
+  var fields = document.querySelectorAll('[data-user-name]');
+  for (var i = 0; i < fields.length; i++) fields[i].value = names[fields[i].getAttribute('data-user-name')] || '';
 }
 <\/script>
 `) + (!usesPhoneLists ? '' : `<script>
@@ -5106,6 +5135,7 @@ function fillDefaultPhones(){
   if (usesSexBoxes) startupSteps.push('tickSexBoxes()');
   if (usesPhoneSelect) startupSteps.push('fillDefaultPhones()');
   if (usesPhoneLists) startupSteps.push('fillPhoneLists()');
+  if (usesUserNames) startupSteps.push('fillUserNames()');
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -5203,7 +5233,8 @@ ${(function(){
   const hiddenNewFormFields = [
     ...(usesSexBoxes ? ['<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">'] : []),
     ...(usesPhones ? [['Home', 'phone'], ['Cell', 'cell'], ['Work', 'phone2']].map(([kind, tag]) => `<input type="hidden" id="PatientPhone${kind}" name="PatientPhone${kind}" oscarDB="${tag}">`) : []),
-    ...(usesSexBoxes || usesPhones ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
+    ...(usesUserNames ? ['<input type="hidden" id="CurrentUserName" name="CurrentUserName" oscarDB="current_user">'] : []),
+    ...(usesSexBoxes || usesPhones || usesUserNames ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
   ].map(line => '\n' + line).join('');
   return exportPages.map((page, idx) => {
     const pageInfo = state.pages[page];
