@@ -2482,8 +2482,8 @@ else if (typeof exports === 'object')
     { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick', exported: true },
     { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick', exported: true },
     { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text', exported: true },
-    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text' },
-    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text' },
+    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text', exported: true },
+    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text', exported: true },
     { id: 'static_text', label: 'Display static custom text', short: 'text', for: 'text', takesText: true },
   ];
   const customActionById = (id) => CUSTOM_ACTIONS.find(a => a.id === id);
@@ -4543,15 +4543,22 @@ function sexToTick(f){
   if (!usesCustomFill(f) || (f.type !== 'checkbox' && f.type !== 'xbox')) return '';
   return f.fill.action === 'sex_male' ? 'M' : f.fill.action === 'sex_female' ? 'F' : '';
 }
+// The patient's phones a field lists when the form opens ("home cell" or "home cell work"), from
+// its custom fill ("Phone: display 2 phones"), or '' for any other field
+function phonesToShow(f){
+  if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
+  return f.fill.action === 'phone_home_cell' ? 'home cell' : f.fill.action === 'phone_home_cell_work' ? 'home cell work' : '';
+}
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
 // that a click turns on and off) or a text input; `inlinePosStyle` places it on the page. (A
-// field with a custom fill has no tag: a tick box for a sex carries it as data-tick-if-sex, and
-// static text and the 2 or 3 phones aren't exported yet.)
+// field with a custom fill has no tag: a tick box for a sex carries it as data-tick-if-sex, a
+// field listing phones as data-show-phones, and static text isn't exported yet.)
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = usesCustomFill(f) ? '' : escAttr(f.oscarTag || '');
   const id = escAttr((f._safeName || f.name || 'field') + '_' + (f.id ?? ''));
-  const dbAttr = tag ? ` oscarDB="${tag}"` : '';
+  const phones = phonesToShow(f);
+  const dbAttr = (tag ? ` oscarDB="${tag}"` : '') + (phones ? ` data-show-phones="${phones}"` : '');
 
   if (f.type === 'textarea') {
     return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;"></textarea>`;
@@ -4966,11 +4973,13 @@ function loadFontSize(){
 <\/script>
 `;
   // (what OSCAR fills in once, on a new form: the box for the patient's sex, a phone field's
-  // phone. OSCAR fills hidden fields tagged "sex", "phone", "cell" and "phone2"; a saved form
-  // keeps what it was saved with, which the hidden "newForm" flag, turned off on submit, tells)
+  // phone or phones. OSCAR fills hidden fields tagged "sex", "phone", "cell" and "phone2"; a saved
+  // form keeps what it was saved with, which the hidden "newForm" flag, turned off on submit, tells)
   const usesSexBoxes = exportPages.some(page => getPageFields(page).some(f => sexToTick(f)));
   const usesPhoneSelect = exportPages.some(page => getPageFields(page).some(f => f.type === 'phoneselect'));
-  const newFormScript = !usesSexBoxes && !usesPhoneSelect ? '' : `<script>
+  const usesPhoneLists = exportPages.some(page => dataFields(getPageFields(page)).some(f => phonesToShow(f)));
+  const usesPhones = usesPhoneSelect || usesPhoneLists;
+  const newFormScript = !usesSexBoxes && !usesPhones ? '' : `<script>
 // Whether the form is new (not opened again after it was saved)
 function isNewForm(){
   var flag = document.getElementById('newForm');
@@ -4999,12 +5008,31 @@ function tickSexBoxes(){
   }
 }
 <\/script>
-`) + (!usesPhoneSelect ? '' : `<script>
+`) + (!usesPhones ? '' : `<script>
 // The patient's phone of a kind ("home", "cell" or "work"), from the hidden fields OSCAR fills
 function patientPhone(kind){
   var field = document.getElementById({ home: 'PatientPhoneHome', cell: 'PatientPhoneCell', work: 'PatientPhoneWork' }[kind]);
   return field ? String(field.value || '').trim() : '';
 }
+<\/script>
+`) + (!usesPhoneLists ? '' : `<script>
+// On a new form, each field listing phones (data-show-phones="home cell") shows the patient's
+// phones of those kinds: "Home: 604-555-0100. Cell: 778-555-0199." (a kind they have none of is
+// left out)
+function fillPhoneLists(){
+  if (!isNewForm()) return;
+  var fields = document.querySelectorAll('[data-show-phones]');
+  for (var i = 0; i < fields.length; i++){
+    var kinds = fields[i].getAttribute('data-show-phones').split(' '), parts = [];
+    for (var j = 0; j < kinds.length; j++){
+      var number = patientPhone(kinds[j]);
+      if (number) parts.push(kinds[j].charAt(0).toUpperCase() + kinds[j].slice(1) + ': ' + number + '.');
+    }
+    fields[i].value = parts.join(' ');
+  }
+}
+<\/script>
+`) + (!usesPhoneSelect ? '' : `<script>
 // Writes the patient's phone of a kind in the field called \`name\`: "604-555-0100, cell", or
 // nothing when they have no phone of that kind
 function writePhone(name, kind){
@@ -5034,6 +5062,7 @@ function fillDefaultPhones(){
 `);
   if (usesSexBoxes) startupSteps.push('tickSexBoxes()');
   if (usesPhoneSelect) startupSteps.push('fillDefaultPhones()');
+  if (usesPhoneLists) startupSteps.push('fillPhoneLists()');
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -5130,8 +5159,8 @@ ${(function(){
   // (the hidden fields OSCAR fills for what a new form fills in once, and the new-form flag)
   const hiddenNewFormFields = [
     ...(usesSexBoxes ? ['<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">'] : []),
-    ...(usesPhoneSelect ? [['Home', 'phone'], ['Cell', 'cell'], ['Work', 'phone2']].map(([kind, tag]) => `<input type="hidden" id="PatientPhone${kind}" name="PatientPhone${kind}" oscarDB="${tag}">`) : []),
-    ...(usesSexBoxes || usesPhoneSelect ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
+    ...(usesPhones ? [['Home', 'phone'], ['Cell', 'cell'], ['Work', 'phone2']].map(([kind, tag]) => `<input type="hidden" id="PatientPhone${kind}" name="PatientPhone${kind}" oscarDB="${tag}">`) : []),
+    ...(usesSexBoxes || usesPhones ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
   ].map(line => '\n' + line).join('');
   return exportPages.map((page, idx) => {
     const pageInfo = state.pages[page];
