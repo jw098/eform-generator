@@ -433,6 +433,21 @@
           </select>
         </label>
       </div>
+      <label id="fFillBlock" style="margin-top:8px;display:block" title="oscarDB tags will autofill the eForm with their associated text. However, some actions cannot be accomplished directly with oscarDB tags, such as checking the gender checkbox. Similarly, some text can't be derived directly from oscarDB tags (in OSCAR 12), such as the current user's last name.">Fill with
+        <select id="fFillMode">
+          <option value="tag">OSCAR tag</option>
+          <option value="custom">Custom text/action</option>
+        </select>
+      </label>
+      <div id="fCustomBlock" style="display:none;margin-top:8px">
+        <label style="display:block">Custom text/action
+          <select id="fCustomAction"></select>
+        </label>
+        <label id="fCustomTextBlock" style="display:none;margin-top:8px">Text
+          <input id="fCustomText" type="text" placeholder="Text shown in the field"/>
+        </label>
+        <div class="small" style="margin-top:4px">Not exported yet: the field is exported with no tag for now.</div>
+      </div>
       <label id="fTagBlock" style="margin-top:8px;display:block">OSCAR tag
         <div class="row" style="align-items:stretch">
           <input id="fTag" type="text" list="tagSuggestions" placeholder="patient_name"/>
@@ -1705,13 +1720,13 @@ else if (typeof exports === 'object')
     msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (leftOut ? `; ${leftOut} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
   });
 
-  // "Auto-tag untagged": tags each untagged field but a tick box from the imported eForm's
-  // name↔tag map, or else from its name and label
+  // "Auto-tag untagged": tags each untagged field but a tick box (or one with a custom fill)
+  // from the imported eForm's name↔tag map, or else from its name and label
   function autoTagUnmapped(){
     pushUndo();
     let changed=0;
     state.fields.forEach(f => {
-      if (f.oscarTag || isTickType(f.type) || f.type === 'fontbuttons') return;
+      if (f.oscarTag || f.fill || isTickType(f.type) || f.type === 'fontbuttons') return;
       const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
       const tag = fromMap || guessTag(f.name, f.type, f.label);
       if (tag){ f.oscarTag=tag; changed++; }
@@ -1758,6 +1773,7 @@ else if (typeof exports === 'object')
     };
     if (partial.fontSize) f.fontSize = partial.fontSize;
     if (partial.fontButtons === false) f.fontButtons = false;
+    if (partial.fill) f.fill = { ...partial.fill };
     if (partial.target != null) f.target = partial.target;
     state.fields.push(f);
     return f;
@@ -1868,15 +1884,17 @@ else if (typeof exports === 'object')
     }
     // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
     // the edges of a field shorter than the text, so it stays on the field's own row), else
-    // above it; a tick box's always above, centred over it
-    const tag = state.showTags ? String(f.oscarTag || '').trim() : '';
+    // above it; a tick box's always above, centred over it. (A field with a custom fill shows
+    // "custom" in its tag's place.)
+    const tag = state.showTags ? (f.fill ? 'custom' : String(f.oscarTag || '').trim()) : '';
     const tick = f.type === 'checkbox' || f.type === 'xbox';
     const above = !!tag && (tick || tagWidth(tag) + 8 > f.width * sx);
     if (tag){ const tagDiv = document.createElement('div'); tagDiv.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : ''); tagDiv.textContent = tag; tagDiv.title = tag; fieldDiv.appendChild(tagDiv); }
     if (state.showLabels){
       // (with the tag shown, the label is just the name, raised over a tag above the field)
       const labelDiv = document.createElement('div'); labelDiv.className = 'field-label' + (above ? ' raised' : '');
-      labelDiv.textContent = f.name + (f.oscarTag && !state.showTags ? ' · ' + f.oscarTag : ''); fieldDiv.appendChild(labelDiv);
+      const shownTag = f.fill ? 'custom' : f.oscarTag;
+      labelDiv.textContent = f.name + (shownTag && !state.showTags ? ' · ' + shownTag : ''); fieldDiv.appendChild(labelDiv);
     }
     if (state.selected.size === 1 && state.selected.has(f.id)){ const resizeHandle = document.createElement('div'); resizeHandle.className='resize se'; resizeHandle.dataset.handle='se'; fieldDiv.appendChild(resizeHandle); }
     fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
@@ -2184,7 +2202,7 @@ else if (typeof exports === 'object')
       type: f.type,
       name: f.name,
       oscarTag: f.oscarTag || '',
-      fontSize: f.fontSize, fontButtons: f.fontButtons,
+      fontSize: f.fontSize, fontButtons: f.fontButtons, fill: f.fill,
       copiedId: f.id, target: f.target
     }));
     const copied = dataFields(selectedFields).length;
@@ -2216,7 +2234,7 @@ else if (typeof exports === 'object')
         type: copied.type || 'text',
         name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
         oscarTag: copied.oscarTag || '',
-        fontSize: copied.fontSize, fontButtons: copied.fontButtons,
+        fontSize: copied.fontSize, fontButtons: copied.fontButtons, fill: copied.fill,
         target: copied.type === 'fontbuttons' ? pastedIds.get(copied.target) : null
       });
       pastedIds.set(copied.copiedId, f.id);
@@ -2423,6 +2441,40 @@ else if (typeof exports === 'object')
   $('btnClearPage').addEventListener('click', ()=>{ const page=state.currentPage; pushUndo(); state.fields = state.fields.filter(f=>!samePage(f.page,page)); state.selected.clear(); renderAll(); msg(`Cleared fields on page ${page}.`, 'ok'); });
 
   // ===== The Selected field editor =====
+  // What a field can be filled with in place of an oscarDB tag, for what OSCAR 12's tags can't
+  // do (tick the box for the patient's sex) or give (more than one phone, a fixed text); `for`
+  // is the kind of field each suits. (The export doesn't write them yet: a field with one is
+  // exported untagged.)
+  const CUSTOM_ACTIONS = [
+    { id: 'sex_male', label: 'Check this box if gender is Male', for: 'tick' },
+    { id: 'sex_female', label: 'Check this box if gender is Female', for: 'tick' },
+    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', for: 'text' },
+    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', for: 'text' },
+    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', for: 'text' },
+    { id: 'static_text', label: 'Display static custom text', for: 'text', takesText: true },
+  ];
+  const customActionById = (id) => CUSTOM_ACTIONS.find(a => a.id === id);
+  // The custom actions list, each action offered only for the kind of field it suits
+  function fillCustomActionOptions(){
+    const sel = $('fCustomAction');
+    sel.innerHTML = '<option value="">Choose action...</option>';
+    CUSTOM_ACTIONS.forEach(a => { const o = document.createElement('option'); o.value = a.id; o.textContent = a.label; sel.appendChild(o); });
+  }
+  // Shows the tag or the custom action, as the field is filled, and the actions that suit its type
+  function showFillMode(f){
+    const custom = !!f.fill, buttons = f.type === 'fontbuttons';
+    $('fFillBlock').style.display = buttons ? 'none' : 'block';
+    $('fFillMode').value = custom ? 'custom' : 'tag';
+    $('fTagBlock').style.display = buttons || custom ? 'none' : 'block';
+    if (custom) $('fTagWarn').style.display = 'none';
+    $('fCustomBlock').style.display = custom && !buttons ? 'block' : 'none';
+    const kind = isTickType(f.type) ? 'tick' : 'text';
+    [...$('fCustomAction').options].forEach(o => { const a = customActionById(o.value); o.disabled = !!a && a.for !== kind; });
+    $('fCustomAction').value = custom ? (f.fill.action || '') : '';
+    const action = custom && customActionById(f.fill.action);
+    $('fCustomTextBlock').style.display = action && action.takesText ? 'block' : 'none';
+    $('fCustomText').value = custom ? (f.fill.text || '') : '';
+  }
   // The tag list and suggestions: the standard tags, which never change
   function fillTagOptions(){
     const sorted = [...STANDARD_TAGS].sort((a,b)=>a.localeCompare(b));
@@ -2460,6 +2512,7 @@ else if (typeof exports === 'object')
       const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
       showTagWarn(f.oscarTag);
       showFontRow(f);
+      showFillMode(f);
       syncingEditor = false;
     } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
   }
@@ -2484,8 +2537,14 @@ else if (typeof exports === 'object')
       const size = Math.round(Number($('fFontSize').value));
       if (size >= 6 && size <= 48) f.fontSize = size;
     }
+    // (a custom fill keeps the tag the field had, for when it goes back to a tag)
+    if ($('fFillMode').value === 'custom'){
+      const action = customActionById($('fCustomAction').value);
+      f.fill = { action: action ? action.id : '', ...(action && action.takesText ? { text: $('fCustomText').value } : {}) };
+    } else delete f.fill;
     syncFontButtons();
     showFontRow(f);
+    showFillMode(f);
 
     // (a signature field with a plain numbered name is called "signature": it is the
     // provider's signature stamp)
@@ -2502,7 +2561,7 @@ else if (typeof exports === 'object')
   }
 
   // (an undo step when an editor box is entered, so one undo takes back what was typed in it)
-  const editorInputIds = ['fName','fTag','fX','fY','fW','fH','fFontSize'];
+  const editorInputIds = ['fName','fTag','fX','fY','fW','fH','fFontSize','fCustomText'];
   editorInputIds.forEach(id => {
     const input=$(id);
     if(!input) return;
@@ -2512,6 +2571,7 @@ else if (typeof exports === 'object')
   $('fType').addEventListener('focus', ()=>{ if (state.selected.size===1) pushUndo(); });
   $('fType').addEventListener('change', applyEditorToSelected);
   $('fFontButtons').addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); });
+  ['fFillMode','fCustomAction'].forEach(id => $(id).addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); }));
 
   // Choosing a tag from the list gives the field that tag
   $('fTagSelect').addEventListener('change', ()=>{
@@ -2599,6 +2659,7 @@ else if (typeof exports === 'object')
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
         ...(f.fontButtons === false ? { fontButtons: false } : {}),
+        ...(f.fill && typeof f.fill === 'object' ? { fill: { action: String(f.fill.action || ''), ...(f.fill.text != null ? { text: String(f.fill.text) } : {}) } } : {}),
         ...(f.type === 'fontbuttons' ? { target: Number(f.target), ...(f.anchor ? { anchor: { x: Number(f.anchor.x), y: Number(f.anchor.y) } } : {}) } : {})
       };
     });
@@ -4414,10 +4475,11 @@ function fontButtonsMarkup(name, x, y){
           `<input type="hidden" name="${name}_fontsize" id="${name}_fontsize">`].join('\n');
 }
 // A field's control in the exported eForm, with its oscarDB tag: a textarea, a tick box (an X
-// that a click turns on and off) or a text input; `inlinePosStyle` places it on the page
+// that a click turns on and off) or a text input; `inlinePosStyle` places it on the page. (A
+// field with a custom fill has no tag; its action isn't exported yet.)
 function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
-  const tag = escAttr(f.oscarTag || '');
+  const tag = f.fill ? '' : escAttr(f.oscarTag || '');
   const id = escAttr((f._safeName || f.name || 'field') + '_' + (f.id ?? ''));
   const dbAttr = tag ? ` oscarDB="${tag}"` : '';
 
@@ -4470,7 +4532,7 @@ function preflightChecks(htmlText=''){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
-  const untagged = dataFields(state.fields).filter(f => !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature');
+  const untagged = dataFields(state.fields).filter(f => !f.fill && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature');
   out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
   const outOfBounds = [];
@@ -5424,6 +5486,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   }catch(_){ }
 
   fillTagOptions();
+  fillCustomActionOptions();
   if ($('chkSnap')) $('chkSnap').checked = !!state.snap.enabled;
   if ($('snapPx')) $('snapPx').value = String(state.snap.threshold || 8);
   if ($('chkGuides')) $('chkGuides').checked = !!state.snap.showGuides;
