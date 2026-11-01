@@ -96,6 +96,12 @@
   /* A textarea's font size buttons (▲ over ▼), as the eForm will show them; dragged as one */
   .field.fontbuttons{border:0;background:transparent;border-radius:0}
   .field.fontbuttons.selected{outline:2px solid #2563eb;outline-offset:1px}
+  /* How a field listing the patient's phones will look on the eForm, at its font size there;
+     red when it doesn't fit the field */
+  .field-preview{position:absolute;inset:0;padding:0 2px;color:var(--violet);font-family:sans-serif;line-height:1.15;
+    white-space:nowrap;display:flex;align-items:center;pointer-events:none}
+  .field-preview.wraps{display:block;white-space:normal}
+  .field-preview.overflows{color:var(--red)}
   /* A phone field's phone selector, drawn as the dropdown it is on the eForm */
   .field.phoneselect{border:1px solid var(--violet);background:#fff;border-radius:3px;color:var(--violet);
     display:flex;align-items:center;justify-content:space-between;padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
@@ -466,7 +472,7 @@
       <div id="fTagWarn" class="small" style="display:none;color:var(--red);margin-top:4px">Not a standard OSCAR 12 tag: OSCAR may not fill it in.</div>
       <div id="fButtonsNote" class="small" style="display:none;margin-top:8px"></div>
       <div id="fFontRow" class="row small" style="display:none;margin-top:8px">
-        <label><input id="fFontButtons" type="checkbox"/> Font size buttons (&#9650;&#9660;) on the eForm</label>
+        <label id="fFontButtonsLabel"><input id="fFontButtons" type="checkbox"/> Font size buttons (&#9650;&#9660;) on the eForm</label>
         <label>Font size <input id="fFontSize" type="number" min="6" max="48" step="1" style="width:64px"/> px</label>
       </div>
       <div class="grid2" style="margin-top:8px">
@@ -1916,9 +1922,19 @@ else if (typeof exports === 'object')
     // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
     // the edges of a field shorter than the text, so it stays on the field's own row), else
     // above it; a tick box's always above, centred over it. (A field with a custom fill shows
-    // its mark in its tag's place, in violet.)
-    const custom = usesCustomFill(f);
-    const tag = state.showTags ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    // its mark in its tag's place, in violet; one listing phones, a preview in its place.)
+    const custom = usesCustomFill(f), phones = phonesToShow(f);
+    const tag = state.showTags && !phones ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    // (a field listing the patient's phones: how they will look on the eForm, at its font size
+    // there, so it shows whether they fit; renderPage turns it red when they don't. The sample
+    // number is digits, which are wider than a placeholder such as "xxx")
+    if (phones){
+      const pageInfo = state.pages[page], pageScale = pageInfo && pageInfo.naturalW ? pageInfo.naturalW / EXPORT_PAGE_W : 1;
+      const previewDiv = document.createElement('div'); previewDiv.className = 'field-preview' + (f.type === 'textarea' ? ' wraps' : '');
+      previewDiv.style.fontSize = (fieldFontSize(f) * pageScale * sx) + 'px';
+      previewDiv.textContent = phoneListText(phones.split(' ').map(kind => [kind, '555-555-5555']));
+      fieldDiv.appendChild(previewDiv);
+    }
     const tick = f.type === 'checkbox' || f.type === 'xbox';
     const above = !!tag && (tick || tagWidth(tag) + 8 > f.width * sx);
     if (tag){ const tagDiv = document.createElement('div'); tagDiv.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : '') + (custom ? ' custom' : ''); tagDiv.textContent = tag; tagDiv.title = tag; fieldDiv.appendChild(tagDiv); }
@@ -1942,6 +1958,11 @@ else if (typeof exports === 'object')
     getPageImgEl(page).style.display='block';
     overlay.innerHTML='';
     getPageFields(page).forEach(f => overlay.appendChild(fieldElement(f, page)));
+    // (a phone preview that runs past its field, across or, in a textarea, down: red)
+    overlay.querySelectorAll('.field-preview').forEach(d => {
+      const overflows = d.scrollWidth > d.clientWidth + 1 || d.scrollHeight > d.clientHeight + 1;
+      d.classList.toggle('overflows', overflows); d.title = overflows ? "The phones don't fit the field at this font size" : 'The phones fit the field';
+    });
     if (state.snap.showGuides && state.snapGuides && samePage(state.snapGuides.page,page)){
       const { sx, sy } = getPageScale(page);
       // (only the lines a drag has just snapped to: a line for every field's edges would hide
@@ -2527,7 +2548,9 @@ else if (typeof exports === 'object')
   // Shows a textarea's font size and buttons in the Selected field editor (other fields have
   // neither), and for a textarea's font size buttons themselves, only where they are
   function showFontRow(f){
-    $('fFontRow').style.display = f.type === 'textarea' ? 'flex' : 'none';
+    // (a field listing phones has a font size too, so they can be made to fit it)
+    $('fFontRow').style.display = f.type === 'textarea' || phonesToShow(f) ? 'flex' : 'none';
+    $('fFontButtonsLabel').style.display = f.type === 'textarea' ? '' : 'none';
     $('fFontButtons').checked = hasFontButtons(f);
     $('fFontSize').value = fieldFontSize(f);
     // (a field's controls have only a place: no name, type, tag or size of their own)
@@ -2585,6 +2608,10 @@ else if (typeof exports === 'object')
       const action = customActionById($('fCustomAction').value), text = $('fCustomText').value;
       f.fill = { on: true, action: action ? action.id : '', ...(text ? { text } : {}) };
     } else if (f.fill) f.fill.on = false;
+    if (f.type !== 'textarea' && phonesToShow(f)){
+      const size = Math.round(Number($('fFontSize').value));
+      if (size >= 6 && size <= 48) f.fontSize = size;
+    }
     showFontRow(f);
     showFillMode(f);
 
@@ -4511,7 +4538,10 @@ function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) &
 // with only a place of their own
 function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect'; }
 // A field's font size on the eForm: a textarea's own, else 12px
-function fieldFontSize(f){ return f.type === 'textarea' && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
+function fieldFontSize(f){ return (f.type === 'textarea' || phonesToShow(f)) && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
+// The patient's phones as a field lists them, given [kind, number] pairs: "(H): 604-555-0100.
+// (C): 778-555-0199." (fillPhoneLists on the eForm writes the same)
+function phoneListText(phones){ return phones.map(([kind, number]) => `(${kind.charAt(0).toUpperCase()}): ${number}.`).join(' '); }
 // Where a field's control goes (a textarea's font size buttons, ▲ over ▼, unless another size
 // is given), in the eForm's pixels, given the field and the page: just right of its top-right
 // corner; inside that corner where the page ends first
@@ -5022,7 +5052,7 @@ function patientPhone(kind){
 <\/script>
 `) + (!usesPhoneLists ? '' : `<script>
 // On a new form, each field listing phones (data-show-phones="home cell") shows the patient's
-// phones of those kinds: "Home: 604-555-0100. Cell: 778-555-0199." (a kind they have none of is
+// phones of those kinds: "(H): 604-555-0100. (C): 778-555-0199." (a kind they have none of is
 // left out)
 function fillPhoneLists(){
   if (!isNewForm()) return;
@@ -5031,7 +5061,7 @@ function fillPhoneLists(){
     var kinds = fields[i].getAttribute('data-show-phones').split(' '), parts = [];
     for (var j = 0; j < kinds.length; j++){
       var number = patientPhone(kinds[j]);
-      if (number) parts.push(kinds[j].charAt(0).toUpperCase() + kinds[j].slice(1) + ': ' + number + '.');
+      if (number) parts.push('(' + kinds[j].charAt(0).toUpperCase() + '): ' + number + '.');
     }
     fields[i].value = parts.join(' ');
   }
