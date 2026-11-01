@@ -130,7 +130,7 @@
   .collapsible-summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none}
   .collapsible-summary::-webkit-details-marker{display:none}
   .plus-pill{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#2563eb;color:#fff;font-weight:700;line-height:1}
-  /* v8 visual refresh */
+  /* The look: the background, cards, buttons and pills */
   body{
     background:
       radial-gradient(1200px 700px at -10% -20%, #dbeafe 0%, transparent 60%),
@@ -242,7 +242,7 @@
     pointer-events:none;z-index:19;
   }
 
-  /* Preflight result rows */
+  /* The compatibility check's results */
   .preflight-list{margin-top:6px;max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fbfdff}
   .pf-ok{color:#065f46;font-size:12px}
   .pf-warn{color:#92400e;font-size:12px}
@@ -1006,7 +1006,7 @@ else if (typeof exports === 'object')
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
-  // A file the user chose, read as a data: URL (a page image) or as text (an eForm, a session)
+  // A file the user chose, read as a data: URL (a page image)
   function readAsDataURL(file){
     return new Promise((res, rej)=>{
       const r = new FileReader();
@@ -1015,6 +1015,7 @@ else if (typeof exports === 'object')
       r.readAsDataURL(file);
     });
   }
+  // A file the user chose, read as text (an eForm, a session)
   function readAsText(file){
     return new Promise((res, rej)=>{
       const r = new FileReader();
@@ -1115,6 +1116,8 @@ else if (typeof exports === 'object')
   }
 
   // ===== Tags: OSCAR's standard tags, and guessing a field's =====
+  // A typed tag tidied: spaces and other characters that can't be in a tag become "_"
+  // ("patient name" -> "patient_name")
   function normalizeTag(tag){
     return String(tag || '').trim().replace(/\s+/g,'_').replace(/[^A-Za-z0-9_]/g,'_').replace(/^_+|_+$/g,'');
   }
@@ -1130,6 +1133,8 @@ else if (typeof exports === 'object')
   // Whether a field type is a tick box: the app never tags one itself (a user still can)
   const isTickType = (type) => type === 'checkbox' || type === 'xbox';
 
+  // A field name that only numbers the field ("gen_inputid12", "page1_3", "field_7"): it says
+  // nothing about what the field holds
   const GENERIC_NAME_RE = /^(gen_inputid\d+|page\d+_\d+|field_\d+|input\d+|checkbox\d*)$/i;
 
   // A field's tag, in two steps: what it asks for, from the whole words of its label (askedFor),
@@ -1158,7 +1163,8 @@ else if (typeof exports === 'object')
     const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
     return tag;
   }
-  // The tag for what a field asks for, by whose it is (the same whoever's for "any")
+  // The tag for what a field asks for, by whose it is. "any" is the same tag whoever's it is
+  // (but none for the receiving office's)
   const TAG_FOR = {
     any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name' },
     patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
@@ -1167,11 +1173,11 @@ else if (typeof exports === 'object')
     clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no' },                       // (OSCAR 12 has no tag for their email)
-    family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (OSCAR may well not have their phone, fax or address)
+    family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
     guardian:  {},                                               // (OSCAR 12 has no tags for their details)
     office:    {}                                                // ("FOR OFFICE USE ONLY": the receiving office fills these in)
   };
-  // What a field asks for, from the whole words of its label (nameKey()'d: words joined by "_").
+  // What a field asks for, from the whole words of its label (lowercase, joined by "_").
   // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral");
   // any other is the date of something else ("Date of loss", "LMP (date)", "Date seen"), and an
   // age is the patient's only when it is just "Age" ("Age at diagnosis", "Menopause (age)").
@@ -1210,15 +1216,16 @@ else if (typeof exports === 'object')
     return '';
   }
 
-  // A tag made more exact by the words printed under the field, or in its label: "FIRST  MIDDLE  LAST" under a
-  // name is the first name first (OSCAR's patient_name is "Last, First"); "D/M/Y" under a birth
-  // date is day first (OSCAR's dobc; dobc2 is year first)
+  // A tag made more exact by the words printed under the field, or in its label: "FIRST  MIDDLE
+  // LAST" under a name is the first name first (first_last_name; OSCAR's patient_name is "Last,
+  // First"); "D/M/Y" under a birth date is day first (dobc; dobc2 is year first)
   function captionTag(tag, caption){
     const c = ' ' + caption.toUpperCase() + ' ';
     const first = c.search(/\b(FIRST|GIVEN)\b/), last = c.search(/\b(LAST|SURNAME)\b/);
     if (tag === 'patient_name' && first >= 0 && last > first) return 'first_last_name';
     if (tag === 'dobc2' || tag === 'dob'){
-      // (or just its start, which OCR reads more surely than the rest: "(dd/merenyy yy)")
+      // (or just its start, which OCR reads more surely than the rest: "(dd/mm/yyyy)" read as
+      // "(dd/merenyy yy)")
       if (/\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b|\bD{1,2}\s*[\/.\-]\s*M/.test(c)) return 'dobc';
       if (/\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b|\bY{2,4}\s*[\/.\-]\s*M/.test(c)) return 'dobc2';
     }
@@ -1226,12 +1233,13 @@ else if (typeof exports === 'object')
   }
 
   // ===== Whose details a field holds (added by FreeScribe) =====
-  // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. A field whose label
-  // doesn't takes the owner of what is just left of it on its row ("OFFICE PHONE: ____  FAX: ____"),
-  // or else of what is just above it ("Referring MD" over "Printed name: ____"), the patient's
-  // when nothing says. In a bordered box, it looks only inside the box, and is the patient's
-  // when nothing there says (a box of the referring doctor's details is headed so). A table cell looks up first: its column's header says whose, and the cell
-  // to its left can be another table's ("PATIENT | REFERRING MD" side by side).
+  // "Name", "Phone", "Fax #", "Address", "Email", "MSP No." don't say whose. When a field's label
+  // doesn't, the field takes the owner of the field just left of it on its row ("OFFICE PHONE:
+  // ____  FAX: ____"), or else of what is just above it ("Referring MD" over "Printed name:
+  // ____"), and is the patient's when nothing says. In a bordered box it looks only inside the
+  // box, and is the patient's when nothing there says (a box of the referring doctor's details
+  // is headed so). A table cell looks up first: its column's header says whose, and the cell to
+  // its left can be another table's ("PATIENT | REFERRING MD" side by side).
   // The owner is the patient ("Participant information" too), the referring clinician
   // (current_user), the family doctor (doctor, the patient's MRP), someone else of the patient's
   // ("Parent/guardian contact information", "Emergency contact") or the receiving office ("FOR
@@ -1245,7 +1253,8 @@ else if (typeof exports === 'object')
   ];
   // Whose details a text names ("Referring physician" -> clinician), from OWNER_CUES, or ''
   const ownerCue = (text) => { const t = String(text || '').toLowerCase(); for (const [o, re] of OWNER_CUES) if (re.test(t)) return o; return ''; };
-  // Returns each text field's owner (a Map).
+  // Each labelled text field's owner, as a Map. `read` is OCR's words in lines; boxOf as for
+  // tagFields
   function fieldOwners(found, read, boxOf){
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
@@ -1322,7 +1331,7 @@ else if (typeof exports === 'object')
 
   // ===== Each found text field's tag (Auto Detect) =====
   // Whose details each field is (fieldOwners): the patient's, the referring clinician's, the
-  // family doctor's, or the receiving office's; then its tag (guessTag), made more exact by the
+  // family doctor's, a guardian's or the receiving office's; then its tag (guessTag), made more exact by the
   // date or name order printed under the line or in the label (captionTag: "Date of birth
   // (dd/mm/yyyy)", "FIRST  MIDDLE  LAST"). Last, a bare "Date" beside a value on its row that
   // OSCAR doesn't fill is that value's date ("INR: ____  Date: ____"), not today's; beside the
@@ -1547,8 +1556,8 @@ else if (typeof exports === 'object')
       const page = inferPage(box.ref || el);
       const name = (rawName && !GENERIC_NAME_RE.test(rawName)) ? rawName : (oscarTag || rawName);
 
-      // Strip the _N dedup suffix appended by sanitizeUniqueFieldNames (e.g. patient_name_2 -> patient_name)
-      // Only strip if the base name (without _N) exists in tag catalog or is clearly a duplicate artifact
+      // (an eForm this app made: its names lose the "_2", "_3"… that sanitizeUniqueFieldNames
+      // added to keep them apart, "patient_name_2" -> "patient_name")
       const cleanName = isGenerated ? name.replace(/_\d+$/, '') : name;
 
       const exportW = (isGenerated && template.pageExportW[page])
@@ -1885,9 +1894,8 @@ else if (typeof exports === 'object')
     getPageFields(page).forEach(f => overlay.appendChild(fieldElement(f, page)));
     if (state.snap.showGuides && state.snapGuides && samePage(state.snapGuides.page,page)){
       const { sx, sy } = getPageScale(page);
-      // Active snap guides only (solid, bright, shown when a snap actually fires).
-      // Faint candidate lines for every field were removed — with more than a
-      // few fields on a page they cluttered the canvas and obscured the form.
+      // (only the lines a drag has just snapped to: a line for every field's edges would hide
+      // the form)
       if (Number.isFinite(state.snapGuides.x)){
         const verticalGuide = document.createElement('div'); verticalGuide.className='guide-v';
         verticalGuide.style.left=(state.snapGuides.x*sx - 1)+'px'; overlay.appendChild(verticalGuide);
@@ -1921,8 +1929,8 @@ else if (typeof exports === 'object')
   // ===== Zoom =====
   // The zoom steps, as a share of the page fitted to its box (1, where it starts)
   const ZOOM_STEPS = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6];
-  // Shows the current page at state.zoom: fitted to the box's width at 1, as the page has always
-  // been shown (no wider than the image itself), else that fitted width times the zoom. The box
+  // Shows the current page at state.zoom: fitted to the box's width at 1 (no wider than the image
+  // itself), else that fitted width times the zoom. The box
   // keeps the size it has at 1 and scrolls. `anchor` ({x, y} in screen pixels) is the point that
   // stays where it is on screen (the mouse for Ctrl+scroll; else the box's middle).
   function applyZoom(anchor){
@@ -2269,7 +2277,8 @@ else if (typeof exports === 'object')
   function onOverlayMouseDown(e, page){
     const overlay = getPageOverlay(page);
     if (!overlay) return;
-    // Fallback delegated field handling (helps in browsers where direct per-field listeners can be flaky)
+    // (a press on a field that the field's own listener didn't take: a pen or touch press, as the
+    // field listens only for the mouse)
     const fieldEl = e.target && e.target.closest ? e.target.closest('.field') : null;
     if (fieldEl && overlay.contains(fieldEl)){
       const id = Number(fieldEl.dataset.id);
@@ -2280,7 +2289,7 @@ else if (typeof exports === 'object')
       }
     }
 
-    // Blank canvas interaction: place checkbox or lasso
+    // (a press on the blank page, or on the lasso: a tick box, or a lasso)
     if (e.target === overlay || (e.target && e.target.classList && e.target.classList.contains('lasso-box'))){
       if (state.placeCheckboxMode){
         e.preventDefault(); e.stopPropagation();
@@ -2298,6 +2307,7 @@ else if (typeof exports === 'object')
     overlay.addEventListener('pointerdown', (e)=>{ if(e.pointerType&&e.pointerType!=='mouse') onOverlayMouseDown(e,page); });
   }
 
+  // The most pages a form can have
   const MAX_PAGES = 10;
 
   // Makes a page's parts: its image and overlay, its "Upload Page n image" button and its tab
@@ -2384,7 +2394,8 @@ else if (typeof exports === 'object')
       msg(`Loaded page ${page}: ${img.width}x${img.height}`, 'ok'); renderAll();
     }catch(err){ msg('Failed to load image: ' + (err.message || err), 'err'); }
   }
-  // Upload/tab listeners wired dynamically by createPageDOM
+  // (each page's upload button and tab are wired up in createPageDOM)
+  // The display and snap settings: labels, tags, snapping, its distance and its guides
   $('chkLabels').addEventListener('change', (e)=>{ state.showLabels = e.target.checked; renderAll(); });
   $('chkTags').addEventListener('change', (e)=>{ state.showTags = e.target.checked; renderAll(); });
   $('chkSnap').addEventListener('change', (e)=>{ state.snap.enabled = !!e.target.checked; renderAll(); });
@@ -2422,7 +2433,8 @@ else if (typeof exports === 'object')
   }
   // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
   function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
-  // Shows a textarea's font size and buttons in the Selected field editor (other fields have neither)
+  // Shows a textarea's font size and buttons in the Selected field editor (other fields have
+  // neither), and for a textarea's font size buttons themselves, only where they are
   function showFontRow(f){
     $('fFontRow').style.display = f.type === 'textarea' ? 'flex' : 'none';
     $('fFontButtons').checked = hasFontButtons(f);
@@ -2475,7 +2487,8 @@ else if (typeof exports === 'object')
     syncFontButtons();
     showFontRow(f);
 
-    // A signature field is the provider signature image stamp
+    // (a signature field with a plain numbered name is called "signature": it is the
+    // provider's signature stamp)
     if (f.type === 'signature' && (!f.name || /^field_\d+$/i.test(f.name) || /^text_\d+$/i.test(f.name))) f.name = 'signature';
 
     const newX = Number($('fX').value), newY = Number($('fY').value), newW = Number($('fW').value), newH = Number($('fH').value);
@@ -2500,6 +2513,7 @@ else if (typeof exports === 'object')
   $('fType').addEventListener('change', applyEditorToSelected);
   $('fFontButtons').addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); });
 
+  // Choosing a tag from the list gives the field that tag
   $('fTagSelect').addEventListener('change', ()=>{
     const chosenTag = $('fTagSelect').value;
     if(!chosenTag) return;
@@ -2507,6 +2521,7 @@ else if (typeof exports === 'object')
     applyEditorToSelected();
   });
 
+  // "Guess tag": the tag guessTag gives the field from its name and label, if it finds one
   $('btnGuessTag').addEventListener('click', ()=>{
     if (state.selected.size !== 1) return;
     const id=[...state.selected][0], f=state.fields.find(k=>k.id===id); if(!f) return;
@@ -2633,8 +2648,8 @@ else if (typeof exports === 'object')
     renderAll();
   }
 
-  // The work a refresh or closing the tab would lose: the pages, fields and export, as they
-  // were at the last Save Session or Load Session. The browser asks before leaving when it has
+  // The work a refresh or closing the tab would lose: the pages, fields, imported eForm, export
+  // draft, title, author and tuning, as they were at the last Save Session or Load Session. The browser asks before leaving when it has
   // changed since (or was never saved) and there is any.
   function workSignature(){
     const pages = Object.entries(state.pages).filter(([,pageInfo]) => pageInfo.imgData)
@@ -2709,7 +2724,7 @@ else if (typeof exports === 'object')
   // ===== Auto Detect tuning (Settings) =====
   // The tuning boxes' ids
   const TUNING_IDS = ['minCb','maxCb','tolCb','lineMinPct','darkBias','gradMult'];
-  // The tuning's values, by id (saved with a session), and setting them back
+  // The tuning's values, by id (saved with a session)
   function getTuning(){
     const tuning = {};
     TUNING_IDS.forEach(id => {
@@ -2719,6 +2734,7 @@ else if (typeof exports === 'object')
     });
     return tuning;
   }
+  // Puts saved tuning values back in their boxes
   function setTuning(tuning){
     if (!tuning || typeof tuning !== 'object') return;
     TUNING_IDS.forEach(id => {
@@ -2772,6 +2788,7 @@ else if (typeof exports === 'object')
   if ($('btnPresetLines')) $('btnPresetLines').addEventListener('click', ()=>applyDetectPreset('lines'));
 
   // ===== Auto Detect =====
+  // How many pixels are set in a 0/1 map's rectangle, x1..x2 by y1..y2 (kept on the map)
   function countOnInRect(arr,w,h,x1,y1,x2,y2){
     const xx1 = clamp(Math.round(x1), 0, w-1), yy1 = clamp(Math.round(y1), 0, h-1);
     const xx2 = clamp(Math.round(x2), 0, w-1), yy2 = clamp(Math.round(y2), 0, h-1);
@@ -2788,17 +2805,14 @@ else if (typeof exports === 'object')
   // a P's bowl with its stem looks like a square. A printed tick box has four
   // straight sides meeting in square corners, an empty inside (the forms are blank), and nothing
   // touching it from outside.
-  // The grey image is judged where a box has at least this much between its darkest pixel and
-  // the paper: faint print has little more (a 1-pixel side of "faint print" 75 levels at most)
+  // The fewest grey levels between a box's darkest pixel and its paper for the grey image to be
+  // judged at all: less is too flat to tell ink from paper (then only the ink map is)
   const GREY_RANGE = 20;
-  // How much of a box's inside (inside its outline band) is ink, on the grey image: darker than
-  // halfway between the box's darkest pixel and the paper. A blurred outline's halo is lighter
-  // than that and doesn't count, as it does on the ink map (which takes soft edges for ink).
   // A page printed faint (grey ink on white) is the page printed well with less between its ink
-  // and its paper. A page whose darkest ink (all but the darkest thousandth of the page) is
-  // lighter than halfway from black to its paper (the level half the page is at least as light
-  // as) is printed faint: its grey levels are stretched so that ink is black and its paper white,
-  // as on a page printed well. A page printed well (its darkest ink near black) is left as it is.
+  // and its paper. Its ink level is the darkest but for the darkest thousandth of the page, its
+  // paper the level half the page is at least as light as. When that ink is lighter than halfway
+  // from black to the paper, the page is printed faint, and its grey levels are stretched so its
+  // ink is black and its paper white, as on a page printed well; otherwise it is left as it is.
   // Returns whether it changed anything.
   function stretchGrey(gray){
     const hist = new Uint32Array(256); for (let i=0; i<gray.length; i++) hist[gray[i]]++;
@@ -2811,7 +2825,9 @@ else if (typeof exports === 'object')
   }
 
   // The share of a box's middle (inside its sides, `band` thick) darker than halfway between its
-  // lightest and darkest pixel, on the grey image; 0 when the box is all one shade
+  // lightest and darkest pixel, on the grey image; 0 when the box is all one shade. A blurred
+  // side's halo is lighter than that and doesn't count, as it would on the ink map (which takes
+  // soft edges for ink).
   function inkInside(gray,w,x1,y1,x2,y2,band){
     let lo = 255, hi = 0;
     for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){ const v = gray[y*w+x]; if (v < lo) lo = v; if (v > hi) hi = v; }
@@ -2986,9 +3002,11 @@ else if (typeof exports === 'object')
            countOnInRect(inkMap,w,h,Math.max(0,x1-gap),ya,x1-2,yb) === 0;
   }
 
-  // Explicit 4-sided rectangle scan — finds hollow square outlines without needing
-  // them to be a single connected component. Robust against thin PDF borders and
-  // corner gaps that defeat the connected-component approach.
+  // Square outlines on the ink map, found from their top side whether or not they are one
+  // connected blob (a thin PDF side, a gap at a corner): each side mostly ink (at least sideCovTh
+  // of its length), the middle at most innerMaxTh ink, minSz to maxSz across (canvas px). For
+  // each place a top side starts, the smallest size that passes, and that `accept` (if given)
+  // takes, is the one kept.
   function rectScan(inkMap, w, h, minSz, maxSz, sideCovTh, innerMaxTh, accept){
     const results = [];
     // Build row-runs of dark pixels for fast horizontal lookup
@@ -3090,9 +3108,6 @@ else if (typeof exports === 'object')
           const x0=topRun.x1;
           const x1=x0, y1=y0, x2=x1+sz-1, y2=y1+sz-1;
           if(x2>=w || y2>=h) continue;
-          // Aspect: must be roughly square (allow 10% deviation for slightly rect boxes)
-          // Width is sz, height is sz — always square in this scan
-
           const tc=topEdgeCov(y1,x1,x2,band);
           if(tc < sideCovTh) continue;
           const bc=botEdgeCov(y2,x1,x2,band);
@@ -3107,7 +3122,7 @@ else if (typeof exports === 'object')
           if(accept && !accept(x1,y1,x2,y2)) continue;
 
           results.push({x1,y1,x2,y2,sz});
-          break; // found best fit for this run start, move on
+          break; // (the smallest size that passes: the next run)
         }
       }
     }
@@ -3144,7 +3159,8 @@ else if (typeof exports === 'object')
   // as ink. One that runs down to the foot of the page, or to its footer, is one only under a
   // label ending with a colon (checked once the words are read): the blank page where a form
   // ends ("Return To ... Fax 1-877-..." over half a page left empty) is no writing area.
-  // rules: the page's rules, top to bottom; line: one written line's height (canvas px).
+  // rules: the page's rules, top to bottom; lineHeight: one written line's height (canvas px);
+  // scale: canvas px per page-image px; found: the fields found so far (page-image px).
   function areaFields(inkMap, w, h, scale, rules, lineHeight, page, found){
     if (!rules.length) return [];
     // Ink, or a field already found
@@ -3247,8 +3263,9 @@ else if (typeof exports === 'object')
   // page right after it on its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐"),
   // up to the next ink, when it is at least a few letters wide. When the blank also goes on
   // down, under the label and beside it, for more than a line ("Address:" over room for two
-  // lines), the field takes that too. Not where a field was found already, nor after a heading
-  // over a writing area found just below it ("EXAM(s) REQUESTED:").
+  // lines), the field takes that too. Not where a field was found already, nor after a sentence
+  // or a heading in capitals, nor after a label over a row of tick boxes or over a writing area
+  // found just below it ("EXAM(s) REQUESTED:"). right: the form's right edge (page-image px).
   function colonFields(read, inkMap, w, h, scale, page, found, right){
     const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
     const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
@@ -3636,8 +3653,8 @@ else if (typeof exports === 'object')
   }
 
   // ===== Text fields from lines (added by FreeScribe) =====
-  // bands: the page's rules, top to bottom; line: one written line's height; ticks: the tick
-  // boxes found on the page (all canvas px).
+  // bands: the page's rules, top to bottom; lineHeight: one written line's height; ticks: the
+  // tick boxes found on the page (all canvas px); scale: canvas px per page-image px.
   function textFieldsFromLines(inkMap, w, h, scale, bands, lineHeight, page, ticks){
     const maxThick = Math.max(3, Math.round(h*0.012));
     // A single-line table row can be shorter than the guessed written line: measure it against
@@ -3928,6 +3945,7 @@ else if (typeof exports === 'object')
   // find in the picture (whose rules and words it still reads, to tag them). Pages from scans,
   // faxes, images or flat PDFs are detected from the picture.
   const USE_PDF_FIELDS = true;
+  // The source PDF as pdf.js opened it, kept while the PDF (`key`, its data) stays the same
   let pdfFieldsDoc = { key: null, doc: null };
   // A fillable PDF's own form fields on a page, at their places and with their names, when the
   // page came from one (null otherwise, and Auto Detect works from the picture)
@@ -4012,7 +4030,9 @@ else if (typeof exports === 'object')
     return Math.abs(best) >= 0.12 ? best*Math.PI/180 : 0;
   }
 
-  // opts.readWords: false skips reading the page's words (the tests' checkbox-only runs)
+  // "Auto Detect": finds the current page's tick boxes and places to write, from the picture
+  // (pass 1), then reads the page's words to name them and suggest their tags (pass 2), and adds
+  // them to the page. opts.readWords: false skips reading the words (pass 1 alone)
   async function detectCurrentPage(opts = {}){
     const page = state.currentPage, p = state.pages[page];
     if (!p.imgData || !p.naturalW) { msg('Upload page image first.', 'warn'); return; }
@@ -4034,7 +4054,8 @@ else if (typeof exports === 'object')
       const img = await loadImage(p.imgData);
       // Detect on the page at most 1600 pixels on its long side. A small page (under 1200,
       // scanned at a low resolution) is enlarged to that, up to twice its size, so its tick
-      // boxes' thin sides don't break up; the smoothing would only blur a page near that size.
+      // boxes' thin sides don't break up; a page from 1200 to 1600 is left as it is, as enlarging
+      // it that little would only blur it.
       const maxDim = 1600, longSide = Math.max(img.width, img.height);
       const scale = longSide < 1200 ? Math.min(2, maxDim / longSide) : Math.min(1, maxDim / longSide);
       const w = Math.max(1, Math.round(img.width * scale));
@@ -4062,14 +4083,16 @@ else if (typeof exports === 'object')
       }
       stretchGrey(gray);
 
-      // Adaptive threshold with slight lift to keep faint gray checkbox borders.
+      // Ink: darker than a level set from the page's own mean and spread, lifted by darkBias to
+      // keep faint grey box sides
       let sum=0; for(let i=0;i<gray.length;i++) sum += gray[i];
       const mean = sum / gray.length;
       let varr=0; for(let i=0;i<gray.length;i++){ const d=gray[i]-mean; varr += d*d; }
       const stdev = Math.sqrt(varr / gray.length);
       const darkTh = Math.max(35, Math.min(235, Math.round(mean - stdev*0.32 + darkBias)));
 
-      // Gradient map catches faded strokes that pure threshold may miss.
+      // ... or a sharp edge (the gradient well above the page's usual, by gradMult), which catches
+      // faded strokes the level misses
       const grad = new Uint16Array(w*h);
       let gsum = 0, g2 = 0;
       for(let y=1;y<h-1;y++){
@@ -4093,7 +4116,8 @@ else if (typeof exports === 'object')
         bin[i] = (isDark || isEdge) ? 1 : 0;
       }
 
-      // Denoise: remove isolated pixels, bridge near gaps.
+      // The ink map: a lone pixel (at most one ink neighbour) goes, and a pixel of paper with
+      // seven or more ink neighbours fills in
       const inkMap = new Uint8Array(bin);
       for(let y=1;y<h-1;y++){
         for(let x=1;x<w-1;x++){
@@ -4110,7 +4134,8 @@ else if (typeof exports === 'object')
 
       await progress('Finding the lines and tick boxes…', 0.05);
       const newFields = [];
-      // Detect long thin horizontal lines -> text boxes.
+      // The rules: rows of ink at least lineMinPct% of the page's width long (gaps of up to two
+      // pixels bridged)
       const minSeg = Math.round(w*(lineMinPct/100));
       const segs = [];
       for(let y=0;y<h;y++){
@@ -4147,7 +4172,7 @@ else if (typeof exports === 'object')
         if(!merged) bands.push({x1:sg.x1,x2:sg.x2,y1:sg.y,y2:sg.y});
       });
 
-      // Connected component pass for checkboxes.
+      // Tick boxes, from connected blobs of ink about a tick box's size and square
       const visited = new Uint8Array(w*h);
       const stack = [];
       const cb = [];
@@ -4192,7 +4217,6 @@ else if (typeof exports === 'object')
           const round = isRealCircle(inkMap,w,h,minx,miny,maxx,maxy);
           if(!round && !isRealBox(inkMap,w,h,minx,miny,maxx,maxy,gray)) continue;
 
-          // classify as xbox if interior has significant marks.
           const type = 'checkbox';
           const size = Math.max(8, sizeNat);
           cb.push({
@@ -4204,8 +4228,8 @@ else if (typeof exports === 'object')
         }
       }
 
-      // ── Rect scan pass: explicit 4-sided rectangle finder ─────────────────
-      // Robust for thin-border PDF checkboxes that don't form a single connected component.
+      // Tick boxes, from square outlines (rectScan): a thin PDF box whose sides aren't one
+      // connected blob
       const minSzPx = Math.max(4, Math.round(minNat * scale));
       const maxSzPx = Math.round(maxNat * scale);
       // (isRealBox judges the inside, on the grey image, where a blurred side's halo isn't ink)
@@ -4220,6 +4244,7 @@ else if (typeof exports === 'object')
         }
       });
 
+      // (a box found by both, or twice, is kept once: centres closer than about half its size)
       cb.sort((a,b)=>a.y-b.y || a.x-b.x);
       const dedupCb = [];
       cb.forEach(cand => {
@@ -4231,7 +4256,7 @@ else if (typeof exports === 'object')
       });
 
       await progress(`Found ${dedupCb.length} tick box(es). Finding the places to write…`, 0.1);
-      // Text fields from the lines (rewritten by FreeScribe). A field is the blank space you
+      // Text fields from the lines (added by FreeScribe). A field is the blank space you
       // write in: above a fill-in line, or between two rules (a table row or a box), beside or
       // under its printed label. Lines with words sitting on them (underlined headings, the
       // bottoms of bold words, table rules under column headings) give no field, a table row
@@ -4252,8 +4277,8 @@ else if (typeof exports === 'object')
         });
       }
 
-      // Name each field after its printed label and suggest its tag (tick boxes get no tag:
-      // an OSCAR tag on a tick box fills nothing useful)
+      // The fields found (or a fillable PDF's own), then the page's words, read with the tick
+      // boxes rubbed out (OCR reads a box's side as a letter)
       let found = fromPdf || [...newFields, ...dedupCb];
       const ticks = found.filter(f => f.type === 'checkbox' || f.type === 'xbox');
       const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
@@ -4322,6 +4347,7 @@ else if (typeof exports === 'object')
         used.add(f.name);
       });
       if (read) tagFields(found, read, boxOf);
+      // (a field already on the page at the same place and size isn't added again)
       found.forEach(f => {
         const dup = dataFields(state.fields).some(k =>
           samePage(k.page,page) &&
@@ -4399,12 +4425,12 @@ function inputMarkup(f, inlinePosStyle=''){
     return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;"></textarea>`;
   }
   if (f.type === 'checkbox' || f.type === 'xbox') {
-    // X-only marker over printed checkbox outlines: no browser checkbox boundary.
-    // We render as readonly text input that toggles X on click/space/enter.
+    // (a read-only text box over the printed box, with no border of its own: a click, Space or
+    // Enter writes an X in it or takes it out)
     const style = `${inlinePosStyle} border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;`;
     return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
   }
-  // OSCAR compatibility: keep as text input even for date/signature.
+  // (a date field is a plain text input too, which OSCAR fills with text)
   return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
 }
 
@@ -4607,7 +4633,8 @@ ${fieldMarkupScaled(f, naturalW, naturalH, scale)}
     return out;
   }
 
-  // Include extracted scripts/snippets, but avoid duplicating core OSCAR control scripts
+  // The imported eForm's scripts, with "Include snippets" ticked: all but jQuery, printControl.js
+  // and faxControl.js, which the export brings its own of
   let addonScripts = '';
   if(includeSnippets){
     [...state.snippets.externalSrc].forEach(src => {
@@ -4649,6 +4676,8 @@ function resourceLink(resource){
 <\/script>
 
 <script>
+// Fields shown by a choice: ticking a "parent-field" shows the fields of class "child-<its id>"
+// (or "child-<its value>"); of the boxes sharing an "only-one-…" class, only one stays ticked
 $(document).ready(function() {
   $('[class^="child-"]').hide();
   $('.parent-field').click(function() {
@@ -4695,6 +4724,7 @@ function confirmExit(){
     return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
   }
 }
+// (OSCAR's own functions that startup() calls, where this OSCAR doesn't have them: they do nothing)
 if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
 if (typeof window.checkGender !== 'function') window.checkGender = function(){};
 if (typeof window.loadSig !== 'function') window.loadSig = function(){};
@@ -4775,7 +4805,7 @@ function formSubmitAndFax(){
   let startupSteps = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
   // (font size buttons: their script and style, and the saved sizes put back on load, only when a field has them)
   const usesFontButtons = exportPages.some(page => getPageFields(page).some(f => f.type === 'fontbuttons'));
-  // (first: it needs nothing else, so a failing step after it can't stop it)
+  // (early, after the images: it needs nothing else, so a failing step after it can't stop it)
   if (usesFontButtons) startupSteps.unshift('loadFontSize()');
   // (each page's background image, first of all, so the page shows whatever else fails)
   startupSteps.unshift(...exportPages.map(page => `changeImage('${pageImageName(page)}', 'BGImage${page}')`));
@@ -4804,7 +4834,7 @@ function loadFontSize(){
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
-      // the one this export's replaces)
+      // the one this export's replaces; a SignForm() alone is a step startup() has already)
       const onloadCall = String(onload||'').replace(/\b(changeImage\s*\([^)]*\)|startup\s*\(\s*\))\s*;?/g, '').trim();
       if (onloadCall && !/^SignForm\(\)\s*;?$/i.test(onloadCall)) startupSteps.push(onloadCall);
     });
@@ -5337,6 +5367,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
       });
     }
 
+    // Choosing a PDF opens it; changing a setting draws the preview again
     controls.file.addEventListener('change', e => {
       const file=e.target.files && e.target.files[0];
       if(!file) return;
@@ -5365,6 +5396,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
   initConverter();
   updateUndoBtn();
 
+  // Quick checks of the small helpers, on the console (a failure is only logged)
   try{
     console.assert(nameKey('Patient Name')==='patient_name', 'nameKey test');
     console.assert(guessTag('DOB')==='dobc2' || guessTag('DOB')==='dob', 'tag DOB');
@@ -5374,7 +5406,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(
     console.assert(parseStylePx('left:12px;top:44px','left').val===12, 'parse left');
     console.assert(intersects({left:0,top:0,right:10,bottom:10},{left:5,top:5,right:11,bottom:11})===true, 'intersects');
 
-    // Added tests for checkbox geometry helpers
+    // (a 4×4 square outline: 12 pixels of ink)
     const testInk = new Uint8Array([
       1,1,1,1,
       1,0,0,1,

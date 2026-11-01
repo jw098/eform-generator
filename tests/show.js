@@ -16,8 +16,8 @@
 // boxes are matched here as fields are, not by their centre as the variation tests do.)
 // The page image is one of a case's, as tests/cases/index.js lists it, e.g.
 // tests/cases/referral-form/referral_form_3c1x42_page1.png. Without out.png, the picture is
-// saved beside where you run it, as <image name>.compare.png. The app must be served over http, as for ci.js. Uses the Chrome
-// installed on the machine (PW_CHANNEL=chrome, the default); set PW_CHANNEL= to use
+// saved where you run it, as <image name>.compare.png. The app must be served over http, as
+// for ci.js. Uses the Chrome installed on the machine (PW_CHANNEL=chrome, the default); set PW_CHANNEL= to use
 // Playwright's own Chromium instead.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');

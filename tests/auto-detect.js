@@ -23,12 +23,14 @@
   let tests = [];
   // (note: a function giving a line shown under its result, such as what it skipped)
   const test = (name, fn, opts = {}) => tests.push({ name, fn, todo: opts.todo, note: opts.note, group: opts.group || '', short: opts.short || name });
+  // (a failure, with its message, unless ok; or unless the list is the expected one, with the list)
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const sameList = (actual, expected, message) => {
     if (JSON.stringify(actual) !== JSON.stringify(expected))
       throw new Error(`${message}:\n  ${actual.join('\n  ')}`);
   };
 
+  // A script or an image, once loaded
   const loadScript = (src) => new Promise((res, rej) => {
     const s = document.createElement('script');
     s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src));
@@ -51,6 +53,8 @@
   //  - Fields: inputs, text areas and lists, except hidden ones, buttons, and anything inside
   //    a DoNotPrint block (on-screen controls). Tick boxes are checkboxes and radio buttons, and
   //    inputs with an Xbox or xMarkOnly class. Each field's tag is its oscarDB attribute.
+  // A field type as the tests count it: a tick box, or a place to write; and the file name in a
+  // src or URL ("tests/cases/x/page1.png?v=2" -> "page1.png")
   const kindOf = (type) => (type === 'checkbox' || type === 'xbox') ? 'tick' : 'write';
   const fileOf = (src) => decodeURIComponent(String(src).split(/[?#]/)[0].split(/[\/}=]/).pop());
   // An eForm's pages: [{ n, file, imgData, boxes: [{ kind, x, y, width, height, tag }] }]
@@ -273,7 +277,8 @@
     { name: '3× size', make: resized(3) },
     { name: 'faint print', make: (img) => ({ url: png(eachGrey(drawn(img), v => Math.round(180 + v*75/255))), scale: 1 }) },
   ];
-  // Each case's variations, once made: { c, entry, pages: [{ n, of, boxes, runs: [{ v, fields, scale }] }] }
+  // Each case's variations, once made: { c, entry, vs (the variations run), pages: [{ n, of,
+  // boxes, img, runs: [{ v, fields, scale }] }] }
   let varied = [];
   function variationTests(){
     varied.forEach(({ c, entry, pages, vs }) => {
@@ -356,6 +361,7 @@
   }
 
   // ----- Run -----
+  // Runs each test in turn: a pass or fail, or for a to-do, "to do" or "to-do now passing"
   async function runTests(list){
     const out = [];
     for (const t of list){
@@ -385,6 +391,7 @@
     if (!f) throw new Error(`tests/cases/${path} is missing from the folder chosen`);
     return f;
   };
+  // A case read from its files: { name, html, images, pdf }
   async function loadCase(entry, getFile){
     const html = await (await getFile(`${entry.folder}/${entry.eform}`)).text();
     const images = {};
@@ -481,6 +488,7 @@
   const slugOf = (s) => String(s).toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'test-case';
   const mimeOf = (name) => /\.png$/i.test(name) ? 'image/png' : /\.gif$/i.test(name) ? 'image/gif' : 'image/jpeg';
   const readFile = (file, how) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r[how](file); });
+  // A case from the files picked: the eForm's HTML and images, its title from eform.properties
   async function caseFromFiles(files){
     let html = '', htmlName = '', title = '';
     const images = {};
@@ -501,6 +509,7 @@
     if (!Object.keys(images).length) throw new Error('no page images among the files picked');
     return { name: title || htmlName.replace(/\.[^.]+$/, ''), html, images, htmlName };
   }
+  // Downloads a file; and the text of tests/cases/index.js listing these entries
   const download = (name, blob) => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -537,6 +546,7 @@
     `//           of { variation, page, test, reason }, the test ticks, extraTicks, fields or\n` +
     `//           extraFields; without a page, every page\n` +
     `window.TEST_CASE_LIST = ${JSON.stringify(entries, null, 2)};\n`;
+  // "Add a test case…": runs the case picked, then offers its files and the updated list
   async function addCase(files, note){
     note.textContent = 'Reading the eForm and running Auto Detect on it…';
     try {
