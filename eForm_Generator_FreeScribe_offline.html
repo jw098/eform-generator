@@ -71,6 +71,10 @@
   .canvas-wrap img{display:block;max-width:100%;height:auto;user-select:none;pointer-events:none}
   .zoom-level{min-width:56px}
   .overlay{position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none}
+  /* The margin right of a page where its fields' controls can go (not on the printed page) */
+  .control-margin{position:absolute;top:0;bottom:0;pointer-events:none;border-left:1px dashed #94a3b8;
+    background:repeating-linear-gradient(135deg,#f8fafc 0 8px,#eef2f7 8px 16px);border-radius:0 8px 8px 0}
+  .control-margin span{position:absolute;top:6px;left:6px;right:6px;font-size:11px;color:#64748b;font-family:sans-serif}
   .field{
     position:absolute;border:2px solid #10b981;background:rgba(16,185,129,.16);
     cursor:move; user-select:none; pointer-events:auto;
@@ -1015,6 +1019,10 @@ else if (typeof exports === 'object')
   const PHONE_SELECT_W = 100, PHONE_SELECT_H = 20;
   // The size of a free draw area's toolbar on the eForm (pens, Undo, Clear), in its pixels
   const DRAW_TOOLS_W = 168, DRAW_TOOLS_H = 20;
+  // The width of the margin right of a page that has a phone selector or a free draw toolbar,
+  // where the field's controls can go (they aren't printed), in the eForm's pixels: the widest
+  // control and a little room
+  const CONTROL_MARGIN_W = DRAW_TOOLS_W + 12;
 
 
   // The element with this id
@@ -1824,6 +1832,17 @@ else if (typeof exports === 'object')
     phoneselect: { has: hasPhoneSelect, w: PHONE_SELECT_W, h: PHONE_SELECT_H, below: t => hasFontButtons(t) ? FONT_BUTTON_GAP + FONT_BUTTON_H + 4 : 0 },
     drawtools: { has: t => t.type === 'drawing', w: DRAW_TOOLS_W, h: DRAW_TOOLS_H, under: true },
   };
+  // The width of the margin right of a page where its fields' controls can go, in its image's
+  // pixels: CONTROL_MARGIN_W when the page has a phone selector or a free draw toolbar, else none
+  function controlMarginW(page){
+    const pageInfo = state.pages[page]; if (!pageInfo || !pageInfo.naturalW) return 0;
+    return getPageFields(page).some(f => f.type === 'phoneselect' || f.type === 'drawtools') ? CONTROL_MARGIN_W * pageInfo.naturalW / EXPORT_PAGE_W : 0;
+  }
+  // How far right a field can go on its page, in its image's pixels: a field's control (font size
+  // buttons, a phone selector, a free draw toolbar) can go into the page's margin
+  function fieldRightLimit(f){
+    const pageInfo = state.pages[f.page]; return ((pageInfo && pageInfo.naturalW) || 1) + (isAttachedType(f.type) ? controlMarginW(f.page) : 0);
+  }
   // Keeps each field's controls in step with it. A field gets each control it has (font size
   // buttons unless they were turned off, fontButtons: false); one goes when its field does (or
   // stops having it); and it follows its field: when the field's top-right corner moves (dragged,
@@ -1857,7 +1876,7 @@ else if (typeof exports === 'object')
       const k = EXPORT_PAGE_W / pageInfo.naturalW, corner = ATTACHED_CONTROLS[b.type].under ? { x: t.x, y: t.y + t.height } : { x: t.x + t.width, y: t.y };
       b.name = t.name; b.width = ATTACHED_CONTROLS[b.type].w / k; b.height = ATTACHED_CONTROLS[b.type].h / k;
       if (b.anchor){ b.x += corner.x - b.anchor.x; b.y += corner.y - b.anchor.y; }
-      b.x = clamp(b.x, 0, Math.max(0, pageInfo.naturalW - b.width)); b.y = clamp(b.y, 0, Math.max(0, pageInfo.naturalH - b.height));
+      b.x = clamp(b.x, 0, Math.max(0, fieldRightLimit(b) - b.width)); b.y = clamp(b.y, 0, Math.max(0, pageInfo.naturalH - b.height));
       b.anchor = corner;
     });
   }
@@ -1988,6 +2007,15 @@ else if (typeof exports === 'object')
     if (!pageInfo.imgData){ overlay.innerHTML = ''; getPageImgEl(page).style.display='none'; return; }
     getPageImgEl(page).style.display='block';
     overlay.innerHTML='';
+    // (the margin for its fields' controls, right of the page: the page is laid out again,
+    // applyZoom, when it comes or goes)
+    const marginW = controlMarginW(page);
+    if (marginW){
+      const { sx } = getPageScale(page), margin = document.createElement('div'); margin.className = 'control-margin';
+      margin.style.left = (pageInfo.naturalW * sx) + 'px'; margin.style.width = (marginW * sx) + 'px';
+      margin.innerHTML = '<span>Controls can go here (not printed)</span>'; overlay.appendChild(margin);
+    }
+    if (state.currentPage === page && wrap.dataset.controlMargin !== String(marginW)){ wrap.dataset.controlMargin = String(marginW); applyZoom(); }
     getPageFields(page).forEach(f => overlay.appendChild(fieldElement(f, page)));
     // (a preview that runs past its field, across or, in a textarea, down: red)
     overlay.querySelectorAll('.field-preview').forEach(d => {
@@ -2048,15 +2076,19 @@ else if (typeof exports === 'object')
     const imgRect = img.getBoundingClientRect();
     const share = { x: (at.x - imgRect.left) / (imgRect.width || 1), y: (at.y - imgRect.top) / (imgRect.height || 1) };
     // (the page's border and margin around the image; the box's own width, not counting its scroll bar)
-    const chromeW = wrap.offsetWidth - img.offsetWidth, chromeH = wrap.offsetHeight - img.offsetHeight + (parseFloat(getComputedStyle(wrap).marginTop) || 0);
-    const fitW = Math.min(pageInfo.naturalW, boxRect.width - chromeW);
-    if (state.zoom <= 1){
-      img.style.width = ''; img.style.maxWidth = ''; wrap.style.maxWidth = ''; box.style.height = ''; box.style.overflow = '';
+    const chromeW = wrap.offsetWidth - wrap.clientWidth, chromeH = wrap.offsetHeight - img.offsetHeight + (parseFloat(getComputedStyle(wrap).marginTop) || 0);
+    // (a margin for its fields' controls, right of the image, as a share of the image's width:
+    // the image and its margin together fit the box)
+    const marginShare = controlMarginW(page) / pageInfo.naturalW;
+    const fitW = Math.min(pageInfo.naturalW, (boxRect.width - chromeW) / (1 + marginShare));
+    if (state.zoom <= 1 && !marginShare){
+      img.style.width = ''; img.style.maxWidth = ''; wrap.style.maxWidth = ''; wrap.style.paddingRight = ''; box.style.height = ''; box.style.overflow = '';
     } else {
-      box.style.overflow = 'auto';
-      box.style.height = Math.ceil(fitW * pageInfo.naturalH / pageInfo.naturalW + chromeH) + 'px';
+      if (state.zoom > 1){ box.style.overflow = 'auto'; box.style.height = Math.ceil(fitW * pageInfo.naturalH / pageInfo.naturalW + chromeH) + 'px'; }
+      else { box.style.height = ''; box.style.overflow = ''; }
       wrap.style.maxWidth = 'none'; img.style.maxWidth = 'none';
       img.style.width = (fitW * state.zoom) + 'px';
+      wrap.style.paddingRight = (fitW * state.zoom * marginShare) + 'px';
     }
     if (img.offsetWidth === oldW) return;
     // (scrolls so the anchor's point on the image is back under it)
@@ -2239,7 +2271,7 @@ else if (typeof exports === 'object')
         const f = state.fields.find(k => k.id===id && samePage(k.page,page)); if (!f) return;
         if (isAttachedType(f.type) && state.selected.has(f.target)) return;   // (they follow their field)
         const startPos = startPositions[id];
-        f.x = clamp((startPos?.x ?? f.x)+dx,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
+        f.x = clamp((startPos?.x ?? f.x)+dx,0,Math.max(0,fieldRightLimit(f)-f.width));
         f.y = clamp((startPos?.y ?? f.y)+dy,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       });
       renderAll();
@@ -2368,8 +2400,8 @@ else if (typeof exports === 'object')
       if (isAttachedType(f.type) && state.selected.has(f.target)) return;   // (they follow their field)
       if (e.key==='ArrowUp') f.y = clamp(f.y-nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
       if (e.key==='ArrowDown') f.y = clamp(f.y+nudge,0,Math.max(0,(pageInfo.naturalH||1)-f.height));
-      if (e.key==='ArrowLeft') f.x = clamp(f.x-nudge,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
-      if (e.key==='ArrowRight') f.x = clamp(f.x+nudge,0,Math.max(0,(pageInfo.naturalW||1)-f.width));
+      if (e.key==='ArrowLeft') f.x = clamp(f.x-nudge,0,Math.max(0,fieldRightLimit(f)-f.width));
+      if (e.key==='ArrowRight') f.x = clamp(f.x+nudge,0,Math.max(0,fieldRightLimit(f)-f.width));
     });
     renderAll();
   });
@@ -4842,14 +4874,15 @@ function buildExportHtml(){
   // A length in page-image pixels at the export's scale, rounded
   function scaled(length, scale){ return Math.round((Number(length) || 0) * (Number(scale) || 1)); }
 
-  // A field's control, placed at the export's scale and kept on the page
+  // A field's control, placed at the export's scale and kept on the page (a field's own control,
+  // such as a phone selector, may be in the margin right of it)
   function fieldMarkupScaled(f, naturalW, naturalH, scale){
     const scaledW = scaled(f.width, scale);
     const scaledH = scaled(f.height, scale);
     const scaledX = scaled(f.x, scale);
     const scaledY = scaled(f.y, scale);
 
-    const x = Math.round(clamp(scaledX, 0, Math.max(0, scaled(naturalW, scale) - scaledW)));
+    const x = Math.round(clamp(scaledX, 0, Math.max(0, scaled(fieldRightLimit(f), scale) - scaledW)));
     const y = Math.round(clamp(scaledY, 0, Math.max(0, scaled(naturalH, scale) - scaledH)));
     const w = Math.round(clamp(scaledW, 6, scaled(naturalW, scale)));
     const h = Math.round(clamp(scaledH, 6, scaled(naturalH, scale)));
@@ -4877,12 +4910,15 @@ function buildExportHtml(){
   }
 
   // A page of the eForm: its background image, signature stamp and fields, a page break after
-  // it unless it is the last, then `afterHtml` (the buttons) outside it
+  // it unless it is the last, then `afterHtml` (the buttons) outside it. A page with controls in
+  // the margin right of it (controlMarginW) doesn't hide what runs past it: they show on screen,
+  // and aren't printed
   function pageMarkup(pageNo, fields, sigField, naturalW, naturalH, bgSrc, scale, hasNext, tailHtml='', afterHtml=''){
     const breakAfter = hasNext ? 'always' : 'auto';
     const pageW = scaled(naturalW, scale);
     const pageH = scaled(naturalH, scale);
-    let out = `<div id="page${pageNo}" style="page-break-after:${breakAfter};position:relative;width:${pageW}px;height:${pageH}px;overflow:hidden;">
+    const overflow = fields.some(f => isAttachedType(f.type) && f.x + f.width > naturalW) ? 'visible' : 'hidden';
+    let out = `<div id="page${pageNo}" style="page-break-after:${breakAfter};position:relative;width:${pageW}px;height:${pageH}px;overflow:${overflow};">
 `;
     out += `<img id="BGImage${pageNo}" src="${escAttr(bgSrc)}" style="position:absolute;left:0;top:0;width:${pageW}px;height:${pageH}px;">
 `;
