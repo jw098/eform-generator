@@ -114,6 +114,12 @@
   .field.drawtools{border:1px solid var(--violet);background:#fff;border-radius:3px;color:#333;display:flex;align-items:center;gap:3px;
     padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
   .field.drawtools.selected{outline:2px solid #2563eb;outline-offset:1px}
+  /* A signature: its mark; its controls (Stamp, Draw, Clear) as the eForm shows them */
+  .field.signature{border-color:var(--violet);background:rgba(124,58,237,.08)}
+  .field.sigtools{border:1px solid var(--violet);background:#fff;border-radius:3px;color:#333;display:flex;align-items:center;gap:4px;
+    padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
+  .field.sigtools b{color:var(--violet)}
+  .field.sigtools.selected{outline:2px solid #2563eb;outline-offset:1px}
   /* A phone field's phone selector, drawn as the dropdown it is on the eForm */
   .field.phoneselect{border:1px solid var(--violet);background:#fff;border-radius:3px;color:var(--violet);
     display:flex;align-items:center;justify-content:space-between;padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
@@ -304,6 +310,7 @@
       <button id="btnAdd" class="btn-green">Add Field</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
+      <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand; the choice and what is drawn are saved with the form">Add signature</button>
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
       <button id="btnCopySel">Copy Selected</button>
@@ -459,6 +466,7 @@
             <option value="fontbuttons" disabled>font size buttons</option>
             <option value="phoneselect" disabled>phone selector</option>
             <option value="drawtools" disabled>free draw toolbar</option>
+            <option value="sigtools" disabled>signature controls</option>
           </select>
         </label>
       </div>
@@ -1019,7 +1027,12 @@ else if (typeof exports === 'object')
   const PHONE_SELECT_W = 100, PHONE_SELECT_H = 20;
   // The size of a free draw area's toolbar on the eForm (pens, Undo, Clear), in its pixels
   const DRAW_TOOLS_W = 168, DRAW_TOOLS_H = 20;
-  // The width of the margin right of a page that has a phone selector or a free draw toolbar,
+  // The size of a signature's controls on the eForm (Stamp, Draw, Clear), in its pixels
+  const SIG_TOOLS_W = 136, SIG_TOOLS_H = 20;
+  // The size a signature starts at, on the eForm, in its pixels
+  const SIGNATURE_W = 250, SIGNATURE_H = 60;
+  // The width of the margin right of a page that has a phone selector, a free draw toolbar or a
+  // signature's controls,
   // where the field's controls can go (they aren't printed), in the eForm's pixels: the widest
   // control and a little room
   const CONTROL_MARGIN_W = DRAW_TOOLS_W + 12;
@@ -1822,7 +1835,8 @@ else if (typeof exports === 'object')
 
   // The controls a field has on the eForm that are fields of their own, so they can be dragged
   // anywhere (`target` the field's id): a textarea's font size buttons, and the phone selector
-  // of a field filled with "Phone: controlled by selector dropdown", a free draw area's toolbar.
+  // of a field filled with "Phone: controlled by selector dropdown", a free draw area's toolbar,
+  // a signature's controls (stamp or drawn).
   // Each says which fields have one, its size on the eForm, and where it goes at first: just
   // right of the field's top-right corner (inside it where the page ends), `below` that much
   // lower in the eForm's pixels (a textarea's phone selector, under its font size buttons); or,
@@ -1831,12 +1845,15 @@ else if (typeof exports === 'object')
     fontbuttons: { has: hasFontButtons, w: FONT_BUTTON_W, h: FONT_BUTTON_GAP + FONT_BUTTON_H, below: () => 0 },
     phoneselect: { has: hasPhoneSelect, w: PHONE_SELECT_W, h: PHONE_SELECT_H, below: t => hasFontButtons(t) ? FONT_BUTTON_GAP + FONT_BUTTON_H + 4 : 0 },
     drawtools: { has: t => t.type === 'drawing', w: DRAW_TOOLS_W, h: DRAW_TOOLS_H, under: true },
+    sigtools: { has: t => t.type === 'signature', w: SIG_TOOLS_W, h: SIG_TOOLS_H, below: () => 0 },
   };
   // The width of the margin right of a page where its fields' controls can go, in its image's
-  // pixels: CONTROL_MARGIN_W when the page has a phone selector or a free draw toolbar, else none
+  // pixels: CONTROL_MARGIN_W when the page has a field with a phone selector, a free draw area or
+  // a signature, else none
   function controlMarginW(page){
     const pageInfo = state.pages[page]; if (!pageInfo || !pageInfo.naturalW) return 0;
-    return getPageFields(page).some(f => f.type === 'phoneselect' || f.type === 'drawtools') ? CONTROL_MARGIN_W * pageInfo.naturalW / EXPORT_PAGE_W : 0;
+    const hasMarginControl = (f) => hasPhoneSelect(f) || f.type === 'drawing' || f.type === 'signature';
+    return dataFields(getPageFields(page)).some(hasMarginControl) ? CONTROL_MARGIN_W * pageInfo.naturalW / EXPORT_PAGE_W : 0;
   }
   // How far right a field can go on its page, in its image's pixels: a field's control (font size
   // buttons, a phone selector, a free draw toolbar) can go into the page's margin
@@ -1862,9 +1879,10 @@ else if (typeof exports === 'object')
     Object.entries(ATTACHED_CONTROLS).forEach(([type, control]) => {
       state.fields.filter(t => !isAttachedType(t.type) && control.has(t) && !owned.has(type + ':' + t.id)).forEach(t => {
         const pageInfo = state.pages[t.page]; if (!pageInfo || !pageInfo.naturalW) return;
-        const k = EXPORT_PAGE_W / pageInfo.naturalW;
-        const spots = control.under ? underSpot(t.x*k, t.y*k, t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k, control.w, control.h)
-          : fontButtonSpots(t.x*k, t.y*k + control.below(t), t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k, control.w, control.h);
+        // (the page's margin counts: a control right of a field at the page's edge goes into it)
+        const k = EXPORT_PAGE_W / pageInfo.naturalW, pageW = (pageInfo.naturalW + controlMarginW(t.page)) * k;
+        const spots = control.under ? underSpot(t.x*k, t.y*k, t.width*k, t.height*k, pageW, pageInfo.naturalH*k, control.w, control.h)
+          : fontButtonSpots(t.x*k, t.y*k + control.below(t), t.width*k, t.height*k, pageW, pageInfo.naturalH*k, control.w, control.h);
         addField({ page: t.page, x: spots.x/k, y: spots.upY/k, type, name: t.name, target: t.id });
       });
     });
@@ -1882,15 +1900,16 @@ else if (typeof exports === 'object')
   }
   // Removes the selected fields (a field's controls go with it); taking away a textarea's
   // buttons on their own turns them off for it. A phone selector stays while its field has the
-  // phone action (it goes when the action changes), and a free draw toolbar while its area is there.
+  // phone action (it goes when the action changes), a free draw toolbar while its area is there,
+  // and a signature's controls while the signature is.
   function deleteSelectedFields(){
     state.fields.forEach(b => {
       if (b.type !== 'fontbuttons' || !state.selected.has(b.id) || state.selected.has(b.target)) return;
       const t = state.fields.find(k => k.id === b.target); if (t) t.fontButtons = false;
     });
-    const keepsSelector = (f) => (f.type === 'phoneselect' || f.type === 'drawtools') && !state.selected.has(f.target);
+    const keepsSelector = (f) => (f.type === 'phoneselect' || f.type === 'drawtools' || f.type === 'sigtools') && !state.selected.has(f.target);
     const kept = state.fields.find(f => state.selected.has(f.id) && keepsSelector(f));
-    if (kept) msg(kept.type === 'drawtools' ? 'A free draw toolbar goes with its area.' : 'A phone selector goes when its field\'s custom action changes.', 'warn');
+    if (kept) msg({ drawtools: 'A free draw toolbar goes with its area.', sigtools: 'A signature\'s controls go with the signature.' }[kept.type] || 'A phone selector goes when its field\'s custom action changes.', 'warn');
     state.fields = state.fields.filter(f => !state.selected.has(f.id) || keepsSelector(f)); state.selected.clear(); renderAll();
   }
   // A page's image, its wrapper and the overlay its fields are drawn on
@@ -1958,6 +1977,15 @@ else if (typeof exports === 'object')
       fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
       return fieldDiv;
     }
+    // (a signature's controls: Stamp and Draw, the one the eForm starts with in bold, and Clear;
+    // no tag, label or resize handle)
+    if (f.type === 'sigtools'){
+      fieldDiv.classList.add('sigtools'); fieldDiv.style.fontSize = Math.max(6, f.height * sy * 0.55) + 'px';
+      fieldDiv.innerHTML = '<b>Stamp</b><span>Draw</span><span>Clear</span>';
+      fieldDiv.title = `The signature controls of "${f.name}"`;
+      fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
+      return fieldDiv;
+    }
     // (a phone field's phone selector: a dropdown, no tag, label or resize handle)
     if (f.type === 'phoneselect'){
       fieldDiv.classList.add('phoneselect'); fieldDiv.style.fontSize = Math.max(6, f.height * sy * 0.6) + 'px';
@@ -1971,10 +1999,10 @@ else if (typeof exports === 'object')
     // its mark in its tag's place, in violet; one with text to preview, the preview instead.)
     const custom = usesCustomFill(f), preview = previewText(f);
     const tag = state.showTags && !preview && f.type !== 'drawing' ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
-    // (a free draw area: a dashed box marked as one)
-    if (f.type === 'drawing'){
-      fieldDiv.classList.add('drawing');
-      const mark = document.createElement('div'); mark.className = 'field-drawing'; mark.innerHTML = '<span>\u270E\uFE0E free draw</span>'; fieldDiv.appendChild(mark);
+    // (a free draw area: a dashed box marked as one; a signature, marked as one)
+    if (f.type === 'drawing' || f.type === 'signature'){
+      fieldDiv.classList.add(f.type);
+      const mark = document.createElement('div'); mark.className = 'field-drawing'; mark.innerHTML = f.type === 'drawing' ? '<span>\u270E\uFE0E free draw</span>' : '<span>\u270D\uFE0E signature</span>'; fieldDiv.appendChild(mark);
     }
     // (a field's phones or static text: how they will look on the eForm, at its font size
     // there, so it shows whether they fit; renderPage turns it red when they don't)
@@ -2545,6 +2573,19 @@ else if (typeof exports === 'object')
     selectOne(f.id); renderAll();
     msg('Added a free draw area: drag it over what is to be marked, and size it by its corner.', 'ok');
   });
+  // "Add signature": the page's signature (an eForm has one a page), the size of a signature
+  // line, at the foot of the page on the right, with its controls beside it; one already on the
+  // page is selected instead
+  $('btnSignature').addEventListener('click', ()=>{
+    const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
+    const existing = getPageFields(state.currentPage).find(f => f.type === 'signature');
+    if (existing){ selectOne(existing.id); renderAll(); msg('This page has a signature already (an eForm has one a page): it is selected.', 'warn'); return; }
+    pushUndo();
+    const k = p.naturalW / EXPORT_PAGE_W, width = SIGNATURE_W * k, height = SIGNATURE_H * k;
+    const f = addField({ page: state.currentPage, x: Math.max(0, p.naturalW - width - 30 * k), y: Math.max(0, p.naturalH - height - 60 * k), width, height, type: 'signature', name: 'signature', oscarTag: '' });
+    selectOne(f.id); renderAll();
+    msg('Added a signature: on the eForm, the provider\'s signature image, or one drawn by hand. Drag it over the signature line; its controls can be moved on their own.', 'ok');
+  });
   $('btnAdd').addEventListener('click', ()=>{
     const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
     pushUndo();
@@ -2639,6 +2680,7 @@ else if (typeof exports === 'object')
     $('fButtonsNote').style.display = buttons ? 'block' : 'none';
     if (f.type === 'fontbuttons') $('fButtonsNote').textContent = `The font size buttons (▲▼) of "${f.name}". Drag them anywhere: they follow the textarea when it moves, and go when it does.`;
     if (f.type === 'drawtools') $('fButtonsNote').textContent = `The free draw toolbar of "${f.name}": on the eForm, its pens, Undo and Clear (not printed). Drag it anywhere: it follows the area when it moves, and goes when it does.`;
+    if (f.type === 'sigtools') $('fButtonsNote').textContent = `The signature controls of "${f.name}": on the eForm, Stamp (the provider's signature image, as it starts), Draw (signed by hand) and Clear (not printed). Drag them anywhere: they follow the signature when it moves, and go when it does.`;
     if (f.type === 'phoneselect') $('fButtonsNote').textContent = `The phone selector of "${f.name}": on the eForm, it chooses which of the patient's phones the field shows (not printed). Drag it anywhere: it follows the field when it moves, and goes when the field's action changes.`;
   }
   // Fills the Selected field editor from the selected field, or hides it unless one is selected
@@ -2803,7 +2845,7 @@ else if (typeof exports === 'object')
         y: Number(f.y) || 0,
         width: Math.max(8, Number(f.width) || 20),
         height: Math.max(8, Number(f.height) || 20),
-        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','drawing','fontbuttons','phoneselect','drawtools'].includes(f.type) ? f.type : 'text',
+        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text',
         name: String(f.name || `field_${i+1}`),
         oscarTag: isRemovedTag(tag) ? '' : tag,
         label: String(f.label || ''),
@@ -4615,7 +4657,7 @@ function hasFontButtons(f){ return f.type === 'textarea' && f.fontButtons !== fa
 function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) && usesCustomFill(f) && f.fill.action === 'phone_select'; }
 // Whether fields of a type are another field's control (font size buttons, a phone selector),
 // with only a place of their own
-function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect' || type === 'drawtools'; }
+function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect' || type === 'drawtools' || type === 'sigtools'; }
 // A field's font size on the eForm: its own where it can have one (hasOwnFontSize), else 12px
 function fieldFontSize(f){ return hasOwnFontSize(f) && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
 // Whether a field's font size can be set: a textarea's, and a field's that lists phones, shows
@@ -4664,6 +4706,17 @@ function drawToolsMarkup(name, x, y){
   const pens = drawPens().map((pen, i) => `<button type="button" data-draw-pen="${pen.color}" title="${pen.name} pen" style="width:18px; height:18px; padding:0; border:${i ? '1px solid #999' : '2px solid #333'}; border-radius:9px; background:${pen.color};"></button>`).join('');
   // (the row inside its own box: a display set on the box itself would keep it from hiding in print)
   return `<div class="DoNotPrint FreeDrawTools" data-draw-tools-for="${name}" style="position:absolute; left:${x}px; top:${y}px; width:${DRAW_TOOLS_W}px; height:${DRAW_TOOLS_H}px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%; font-size:11px;">${pens}<button type="button" data-draw-tool="undo" style="height:18px; padding:0 4px; font-size:11px;">Undo</button><button type="button" data-draw-tool="clear" style="height:18px; padding:0 4px; font-size:11px;">Clear</button></div></div>`;
+}
+// The name a page's signature goes by on the eForm: its stamp's image id ("signature",
+// "signature2"…), and the start of its hidden inputs' names
+function signatureKey(pageNo){ return Number(pageNo) === 1 ? 'signature' : `signature${pageNo}`; }
+// A signature's controls on the eForm (not printed), at (x, y): Stamp (the provider's signature
+// image, as it starts) or Draw (signed by hand, on the signature's free draw canvas), and Clear,
+// which takes off what was drawn; `key` is the signature's (signatureKey)
+function signatureToolsMarkup(key, x, y){
+  const button = (attr, text, title) => `<button type="button" ${attr} title="${title}" style="height:18px; padding:0 5px; font-size:11px;">${text}</button>`;
+  // (the row inside its own box: a display set on the box itself would keep it from hiding in print)
+  return `<div class="DoNotPrint SignatureTools" data-signature-tools-for="${key}" data-draw-tools-for="${key}_drawn" style="position:absolute; left:${x}px; top:${y}px; width:${SIG_TOOLS_W}px; height:${SIG_TOOLS_H}px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%;">${button('data-signature-choice="stamp"', 'Stamp', "The provider's signature image")}${button('data-signature-choice="draw"', 'Draw', 'Sign by hand')}${button('data-draw-tool="clear"', 'Clear', 'Take off what was drawn')}</div></div>`;
 }
 // A phone field's phone selector on the eForm (not printed), at (x, y): choosing home, cell or
 // work writes that phone in the field; `name` is the field's on the eForm
@@ -4889,12 +4942,16 @@ function buildExportHtml(){
     if (f.type === 'fontbuttons') return fontButtonsMarkup(f._safeName, x, y);
     if (f.type === 'phoneselect') return phoneSelectMarkup(f._safeName, x, y);
     if (f.type === 'drawtools') return drawToolsMarkup(f._safeName, x, y);
+    if (f.type === 'sigtools') return signatureToolsMarkup(signatureKey(f.page), x, y);
     if (f.type === 'drawing') return drawingMarkup(escAttr(f._safeName), escAttr(f._safeName + '_' + f.id), x, y, w, h);
     const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:${fieldFontSize(f)}px; background-color:transparent;`;
     return inputMarkup(f, inlinePos);
   }
 
-  // The signature stamp for a page's signature field: OSCAR's CanvasProSignature image
+  // The signature for a page's signature field: OSCAR's CanvasProSignature stamp (the provider's
+  // signature image) and, over it, a free draw canvas to sign by hand, hidden until its controls
+  // choose it; the hidden inputs keep what was drawn ("signature_drawn") and the choice
+  // ("signature_choice": stamp or draw), so the form opens as it was saved
   function signatureMarkup(sigField, naturalW, naturalH, scale, pageNo){
     if(!sigField) return '';
     const x = Math.round(clamp(scaled(sigField.x, scale), 0, Math.max(0, scaled(naturalW, scale))));
@@ -4902,10 +4959,13 @@ function buildExportHtml(){
     const w = Math.max(40, Math.round(scaled(sigField.width || 150, scale)));
     const h = Math.max(16, Math.round(scaled(sigField.height || 40, scale)));
     const divId = pageNo === 1 ? 'CanvasProSignature' : `CanvasProSignature${pageNo}`;
-    const imgId = pageNo === 1 ? 'signature' : `signature${pageNo}`;
-    return `<div id="${divId}" class="sig" style="position:absolute; left:${x}px; top:${y}px;">
-    <img id="${imgId}" name="${imgId}" src="\${oscar_image_path}BNK.png" width="${w}" height="${h}" style="z-index:10;">
+    const key = signatureKey(pageNo);
+    return `<div id="${divId}" class="sig" data-signature-for="${key}" style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px;">
+    <img id="${key}" name="${key}" src="\${oscar_image_path}BNK.png" width="${w}" height="${h}" style="z-index:10;">
+    <div class="FreeDraw" data-draw-for="${key}_drawn" style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; z-index:11; visibility:hidden;"><canvas style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; touch-action:none; cursor:crosshair;"></canvas></div>
   </div>
+<input type="hidden" id="${key}_drawn" name="${key}_drawn">
+<input type="hidden" id="${key}_choice" name="${key}_choice">
 `;
   }
 
@@ -5242,7 +5302,9 @@ function fillDefaultPhones(){
   if (usesPhoneLists) startupSteps.push('fillPhoneLists()');
   if (usesUserNames) startupSteps.push('fillUserNames()');
   // (free draw areas: their script, and what was drawn put back on load)
-  const usesFreeDraw = exportPages.some(page => getPageFields(page).some(f => f.type === 'drawing'));
+  // (a signature can be drawn by hand on a free draw canvas, so it needs the script too)
+  const usesSignatures = exportPages.some(page => getPageFields(page).some(f => f.type === 'signature'));
+  const usesFreeDraw = usesSignatures || exportPages.some(page => getPageFields(page).some(f => f.type === 'drawing'));
   const freeDrawScript = !usesFreeDraw ? '' : `<style type="text/css" media="screen">
  .FreeDraw { outline: 1px dashed #9ca3af; }
 </style>
@@ -5350,6 +5412,43 @@ function writeStrokes(strokes){
 <\/script>
 `;
   if (usesFreeDraw) startupSteps.push('setUpFreeDraw()');
+  const signatureScript = !usesSignatures ? '' : `<script>
+// Signatures: each page's signature (data-signature-for) is the provider's stamp, their
+// signature image, or one drawn by hand on its free draw canvas; its controls
+// (data-signature-tools-for) choose which, and the choice is kept in its hidden input
+// "<name>_choice", so the form opens as it was saved (a new form, with the stamp)
+function setUpSignatures(){
+  var signatures = document.querySelectorAll('[data-signature-for]');
+  for (var i = 0; i < signatures.length; i++){
+    var key = signatures[i].getAttribute('data-signature-for'), choice = document.getElementsByName(key + '_choice')[0];
+    chooseSignature(key, choice && choice.value === 'draw' ? 'draw' : 'stamp');
+  }
+  var tools = document.querySelectorAll('[data-signature-tools-for]');
+  for (var j = 0; j < tools.length; j++) tools[j].addEventListener('click', function(e){
+    var kind = e.target.getAttribute('data-signature-choice');
+    if (!kind) return;
+    chooseSignature(this.getAttribute('data-signature-tools-for'), kind);
+    if (typeof setDirtyFlag === 'function') setDirtyFlag();
+  });
+}
+// Shows a signature as the stamp ('stamp') or as drawn ('draw'), keeps the choice, and marks it
+// on its controls (Clear only while it is drawn)
+function chooseSignature(key, kind){
+  var signature = document.querySelector('[data-signature-for="' + key + '"]'); if (!signature) return;
+  var stamp = signature.getElementsByTagName('img')[0], drawn = signature.querySelector('.FreeDraw');
+  if (stamp) stamp.style.visibility = kind === 'draw' ? 'hidden' : '';
+  if (drawn) drawn.style.visibility = kind === 'draw' ? 'visible' : 'hidden';
+  var choice = document.getElementsByName(key + '_choice')[0];
+  if (choice){ choice.value = kind; choice.setAttribute('value', kind); }
+  var tools = document.querySelector('[data-signature-tools-for="' + key + '"]'); if (!tools) return;
+  var choices = tools.querySelectorAll('[data-signature-choice]');
+  for (var i = 0; i < choices.length; i++) choices[i].style.fontWeight = choices[i].getAttribute('data-signature-choice') === kind ? 'bold' : 'normal';
+  var clear = tools.querySelector('[data-draw-tool="clear"]');
+  if (clear) clear.style.visibility = kind === 'draw' ? '' : 'hidden';
+}
+<\/script>
+`;
+  if (usesSignatures) startupSteps.push('setUpSignatures()');
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -5438,7 +5537,7 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${startupScript}</head>
+${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${signatureScript}${startupScript}</head>
 <body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
@@ -5460,7 +5559,8 @@ ${(function(){
     const sigFields = pageFields.filter(f => isSignatureField(f));
     if (sigFields.length > 1) console.warn(`Page ${page}: ${sigFields.length} signature fields found; only the first will be rendered.`);
     const sigField = sigFields[0] || null;
-    const fields = pageFields.filter(f => !isSignatureField(f));
+    // (an eForm has one signature a page: another's controls go with it)
+    const fields = pageFields.filter(f => !isSignatureField(f) && (f.type !== 'sigtools' || (sigField && f.target === sigField.id)));
     const imageSrc = '${oscar_image_path}' + pageImageName(page);
     const isLast = idx === exportPages.length - 1;
     const tailHtml = '';
