@@ -90,6 +90,9 @@
     background:rgba(255,255,255,.8);border-radius:3px;padding:0 3px}
   .field-tag.above{left:0;bottom:calc(100% + 2px);background:#065f46;color:#fff;border-radius:4px;padding:1px 4px}
   .field-tag.above.tick{left:50%;transform:translateX(-50%)}
+  /* A field's custom text/action in its tag's place, in violet so it isn't taken for a tag */
+  .field-tag.custom{color:var(--violet)}
+  .field-tag.custom.above{background:var(--violet);color:#fff}
   /* A textarea's font size buttons (▲ over ▼), as the eForm will show them; dragged as one */
   .field.fontbuttons{border:0;background:transparent;border-radius:0}
   .field.fontbuttons.selected{outline:2px solid #2563eb;outline-offset:1px}
@@ -1885,15 +1888,16 @@ else if (typeof exports === 'object')
     // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
     // the edges of a field shorter than the text, so it stays on the field's own row), else
     // above it; a tick box's always above, centred over it. (A field with a custom fill shows
-    // "custom" in its tag's place.)
-    const tag = state.showTags ? (usesCustomFill(f) ? 'custom' : String(f.oscarTag || '').trim()) : '';
+    // its mark in its tag's place, in violet.)
+    const custom = usesCustomFill(f);
+    const tag = state.showTags ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
     const tick = f.type === 'checkbox' || f.type === 'xbox';
     const above = !!tag && (tick || tagWidth(tag) + 8 > f.width * sx);
-    if (tag){ const tagDiv = document.createElement('div'); tagDiv.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : ''); tagDiv.textContent = tag; tagDiv.title = tag; fieldDiv.appendChild(tagDiv); }
+    if (tag){ const tagDiv = document.createElement('div'); tagDiv.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : '') + (custom ? ' custom' : ''); tagDiv.textContent = tag; tagDiv.title = tag; fieldDiv.appendChild(tagDiv); }
     if (state.showLabels){
       // (with the tag shown, the label is just the name, raised over a tag above the field)
       const labelDiv = document.createElement('div'); labelDiv.className = 'field-label' + (above ? ' raised' : '');
-      const shownTag = usesCustomFill(f) ? 'custom' : f.oscarTag;
+      const shownTag = custom ? customFillMark(f) : f.oscarTag;
       labelDiv.textContent = f.name + (shownTag && !state.showTags ? ' · ' + shownTag : ''); fieldDiv.appendChild(labelDiv);
     }
     if (state.selected.size === 1 && state.selected.has(f.id)){ const resizeHandle = document.createElement('div'); resizeHandle.className='resize se'; resizeHandle.dataset.handle='se'; fieldDiv.appendChild(resizeHandle); }
@@ -2446,14 +2450,21 @@ else if (typeof exports === 'object')
   // is the kind of field each suits. (The export doesn't write them yet: a field with one is
   // exported untagged.)
   const CUSTOM_ACTIONS = [
-    { id: 'sex_male', label: 'Check this box if gender is Male', for: 'tick' },
-    { id: 'sex_female', label: 'Check this box if gender is Female', for: 'tick' },
-    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', for: 'text' },
-    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', for: 'text' },
-    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', for: 'text' },
-    { id: 'static_text', label: 'Display static custom text', for: 'text', takesText: true },
+    { id: 'sex_male', label: 'Check this box if gender is Male', short: 'sex = M', for: 'tick' },
+    { id: 'sex_female', label: 'Check this box if gender is Female', short: 'sex = F', for: 'tick' },
+    { id: 'phone_select', label: 'Phone: controlled by selector dropdown', short: 'phone ▾', for: 'text' },
+    { id: 'phone_home_cell', label: 'Phone: display 2 phones (home, cell)', short: 'home + cell', for: 'text' },
+    { id: 'phone_home_cell_work', label: 'Phone: display 3 phones (home, cell, work)', short: 'home + cell + work', for: 'text' },
+    { id: 'static_text', label: 'Display static custom text', short: 'text', for: 'text', takesText: true },
   ];
   const customActionById = (id) => CUSTOM_ACTIONS.find(a => a.id === id);
+  // What the canvas shows for a field's custom fill, in its tag's place: a gear (drawn as text,
+  // not an emoji) and the action in short ("⚙ sex = M"), a static text in quotes
+  function customFillMark(f){
+    const action = customActionById(f.fill.action);
+    const what = !action ? 'custom' : action.takesText && f.fill.text ? `"${f.fill.text}"` : action.short;
+    return '\u2699\uFE0E ' + what;
+  }
   // The custom actions list, each action offered only for the kind of field it suits
   function fillCustomActionOptions(){
     const sel = $('fCustomAction');
