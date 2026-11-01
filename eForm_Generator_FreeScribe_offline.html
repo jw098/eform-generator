@@ -102,6 +102,14 @@
     white-space:nowrap;display:flex;align-items:center;pointer-events:none}
   .field-preview.wraps{display:block;white-space:normal}
   .field-preview.overflows{color:var(--red)}
+  /* A free draw area: a dashed box with its mark; its toolbar as the eForm shows it */
+  .field.drawing{border-style:dashed;border-color:var(--violet)}
+  .field-drawing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--violet);
+    font:600 12px sans-serif;pointer-events:none}
+  .field-drawing span{background:rgba(255,255,255,.9);border-radius:3px;padding:1px 5px}
+  .field.drawtools{border:1px solid var(--violet);background:#fff;border-radius:3px;color:#333;display:flex;align-items:center;gap:3px;
+    padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
+  .field.drawtools.selected{outline:2px solid #2563eb;outline-offset:1px}
   /* A phone field's phone selector, drawn as the dropdown it is on the eForm */
   .field.phoneselect{border:1px solid var(--violet);background:#fff;border-radius:3px;color:var(--violet);
     display:flex;align-items:center;justify-content:space-between;padding:0 3px;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-family:sans-serif}
@@ -291,6 +299,7 @@
       <span class="detect-wrap"><button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button><button id="detectCustom" class="custom-badge" type="button" hidden title="Auto Detect is using tuning values that aren't the standard ones, so it may find fewer or wrong fields. Click to see them in Settings.">custom</button></span>
       <button id="btnAdd" class="btn-green">Add Field</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
+      <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
       <button id="btnCopySel">Copy Selected</button>
@@ -442,8 +451,10 @@
             <option value="xbox">xbox</option>
             <option value="date">date</option>
             <option value="signature">signature</option>
+            <option value="drawing">free draw</option>
             <option value="fontbuttons" disabled>font size buttons</option>
             <option value="phoneselect" disabled>phone selector</option>
+            <option value="drawtools" disabled>free draw toolbar</option>
           </select>
         </label>
       </div>
@@ -1002,6 +1013,8 @@ else if (typeof exports === 'object')
   const FONT_BUTTON_W = 18, FONT_BUTTON_H = 17, FONT_BUTTON_GAP = 20;
   // The size of a phone field's phone selector on the eForm, in its pixels
   const PHONE_SELECT_W = 100, PHONE_SELECT_H = 20;
+  // The size of a free draw area's toolbar on the eForm (pens, Undo, Clear), in its pixels
+  const DRAW_TOOLS_W = 168, DRAW_TOOLS_H = 20;
 
 
   // The element with this id
@@ -1174,7 +1187,7 @@ else if (typeof exports === 'object')
   // label (Auto Detect passes only the label: a section heading in a name is only for the name).
   // A label written as a tag's own name ("current_user_id") keeps that tag.
   function guessTag(name='', type='text', label='', owner=''){
-    if (type === 'signature' || isTickType(type) || isAttachedType(type)) return '';   // (a signature is its type, not a tag; a tick box and a field's controls have none)
+    if (type === 'signature' || type === 'drawing' || isTickType(type) || isAttachedType(type)) return '';   // (a signature and a free draw area are their type, not a tag; a tick box and a field's controls have none)
     // (a question asks for an answer, not the details it names: "ARE YOU THE PATIENT'S REGULAR
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
@@ -1801,18 +1814,21 @@ else if (typeof exports === 'object')
 
   // The controls a field has on the eForm that are fields of their own, so they can be dragged
   // anywhere (`target` the field's id): a textarea's font size buttons, and the phone selector
-  // of a field filled with "Phone: controlled by selector dropdown". Each says which fields have
-  // one, its size on the eForm, and where it goes at first: just right of the field's top-right
-  // corner (inside it where the page ends), `below` that much lower in the eForm's pixels (a
-  // textarea's phone selector, under its font size buttons)
+  // of a field filled with "Phone: controlled by selector dropdown", a free draw area's toolbar.
+  // Each says which fields have one, its size on the eForm, and where it goes at first: just
+  // right of the field's top-right corner (inside it where the page ends), `below` that much
+  // lower in the eForm's pixels (a textarea's phone selector, under its font size buttons); or,
+  // with `under`, just under the field's bottom-left corner (above it where the page ends)
   const ATTACHED_CONTROLS = {
     fontbuttons: { has: hasFontButtons, w: FONT_BUTTON_W, h: FONT_BUTTON_GAP + FONT_BUTTON_H, below: () => 0 },
     phoneselect: { has: hasPhoneSelect, w: PHONE_SELECT_W, h: PHONE_SELECT_H, below: t => hasFontButtons(t) ? FONT_BUTTON_GAP + FONT_BUTTON_H + 4 : 0 },
+    drawtools: { has: t => t.type === 'drawing', w: DRAW_TOOLS_W, h: DRAW_TOOLS_H, under: true },
   };
   // Keeps each field's controls in step with it. A field gets each control it has (font size
   // buttons unless they were turned off, fontButtons: false); one goes when its field does (or
   // stops having it); and it follows its field: when the field's top-right corner moves (dragged,
-  // nudged, resized, typed in), it moves as much (`anchor` is where that corner was). It is always
+  // nudged, resized, typed in), it moves as much (`anchor` is where that corner was; for a control
+  // under its field, the bottom-left corner). It is always
   // its own size on the eForm.
   function syncFontButtons(){
     let byId = new Map(state.fields.map(f => [f.id, f]));
@@ -1828,7 +1844,8 @@ else if (typeof exports === 'object')
       state.fields.filter(t => !isAttachedType(t.type) && control.has(t) && !owned.has(type + ':' + t.id)).forEach(t => {
         const pageInfo = state.pages[t.page]; if (!pageInfo || !pageInfo.naturalW) return;
         const k = EXPORT_PAGE_W / pageInfo.naturalW;
-        const spots = fontButtonSpots(t.x*k, t.y*k + control.below(t), t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k, control.w, control.h);
+        const spots = control.under ? underSpot(t.x*k, t.y*k, t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k, control.w, control.h)
+          : fontButtonSpots(t.x*k, t.y*k + control.below(t), t.width*k, t.height*k, pageInfo.naturalW*k, pageInfo.naturalH*k, control.w, control.h);
         addField({ page: t.page, x: spots.x/k, y: spots.upY/k, type, name: t.name, target: t.id });
       });
     });
@@ -1836,7 +1853,8 @@ else if (typeof exports === 'object')
     state.fields.forEach(b => {
       if (!isAttachedType(b.type)) return;
       const t = byId.get(b.target), pageInfo = state.pages[b.page]; if (!t || !pageInfo || !pageInfo.naturalW) return;
-      const k = EXPORT_PAGE_W / pageInfo.naturalW, corner = { x: t.x + t.width, y: t.y };
+      // (the corner it follows: the top-right one, or the bottom-left for a control under its field)
+      const k = EXPORT_PAGE_W / pageInfo.naturalW, corner = ATTACHED_CONTROLS[b.type].under ? { x: t.x, y: t.y + t.height } : { x: t.x + t.width, y: t.y };
       b.name = t.name; b.width = ATTACHED_CONTROLS[b.type].w / k; b.height = ATTACHED_CONTROLS[b.type].h / k;
       if (b.anchor){ b.x += corner.x - b.anchor.x; b.y += corner.y - b.anchor.y; }
       b.x = clamp(b.x, 0, Math.max(0, pageInfo.naturalW - b.width)); b.y = clamp(b.y, 0, Math.max(0, pageInfo.naturalH - b.height));
@@ -1845,14 +1863,15 @@ else if (typeof exports === 'object')
   }
   // Removes the selected fields (a field's controls go with it); taking away a textarea's
   // buttons on their own turns them off for it. A phone selector stays while its field has the
-  // phone action: it goes when the action changes.
+  // phone action (it goes when the action changes), and a free draw toolbar while its area is there.
   function deleteSelectedFields(){
     state.fields.forEach(b => {
       if (b.type !== 'fontbuttons' || !state.selected.has(b.id) || state.selected.has(b.target)) return;
       const t = state.fields.find(k => k.id === b.target); if (t) t.fontButtons = false;
     });
-    const keepsSelector = (f) => f.type === 'phoneselect' && !state.selected.has(f.target);
-    if (state.fields.some(f => state.selected.has(f.id) && keepsSelector(f))) msg('A phone selector goes when its field\'s custom action changes.', 'warn');
+    const keepsSelector = (f) => (f.type === 'phoneselect' || f.type === 'drawtools') && !state.selected.has(f.target);
+    const kept = state.fields.find(f => state.selected.has(f.id) && keepsSelector(f));
+    if (kept) msg(kept.type === 'drawtools' ? 'A free draw toolbar goes with its area.' : 'A phone selector goes when its field\'s custom action changes.', 'warn');
     state.fields = state.fields.filter(f => !state.selected.has(f.id) || keepsSelector(f)); state.selected.clear(); renderAll();
   }
   // A page's image, its wrapper and the overlay its fields are drawn on
@@ -1912,6 +1931,14 @@ else if (typeof exports === 'object')
       fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
       return fieldDiv;
     }
+    // (a free draw area's toolbar: its pens, Undo and Clear, no tag, label or resize handle)
+    if (f.type === 'drawtools'){
+      fieldDiv.classList.add('drawtools'); fieldDiv.style.fontSize = Math.max(6, f.height * sy * 0.55) + 'px';
+      fieldDiv.innerHTML = drawPens().map(pen => `<span style="color:${pen.color}">\u25CF</span>`).join('') + '<span>Undo</span><span>Clear</span>';
+      fieldDiv.title = `The free draw toolbar of "${f.name}"`;
+      fieldDiv.addEventListener('mousedown', (e) => onFieldMouseDown(e, f, page));
+      return fieldDiv;
+    }
     // (a phone field's phone selector: a dropdown, no tag, label or resize handle)
     if (f.type === 'phoneselect'){
       fieldDiv.classList.add('phoneselect'); fieldDiv.style.fontSize = Math.max(6, f.height * sy * 0.6) + 'px';
@@ -1924,7 +1951,12 @@ else if (typeof exports === 'object')
     // above it; a tick box's always above, centred over it. (A field with a custom fill shows
     // its mark in its tag's place, in violet; one with text to preview, the preview instead.)
     const custom = usesCustomFill(f), preview = previewText(f);
-    const tag = state.showTags && !preview ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    const tag = state.showTags && !preview && f.type !== 'drawing' ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    // (a free draw area: a dashed box marked as one)
+    if (f.type === 'drawing'){
+      fieldDiv.classList.add('drawing');
+      const mark = document.createElement('div'); mark.className = 'field-drawing'; mark.innerHTML = '<span>\u270E\uFE0E free draw</span>'; fieldDiv.appendChild(mark);
+    }
     // (a field's phones or static text: how they will look on the eForm, at its font size
     // there, so it shows whether they fit; renderPage turns it red when they don't)
     if (preview){
@@ -2472,6 +2504,15 @@ else if (typeof exports === 'object')
   $('snapPx').addEventListener('input', (e)=>{ const v = clamp(Number(e.target.value)||8,1,40); state.snap.threshold = v; });
   $('chkGuides').addEventListener('change', (e)=>{ state.snap.showGuides = !!e.target.checked; renderAll(); });
 
+  // "Free draw": an area to draw on in the eForm, a third of the page wide and a sixth high, then
+  // moved and sized over what is to be marked
+  $('btnFreeDraw').addEventListener('click', ()=>{
+    const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
+    pushUndo();
+    const f = addField({ page: state.currentPage, x: 30, y: 30, width: p.naturalW / 3, height: p.naturalH / 6, type: 'drawing', name: `drawing_${state.fields.length+1}`, oscarTag: '' });
+    selectOne(f.id); renderAll();
+    msg('Added a free draw area: drag it over what is to be marked, and size it by its corner.', 'ok');
+  });
   $('btnAdd').addEventListener('click', ()=>{
     const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
     pushUndo();
@@ -2528,9 +2569,11 @@ else if (typeof exports === 'object')
     const custom = usesCustomFill(f), buttons = isAttachedType(f.type);
     $('fFillBlock').style.display = buttons ? 'none' : 'block';
     $('fFillMode').value = custom ? 'custom' : 'tag';
-    $('fTagBlock').style.display = buttons || custom ? 'none' : 'block';
-    if (custom) $('fTagWarn').style.display = 'none';
-    $('fCustomBlock').style.display = custom && !buttons ? 'block' : 'none';
+    // (a free draw area has neither a tag nor a custom fill: what is drawn is its value)
+    if (f.type === 'drawing') $('fFillBlock').style.display = 'none';
+    $('fTagBlock').style.display = buttons || custom || f.type === 'drawing' ? 'none' : 'block';
+    if (custom || f.type === 'drawing') $('fTagWarn').style.display = 'none';
+    $('fCustomBlock').style.display = custom && !buttons && f.type !== 'drawing' ? 'block' : 'none';
     const kind = isTickType(f.type) ? 'tick' : 'text';
     [...$('fCustomAction').options].forEach(o => { const a = customActionById(o.value); o.disabled = !!a && a.for !== kind; });
     $('fCustomAction').value = f.fill ? (f.fill.action || '') : '';
@@ -2563,6 +2606,7 @@ else if (typeof exports === 'object')
     ['fName','fType','fW','fH'].forEach(id => { $(id).disabled = buttons; });
     $('fButtonsNote').style.display = buttons ? 'block' : 'none';
     if (f.type === 'fontbuttons') $('fButtonsNote').textContent = `The font size buttons (▲▼) of "${f.name}". Drag them anywhere: they follow the textarea when it moves, and go when it does.`;
+    if (f.type === 'drawtools') $('fButtonsNote').textContent = `The free draw toolbar of "${f.name}": on the eForm, its pens, Undo and Clear (not printed). Drag it anywhere: it follows the area when it moves, and goes when it does.`;
     if (f.type === 'phoneselect') $('fButtonsNote').textContent = `The phone selector of "${f.name}": on the eForm, it chooses which of the patient's phones the field shows (not printed). Drag it anywhere: it follows the field when it moves, and goes when the field's action changes.`;
   }
   // Fills the Selected field editor from the selected field, or hides it unless one is selected
@@ -2727,7 +2771,7 @@ else if (typeof exports === 'object')
         y: Number(f.y) || 0,
         width: Math.max(8, Number(f.width) || 20),
         height: Math.max(8, Number(f.height) || 20),
-        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','fontbuttons','phoneselect'].includes(f.type) ? f.type : 'text',
+        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','drawing','fontbuttons','phoneselect','drawtools'].includes(f.type) ? f.type : 'text',
         name: String(f.name || `field_${i+1}`),
         oscarTag: isRemovedTag(tag) ? '' : tag,
         label: String(f.label || ''),
@@ -4539,7 +4583,7 @@ function hasFontButtons(f){ return f.type === 'textarea' && f.fontButtons !== fa
 function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) && usesCustomFill(f) && f.fill.action === 'phone_select'; }
 // Whether fields of a type are another field's control (font size buttons, a phone selector),
 // with only a place of their own
-function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect'; }
+function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect' || type === 'drawtools'; }
 // A field's font size on the eForm: its own where it can have one (hasOwnFontSize), else 12px
 function fieldFontSize(f){ return hasOwnFontSize(f) && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
 // Whether a field's font size can be set: a textarea's, and a field's that lists phones, shows
@@ -4565,6 +4609,29 @@ function fontButtonSpots(x, y, w, h, pageW, pageH, controlW = FONT_BUTTON_W, con
   return { x: outside + controlW <= pageW ? outside : Math.max(0, x + w - controlW),
            upY: Math.max(0, Math.min(y, pageH - controlH)),
            downY: Math.max(0, Math.min(y, pageH - controlH)) + FONT_BUTTON_GAP };
+}
+// Where a control goes that sits under its field (a free draw area's toolbar), in the eForm's
+// pixels, given the field and the page: just under its bottom-left corner, above its top-left
+// one where the page ends first
+function underSpot(x, y, w, h, pageW, pageH, controlW, controlH){
+  const below = y + h + 2;
+  return { x: Math.max(0, Math.min(x, pageW - controlW)), upY: below + controlH <= pageH ? below : Math.max(0, y - controlH - 2) };
+}
+// The pens a free draw area offers on the eForm, the first the one it starts with
+function drawPens(){ return [{ name: 'Black', color: '#000000' }, { name: 'Red', color: '#d00000' }, { name: 'Blue', color: '#0040d0' }]; }
+// A free draw area on the eForm, (x, y) and w × h: a transparent canvas over the page, drawn
+// on with a mouse, pen or finger, and the hidden input that keeps what is drawn, so OSCAR saves
+// it (setUpFreeDraw redraws it when the form opens); `name` is the input's on the eForm
+function drawingMarkup(name, id, x, y, w, h){
+  return `<div class="FreeDraw" data-draw-for="${name}" style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; z-index:4;"><canvas style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; touch-action:none; cursor:crosshair;"></canvas></div>
+<input type="hidden" id="${id}" name="${name}">`;
+}
+// A free draw area's toolbar on the eForm (not printed), at (x, y): its pens, Undo (the last
+// stroke) and Clear; `name` is the area's on the eForm
+function drawToolsMarkup(name, x, y){
+  const pens = drawPens().map((pen, i) => `<button type="button" data-draw-pen="${pen.color}" title="${pen.name} pen" style="width:18px; height:18px; padding:0; border:${i ? '1px solid #999' : '2px solid #333'}; border-radius:9px; background:${pen.color};"></button>`).join('');
+  // (the row inside its own box: a display set on the box itself would keep it from hiding in print)
+  return `<div class="DoNotPrint FreeDrawTools" data-draw-tools-for="${name}" style="position:absolute; left:${x}px; top:${y}px; width:${DRAW_TOOLS_W}px; height:${DRAW_TOOLS_H}px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%; font-size:11px;">${pens}<button type="button" data-draw-tool="undo" style="height:18px; padding:0 4px; font-size:11px;">Undo</button><button type="button" data-draw-tool="clear" style="height:18px; padding:0 4px; font-size:11px;">Clear</button></div></div>`;
 }
 // A phone field's phone selector on the eForm (not printed), at (x, y): choosing home, cell or
 // work writes that phone in the field; `name` is the field's on the eForm
@@ -4667,7 +4734,7 @@ function preflightChecks(htmlText=''){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
-  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature');
+  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature' && f.type !== 'drawing');
   out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
   const outOfBounds = [];
@@ -4788,6 +4855,8 @@ function buildExportHtml(){
     const h = Math.round(clamp(scaledH, 6, scaled(naturalH, scale)));
     if (f.type === 'fontbuttons') return fontButtonsMarkup(f._safeName, x, y);
     if (f.type === 'phoneselect') return phoneSelectMarkup(f._safeName, x, y);
+    if (f.type === 'drawtools') return drawToolsMarkup(f._safeName, x, y);
+    if (f.type === 'drawing') return drawingMarkup(escAttr(f._safeName), escAttr(f._safeName + '_' + f.id), x, y, w, h);
     const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:${fieldFontSize(f)}px; background-color:transparent;`;
     return inputMarkup(f, inlinePos);
   }
@@ -5136,6 +5205,115 @@ function fillDefaultPhones(){
   if (usesPhoneSelect) startupSteps.push('fillDefaultPhones()');
   if (usesPhoneLists) startupSteps.push('fillPhoneLists()');
   if (usesUserNames) startupSteps.push('fillUserNames()');
+  // (free draw areas: their script, and what was drawn put back on load)
+  const usesFreeDraw = exportPages.some(page => getPageFields(page).some(f => f.type === 'drawing'));
+  const freeDrawScript = !usesFreeDraw ? '' : `<style type="text/css" media="screen">
+ .FreeDraw { outline: 1px dashed #9ca3af; }
+</style>
+<script>
+// Free draw areas: each .FreeDraw canvas is drawn on with a mouse, pen or finger, and what is
+// drawn is kept in its hidden input (data-draw-for), so OSCAR saves it with the form and it is
+// drawn again when the form opens. A stroke is kept as its pen colour and its points, in the
+// area's pixels: "#000000|10,20 14,26;#d00000|…". Its toolbar (data-draw-tools-for) chooses the
+// pen, takes back the last stroke (Undo) or all of them (Clear).
+function setUpFreeDraw(){
+  var areas = document.querySelectorAll('.FreeDraw');
+  for (var i = 0; i < areas.length; i++) setUpFreeDrawArea(areas[i]);
+}
+// Sets up one free draw area: its canvas, its saved strokes and its toolbar
+function setUpFreeDrawArea(area){
+  var name = area.getAttribute('data-draw-for'), store = document.getElementsByName(name)[0];
+  var canvas = area.getElementsByTagName('canvas')[0];
+  if (!store || !canvas || !canvas.getContext) return;
+  // (twice the area's size, so it prints sharp)
+  var width = area.offsetWidth, height = area.offsetHeight, sharpness = 2;
+  canvas.width = width * sharpness; canvas.height = height * sharpness;
+  var context = canvas.getContext('2d');
+  context.scale(sharpness, sharpness); context.lineWidth = 2; context.lineCap = 'round'; context.lineJoin = 'round';
+  var strokes = readStrokes(store.value), stroke = null, pen = '${drawPens()[0].color}';
+  // Draws one stroke: a dot for a single point, else a line through its points
+  function drawStroke(s){
+    context.strokeStyle = s.color; context.fillStyle = s.color;
+    if (s.points.length === 1){ context.beginPath(); context.arc(s.points[0][0], s.points[0][1], 1.2, 0, 2 * Math.PI); context.fill(); return; }
+    context.beginPath(); context.moveTo(s.points[0][0], s.points[0][1]);
+    for (var j = 1; j < s.points.length; j++) context.lineTo(s.points[j][0], s.points[j][1]);
+    context.stroke();
+  }
+  // Draws every stroke again (after Undo or Clear, and when the form opens)
+  function redraw(){
+    context.clearRect(0, 0, width, height);
+    for (var j = 0; j < strokes.length; j++) drawStroke(strokes[j]);
+  }
+  // Keeps the strokes in the hidden input, so they are saved with the form
+  function save(){
+    var text = writeStrokes(strokes);
+    store.value = text; store.setAttribute('value', text);
+    if (typeof setDirtyFlag === 'function') setDirtyFlag();
+  }
+  // Where a pointer is in the area's pixels (whatever the page's zoom)
+  function pointAt(e){
+    var box = canvas.getBoundingClientRect();
+    return [Math.round((e.clientX - box.left) * width / box.width), Math.round((e.clientY - box.top) * height / box.height)];
+  }
+  canvas.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+    stroke = { color: pen, points: [pointAt(e)] }; strokes.push(stroke); drawStroke(stroke);
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if (!stroke) return;
+    // (a point only once the pen has moved 2px, so a stroke keeps few)
+    var point = pointAt(e), last = stroke.points[stroke.points.length - 1];
+    if (Math.abs(point[0] - last[0]) + Math.abs(point[1] - last[1]) < 2) return;
+    stroke.points.push(point);
+    context.strokeStyle = stroke.color; context.beginPath(); context.moveTo(last[0], last[1]); context.lineTo(point[0], point[1]); context.stroke();
+  });
+  // (a stroke ends when the pen lifts or leaves)
+  var endStroke = function(){ if (stroke){ stroke = null; save(); } };
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+  var tools = document.querySelector('[data-draw-tools-for="' + name + '"]');
+  if (tools) tools.addEventListener('click', function(e){
+    var button = e.target;
+    if (button.getAttribute('data-draw-pen')){
+      pen = button.getAttribute('data-draw-pen');
+      var pens = tools.querySelectorAll('[data-draw-pen]');
+      for (var j = 0; j < pens.length; j++) pens[j].style.border = pens[j] === button ? '2px solid #333' : '1px solid #999';
+    }
+    if (button.getAttribute('data-draw-tool') === 'undo' && strokes.length){ strokes.pop(); redraw(); save(); }
+    if (button.getAttribute('data-draw-tool') === 'clear' && strokes.length && confirm('Clear this drawing?')){ strokes = []; redraw(); save(); }
+  });
+  redraw();
+}
+// The strokes kept in a free draw area's input, read back ("#000000|10,20 14,26;…"); what can't
+// be read is left out
+function readStrokes(text){
+  var strokes = [], parts = String(text || '').split(';');
+  for (var i = 0; i < parts.length; i++){
+    var bar = parts[i].indexOf('|'); if (bar < 0) continue;
+    var color = parts[i].slice(0, bar), points = [], pairs = parts[i].slice(bar + 1).split(' ');
+    if (!/^#[0-9a-fA-F]{6}$/.test(color)) continue;
+    for (var j = 0; j < pairs.length; j++){
+      var xy = pairs[j].split(',');
+      if (xy.length === 2 && isFinite(xy[0]) && isFinite(xy[1]) && xy[0] !== '' && xy[1] !== '') points.push([Number(xy[0]), Number(xy[1])]);
+    }
+    if (points.length) strokes.push({ color: color, points: points });
+  }
+  return strokes;
+}
+// Strokes written for a free draw area's input: "#000000|10,20 14,26;#d00000|…"
+function writeStrokes(strokes){
+  var parts = [];
+  for (var i = 0; i < strokes.length; i++){
+    var points = [];
+    for (var j = 0; j < strokes[i].points.length; j++) points.push(strokes[i].points[j].join(','));
+    parts.push(strokes[i].color + '|' + points.join(' '));
+  }
+  return parts.join(';');
+}
+<\/script>
+`;
+  if (usesFreeDraw) startupSteps.push('setUpFreeDraw()');
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -5224,7 +5402,7 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}${newFormScript}${startupScript}</head>
+${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${startupScript}</head>
 <body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
