@@ -1922,17 +1922,16 @@ else if (typeof exports === 'object')
     // Its oscarDB tag ("Show tags"): written inside it when it fits across, centred on it (over
     // the edges of a field shorter than the text, so it stays on the field's own row), else
     // above it; a tick box's always above, centred over it. (A field with a custom fill shows
-    // its mark in its tag's place, in violet; one listing phones, a preview in its place.)
-    const custom = usesCustomFill(f), phones = phonesToShow(f);
-    const tag = state.showTags && !phones ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
-    // (a field listing the patient's phones: how they will look on the eForm, at its font size
-    // there, so it shows whether they fit; renderPage turns it red when they don't. The sample
-    // number is digits, which are wider than a placeholder such as "xxx")
-    if (phones){
+    // its mark in its tag's place, in violet; one with text to preview, the preview instead.)
+    const custom = usesCustomFill(f), preview = previewText(f);
+    const tag = state.showTags && !preview ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    // (a field's phones or static text: how they will look on the eForm, at its font size
+    // there, so it shows whether they fit; renderPage turns it red when they don't)
+    if (preview){
       const pageInfo = state.pages[page], pageScale = pageInfo && pageInfo.naturalW ? pageInfo.naturalW / EXPORT_PAGE_W : 1;
       const previewDiv = document.createElement('div'); previewDiv.className = 'field-preview' + (f.type === 'textarea' ? ' wraps' : '');
       previewDiv.style.fontSize = (fieldFontSize(f) * pageScale * sx) + 'px';
-      previewDiv.textContent = phoneListText(phones.split(' ').map(kind => [kind, '555-555-5555']));
+      previewDiv.textContent = preview;
       fieldDiv.appendChild(previewDiv);
     }
     const tick = f.type === 'checkbox' || f.type === 'xbox';
@@ -1958,10 +1957,10 @@ else if (typeof exports === 'object')
     getPageImgEl(page).style.display='block';
     overlay.innerHTML='';
     getPageFields(page).forEach(f => overlay.appendChild(fieldElement(f, page)));
-    // (a phone preview that runs past its field, across or, in a textarea, down: red)
+    // (a preview that runs past its field, across or, in a textarea, down: red)
     overlay.querySelectorAll('.field-preview').forEach(d => {
       const overflows = d.scrollWidth > d.clientWidth + 1 || d.scrollHeight > d.clientHeight + 1;
-      d.classList.toggle('overflows', overflows); d.title = overflows ? "The phones don't fit the field at this font size" : 'The phones fit the field';
+      d.classList.toggle('overflows', overflows); d.title = overflows ? "The text doesn't fit the field at this font size" : 'The text fits the field';
     });
     if (state.snap.showGuides && state.snapGuides && samePage(state.snapGuides.page,page)){
       const { sx, sy } = getPageScale(page);
@@ -2548,8 +2547,8 @@ else if (typeof exports === 'object')
   // Shows a textarea's font size and buttons in the Selected field editor (other fields have
   // neither), and for a textarea's font size buttons themselves, only where they are
   function showFontRow(f){
-    // (a field listing phones has a font size too, so they can be made to fit it)
-    $('fFontRow').style.display = f.type === 'textarea' || phonesToShow(f) ? 'flex' : 'none';
+    // (a field listing phones or with static text has a font size too, so it can be made to fit)
+    $('fFontRow').style.display = hasOwnFontSize(f) ? 'flex' : 'none';
     $('fFontButtonsLabel').style.display = f.type === 'textarea' ? '' : 'none';
     $('fFontButtons').checked = hasFontButtons(f);
     $('fFontSize').value = fieldFontSize(f);
@@ -2608,7 +2607,7 @@ else if (typeof exports === 'object')
       const action = customActionById($('fCustomAction').value), text = $('fCustomText').value;
       f.fill = { on: true, action: action ? action.id : '', ...(text ? { text } : {}) };
     } else if (f.fill) f.fill.on = false;
-    if (f.type !== 'textarea' && phonesToShow(f)){
+    if (f.type !== 'textarea' && hasOwnFontSize(f)){
       const size = Math.round(Number($('fFontSize').value));
       if (size >= 6 && size <= 48) f.fontSize = size;
     }
@@ -4537,8 +4536,17 @@ function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) &
 // Whether fields of a type are another field's control (font size buttons, a phone selector),
 // with only a place of their own
 function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect'; }
-// A field's font size on the eForm: a textarea's own, else 12px
-function fieldFontSize(f){ return (f.type === 'textarea' || phonesToShow(f)) && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
+// A field's font size on the eForm: its own where it can have one (hasOwnFontSize), else 12px
+function fieldFontSize(f){ return hasOwnFontSize(f) && Number(f.fontSize) > 0 ? Number(f.fontSize) : 12; }
+// Whether a field's font size can be set: a textarea's, and a field's that lists phones or has
+// static text, so its text can be made to fit it
+function hasOwnFontSize(f){ return f.type === 'textarea' || !!phonesToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && ['text','date'].includes(f.type)); }
+// The text the canvas previews in a field, as the eForm will show it: its phones, with a sample
+// number in digits (wider than a placeholder such as "xxx"), or its static text; '' for others
+function previewText(f){
+  const phones = phonesToShow(f);
+  return phones ? phoneListText(phones.split(' ').map(kind => [kind, '555-555-5555'])) : staticText(f);
+}
 // The patient's phones as a field lists them, given [kind, number] pairs: "(H): 604-555-0100.
 // (C): 778-555-0199." (fillPhoneLists on the eForm writes the same)
 function phoneListText(phones){ return phones.map(([kind, number]) => `(${kind.charAt(0).toUpperCase()}): ${number}.`).join(' '); }
