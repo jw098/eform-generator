@@ -55,7 +55,7 @@
   //    inputs with an Xbox or xMarkOnly class. Each field's tag is its oscarDB attribute.
   // A field type as the tests count it: a tick box, or a place to write; and the file name in a
   // src or URL ("tests/cases/x/page1.png?v=2" -> "page1.png")
-  const kindOf = (type) => (type === 'checkbox' || type === 'xbox') ? 'tick' : 'write';
+  const kindOf = (type) => type === 'checkbox' ? 'tick' : 'write';
   const fileOf = (src) => decodeURIComponent(String(src).split(/[?#]/)[0].split(/[\/}=]/).pop());
   // An eForm's pages: [{ n, file, imgData, boxes: [{ kind, x, y, width, height, tag }] }]
   async function eformPages(html, images){

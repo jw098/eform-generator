@@ -476,7 +476,6 @@
             <option value="text">text</option>
             <option value="textarea">textarea</option>
             <option value="checkbox">checkbox</option>
-            <option value="xbox">xbox</option>
             <option value="circle">circle toggle</option>
             <option value="date">date</option>
             <option value="signature">signature</option>
@@ -1231,7 +1230,7 @@ else if (typeof exports === 'object')
   function isRemovedTag(tag){ return REMOVED_TAGS.has(String(tag||'').trim().toLowerCase()); }
 
   // Whether a field type is a tick box: the app never tags one itself (a user still can)
-  const isTickType = (type) => type === 'checkbox' || type === 'xbox';
+  const isTickType = (type) => type === 'checkbox';
 
   // A field name that only numbers the field ("gen_inputid12", "page1_3", "field_7"): it says
   // nothing about what the field holds
@@ -2068,7 +2067,7 @@ else if (typeof exports === 'object')
       previewDiv.textContent = preview;
       fieldDiv.appendChild(previewDiv);
     }
-    const tick = f.type === 'checkbox' || f.type === 'xbox';
+    const tick = f.type === 'checkbox';
     const above = !!tag && (tick || tagWidth(tag) + 8 > f.width * sx);
     if (tag){ const tagDiv = document.createElement('div'); tagDiv.className = 'field-tag ' + (above ? 'above' : 'inside') + (tick ? ' tick' : '') + (custom ? ' custom' : ''); tagDiv.textContent = tag; tagDiv.title = tag; fieldDiv.appendChild(tagDiv); }
     if (state.showLabels){
@@ -2201,7 +2200,7 @@ else if (typeof exports === 'object')
   function selectOne(id){ state.selected = new Set([id]); }
   // ===== Validation groups =====
   // The field types a validation group can hold: those the eForm user fills in
-  const VALIDATABLE_TYPES = ['text','textarea','date','checkbox','xbox','circle'];
+  const VALIDATABLE_TYPES = ['text','textarea','date','checkbox','circle'];
   // A copy of the validation groups (for Undo)
   function copyGroups(groups){ return (Array.isArray(groups) ? groups : []).map(g => ({ ...g, fieldIds: [...g.fieldIds] })); }
   // Validation groups read from a saved session or an imported eForm, each value checked; `toId`
@@ -2404,7 +2403,7 @@ else if (typeof exports === 'object')
       x, y,
       width: boxSize, height: boxSize,
       type: 'checkbox',
-      name: `checkbox_${getPageFields(page).filter(k=>k.type==='checkbox'||k.type==='xbox').length + 1}`,
+      name: `checkbox_${getPageFields(page).filter(k=>k.type==='checkbox').length + 1}`,
       oscarTag: ''
     });
     selectOne(f.id);
@@ -3021,10 +3020,11 @@ else if (typeof exports === 'object')
     });
 
     // (a field saved with a tag that is no longer offered keeps no tag; one tagged as the old
-    // signature stamp is a signature field)
+    // signature stamp is a signature field; an "xbox", the old second name for a tick box, is a
+    // checkbox)
     state.fields = (session.fields || []).map((f, i) => {
       const tag = normalizeTag(f.oscarTag || '');
-      const type = tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','circle','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text';
+      const type = tag === 'current_user_signature_image' ? 'signature' : f.type === 'xbox' ? 'checkbox' : ['text','textarea','checkbox','circle','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text';
       return {
         id: Number(f.id) || (i+1),
         page: Number(f.page) >= 1 ? Number(f.page) : 1,
@@ -3713,7 +3713,7 @@ else if (typeof exports === 'object')
   // found just below it ("EXAM(s) REQUESTED:"). right: the form's right edge (page-image px).
   function colonFields(read, inkMap, w, h, scale, page, found, right){
     const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
-    const ticks = found.filter(g => g.type === 'checkbox' || g.type === 'xbox');
+    const ticks = found.filter(g => g.type === 'checkbox');
     // The page's typical text height (a word far shorter is a speck OCR read, not a label)
     const hs = read.words.map(word => word.y1 - word.y0).sort((a,b) => a-b), wh = hs.length ? hs[hs.length >> 1] : 0;
     // The phrase a word ends: the words before it on its line, close together
@@ -3895,7 +3895,7 @@ else if (typeof exports === 'object')
   // The page's words that could be labels (with letters, not inside a tick box), and their
   // typical height
   function labelWordsOf(fields, read){
-    const boxes = fields.filter(f => f.type === 'checkbox' || f.type === 'xbox');
+    const boxes = fields.filter(f => f.type === 'checkbox');
     const inBox = (w) => boxes.some(b => { const cx = (w.x0+w.x1)/2, cy = (w.y0+w.y1)/2; return cx >= b.x-2 && cx <= b.x+b.width+2 && cy >= b.y-2 && cy <= b.y+b.height+2; });
     const words = read.words.filter(w => hasLetters(w.text) && !inBox(w));
     const wordHeight = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
@@ -3938,7 +3938,7 @@ else if (typeof exports === 'object')
     const free = words.filter(w => !taken.has(w));
 
     fields.forEach(f => {
-      if (f.type === 'checkbox' || f.type === 'xbox') return;
+      if (f.type === 'checkbox') return;
       const fy1 = f.y, fx2 = f.x + f.width;
       // Just above, with no rule between
       let above = [];
@@ -4038,9 +4038,9 @@ else if (typeof exports === 'object')
   //    than a short code ("MSP", "PHN"): on such forms the lines above are the rows above.
   function sectionFields(fields, read){
     const { words, wordHeight } = labelWordsOf(fields, read);
-    const ticks = new Set(fields.filter(f => f.type === 'checkbox' || f.type === 'xbox').flatMap(f => f._words || []));
+    const ticks = new Set(fields.filter(f => f.type === 'checkbox').flatMap(f => f._words || []));
     const free = words.filter(w => !ticks.has(w));
-    const texts = fields.filter(f => f.type !== 'checkbox' && f.type !== 'xbox');
+    const texts = fields.filter(f => f.type !== 'checkbox');
     const labelWords = new Set(texts.flatMap(f => f._words || []));
     texts.forEach(f => {
       if (f.box || (f.type !== 'text' && f.type !== 'textarea')) return;
@@ -4054,7 +4054,7 @@ else if (typeof exports === 'object')
                                          !fields.some(g => g.y < l.y1 && g.y + g.height > l.y0)).sort((a,b) => b.y1-a.y1);
     fields.forEach(f => {
       const ws = f._words;
-      if (f.type === 'checkbox' || f.type === 'xbox') return;
+      if (f.type === 'checkbox') return;
       // (a label of its own on its row, ending with a colon, says all: "Copies of report to:")
       if (f._ownColon) return;
       if (f.section || !f.label || headingLabel(f.label)) return;
@@ -4725,7 +4725,7 @@ else if (typeof exports === 'object')
       // The fields found (or a fillable PDF's own), then the page's words, read with the tick
       // boxes rubbed out (OCR reads a box's side as a letter)
       let found = fromPdf || [...newFields, ...dedupCb];
-      const ticks = found.filter(f => f.type === 'checkbox' || f.type === 'xbox');
+      const ticks = found.filter(f => f.type === 'checkbox');
       const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
                                  : `Found ${dedupCb.length} tick box(es) and ${newFields.length} place(s) to write.`;
       let read = null;
@@ -4778,14 +4778,14 @@ else if (typeof exports === 'object')
       pushUndo();
       const before = getPageFields(page).length;
       let tN = getPageFields(page).filter(f=>f.type==='text'||f.type==='textarea').length + 1;
-      let cN = getPageFields(page).filter(f=>f.type==='checkbox'||f.type==='xbox').length + 1;
+      let cN = getPageFields(page).filter(f=>f.type==='checkbox').length + 1;
       const used = new Set(state.fields.map(k => k.name));
       // (a label as a field name: lowercase words joined by _, at most 40 characters)
       const tidy = (v) => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40).replace(/_+$/, '');
 
       // (a fillable PDF's fields keep the PDF's names)
       if (!fromPdf) found.forEach(f => {
-        const box = f.type==='checkbox'||f.type==='xbox';
+        const box = f.type==='checkbox';
         const base = f.label ? tidy((f.section ? f.section + ' ' : '') + f.label) : '';
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
         else f.name = box ? `checkbox_${cN++}` : `text_${tN++}`;
@@ -4867,7 +4867,7 @@ function defaultFontSize(f, height){
 // Whether a field's font size can be set: a text field's, a textarea's and a tick box's (its X),
 // and a field's that lists phones, shows the current user's name or has static text, so its text
 // can be made to fit it
-function hasOwnFontSize(f){ return ['text','textarea','checkbox','xbox'].includes(f.type) || !!phonesToShow(f) || !!userNameToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && f.type === 'date'); }
+function hasOwnFontSize(f){ return ['text','textarea','checkbox'].includes(f.type) || !!phonesToShow(f) || !!userNameToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && f.type === 'date'); }
 // The text the canvas previews in a field, as the eForm will show it: its phones, with a sample
 // number in digits (wider than a placeholder such as "xxx"), the current user's name with a
 // sample one (OSCAR's own example, "Hutten-Czapski, Peter"), or its static text; '' for others
@@ -4940,7 +4940,7 @@ function fontButtonsMarkup(name, x, y){
 // The sex ("M" or "F") a tick box is ticked for when the form opens, from its custom fill
 // ("Check this box if gender is Male"), or '' for any other field
 function sexToTick(f){
-  if (!usesCustomFill(f) || (f.type !== 'checkbox' && f.type !== 'xbox')) return '';
+  if (!usesCustomFill(f) || f.type !== 'checkbox') return '';
   return f.fill.action === 'sex_male' ? 'M' : f.fill.action === 'sex_female' ? 'F' : '';
 }
 // The patient's phones a field lists when the form opens ("home cell" or "home cell work"), from
@@ -4977,7 +4977,7 @@ function inputMarkup(f, inlinePosStyle=''){
   if (f.type === 'textarea') {
     return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;">${escAttr(staticText(f))}</textarea>`;
   }
-  if (f.type === 'checkbox' || f.type === 'xbox') {
+  if (f.type === 'checkbox') {
     // (a read-only text box over the printed box, with no border of its own: a click, Space or
     // Enter writes an X in it or takes it out)
     const style = `${inlinePosStyle} border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;`;
@@ -5033,7 +5033,7 @@ function preflightChecks(htmlText=''){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
-  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'circle' && f.type !== 'signature' && f.type !== 'drawing');
+  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'circle' && f.type !== 'signature' && f.type !== 'drawing');
   out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/circles/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
   // (validation runs from the eForm's Submit buttons, so it needs them; a group needs fields)
