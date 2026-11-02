@@ -106,6 +106,9 @@
     white-space:nowrap;display:flex;align-items:center;pointer-events:none}
   .field-preview.wraps{display:block;white-space:normal}
   .field-preview.overflows{color:var(--red)}
+  /* A circle toggle: an oval, as the eForm draws it when clicked */
+  .field.circle{border-radius:50%;border-color:var(--violet);background:rgba(124,58,237,.08)}
+  .field.circle.selected{border-color:#2563eb;background:rgba(37,99,235,.18)}
   /* A free draw area: a dashed box with its mark; its toolbar as the eForm shows it */
   .field.drawing{border-style:dashed;border-color:var(--violet)}
   .field-drawing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--violet);
@@ -313,6 +316,7 @@
       <button id="btnAdd" class="btn-green">Add Field</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
+      <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add circle</button>
       <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
       <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand or &quot;Electronically signed&quot;; the choice and what is drawn are saved with the form">Add signature</button>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
@@ -463,6 +467,7 @@
             <option value="textarea">textarea</option>
             <option value="checkbox">checkbox</option>
             <option value="xbox">xbox</option>
+            <option value="circle">circle toggle</option>
             <option value="date">date</option>
             <option value="signature">signature</option>
             <option value="drawing">free draw</option>
@@ -1211,7 +1216,7 @@ else if (typeof exports === 'object')
   // label (Auto Detect passes only the label: a section heading in a name is only for the name).
   // A label written as a tag's own name ("current_user_id") keeps that tag.
   function guessTag(name='', type='text', label='', owner=''){
-    if (type === 'signature' || type === 'drawing' || isTickType(type) || isAttachedType(type)) return '';   // (a signature and a free draw area are their type, not a tag; a tick box and a field's controls have none)
+    if (type === 'signature' || type === 'drawing' || type === 'circle' || isTickType(type) || isAttachedType(type)) return '';   // (a signature and a free draw area are their type, not a tag; a tick box, a circle toggle and a field's controls have none)
     // (a question asks for an answer, not the details it names: "ARE YOU THE PATIENT'S REGULAR
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
@@ -1603,6 +1608,8 @@ else if (typeof exports === 'object')
       else if (typeAttr === 'date') type = 'date';
       // Restore checkbox type from generated eForm marker class
       else if (isGenerated && className.includes('xmarkonly')) type = 'checkbox';
+      // (and a circle toggle's)
+      else if (isGenerated && className.includes('circletoggle')) type = 'circle';
 
       const oscarTag = parseAttr(el, 'oscarDB') || parseAttr(el, 'oscardb') || '';
       const rawName  = parseAttr(el, 'name') || parseAttr(el, 'id') || `field_${idx+1}`;
@@ -2001,7 +2008,9 @@ else if (typeof exports === 'object')
     // above it; a tick box's always above, centred over it. (A field with a custom fill shows
     // its mark in its tag's place, in violet; one with text to preview, the preview instead.)
     const custom = usesCustomFill(f), preview = previewText(f);
-    const tag = state.showTags && !preview && f.type !== 'drawing' ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    const tag = state.showTags && !preview && f.type !== 'drawing' && f.type !== 'circle' ? (custom ? customFillMark(f) : String(f.oscarTag || '').trim()) : '';
+    // (a circle toggle: an oval)
+    if (f.type === 'circle') fieldDiv.classList.add('circle');
     // (a free draw area: a dashed box marked as one; a signature, marked as one)
     if (f.type === 'drawing' || f.type === 'signature'){
       fieldDiv.classList.add(f.type);
@@ -2576,6 +2585,16 @@ else if (typeof exports === 'object')
     selectOne(f.id); renderAll();
     msg('Added a free draw area: drag it over what is to be marked, and size it by its corner.', 'ok');
   });
+  // "Add circle": a circle toggle, the size of a word or two in the eForm's pixels, moved and
+  // sized over the printed choice it circles
+  $('btnCircle').addEventListener('click', ()=>{
+    const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
+    pushUndo();
+    const k = p.naturalW / EXPORT_PAGE_W;
+    const f = addField({ page: state.currentPage, x: 30, y: 30, width: 50 * k, height: 22 * k, type: 'circle', name: `circle_${getPageFields(state.currentPage).filter(g => g.type === 'circle').length + 1}`, oscarTag: '' });
+    selectOne(f.id); renderAll();
+    msg('Added a circle: drag it over the choice it circles, and size it by its corner. On the eForm, a click circles it or takes the circle away.', 'ok');
+  });
   // "Add signature": the page's signature (an eForm has one a page), the size of a signature
   // line, at the foot of the page on the right, with its controls beside it; one already on the
   // page is selected instead
@@ -2645,11 +2664,13 @@ else if (typeof exports === 'object')
     const custom = usesCustomFill(f), buttons = isAttachedType(f.type);
     $('fFillBlock').style.display = buttons ? 'none' : 'block';
     $('fFillMode').value = custom ? 'custom' : 'tag';
-    // (a free draw area has neither a tag nor a custom fill: what is drawn is its value)
-    if (f.type === 'drawing') $('fFillBlock').style.display = 'none';
-    $('fTagBlock').style.display = buttons || custom || f.type === 'drawing' ? 'none' : 'block';
-    if (custom || f.type === 'drawing') $('fTagWarn').style.display = 'none';
-    $('fCustomBlock').style.display = custom && !buttons && f.type !== 'drawing' ? 'block' : 'none';
+    // (a free draw area and a circle toggle have neither a tag nor a custom fill: what is drawn,
+    // or whether it is circled, is their value)
+    const ownValue = f.type === 'drawing' || f.type === 'circle';
+    if (ownValue) $('fFillBlock').style.display = 'none';
+    $('fTagBlock').style.display = buttons || custom || ownValue ? 'none' : 'block';
+    if (custom || ownValue) $('fTagWarn').style.display = 'none';
+    $('fCustomBlock').style.display = custom && !buttons && !ownValue ? 'block' : 'none';
     const kind = isTickType(f.type) ? 'tick' : 'text';
     [...$('fCustomAction').options].forEach(o => { const a = customActionById(o.value); o.disabled = !!a && a.for !== kind; });
     $('fCustomAction').value = f.fill ? (f.fill.action || '') : '';
@@ -2859,7 +2880,7 @@ else if (typeof exports === 'object')
         y: Number(f.y) || 0,
         width: Math.max(8, Number(f.width) || 20),
         height: Math.max(8, Number(f.height) || 20),
-        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text',
+        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','circle','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text',
         name: String(f.name || `field_${i+1}`),
         oscarTag: isRemovedTag(tag) ? '' : tag,
         label: String(f.label || ''),
@@ -4802,6 +4823,14 @@ function inputMarkup(f, inlinePosStyle=''){
     const sex = sexToTick(f), sexAttr = sex ? ` data-tick-if-sex="${sex}"` : '';
     return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr}${sexAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
   }
+  if (f.type === 'circle') {
+    // (a read-only text box with a round border, clear until a click, Space or Enter writes "O" in
+    // it and draws the border (".circleToggle[value='O']"); the value attribute is set too, as
+    // OSCAR sets it when a saved form is opened, so the same rule shows it then)
+    const toggle = "this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();";
+    const style = `${inlinePosStyle} border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;`;
+    return `<input class="circleToggle" id="${id}" name="${fieldName}" type="text" value="" readonly="readonly" title="Click to circle" onclick="${toggle}" onkeydown="if(event.key===' '||event.key==='Enter'){${toggle} return false;} return false;" style="${style}">`;
+  }
   // (a date field is a plain text input too, which OSCAR fills with text)
   const text = staticText(f), valueAttr = text ? ` value="${escAttr(text)}"` : '';
   return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
@@ -4843,8 +4872,8 @@ function preflightChecks(htmlText=''){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
-  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'signature' && f.type !== 'drawing');
-  out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
+  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'circle' && f.type !== 'signature' && f.type !== 'drawing');
+  out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/circles/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
   const outOfBounds = [];
   state.fields.forEach(f => {
@@ -5545,6 +5574,8 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  .xBox { text-align:center; font-weight:bold; }
  .sig img { display:block; }
  .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; background:transparent; text-align:center; font-weight:bold; }
+ .circleToggle { -webkit-appearance:none; appearance:none; }
+ .circleToggle[value="O"] { border-color:#000 !important; }
  .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
  html, body { margin:0; padding:0; }
  img[id^="BGImage"] { display:block; }
