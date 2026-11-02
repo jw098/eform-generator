@@ -1791,7 +1791,7 @@ else if (typeof exports === 'object')
   $('btnApplyTemplateFields').addEventListener('click', ()=>{
     if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
     const onPages = state.templateFields.filter(tf => state.pages[Number(tf.page)]);
-    const alreadyThere = state.fields.filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
+    const alreadyThere = dataFields(state.fields).filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
     if (alreadyThere && !confirm(`These pages already have ${alreadyThere} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
     pushUndo();
     // (font size buttons go on their textarea's copy: added after the fields, with its new id)
@@ -5021,7 +5021,7 @@ function preflightChecks(htmlText=''){
   const duplicates = [...nameCounts.entries()].filter(([name,count])=>count>1);
 
   // Check that every page with fields has an image loaded
-  const pagesWithFields = [...new Set(state.fields.map(f => Number(f.page)))].sort((a,b)=>a-b);
+  const pagesWithFields = [...new Set(dataFields(state.fields).map(f => Number(f.page)))].sort((a,b)=>a-b);
   const pagesWithoutImg = pagesWithFields.filter(page => !state.pages[page] || !state.pages[page].naturalW);
   if (pagesWithoutImg.length)
     out.push({ level: 'err', text: `Page(s) ${pagesWithoutImg.join(', ')} have fields but no background image loaded.` });
@@ -5041,14 +5041,18 @@ function preflightChecks(htmlText=''){
       !noButtons && !empty.length ? `${state.validationGroups.length} validation group(s) checked on Submit.` : ''].filter(Boolean).join(' ') });
   }
 
-  const outOfBounds = [];
+  // (a field's controls, its font size buttons, phone selector, free draw toolbar or signature
+  // controls, aren't fields: they may go into the margin right of the page, so each is held to that)
+  const outOfBounds = [], controlsOut = [];
   state.fields.forEach(f => {
     const pageInfo = state.pages[f.page] || {};
     const w = Number(pageInfo.naturalW)||0, h = Number(pageInfo.naturalH)||0;
     if (!w || !h) return;
-    if (f.x < 0 || f.y < 0 || f.x + f.width > w + 0.001 || f.y + f.height > h + 0.001) outOfBounds.push(f);
+    const control = isAttachedType(f.type), rightLimit = control ? fieldRightLimit(f) : w;
+    if (f.x < 0 || f.y < 0 || f.x + f.width > rightLimit + 0.001 || f.y + f.height > h + 0.001) (control ? controlsOut : outOfBounds).push(f);
   });
   out.push({ level: outOfBounds.length ? 'err':'ok', text: outOfBounds.length ? `${outOfBounds.length} field(s) are out of page bounds.` : 'All fields are within page bounds.' });
+  if (controlsOut.length) out.push({ level: 'err', text: `${controlsOut.length} field control(s) (font size buttons, phone selector, free draw or signature controls) are outside the page and its margin.` });
 
   return out;
 }
@@ -6421,7 +6425,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltD
     const pages = fsTargetPages();
     if (!pages.length){ msg('Load the form pages first (PDF → PNG converter, or upload page images).', 'warn'); return; }
     const replace = $('fsReplace').checked;
-    const before = state.fields.filter(f => pages.includes(Number(f.page))).length;
+    const before = dataFields(state.fields).filter(f => pages.includes(Number(f.page))).length;
     const kept = replace ? state.fields.filter(f => !pages.includes(Number(f.page))) : state.fields;
     FS.busy = true; $('btnFsDetect').disabled = true;
     msg(state.sourcePdf ? 'FreeScribe is reading the PDF and suggesting tags… (scanned pages and the AI step take a few seconds each)'
