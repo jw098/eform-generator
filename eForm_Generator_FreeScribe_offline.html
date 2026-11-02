@@ -2675,10 +2675,11 @@ else if (typeof exports === 'object')
     const box = $('fFontSize'), size = Math.round(Number(box.value));
     return box.value !== box.dataset.shown && size >= 6 && size <= 48 ? size : null;
   }
-  // Shows a textarea's font size and buttons in the Selected field editor (other fields have
-  // neither), and for a textarea's font size buttons themselves, only where they are
+  // Shows a field's font size in the Selected field editor where it can have one (hasOwnFontSize),
+  // and a textarea's font size buttons, and for a textarea's font size buttons themselves, only
+  // where they are
   function showFontRow(f){
-    // (a field listing phones or with static text has a font size too, so it can be made to fit)
+    // (a date field listing phones or with static text has a font size too, so it can be made to fit)
     $('fFontRow').style.display = hasOwnFontSize(f) ? 'flex' : 'none';
     $('fFontButtonsLabel').style.display = f.type === 'textarea' ? '' : 'none';
     $('fFontButtons').checked = hasFontButtons(f);
@@ -4681,9 +4682,10 @@ function defaultFontSize(f, height){
   const fit = Math.max(6, Math.min(24, Math.round((Number(height) || 16) * 0.65)));
   return f.type === 'textarea' ? Math.min(12, fit) : fit;
 }
-// Whether a field's font size can be set: a textarea's, and a field's that lists phones, shows
-// the current user's name or has static text, so its text can be made to fit it
-function hasOwnFontSize(f){ return f.type === 'textarea' || !!phonesToShow(f) || !!userNameToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && ['text','date'].includes(f.type)); }
+// Whether a field's font size can be set: a text field's, a textarea's and a tick box's (its X),
+// and a field's that lists phones, shows the current user's name or has static text, so its text
+// can be made to fit it
+function hasOwnFontSize(f){ return ['text','textarea','checkbox','xbox'].includes(f.type) || !!phonesToShow(f) || !!userNameToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && f.type === 'date'); }
 // The text the canvas previews in a field, as the eForm will show it: its phones, with a sample
 // number in digits (wider than a placeholder such as "xxx"), the current user's name with a
 // sample one (OSCAR's own example, "Hutten-Czapski, Peter"), or its static text; '' for others
