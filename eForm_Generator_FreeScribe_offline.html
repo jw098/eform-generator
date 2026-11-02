@@ -50,6 +50,7 @@
   h1{margin:0 0 4px;font-size:22px}
   .muted{color:var(--muted);font-size:13px}
   .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .row-break{flex-basis:100%;height:0}
   button,.btn{
     border:1px solid #cfd8e3;background:#fff;padding:8px 10px;border-radius:9px;cursor:pointer;
     font-size:13px;
@@ -307,6 +308,7 @@
       <button id="btnRemovePage" class="btn-red">&#8722; Remove Last Page</button>
 
       <span class="detect-wrap"><button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button><button id="detectCustom" class="custom-badge" type="button" hidden title="Auto Detect is using tuning values that aren't the standard ones, so it may find fewer or wrong fields. Click to see them in Settings.">custom</button></span>
+      <span class="row-break"></span>
       <button id="btnAdd" class="btn-green">Add Field</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
