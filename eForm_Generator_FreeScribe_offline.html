@@ -528,7 +528,7 @@
 
     <div class="hr"></div>
     <div class="panel-title">Validation</div>
-    <div class="small">Fields that must be filled in before the eForm is submitted. Select the fields on the page (Shift-click, or drag around them), then make a group of them.</div>
+    <div class="small">Fields the eForm checks when it is submitted: a popup lists what is missing, outlined in red, and asks whether to submit anyway. Select the fields on the page (Shift-click, or drag around them), then make a group of them.</div>
     <div class="row" style="margin-top:6px"><button id="btnNewGroup" class="btn-small">+ New group from selected</button></div>
     <div id="validationGroups"></div>
 
@@ -1042,7 +1042,7 @@ else if (typeof exports === 'object')
     clipboardFields: [],
     pasteCount: 0,
     exportAuthor: '',
-    // (the validation groups: { id, name, rule: 'all' or 'one', message, allowSubmit, exclusive,
+    // (the validation groups: { id, name, rule: 'all' or 'one', message, exclusive,
     // fieldIds }; the open one's fields are outlined on the page; an imported eForm's groups,
     // naming its fields by their element ids)
     validationGroups: [],
@@ -2206,7 +2206,7 @@ else if (typeof exports === 'object')
   function readGroups(groups, toId){
     return (Array.isArray(groups) ? groups : []).filter(g => g && Array.isArray(g.fieldIds)).map((g, i) => ({
       id: Number(g.id) || i + 1, name: String(g.name || `Group ${i + 1}`), rule: g.rule === 'one' ? 'one' : 'all',
-      message: String(g.message || ''), allowSubmit: !!g.allowSubmit, exclusive: g.exclusive !== false, fieldIds: g.fieldIds.map(toId)
+      message: String(g.message || ''), exclusive: g.exclusive !== false, fieldIds: g.fieldIds.map(toId)
     }));
   }
   // An id for a new validation group
@@ -2229,7 +2229,7 @@ else if (typeof exports === 'object')
     if (!fields.length){ msg('Select the fields for the group first: text fields, textareas, dates, tick boxes or circles.', 'warn'); return; }
     pushUndo();
     const ticks = fields.every(f => isTickType(f.type) || f.type === 'circle');
-    const g = { id: nextGroupId(), name: fieldWords(fields[0]), rule: ticks && fields.length > 1 ? 'one' : 'all', message: '', allowSubmit: false, exclusive: true, fieldIds: fields.map(f => f.id) };
+    const g = { id: nextGroupId(), name: fieldWords(fields[0]), rule: ticks && fields.length > 1 ? 'one' : 'all', message: '', exclusive: true, fieldIds: fields.map(f => f.id) };
     state.validationGroups.push(g);
     state.openGroupId = g.id;
     renderAll();
@@ -2246,7 +2246,7 @@ else if (typeof exports === 'object')
     state.validationGroups.forEach(g => {
       const open = g.id === state.openGroupId, fields = groupFields(g);
       const card = el('div', { className: 'vgroup' + (open ? ' open' : '') });
-      const summary = `${g.rule === 'one' ? 'exactly one of' : 'all of'} ${fields.length}${g.allowSubmit ? ' · warns' : ''}`;
+      const summary = `${g.rule === 'one' ? 'exactly one of' : 'all of'} ${fields.length}`;
       const head = el('div', { className: 'vgroup-head', title: open ? 'Close' : 'Open, and outline its fields on the page' },
         [open ? '\u25BE' : '\u25B8', el('b', { textContent: g.name }), el('span', { className: 'small', textContent: summary })]);
       head.addEventListener('click', () => { state.openGroupId = open ? null : g.id; renderAll(); });
@@ -2268,8 +2268,7 @@ else if (typeof exports === 'object')
           input.addEventListener('change', () => { pushUndo(); g[key] = input.checked; renderAll(); });
           return el('label', { title, style: 'display:flex;align-items:center;gap:6px' }, [input, label]);
         };
-        body.append(textBox('Name', 'name', ''), el('label', {}, ['Rule', rule]), textBox('Message', 'message', defaultGroupMessage(g)),
-          tickBox('Allow submit anyway (warn only)', 'allowSubmit', 'The popup asks whether to submit anyway, instead of stopping the submit'));
+        body.append(textBox('Name', 'name', ''), el('label', {}, ['Rule', rule]), textBox('Message', 'message', defaultGroupMessage(g)));
         if (g.rule === 'one') body.append(tickBox('Ticking one clears the others', 'exclusive', "On the eForm, ticking or circling one of the group's boxes takes the tick or circle off the others"));
         const chips = el('div');
         fields.forEach(f => {
@@ -5672,7 +5671,7 @@ function chooseSignature(key, kind){
   // (validation groups: each named by its fields' element ids on the eForm, as inputMarkup gives
   // them; a group with no field on an exported page is left out)
   const elementIds = new Map(exportPages.flatMap(page => sanitizeUniqueFieldNames(dataFields(getPageFields(page))).map(f => [f.id, `${f._safeName}_${f.id}`])));
-  const exportedGroups = state.validationGroups.map(g => ({ name: g.name, rule: g.rule, message: g.message || defaultGroupMessage(g), allowSubmit: g.allowSubmit,
+  const exportedGroups = state.validationGroups.map(g => ({ name: g.name, rule: g.rule, message: g.message || defaultGroupMessage(g),
     exclusive: g.exclusive, fields: groupFields(g).map(f => elementIds.get(f.id)).filter(Boolean) })).filter(g => g.fields.length);
   const usesValidation = exportedGroups.length > 0;
   if (usesValidation) startupSteps.push('setUpValidation()');
@@ -5682,9 +5681,9 @@ function chooseSignature(key, kind){
 <script>
 // Validation groups: fields that must be filled in before the form is submitted. A group's rule
 // is "all" (each of its fields filled in) or "one" (exactly one of them: one box ticked or
-// circled, or one field filled in). A group that allows it only warns, and the form may be
-// submitted anyway; "exclusive" takes the tick or circle off a group's other boxes when one is
-// ticked or circled.
+// circled, or one field filled in). A group not met only warns: the form may be submitted
+// anyway. "exclusive" takes the tick or circle off a group's other boxes when one is ticked or
+// circled.
 var validationGroups = ${JSON.stringify(exportedGroups).replace(/<\//g, '<\\/')};
 // (set once the form has been checked on the way to submitting, so the Submit button that
 // follows doesn't check it again)
@@ -5714,24 +5713,20 @@ function markGroup(group, missing){
   group.marked = missing;
 }
 // Checks every group before the form is submitted, outlines what is missing and says which
-// groups aren't met; whether to go on: not while a group that must be met isn't, and for groups
-// that only warn, when the user chooses to submit anyway
+// groups aren't met; whether to go on: when every group is met, or the user chooses to submit
+// anyway
 function checkRequiredFields(){
-  var blocking = [], warning = [], first = null;
+  var missing = [], first = null;
   for (var i = 0; i < validationGroups.length; i++){
     var group = validationGroups[i], met = groupMet(group);
     markGroup(group, !met);
     if (met) continue;
-    (group.allowSubmit ? warning : blocking).push(group.message);
+    missing.push(group.message);
     if (!first) first = groupBoxes(group)[0];
   }
-  if (!blocking.length && !warning.length) return true;
+  if (!missing.length) return true;
   try { if (first) first.scrollIntoView({ block: 'center' }); } catch(e){ try { first.scrollIntoView(); } catch(e2){} }
-  if (blocking.length){
-    alert('This form is not complete:\\n- ' + blocking.concat(warning).join('\\n- ') + '\\n\\nComplete the fields outlined in red, then submit again.');
-    return false;
-  }
-  return confirm('This form is not complete:\\n- ' + warning.join('\\n- ') + '\\n\\nClick OK to submit it anyway, or Cancel to complete it.');
+  return confirm('This form is not complete:\\n- ' + missing.join('\\n- ') + '\\n\\nClick OK to submit it anyway, or Cancel to complete the fields outlined in red.');
 }
 // On load: a group's red outline goes once its rule holds, and in an "exactly one" group that
 // is exclusive, ticking or circling one of its boxes takes the tick or circle off the others
