@@ -566,7 +566,7 @@
       <button id="btnDownloadHtml" class="btn-blue">Download draft</button>
       <button id="btnDownloadOscarZip" class="btn-blue">Download OSCAR package (.zip)</button>
     </div>
-    <div class="small">Edit this output directly before final export. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible).</div>
+    <div class="small">Edit this output directly before Copy draft or Download draft. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible). The OSCAR package is always built from scratch from the pages and fields.</div>
     <textarea id="exportEditor" class="export-editor mono" placeholder="Build draft to populate editable HTML..." style="margin-top:8px"></textarea>
     
 
@@ -1048,6 +1048,9 @@ else if (typeof exports === 'object')
     validationGroups: [],
     openGroupId: null,
     templateGroups: [],
+    // (the export draft as last built, or loaded with a session: a draft that differs has been
+    // edited by hand)
+    lastBuiltDraft: '',
   };
   let syncingEditor = false;
   // The width of an exported eForm's pages, in its pixels
@@ -3066,7 +3069,7 @@ else if (typeof exports === 'object')
 
     setTuning(session.tuning || {});
     syncTuningMarker();
-    $('exportEditor').value = typeof session.exportDraft === 'string' ? session.exportDraft : '';
+    $('exportEditor').value = state.lastBuiltDraft = typeof session.exportDraft === 'string' ? session.exportDraft : '';
     state.exportTitle = String(session.exportTitle || 'Generated OSCAR eForm');
     if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
     state.exportAuthor = String(session.exportAuthor || '');
@@ -5903,7 +5906,14 @@ function buildOscarProperties(htmlFileName='generated_oscar_eform.html'){
 async function downloadOscarPackage(){
   try {
     if (typeof JSZip === 'undefined') throw new Error('JSZip library not loaded.');
-    const html = getEditorHtml();
+    // (built from scratch, so it names the pages' images as they are named in the package, and
+    // has every change since the draft was built; the draft shows it after. A draft edited by
+    // hand is replaced only when the user agrees.)
+    const draft = $('exportEditor').value || '';
+    if (draft.trim() && draft !== state.lastBuiltDraft &&
+        !confirm('The export draft has been edited by hand. The package is built from scratch from the pages and fields, so those edits will not be in it, and the draft will show the new build.\n\nDownload the package anyway?')) return;
+    const html = buildExportHtml();
+    $('exportEditor').value = state.lastBuiltDraft = html;
     const htmlFileName = exportHtmlFileName();
     const zip = new JSZip();
     zip.file(htmlFileName, html);
@@ -5934,7 +5944,7 @@ async function downloadOscarPackage(){
 }
 
 // "Build HTML draft": puts a freshly built eForm in the export editor
-function buildDraftIntoEditor(){ try{ $('exportEditor').value = buildExportHtml(); msg('Built export HTML draft in editor.', 'ok'); }catch(err){ msg('Build failed: ' + (err.message || err), 'err'); }}
+function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltDraft = buildExportHtml(); msg('Built export HTML draft in editor.', 'ok'); }catch(err){ msg('Build failed: ' + (err.message || err), 'err'); }}
 
   // The eForm's HTML without any PDF controls: buttons, inputs and links that mention PDF, and
   // the PDF helper functions an imported eForm's scripts may call
