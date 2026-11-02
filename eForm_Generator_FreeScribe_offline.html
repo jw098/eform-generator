@@ -109,6 +109,16 @@
   /* A circle toggle: an oval, as the eForm draws it when clicked */
   .field.circle{border-radius:50%;border-color:var(--violet);background:rgba(124,58,237,.08)}
   .field.circle.selected{border-color:#2563eb;background:rgba(37,99,235,.18)}
+  /* The fields of the validation group that is open, outlined in orange */
+  .field.in-group{outline:2px dashed #ea580c;outline-offset:2px}
+  /* The validation groups: each a card, the open one orange, its fields as chips */
+  .vgroup{border:1px solid var(--line);border-radius:8px;margin-top:6px;background:#fff}
+  .vgroup.open{border-color:#ea580c}
+  .vgroup-head{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;font-size:12px}
+  .vgroup-head b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vgroup-body{padding:0 8px 8px;display:grid;gap:6px}
+  .vchip{display:inline-flex;align-items:center;gap:2px;border:1px solid #fed7aa;background:#fff7ed;border-radius:999px;padding:1px 2px 1px 8px;font-size:11px;margin:2px 4px 2px 0;cursor:pointer}
+  .vchip button{border:0;background:transparent;padding:0 4px;font-size:12px;line-height:1;cursor:pointer;box-shadow:none}
   /* A free draw area: a dashed box with its mark; its toolbar as the eForm shows it */
   .field.drawing{border-style:dashed;border-color:var(--violet)}
   .field-drawing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--violet);
@@ -506,6 +516,7 @@
         <label id="fFontButtonsLabel"><input id="fFontButtons" type="checkbox"/> Font size buttons (&#9650;&#9660;) on the eForm</label>
         <label>Font size <input id="fFontSize" type="number" min="6" max="48" step="1" style="width:64px"/> px</label>
       </div>
+      <div id="fGroupsNote" class="small" style="display:none;margin-top:8px"></div>
       <div class="grid2" style="margin-top:8px">
         <label>X<input id="fX" type="number"/></label>
         <label>Y<input id="fY" type="number"/></label>
@@ -514,6 +525,12 @@
       </div>
       <div class="small" style="margin-top:8px">Edits apply instantly while typing/selecting.</div>
     </div>
+
+    <div class="hr"></div>
+    <div class="panel-title">Validation</div>
+    <div class="small">Fields that must be filled in before the eForm is submitted. Select the fields on the page (Shift-click, or drag around them), then make a group of them.</div>
+    <div class="row" style="margin-top:6px"><button id="btnNewGroup" class="btn-small">+ New group from selected</button></div>
+    <div id="validationGroups"></div>
 
     <div class="hr"></div>
     <div class="panel-title">eForm metadata</div>
@@ -1025,6 +1042,12 @@ else if (typeof exports === 'object')
     clipboardFields: [],
     pasteCount: 0,
     exportAuthor: '',
+    // (the validation groups: { id, name, rule: 'all' or 'one', message, allowSubmit, exclusive,
+    // fieldIds }; the open one's fields are outlined on the page; an imported eForm's groups,
+    // naming its fields by their element ids)
+    validationGroups: [],
+    openGroupId: null,
+    templateGroups: [],
   };
   let syncingEditor = false;
   // The width of an exported eForm's pages, in its pixels
@@ -1134,7 +1157,8 @@ else if (typeof exports === 'object')
       showLabels: state.showLabels,
       showTags: state.showTags,
       placeCheckboxMode: state.placeCheckboxMode,
-      snap: { ...state.snap }
+      snap: { ...state.snap },
+      validationGroups: copyGroups(state.validationGroups)
     };
   }
 
@@ -1153,6 +1177,7 @@ else if (typeof exports === 'object')
     state.fields = Array.isArray(snapshot.fields) ? snapshot.fields.map(f => ({ ...f })) : [];
     state.selected = new Set(Array.isArray(snapshot.selected) ? snapshot.selected : []);
     state.nextId = Number(snapshot.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId, Number(f.id)||0),0)+1);
+    state.validationGroups = copyGroups(snapshot.validationGroups);
     state.showLabels = snapshot.showLabels === true;
     state.showTags = snapshot.showTags !== false;
     if (snapshot.snap && typeof snapshot.snap === 'object') state.snap = { ...state.snap, ...snapshot.snap };
@@ -1527,7 +1552,8 @@ else if (typeof exports === 'object')
       nameTagMap: new Map(),
       snippets: { externalSrc: [], inlineScripts: [], actionFns: [], onloads: [], buttonHtml: [], signatureHtml: [] },
       isGenerated: false,
-      pageExportW: {}   // pageNo -> exported pixel width (for rescaling on apply)
+      pageExportW: {},  // pageNo -> exported pixel width (for rescaling on apply)
+      validationGroups: []   // an eForm this app made: its validation groups, by element id
     };
 
     const bodyOnload = (doc.body && doc.body.getAttribute('onload')) || '';
@@ -1654,6 +1680,7 @@ else if (typeof exports === 'object')
         name: cleanName,
         oscarTag,
         label,
+        ...(parseAttr(el, 'id') ? { elementId: parseAttr(el, 'id') } : {}),
         ...(type === 'textarea' ? { fontButtons, ...(fontSize > 0 ? { fontSize: Math.round(fontSize) } : {}) } : {}),
         ...(exportW ? { _exportW: exportW } : {})
       };
@@ -1677,6 +1704,11 @@ else if (typeof exports === 'object')
     });
 
     const scripts = Array.from(doc.querySelectorAll('script'));
+    // (an eForm this app made: its validation groups, "var validationGroups = [...];")
+    if (isGenerated) scripts.forEach(script => {
+      const groups = (script.textContent || '').match(/var validationGroups = (\[[\s\S]*?\]);\n/);
+      if (groups) { try { template.validationGroups = readGroups(JSON.parse(groups[1]).map(g => ({ ...g, fieldIds: g.fields })), String); } catch(e) {} }
+    });
     scripts.forEach(script => {
       const src    = parseAttr(script, 'src');
       const inline = (script.textContent || '').trim();
@@ -1722,6 +1754,7 @@ else if (typeof exports === 'object')
     state.templateName = '';
     state.templateNameTagMap = new Map();
     state.templateFields = [];
+    state.templateGroups = [];
     state.snippets = { externalSrc: new Set(), inlineScripts: [], actionFns: new Set(), onloads: new Set(), buttonHtml: [], signatureHtml: [] };
   }
   $('btnTemplate').addEventListener('click', ()=> $('fileTemplates').click());
@@ -1732,6 +1765,7 @@ else if (typeof exports === 'object')
       clearTemplate();
       state.templateName = file.name;
       state.templateFields = dedupeFields(template.fields);
+      state.templateGroups = template.validationGroups;
       state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(nameKey(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(nameKey(f.label), f.oscarTag); }});
       template.nameTagMap.forEach((tag,key)=> state.templateNameTagMap.set(key,tag));
       const snippets = template.snippets;
@@ -1773,6 +1807,12 @@ else if (typeof exports === 'object')
         oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '',
         fontSize: tf.fontSize, fontButtons: tf.fontButtons, target: tf.type === 'fontbuttons' ? addedIds.get(tf.targetTpl) : null });
       addedIds.set(tf.id, added.id);
+    });
+    // (the eForm's validation groups, with the fields just added)
+    const addedByElement = new Map(onPages.filter(tf => tf.elementId && addedIds.has(tf.id)).map(tf => [tf.elementId, addedIds.get(tf.id)]));
+    state.templateGroups.forEach(g => {
+      const fieldIds = g.fieldIds.map(id => addedByElement.get(id)).filter(id => id != null);
+      if (fieldIds.length) state.validationGroups.push({ ...g, id: nextGroupId(), fieldIds });
     });
     renderAll();
     const leftOut = state.templateFields.length - onPages.length;
@@ -1964,7 +2004,7 @@ else if (typeof exports === 'object')
   function fieldElement(f, page){
     const { sx, sy } = getPageScale(page);
     const fieldDiv = document.createElement('div');
-    fieldDiv.className = 'field' + (state.selected.has(f.id) ? ' selected' : '');
+    fieldDiv.className = 'field' + (state.selected.has(f.id) ? ' selected' : '') + (openGroupHas(f.id) ? ' in-group' : '');
     fieldDiv.style.left = (f.x * sx) + 'px'; fieldDiv.style.top = (f.y * sy) + 'px'; fieldDiv.style.width = (f.width * sx) + 'px'; fieldDiv.style.height = (f.height * sy) + 'px';
     fieldDiv.dataset.id = String(f.id);
     // (a textarea's font size buttons: ▲ over ▼ as on the eForm, no tag, label or resize handle)
@@ -2086,7 +2126,7 @@ else if (typeof exports === 'object')
   function renderAll(){
     syncFontButtons();
     Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(n => renderPage(n));
-    renderCounts(); renderSelectedEditor(); renderTemplateFieldList(); renderSnippetList();
+    renderCounts(); renderSelectedEditor(); renderTemplateFieldList(); renderSnippetList(); renderValidationGroups();
   }
   // Makes a page the one shown and edited, and marks its tab
   function setCurrentPage(page){
@@ -2156,6 +2196,112 @@ else if (typeof exports === 'object')
   if (window.ResizeObserver) new ResizeObserver(() => applyZoom()).observe($('canvasContainer'));
   // Selects just this field
   function selectOne(id){ state.selected = new Set([id]); }
+  // ===== Validation groups =====
+  // The field types a validation group can hold: those the eForm user fills in
+  const VALIDATABLE_TYPES = ['text','textarea','date','checkbox','xbox','circle'];
+  // A copy of the validation groups (for Undo)
+  function copyGroups(groups){ return (Array.isArray(groups) ? groups : []).map(g => ({ ...g, fieldIds: [...g.fieldIds] })); }
+  // Validation groups read from a saved session or an imported eForm, each value checked; `toId`
+  // makes a field id (a number in a session, an element id in an eForm)
+  function readGroups(groups, toId){
+    return (Array.isArray(groups) ? groups : []).filter(g => g && Array.isArray(g.fieldIds)).map((g, i) => ({
+      id: Number(g.id) || i + 1, name: String(g.name || `Group ${i + 1}`), rule: g.rule === 'one' ? 'one' : 'all',
+      message: String(g.message || ''), allowSubmit: !!g.allowSubmit, exclusive: g.exclusive !== false, fieldIds: g.fieldIds.map(toId)
+    }));
+  }
+  // An id for a new validation group
+  function nextGroupId(){ return state.validationGroups.reduce((maxId, g) => Math.max(maxId, g.id), 0) + 1; }
+  // A group's fields that are still on the form and can be checked, in its order
+  function groupFields(g){ return g.fieldIds.map(id => state.fields.find(f => f.id === id)).filter(f => f && VALIDATABLE_TYPES.includes(f.type)); }
+  // Whether a field is in the open validation group (outlined on the page)
+  function openGroupHas(id){ const g = state.validationGroups.find(k => k.id === state.openGroupId); return !!g && g.fieldIds.includes(id); }
+  // How a field is named in a group's message: its printed label when short ("Yes", "Smoker"), else its name
+  function fieldWords(f){ const label = String(f.label || '').trim(); return label && label.length <= 30 ? label : f.name; }
+  // What a group's popup says when its own message is empty: "Fill in: …" or "Choose exactly one of: …"
+  function defaultGroupMessage(g){ const names = groupFields(g).map(fieldWords).join(', '); return (g.rule === 'one' ? 'Choose exactly one of: ' : 'Fill in: ') + names; }
+  // The selected fields a validation group can hold
+  function selectedValidatable(){ return state.fields.filter(f => state.selected.has(f.id) && VALIDATABLE_TYPES.includes(f.type)); }
+
+  // "New group from selected": a group of the selected fields, named after the first; tick boxes
+  // and circles alone ("Yes / No") make an "exactly one" group, anything else an "all filled" one
+  $('btnNewGroup').addEventListener('click', () => {
+    const fields = selectedValidatable();
+    if (!fields.length){ msg('Select the fields for the group first: text fields, textareas, dates, tick boxes or circles.', 'warn'); return; }
+    pushUndo();
+    const ticks = fields.every(f => isTickType(f.type) || f.type === 'circle');
+    const g = { id: nextGroupId(), name: fieldWords(fields[0]), rule: ticks && fields.length > 1 ? 'one' : 'all', message: '', allowSubmit: false, exclusive: true, fieldIds: fields.map(f => f.id) };
+    state.validationGroups.push(g);
+    state.openGroupId = g.id;
+    renderAll();
+  });
+
+  // Lists the validation groups: each a card that opens (outlining its fields on the page) to its
+  // name, rule, message, whether it may be submitted anyway, and its fields
+  function renderValidationGroups(){
+    const box = $('validationGroups'); if (!box) return;
+    box.innerHTML = '';
+    // (a field deleted since leaves its groups)
+    state.validationGroups.forEach(g => { g.fieldIds = g.fieldIds.filter(id => state.fields.some(f => f.id === id)); });
+    const el = (tag, props={}, children=[]) => { const node = Object.assign(document.createElement(tag), props); children.forEach(c => node.append(c)); return node; };
+    state.validationGroups.forEach(g => {
+      const open = g.id === state.openGroupId, fields = groupFields(g);
+      const card = el('div', { className: 'vgroup' + (open ? ' open' : '') });
+      const summary = `${g.rule === 'one' ? 'exactly one of' : 'all of'} ${fields.length}${g.allowSubmit ? ' · warns' : ''}`;
+      const head = el('div', { className: 'vgroup-head', title: open ? 'Close' : 'Open, and outline its fields on the page' },
+        [open ? '\u25BE' : '\u25B8', el('b', { textContent: g.name }), el('span', { className: 'small', textContent: summary })]);
+      head.addEventListener('click', () => { state.openGroupId = open ? null : g.id; renderAll(); });
+      card.append(head);
+      if (open){
+        const body = el('div', { className: 'vgroup-body' });
+        // (a text box's undo step is taken when it is entered, so one undo takes back what was typed)
+        const textBox = (label, key, placeholder) => {
+          const input = el('input', { type: 'text', value: g[key], placeholder });
+          input.addEventListener('focus', pushUndo);
+          input.addEventListener('input', () => { g[key] = input.value; if (key === 'name') head.querySelector('b').textContent = g.name; });
+          return el('label', {}, [label, input]);
+        };
+        const rule = el('select', {}, [el('option', { value: 'all', textContent: 'All filled' }), el('option', { value: 'one', textContent: 'Exactly one' })]);
+        rule.value = g.rule;
+        rule.addEventListener('change', () => { pushUndo(); g.rule = rule.value; renderAll(); });
+        const tickBox = (label, key, title) => {
+          const input = el('input', { type: 'checkbox', checked: !!g[key] });
+          input.addEventListener('change', () => { pushUndo(); g[key] = input.checked; renderAll(); });
+          return el('label', { title, style: 'display:flex;align-items:center;gap:6px' }, [input, label]);
+        };
+        body.append(textBox('Name', 'name', ''), el('label', {}, ['Rule', rule]), textBox('Message', 'message', defaultGroupMessage(g)),
+          tickBox('Allow submit anyway (warn only)', 'allowSubmit', 'The popup asks whether to submit anyway, instead of stopping the submit'));
+        if (g.rule === 'one') body.append(tickBox('Ticking one clears the others', 'exclusive', "On the eForm, ticking or circling one of the group's boxes takes the tick or circle off the others"));
+        const chips = el('div');
+        fields.forEach(f => {
+          const remove = el('button', { type: 'button', textContent: '\u00D7', title: 'Take it out of the group' });
+          remove.addEventListener('click', e => { e.stopPropagation(); pushUndo(); g.fieldIds = g.fieldIds.filter(id => id !== f.id); renderAll(); });
+          const chip = el('span', { className: 'vchip', title: `Select it (page ${f.page})` }, [fieldWords(f), remove]);
+          chip.addEventListener('click', () => { selectOne(f.id); if (!samePage(f.page, state.currentPage)) setCurrentPage(Number(f.page)); else renderAll(); });
+          chips.append(chip);
+        });
+        if (!fields.length) chips.append(el('span', { className: 'small', textContent: 'No fields yet: select some on the page, then Add selected.' }));
+        const button = (text, onClick) => { const b = el('button', { type: 'button', className: 'btn-small', textContent: text }); b.addEventListener('click', onClick); return b; };
+        const buttons = el('div', { className: 'row' }, [
+          button('Add selected', () => {
+            const adding = selectedValidatable().filter(f => !g.fieldIds.includes(f.id));
+            if (!adding.length){ msg('Select fields on the page that aren\'t in the group yet.', 'warn'); return; }
+            pushUndo(); g.fieldIds.push(...adding.map(f => f.id)); renderAll();
+          }),
+          button('Delete group', () => { pushUndo(); state.validationGroups = state.validationGroups.filter(k => k !== g); state.openGroupId = null; renderAll(); })
+        ]);
+        body.append(el('div', {}, ['Fields', chips]), buttons);
+        card.append(body);
+      }
+      box.append(card);
+    });
+  }
+  // Says in the Selected field editor which validation groups the field is in
+  function showGroupsNote(f){
+    const names = state.validationGroups.filter(g => g.fieldIds.includes(f.id)).map(g => g.name);
+    $('fGroupsNote').style.display = names.length ? 'block' : 'none';
+    $('fGroupsNote').textContent = names.length ? 'In validation group' + (names.length > 1 ? 's' : '') + ': ' + names.join(', ') : '';
+  }
+
   // Adds a field to the selection, or takes it out if it is in it
   function toggleSelect(id){ if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id); }
 
@@ -2731,6 +2877,7 @@ else if (typeof exports === 'object')
       showTagWarn(f.oscarTag);
       showFontRow(f);
       showFillMode(f);
+      showGroupsNote(f);
       syncingEditor = false;
     } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
   }
@@ -2836,6 +2983,8 @@ else if (typeof exports === 'object')
       templateName: state.templateName,
       templateNameTagMap: [...state.templateNameTagMap.entries()],
       templateFields: state.templateFields,
+      templateGroups: state.templateGroups,
+      validationGroups: state.validationGroups,
       snippets: {
         externalSrc: [...state.snippets.externalSrc],
         inlineScripts: state.snippets.inlineScripts.slice(),
@@ -2892,6 +3041,8 @@ else if (typeof exports === 'object')
     });
     state.nextId = Math.max(1, Number(session.nextId) || (state.fields.reduce((maxId,f)=>Math.max(maxId,Number(f.id)||0),0)+1));
     state.selected.clear();
+    state.validationGroups = readGroups(session.validationGroups, Number);
+    state.openGroupId = null;
 
     state.sourcePdf = (session.sourcePdf && session.sourcePdf.data) ? session.sourcePdf : null;
     fsShowPdf();
@@ -2902,6 +3053,7 @@ else if (typeof exports === 'object')
 
     state.templateNameTagMap = new Map((session.templateNameTagMap || []).filter(entry => Array.isArray(entry) && entry.length>=2));
     state.templateFields = Array.isArray(session.templateFields) ? session.templateFields : [];
+    state.templateGroups = readGroups(session.templateGroups, String);
     state.templateName = String(session.templateName || (state.templateFields.length ? 'eForm from saved session' : ''));
     const snippets = session.snippets || {};
     state.snippets = {
@@ -2943,7 +3095,7 @@ else if (typeof exports === 'object')
     const pages = Object.entries(state.pages).filter(([,pageInfo]) => pageInfo.imgData)
       .map(([page,pageInfo]) => [page, pageInfo.fileName, pageInfo.naturalW, pageInfo.naturalH, String(pageInfo.imgData).length]);
     if (!pages.length && !state.fields.length) return '';
-    return JSON.stringify([pages, state.fields, state.templateName, $('exportEditor').value,
+    return JSON.stringify([pages, state.fields, state.validationGroups, state.templateName, $('exportEditor').value,
       $('eformTitle').value, $('eformAuthor').value, getTuning()]);
   }
   let savedWork = '';
@@ -2992,6 +3144,8 @@ else if (typeof exports === 'object')
     state.fields = [];
     state.selected.clear();
     state.nextId = 1;
+    state.validationGroups = [];
+    state.openGroupId = null;
 
     clearTemplate();
 
@@ -4875,6 +5029,16 @@ function preflightChecks(htmlText=''){
   const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'xbox' && f.type !== 'circle' && f.type !== 'signature' && f.type !== 'drawing');
   out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/circles/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
 
+  // (validation runs from the eForm's Submit buttons, so it needs them; a group needs fields)
+  if (state.validationGroups.length){
+    const empty = state.validationGroups.filter(g => !groupFields(g).length).map(g => g.name);
+    const noButtons = !$('chkIncludeButtons').checked;
+    out.push({ level: empty.length || noButtons ? 'warn' : 'ok', text: [
+      noButtons ? 'Validation groups only run from the Submit buttons, and they are left out of the export.' : '',
+      empty.length ? `Validation group(s) with no fields: ${empty.join(', ')}.` : '',
+      !noButtons && !empty.length ? `${state.validationGroups.length} validation group(s) checked on Submit.` : ''].filter(Boolean).join(' ') });
+  }
+
   const outOfBounds = [];
   state.fields.forEach(f => {
     const pageInfo = state.pages[f.page] || {};
@@ -5505,6 +5669,93 @@ function chooseSignature(key, kind){
 <\/script>
 `;
   if (usesSignatures) startupSteps.push('setUpSignatures()');
+  // (validation groups: each named by its fields' element ids on the eForm, as inputMarkup gives
+  // them; a group with no field on an exported page is left out)
+  const elementIds = new Map(exportPages.flatMap(page => sanitizeUniqueFieldNames(dataFields(getPageFields(page))).map(f => [f.id, `${f._safeName}_${f.id}`])));
+  const exportedGroups = state.validationGroups.map(g => ({ name: g.name, rule: g.rule, message: g.message || defaultGroupMessage(g), allowSubmit: g.allowSubmit,
+    exclusive: g.exclusive, fields: groupFields(g).map(f => elementIds.get(f.id)).filter(Boolean) })).filter(g => g.fields.length);
+  const usesValidation = exportedGroups.length > 0;
+  if (usesValidation) startupSteps.push('setUpValidation()');
+  const validationScript = !usesValidation ? '' : `<style type="text/css" media="screen">
+ .RequiredMissing { outline:2px solid #dc2626 !important; background-color:rgba(220,38,38,.18) !important; }
+</style>
+<script>
+// Validation groups: fields that must be filled in before the form is submitted. A group's rule
+// is "all" (each of its fields filled in) or "one" (exactly one of them: one box ticked or
+// circled, or one field filled in). A group that allows it only warns, and the form may be
+// submitted anyway; "exclusive" takes the tick or circle off a group's other boxes when one is
+// ticked or circled.
+var validationGroups = ${JSON.stringify(exportedGroups).replace(/<\//g, '<\\/')};
+// (set once the form has been checked on the way to submitting, so the Submit button that
+// follows doesn't check it again)
+var requiredChecked = false;
+// Whether a field has something in it: typed text, a tick box's X or a circle's O
+function isFilled(box){ return !!box && String(box.value || '').replace(/^\\s+|\\s+$/g, '') !== ''; }
+// A group's fields on the form
+function groupBoxes(group){
+  var boxes = [];
+  for (var i = 0; i < group.fields.length; i++){ var box = document.getElementById(group.fields[i]); if (box) boxes.push(box); }
+  return boxes;
+}
+// Whether a group's rule holds
+function groupMet(group){
+  var boxes = groupBoxes(group), filled = 0;
+  for (var i = 0; i < boxes.length; i++) if (isFilled(boxes[i])) filled++;
+  return group.rule === 'one' ? filled === 1 : filled === boxes.length;
+}
+// Outlines in red the fields a group still needs (all of an "exactly one" group's, the empty
+// ones of an "all" group's), or takes the outline away
+function markGroup(group, missing){
+  var boxes = groupBoxes(group);
+  for (var i = 0; i < boxes.length; i++){
+    var show = missing && (group.rule === 'one' || !isFilled(boxes[i]));
+    boxes[i].className = boxes[i].className.replace(/\\s*RequiredMissing/g, '') + (show ? ' RequiredMissing' : '');
+  }
+  group.marked = missing;
+}
+// Checks every group before the form is submitted, outlines what is missing and says which
+// groups aren't met; whether to go on: not while a group that must be met isn't, and for groups
+// that only warn, when the user chooses to submit anyway
+function checkRequiredFields(){
+  var blocking = [], warning = [], first = null;
+  for (var i = 0; i < validationGroups.length; i++){
+    var group = validationGroups[i], met = groupMet(group);
+    markGroup(group, !met);
+    if (met) continue;
+    (group.allowSubmit ? warning : blocking).push(group.message);
+    if (!first) first = groupBoxes(group)[0];
+  }
+  if (!blocking.length && !warning.length) return true;
+  try { if (first) first.scrollIntoView({ block: 'center' }); } catch(e){ try { first.scrollIntoView(); } catch(e2){} }
+  if (blocking.length){
+    alert('This form is not complete:\\n- ' + blocking.concat(warning).join('\\n- ') + '\\n\\nComplete the fields outlined in red, then submit again.');
+    return false;
+  }
+  return confirm('This form is not complete:\\n- ' + warning.join('\\n- ') + '\\n\\nClick OK to submit it anyway, or Cancel to complete it.');
+}
+// On load: a group's red outline goes once its rule holds, and in an "exactly one" group that
+// is exclusive, ticking or circling one of its boxes takes the tick or circle off the others
+function setUpValidation(){
+  for (var i = 0; i < validationGroups.length; i++){
+    var boxes = groupBoxes(validationGroups[i]);
+    for (var j = 0; j < boxes.length; j++) watchBox(validationGroups[i], boxes[j]);
+  }
+}
+// Watches one of a group's fields for a change (after its own click handler has ticked it)
+function watchBox(group, box){
+  var isToggle = function(b){ return /xMarkOnly|circleToggle/.test(b.className); };
+  var changed = function(){
+    if (group.rule === 'one' && group.exclusive && isToggle(box) && isFilled(box)){
+      var boxes = groupBoxes(group);
+      for (var k = 0; k < boxes.length; k++){ if (boxes[k] !== box && isToggle(boxes[k])){ boxes[k].value = ''; boxes[k].setAttribute('value', ''); } }
+    }
+    if (group.marked) markGroup(group, !groupMet(group));
+  };
+  var events = ['click', 'keyup', 'input', 'change'];
+  for (var e = 0; e < events.length; e++) box.addEventListener(events[e], changed);
+}
+<\/script>
+`;
   if(includeSnippets && state.snippets.onloads.size){
     [...state.snippets.onloads].forEach(onload => {
       // (an imported eForm's own changeImage calls name its old image files, and its startup() is
@@ -5531,9 +5782,9 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
     bottomButtons = `
 <div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
   <input type="hidden" name="faxnumber" id="faxnumber">
-  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
-  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
-  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="${usesValidation ? 'if(!requiredChecked &amp;&amp; !checkRequiredFields()) return false; requiredChecked=false; ' : ''}releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
   <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
 </div>
 `;
@@ -5595,7 +5846,7 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${signatureScript}${startupScript}</head>
+${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${signatureScript}${validationScript}${startupScript}</head>
 <body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
