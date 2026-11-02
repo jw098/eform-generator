@@ -1870,7 +1870,7 @@ else if (typeof exports === 'object')
       x: partial.x || 20, y: partial.y || 20,
       width: partial.width || 180, height: partial.height || 24,
       type: partial.type || 'text', name: partial.name || `field_${state.nextId}`,
-      oscarTag: hasOwnValue(partial.type) ? '' : partial.oscarTag || '', label: partial.label || ''
+      oscarTag: takesNoTag(partial.type) ? '' : partial.oscarTag || '', label: partial.label || ''
     };
     if (partial.fontSize) f.fontSize = partial.fontSize;
     if (partial.fontButtons === false) f.fontButtons = false;
@@ -2813,10 +2813,12 @@ else if (typeof exports === 'object')
     $('fFillMode').value = custom ? 'custom' : 'tag';
     // (a free draw area and a circle toggle have neither a tag nor a custom fill: what is drawn,
     // or whether it is circled, is their value)
-    const ownValue = hasOwnValue(f.type);
+    const ownValue = hasOwnValue(f.type), noTag = takesNoTag(f.type);
     if (ownValue) $('fFillBlock').style.display = 'none';
-    $('fTagBlock').style.display = buttons || custom || ownValue ? 'none' : 'block';
-    if (custom || ownValue) $('fTagWarn').style.display = 'none';
+    // (a tick box has no tag: it is filled by its custom action, or ticked by hand)
+    $('fFillMode').options[0].textContent = noTag ? 'Nothing (ticked by hand)' : 'OSCAR tag';
+    $('fTagBlock').style.display = buttons || custom || noTag ? 'none' : 'block';
+    if (custom || noTag) $('fTagWarn').style.display = 'none';
     $('fCustomBlock').style.display = custom && !buttons && !ownValue ? 'block' : 'none';
     const kind = isTickType(f.type) ? 'tick' : 'text';
     [...$('fCustomAction').options].forEach(o => { const a = customActionById(o.value); o.disabled = !!a && a.for !== kind; });
@@ -2853,10 +2855,9 @@ else if (typeof exports === 'object')
     $('fFontButtons').checked = hasFontButtons(f);
     // (the size shown is kept, so a field whose size wasn't typed keeps following its height)
     $('fFontSize').value = $('fFontSize').dataset.shown = fieldFontSize(f, eformHeight(f));
-    // (a field's controls have only a place: no name, type, tag or size of their own)
+    // (a field's controls have only a place: no name, type or size of their own, and no tag, which
+    // showFillMode hides)
     const buttons = isAttachedType(f.type);
-    $('fTagBlock').style.display = buttons ? 'none' : 'block';
-    if (buttons) $('fTagWarn').style.display = 'none';
     ['fName','fType','fW','fH'].forEach(id => { $(id).disabled = buttons; });
     $('fButtonsNote').style.display = buttons ? 'block' : 'none';
     if (f.type === 'fontbuttons') $('fButtonsNote').textContent = `The font size buttons (▲▼) of "${f.name}". Drag them anywhere: they follow the textarea when it moves, and go when it does.`;
@@ -2896,7 +2897,7 @@ else if (typeof exports === 'object')
     // (a field just made a textarea gets its font size buttons: the box is read only once it shows)
     const wasTextarea = f.type === 'textarea';
     f.type = $('fType').value || f.type;
-    const tag = hasOwnValue(f.type) ? '' : normalizeTag($('fTag').value);
+    const tag = takesNoTag(f.type) ? '' : normalizeTag($('fTag').value);
     f.oscarTag = tag;
     $('fTagSelect').value = STANDARD_TAGS.has(tag) ? tag : '';
     showTagWarn(tag);
@@ -3034,7 +3035,7 @@ else if (typeof exports === 'object')
         height: Math.max(8, Number(f.height) || 20),
         type,
         name: String(f.name || `field_${i+1}`),
-        oscarTag: isRemovedTag(tag) || hasOwnValue(type) ? '' : tag,
+        oscarTag: isRemovedTag(tag) || takesNoTag(type) ? '' : tag,
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
         ...(f.fontButtons === false ? { fontButtons: false } : {}),
@@ -4850,9 +4851,12 @@ function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) &
 // Whether fields of a type are another field's control (font size buttons, a phone selector),
 // with only a place of their own
 // A free draw area and a circle toggle hold their own value (what is drawn, whether it is
-// circled), so neither has a tag: one they are given (a field made one, an imported eForm's, a
-// saved session's) is dropped
+// circled), so neither has a tag or a custom fill
 function hasOwnValue(type){ return type === 'drawing' || type === 'circle'; }
+// The field types that never hold a tag: those holding their own value, and a tick box (whose X
+// OSCAR doesn't fill; a custom fill can still tick it for a sex). A tag one is given (a field
+// made one, a pasted or imported field's, a saved session's) is dropped
+function takesNoTag(type){ return hasOwnValue(type) || type === 'checkbox'; }
 function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect' || type === 'drawtools' || type === 'sigtools'; }
 // A field's font size on the eForm: its own where it can have one (hasOwnFontSize), else sized
 // to its height there (defaultFontSize); `height` is the field's height on the eForm
