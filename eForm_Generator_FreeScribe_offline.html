@@ -2151,18 +2151,18 @@ else if (typeof exports === 'object')
   function toggleSelect(id){ if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id); }
 
   // Turns "Place Checkbox" mode on or off: while it is on, a click on the page puts a tick box
-  // there. `silent` skips the message.
+  // there, and a click on a field turns it off. `silent` skips the message.
   function setPlaceCheckboxMode(enabled, silent=false){
     state.placeCheckboxMode = !!enabled;
     const btn = $('btnAddCheckbox');
     if (btn){
       btn.classList.toggle('btn-active', state.placeCheckboxMode);
       btn.textContent = state.placeCheckboxMode ? 'Placing… click on form' : 'Place Checkbox';
-      btn.title = state.placeCheckboxMode ? 'Click button again to exit checkbox placement mode' : '';
+      btn.title = state.placeCheckboxMode ? 'Click button again, or click a field, to exit checkbox placement mode' : '';
     }
     Object.keys(state.pages).map(Number).forEach(pageNo => renderPage(pageNo));
     if (!silent){
-      msg(state.placeCheckboxMode ? 'Checkbox placement mode ON: click on form to place. Click button again to exit.' : 'Checkbox placement mode OFF.', 'ok');
+      msg(state.placeCheckboxMode ? 'Checkbox placement mode ON: click on form to place. Click button again, or click a field, to exit.' : 'Checkbox placement mode OFF.', 'ok');
     }
   }
 
@@ -2254,10 +2254,10 @@ else if (typeof exports === 'object')
     renderAll();
   }
 
-  // Pressing on a field: selects it (Shift/Ctrl/Cmd adds to the selection), then starts resizing
-  // it from its handle or dragging the selection
+  // Pressing on a field: turns off "Place Checkbox" mode, selects the field (Shift/Ctrl/Cmd adds
+  // to the selection), then starts resizing it from its handle or dragging the selection
   function onFieldMouseDown(e, f, page){
-    if (state.placeCheckboxMode) return;
+    if (state.placeCheckboxMode) setPlaceCheckboxMode(false);
     e.preventDefault(); e.stopPropagation();
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     if (additive) toggleSelect(f.id); else if (!state.selected.has(f.id) || state.selected.size !== 1) selectOne(f.id);
