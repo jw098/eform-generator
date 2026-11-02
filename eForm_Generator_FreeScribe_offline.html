@@ -1871,7 +1871,7 @@ else if (typeof exports === 'object')
       x: partial.x || 20, y: partial.y || 20,
       width: partial.width || 180, height: partial.height || 24,
       type: partial.type || 'text', name: partial.name || `field_${state.nextId}`,
-      oscarTag: partial.oscarTag || '', label: partial.label || ''
+      oscarTag: hasOwnValue(partial.type) ? '' : partial.oscarTag || '', label: partial.label || ''
     };
     if (partial.fontSize) f.fontSize = partial.fontSize;
     if (partial.fontButtons === false) f.fontButtons = false;
@@ -2814,7 +2814,7 @@ else if (typeof exports === 'object')
     $('fFillMode').value = custom ? 'custom' : 'tag';
     // (a free draw area and a circle toggle have neither a tag nor a custom fill: what is drawn,
     // or whether it is circled, is their value)
-    const ownValue = f.type === 'drawing' || f.type === 'circle';
+    const ownValue = hasOwnValue(f.type);
     if (ownValue) $('fFillBlock').style.display = 'none';
     $('fTagBlock').style.display = buttons || custom || ownValue ? 'none' : 'block';
     if (custom || ownValue) $('fTagWarn').style.display = 'none';
@@ -2897,7 +2897,7 @@ else if (typeof exports === 'object')
     // (a field just made a textarea gets its font size buttons: the box is read only once it shows)
     const wasTextarea = f.type === 'textarea';
     f.type = $('fType').value || f.type;
-    const tag = normalizeTag($('fTag').value);
+    const tag = hasOwnValue(f.type) ? '' : normalizeTag($('fTag').value);
     f.oscarTag = tag;
     $('fTagSelect').value = STANDARD_TAGS.has(tag) ? tag : '';
     showTagWarn(tag);
@@ -3024,6 +3024,7 @@ else if (typeof exports === 'object')
     // signature stamp is a signature field)
     state.fields = (session.fields || []).map((f, i) => {
       const tag = normalizeTag(f.oscarTag || '');
+      const type = tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','circle','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text';
       return {
         id: Number(f.id) || (i+1),
         page: Number(f.page) >= 1 ? Number(f.page) : 1,
@@ -3031,9 +3032,9 @@ else if (typeof exports === 'object')
         y: Number(f.y) || 0,
         width: Math.max(8, Number(f.width) || 20),
         height: Math.max(8, Number(f.height) || 20),
-        type: tag === 'current_user_signature_image' ? 'signature' : ['text','textarea','checkbox','xbox','circle','date','signature','drawing','fontbuttons','phoneselect','drawtools','sigtools'].includes(f.type) ? f.type : 'text',
+        type,
         name: String(f.name || `field_${i+1}`),
-        oscarTag: isRemovedTag(tag) ? '' : tag,
+        oscarTag: isRemovedTag(tag) || hasOwnValue(type) ? '' : tag,
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
         ...(f.fontButtons === false ? { fontButtons: false } : {}),
@@ -4848,6 +4849,10 @@ function hasFontButtons(f){ return f.type === 'textarea' && f.fontButtons !== fa
 function hasPhoneSelect(f){ return ['text','textarea','date'].includes(f.type) && usesCustomFill(f) && f.fill.action === 'phone_select'; }
 // Whether fields of a type are another field's control (font size buttons, a phone selector),
 // with only a place of their own
+// A free draw area and a circle toggle hold their own value (what is drawn, whether it is
+// circled), so neither has a tag: one they are given (a field made one, an imported eForm's, a
+// saved session's) is dropped
+function hasOwnValue(type){ return type === 'drawing' || type === 'circle'; }
 function isAttachedType(type){ return type === 'fontbuttons' || type === 'phoneselect' || type === 'drawtools' || type === 'sigtools'; }
 // A field's font size on the eForm: its own where it can have one (hasOwnFontSize), else sized
 // to its height there (defaultFontSize); `height` is the field's height on the eForm
