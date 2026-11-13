@@ -363,8 +363,8 @@
   // ----- Run -----
   // Runs each test in turn: a pass or fail, or for a to-do, "to do" or "to-do now passing"
   // ----- The exported eForm: field names, date fields -----
-  // The eForm "Build HTML draft" makes from fields made by hand, `[page, name, type]` each (a text
-  // field unless given), in the order given: its HTML, and each field's input (null where there
+  // The eForm "Build HTML draft" makes from fields made by hand, `[page, name, type, more]` each (a
+  // text field unless given; `more`, anything else it has), in the order given: its HTML, and each field's input (null where there
   // is none). It is built from them alone (the app's pages and fields swapped out meanwhile, as
   // draftOf does), on blank pages
   function exportOf(fields){
@@ -374,7 +374,7 @@
     fields.forEach(([page]) => { pages[page] = { imgData: blank, naturalW: 1000, naturalH: 1300, fileName: `page${page}.png` }; });
     try {
       T.state.pages = pages; T.state.currentPage = 1;
-      T.state.fields = fields.map(([page, name, type = 'text'], i) => ({ id: 1000 + i, page, x: 10, y: 10 + 30*i, width: 200, height: 20, type, name, oscarTag: '' }));
+      T.state.fields = fields.map(([page, name, type = 'text', more = {}], i) => ({ id: 1000 + i, page, x: 10, y: 10 + 30*i, width: 200, height: 20, type, name, oscarTag: '', ...more }));
       const html = T.buildExportHtml(), doc = new DOMParser().parseFromString(html, 'text/html');
       // (each field's input is found by its id, its name on the eForm and its number)
       const inputs = [...doc.querySelectorAll('input[id]')];
@@ -393,33 +393,37 @@
   nameTest('names the same once made safe for HTML', [[1, 'Pt name'], [1, 'Pt_name']], ['Pt_name', 'Pt_name_1']);
 
   // Date fields get OSCAR's calendar: the ids its Calendar.setup is called with when the eForm's
-  // setUpCalendars runs, against a stand-in Calendar
+  // setUpCalendars runs, against a stand-in Calendar, and the format each fills in
   const calendarsSetUp = (e) => {
     const source = (e.html.match(/function setUpCalendars\(\)\{[\s\S]*?\n\}/) || [''])[0], ids = [];
-    if (source) new Function('Calendar', 'document', source + '\nsetUpCalendars();')({ setup: (o) => ids.push(o.inputField + (o.button === o.inputField ? '' : ' (another button)')) }, e.doc);
+    if (source) new Function('Calendar', 'document', source + '\nsetUpCalendars();')({ setup: (o) => ids.push(`${o.inputField} ${o.ifFormat}` + (o.button === o.inputField ? '' : ' (another button)')) }, e.doc);
     return ids;
   };
   const dateTest = (short, fn) => test(`Export: date fields: ${short}`, fn, { group: 'Export: date fields', short });
   dateTest('each date field, on any page, gets its own calendar, opened by a click on it', () => {
     const e = exportOf([[1, 'Seen', 'date'], [1, 'Name'], [1, 'Due', 'date'], [2, 'Seen', 'date']]);
-    sameList(calendarsSetUp(e), [0, 2, 3].map(i => e.inputs[i].id), 'the calendars set up');
+    sameList(calendarsSetUp(e), [0, 2, 3].map(i => `${e.inputs[i].id} %Y-%m-%d`), 'the calendars set up');
     assert(!e.inputs[1].classList.contains('dateField'), 'the text field is marked as a date field');
     assert((e.html.match(/share\/calendar\/calendar\.js/g) || []).length === 1, "OSCAR's calendar isn't loaded once");
     assert(/setUpCalendars\(\);/.test(e.html.match(/function startup\(\)\{[\s\S]*?\n\}/)[0]), "startup() doesn't set up the calendars");
   });
+  dateTest('each fills in its own format: year first unless set day first', () => {
+    const e = exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }]]);
+    sameList(calendarsSetUp(e), [`${e.inputs[0].id} %Y-%m-%d`, `${e.inputs[1].id} %d-%m-%Y`], 'the calendars set up');
+  });
   dateTest('an eForm with no date field has no calendar', () => assert(!/calendar/i.test(exportOf([[1, 'Name']]).html), 'it mentions a calendar'));
   // (an eForm made elsewhere, as "ICBC CL489" is: its fields are date fields where its own
   // Calendar.setup names them, by id or name; and an eForm this app made reads back the same)
-  const importedTypes = (html) => T.parseTemplateHtml(html, 'test.html').fields.map(f => `${f.name}: ${f.type}`);
+  const importedTypes = (html) => T.parseTemplateHtml(html, 'test.html').fields.map(f => `${f.name}: ${f.type}${f.dateFormat === 'dmy' ? ', D-M-Y' : ''}`);
   dateTest("an imported eForm's fields with OSCAR's calendar are date fields", () => {
     const at = (top) => `style="position:absolute; left:10px; top:${top}px; width:100px; height:20px"`;
     sameList(importedTypes(`<html><body><input type="text" id="AccidentDate" ${at(10)}><input type="text" name="SeenOn" ${at(40)}><input type="text" id="Name" ${at(70)}>
 <script>Calendar.setup({ inputField:"AccidentDate", ifFormat: "%d/%m/%y", button:"AccidentDate" }); Calendar.setup({ inputField:'SeenOn' });<\/script></body></html>`),
-      ['AccidentDate: date', 'SeenOn: date', 'Name: text'], 'the fields read');
+      ['AccidentDate: date, D-M-Y', 'SeenOn: date', 'Name: text'], 'the fields read');
   });
-  dateTest('an exported date field reads back as one', () => {
-    const types = importedTypes(exportOf([[1, 'Seen', 'date'], [1, 'Name']]).html);
-    sameList(types.filter(t => /^(Seen|Name):/.test(t)), ['Seen: date', 'Name: text'], 'the fields read');
+  dateTest('an exported date field reads back as one, in its format', () => {
+    const types = importedTypes(exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }], [1, 'Name']]).html);
+    sameList(types.filter(t => /^(Seen|Due|Name):/.test(t)), ['Seen: date', 'Due: date, D-M-Y', 'Name: text'], 'the fields read');
   });
 
   async function runTests(list){

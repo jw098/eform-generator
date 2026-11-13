@@ -520,6 +520,12 @@
         <label id="fFontButtonsLabel"><input id="fFontButtons" type="checkbox"/> Font size buttons (&#9650;&#9660;) on the eForm</label>
         <label>Font size <input id="fFontSize" type="number" min="6" max="48" step="1" style="width:64px"/> px</label>
       </div>
+      <label id="fDateFormatRow" class="small" style="display:none;margin-top:8px">Date format
+        <select id="fDateFormat">
+          <option value="ymd">Y-M-D (2016-01-29)</option>
+          <option value="dmy">D-M-Y (29-01-2016)</option>
+        </select>
+      </label>
       <div id="fGroupsNote" class="small" style="display:none;margin-top:8px"></div>
       <div class="grid2" style="margin-top:8px">
         <label>X<input id="fX" type="number"/></label>
@@ -1613,9 +1619,10 @@ else if (typeof exports === 'object')
       }
     }
 
-    // (the fields the eForm gives OSCAR's calendar, "Calendar.setup({ inputField:"AccidentDate", … })",
-    // by id or name: they are date fields)
-    const calendarFields = new Set([...doc.querySelectorAll('script')].flatMap(script => (script.textContent || '').match(CALENDAR_SETUP_RE) || []).map(calendarFieldOf).filter(Boolean));
+    // (the fields the eForm gives OSCAR's calendar, "Calendar.setup({ inputField:"AccidentDate",
+    // ifFormat: "%d/%m/%y" … })", by id or name: they are date fields, in the format it fills in)
+    const calendarFields = new Map([...doc.querySelectorAll('script')].flatMap(script => (script.textContent || '').match(CALENDAR_SETUP_RE) || [])
+      .map(call => [calendarFieldOf(call), dateFormatFrom((call.match(/ifFormat\s*:\s*["']([^"']*)["']/) || [])[1])]).filter(([id]) => id));
     const elements = Array.from(doc.querySelectorAll('input,textarea,select'));
     const textareaByName = new Map();
     // (the textarea a font size button changes: "changeFontSize('reason', 1)")
@@ -1646,6 +1653,10 @@ else if (typeof exports === 'object')
       else if (isGenerated && className.includes('xmarkonly')) type = 'checkbox';
       // (and a circle toggle's)
       else if (isGenerated && className.includes('circletoggle')) type = 'circle';
+
+      // (a date field's format: the data-date-format this app's export gives it, or its calendar's)
+      const dataDateFormat = parseAttr(el, 'data-date-format');
+      const dateFormat = dataDateFormat ? dateFormatFrom(dataDateFormat) : calendarFields.get(parseAttr(el, 'id')) || calendarFields.get(parseAttr(el, 'name')) || 'ymd';
 
       const oscarTag = parseAttr(el, 'oscarDB') || parseAttr(el, 'oscardb') || '';
       const rawName  = parseAttr(el, 'name') || parseAttr(el, 'id') || `field_${idx+1}`;
@@ -1692,6 +1703,7 @@ else if (typeof exports === 'object')
         label,
         ...(parseAttr(el, 'id') ? { elementId: parseAttr(el, 'id') } : {}),
         ...(type === 'textarea' ? { fontButtons, ...(fontSize > 0 ? { fontSize: Math.round(fontSize) } : {}) } : {}),
+        ...(type === 'date' && dateFormat === 'dmy' ? { dateFormat } : {}),
         ...(exportW ? { _exportW: exportW } : {})
       };
       template.fields.push(field);
@@ -1815,7 +1827,7 @@ else if (typeof exports === 'object')
       }
       const added = addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
         oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '',
-        fontSize: tf.fontSize, fontButtons: tf.fontButtons, target: tf.type === 'fontbuttons' ? addedIds.get(tf.targetTpl) : null });
+        fontSize: tf.fontSize, fontButtons: tf.fontButtons, dateFormat: tf.dateFormat, target: tf.type === 'fontbuttons' ? addedIds.get(tf.targetTpl) : null });
       addedIds.set(tf.id, added.id);
     });
     // (the eForm's validation groups, with the fields just added)
@@ -1882,6 +1894,7 @@ else if (typeof exports === 'object')
     };
     if (partial.fontSize) f.fontSize = partial.fontSize;
     if (partial.fontButtons === false) f.fontButtons = false;
+    if (partial.dateFormat === 'dmy') f.dateFormat = 'dmy';
     if (partial.fill) f.fill = { ...partial.fill };
     if (partial.target != null) f.target = partial.target;
     state.fields.push(f);
@@ -2513,7 +2526,7 @@ else if (typeof exports === 'object')
       type: f.type,
       name: f.name,
       oscarTag: f.oscarTag || '',
-      fontSize: f.fontSize, fontButtons: f.fontButtons, fill: f.fill && { ...f.fill },
+      fontSize: f.fontSize, fontButtons: f.fontButtons, dateFormat: f.dateFormat, fill: f.fill && { ...f.fill },
       copiedId: f.id, target: f.target
     }));
     const copied = dataFields(selectedFields).length;
@@ -2545,7 +2558,7 @@ else if (typeof exports === 'object')
         type: copied.type || 'text',
         name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
         oscarTag: copied.oscarTag || '',
-        fontSize: copied.fontSize, fontButtons: copied.fontButtons, fill: copied.fill,
+        fontSize: copied.fontSize, fontButtons: copied.fontButtons, dateFormat: copied.dateFormat, fill: copied.fill,
         target: isAttachedType(copied.type) ? pastedIds.get(copied.target) : null
       });
       pastedIds.set(copied.copiedId, f.id);
@@ -2890,6 +2903,8 @@ else if (typeof exports === 'object')
     const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
     showTagWarn(f.oscarTag);
     showFontRow(f);
+    $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
+    $('fDateFormat').value = dateFormatOf(f);
     if (!selected) $('fFontSize').value = $('fFontSize').dataset.shown = '';
     showFillMode(f);
     showGroupsNote(f);
@@ -2929,6 +2944,9 @@ else if (typeof exports === 'object')
       if (size) f.fontSize = size;
     }
     showFillMode(f);
+    // (a date field's format; one that stops being a date field keeps none)
+    if (f.type === 'date' && $('fDateFormat').value === 'dmy') f.dateFormat = 'dmy'; else delete f.dateFormat;
+    $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
 
     // (a signature field with a plain numbered name is called "signature": it is the
     // provider's signature stamp)
@@ -2959,7 +2977,7 @@ else if (typeof exports === 'object')
   $('fType').addEventListener('focus', ()=>{ if (state.selected.size===1) pushUndo(); });
   $('fType').addEventListener('change', applyEditorToSelected);
   $('fFontButtons').addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); });
-  ['fFillMode','fCustomAction'].forEach(id => $(id).addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); }));
+  ['fFillMode','fCustomAction','fDateFormat'].forEach(id => $(id).addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); }));
 
   // Choosing a tag from the list gives the field that tag
   $('fTagSelect').addEventListener('change', ()=>{
@@ -3051,6 +3069,7 @@ else if (typeof exports === 'object')
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
         ...(f.fontButtons === false ? { fontButtons: false } : {}),
+        ...(f.dateFormat === 'dmy' ? { dateFormat: 'dmy' } : {}),
         ...(f.fill && typeof f.fill === 'object' ? { fill: { on: f.fill.on !== false, action: String(f.fill.action || ''), ...(f.fill.text != null ? { text: String(f.fill.text) } : {}) } } : {}),
         ...(isAttachedType(f.type) ? { target: Number(f.target), ...(f.anchor ? { anchor: { x: Number(f.anchor.x), y: Number(f.anchor.y) } } : {}) } : {})
       };
@@ -4843,6 +4862,13 @@ else if (typeof exports === 'object')
 // the field it names
 const CALENDAR_SETUP_RE = /Calendar\.setup\s*\(\s*\{[^}]*\}\s*\)\s*;?/g;
 const calendarFieldOf = (call) => (call.match(/inputField\s*:\s*["']([^"']+)["']/) || [])[1] || '';
+// The formats a date field's calendar can fill in, as OSCAR's calendar writes them: year first, as
+// OSCAR's "today" tag fills a date (the one a field has unless it is given dateFormat: 'dmy'), or
+// day first
+const DATE_FORMATS = { ymd: '%Y-%m-%d', dmy: '%d-%m-%Y' };
+const dateFormatOf = (f) => f.dateFormat === 'dmy' ? 'dmy' : 'ymd';
+// The format a calendar's own format names: day first ("%d/%m/%y", "%e-%m-%Y") or year first
+const dateFormatFrom = (calendarFormat) => /^\s*%[de]/.test(calendarFormat || '') ? 'dmy' : 'ymd';
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
 // _safeName, and no two the same: a name already taken gets the first number ending that isn't
 // ("name", "name_1", "name_2"), so it can't take another field's own "name_1"; _origName keeps
@@ -5017,9 +5043,11 @@ function inputMarkup(f, inlinePosStyle=''){
     return `<input class="circleToggle" id="${id}" name="${fieldName}" type="text" value="" readonly="readonly" title="Click to circle" onclick="${toggle}" onkeydown="if(event.key===' '||event.key==='Enter'){${toggle} return false;} return false;" style="${style}">`;
   }
   // (a date field is a plain text input too, which OSCAR fills with text; its dateField class
-  // gives it OSCAR's calendar, which a click on it opens: setUpCalendars)
+  // gives it OSCAR's calendar, which a click on it opens, filling the date as data-date-format
+  // says: setUpCalendars)
   const text = staticText(f), valueAttr = text ? ` value="${escAttr(text)}"` : '';
-  return `<input class="gen_input noborder${f.type === 'date' ? ' dateField' : ''}" id="${id}" name="${fieldName}"${dbAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
+  const dateAttr = f.type === 'date' ? ` data-date-format="${DATE_FORMATS[dateFormatOf(f)]}"` : '';
+  return `<input class="gen_input noborder${f.type === 'date' ? ' dateField' : ''}" id="${id}" name="${fieldName}"${dbAttr}${dateAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
 }
 
 
@@ -5671,8 +5699,8 @@ function writeStrokes(strokes){
   if (usesFreeDraw) startupSteps.push('setUpFreeDraw()');
   // (date fields: OSCAR's own calendar, from its share/calendar folder, opened by a click on the
   // field; each date field gets its own, by its id, however many there are. Opened outside
-  // OSCAR, where there is no Calendar, they stay plain text boxes. The format is OSCAR's "today"
-  // tag's, so a picked date and one OSCAR fills in look the same: "2016-01-29")
+  // OSCAR, where there is no Calendar, they stay plain text boxes. Each fills the date in its
+  // field's format: year first unless set day first, as OSCAR's "today" tag fills one, "2016-01-29")
   const usesCalendars = exportPages.some(page => getPageFields(page).some(f => f.type === 'date'));
   if (usesCalendars) startupSteps.push('setUpCalendars()');
   const calendarScript = !usesCalendars ? '' : `<link rel="stylesheet" type="text/css" media="all" href="../share/calendar/calendar.css">
@@ -5685,7 +5713,7 @@ function setUpCalendars(){
   if (typeof Calendar === 'undefined' || !Calendar.setup) return;
   var fields = document.querySelectorAll('input.dateField');
   for (var i = 0; i < fields.length; i++)
-    Calendar.setup({ inputField: fields[i].id, button: fields[i].id, ifFormat: '%Y-%m-%d', showsTime: false, singleClick: true, step: 1 });
+    Calendar.setup({ inputField: fields[i].id, button: fields[i].id, ifFormat: fields[i].getAttribute('data-date-format') || '%Y-%m-%d', showsTime: false, singleClick: true, step: 1 });
 }
 <\/script>
 `;
