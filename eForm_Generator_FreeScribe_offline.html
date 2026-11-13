@@ -61,6 +61,11 @@
   .btn-amber{background:var(--amber);border-color:var(--amber);color:#fff}
   .btn-red{background:var(--red);border-color:var(--red);color:#fff}
   button:disabled{opacity:.45;cursor:not-allowed}
+  /* The Selected field editor: always there, greyed out while one field isn't selected */
+  .sel-editor{border:0;padding:0;margin:0;min-width:0}
+  .sel-editor:disabled{opacity:.5}
+  .sel-editor:disabled button:disabled{opacity:1}
+  .sel-editor:disabled ::placeholder{color:transparent}
   .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .panel-title{font-weight:700;font-size:14px;margin-bottom:6px}
   .pill{display:inline-block;border:1px solid var(--line);padding:2px 7px;border-radius:999px;font-size:11px;background:#f8fbff}
@@ -467,8 +472,8 @@
 
     <div class="hr"></div>
     <div class="panel-title">Selected field</div>
-    <div id="selNone" class="small">Select a field to edit.</div>
-    <div id="selEditor" style="display:none">
+    <div id="selNone" class="small">No field selected.</div>
+    <fieldset id="selEditor" class="sel-editor" disabled>
       <div class="grid2">
         <label>Name<input id="fName" type="text"/></label>
         <label>Type
@@ -523,7 +528,7 @@
         <label>H<input id="fH" type="number"/></label>
       </div>
       <div class="small" style="margin-top:8px">Edits apply instantly while typing/selecting.</div>
-    </div>
+    </fieldset>
 
     <div class="hr"></div>
     <div class="panel-title">Validation</div>
@@ -2865,23 +2870,27 @@ else if (typeof exports === 'object')
     if (f.type === 'sigtools') $('fButtonsNote').textContent = `The signature controls of "${f.name}": on the eForm, Stamp (the provider's signature image, as it starts), Draw (signed by hand), Electronic ("Electronically signed") and Clear (not printed). Drag them anywhere: they follow the signature when it moves, and go when it does.`;
     if (f.type === 'phoneselect') $('fButtonsNote').textContent = `The phone selector of "${f.name}": on the eForm, it chooses which of the patient's phones the field shows (not printed). Drag it anywhere: it follows the field when it moves, and goes when the field's action changes.`;
   }
-  // Fills the Selected field editor from the selected field, or hides it unless one is selected
+  // Fills the Selected field editor from the selected field. Unless one field is selected, the
+  // editor stays where it is, greyed out and empty, laid out as for a text field (so the panels
+  // under it don't move), with a line saying why ("No field selected", "3 fields selected")
   function renderSelectedEditor(){
-    if (state.selected.size === 1){
-      const id = [...state.selected][0];
-      const f = state.fields.find(x => x.id === id);
-      if (!f) { $('selNone').style.display='block'; $('selEditor').style.display='none'; return; }
-      $('selNone').style.display='none'; $('selEditor').style.display='block';
-      syncingEditor = true;
-      $('fName').value = f.name || ''; $('fType').value = f.type || 'text'; $('fTag').value = f.oscarTag || '';
-      $('fX').value = Math.round(f.x); $('fY').value = Math.round(f.y); $('fW').value = Math.round(f.width); $('fH').value = Math.round(f.height);
-      const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
-      showTagWarn(f.oscarTag);
-      showFontRow(f);
-      showFillMode(f);
-      showGroupsNote(f);
-      syncingEditor = false;
-    } else { syncingEditor = false; $('selNone').style.display='block'; $('selEditor').style.display='none'; }
+    const count = state.selected.size;
+    const selected = count === 1 ? state.fields.find(x => x.id === [...state.selected][0]) : null;
+    const f = selected || { id: null, page: state.currentPage, type: 'text', name: '', oscarTag: '', x: 0, y: 0, width: 0, height: 0 };
+    $('selEditor').disabled = !selected;
+    // (the line keeps its place while a field is selected, so nothing under it moves)
+    $('selNone').style.visibility = selected ? 'hidden' : 'visible';
+    $('selNone').textContent = count > 1 ? `${count} fields selected: select one to edit it.` : 'No field selected.';
+    syncingEditor = true;
+    $('fName').value = f.name || ''; $('fType').value = f.type || 'text'; $('fTag').value = f.oscarTag || '';
+    ['fX','fY','fW','fH'].forEach((id, i) => { $(id).value = selected ? Math.round([f.x, f.y, f.width, f.height][i]) : ''; });
+    const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
+    showTagWarn(f.oscarTag);
+    showFontRow(f);
+    if (!selected) $('fFontSize').value = $('fFontSize').dataset.shown = '';
+    showFillMode(f);
+    showGroupsNote(f);
+    syncingEditor = false;
   }
 
   syncingEditor = false;
