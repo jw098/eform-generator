@@ -1613,6 +1613,9 @@ else if (typeof exports === 'object')
       }
     }
 
+    // (the fields the eForm gives OSCAR's calendar, "Calendar.setup({ inputField:"AccidentDate", … })",
+    // by id or name: they are date fields)
+    const calendarFields = new Set([...doc.querySelectorAll('script')].flatMap(script => (script.textContent || '').match(CALENDAR_SETUP_RE) || []).map(calendarFieldOf).filter(Boolean));
     const elements = Array.from(doc.querySelectorAll('input,textarea,select'));
     const textareaByName = new Map();
     // (the textarea a font size button changes: "changeFontSize('reason', 1)")
@@ -1638,7 +1641,7 @@ else if (typeof exports === 'object')
       let type = 'text';
       if (tagName === 'textarea') type = 'textarea';
       else if (typeAttr === 'checkbox' || typeAttr === 'radio') type = 'checkbox';
-      else if (typeAttr === 'date') type = 'date';
+      else if (typeAttr === 'date' || className.split(/\s+/).includes('datefield') || calendarFields.has(parseAttr(el, 'id')) || calendarFields.has(parseAttr(el, 'name'))) type = 'date';
       // Restore checkbox type from generated eForm marker class
       else if (isGenerated && className.includes('xmarkonly')) type = 'checkbox';
       // (and a circle toggle's)
@@ -4836,6 +4839,10 @@ else if (typeof exports === 'object')
   // ===== Export: the eForm's HTML, the compatibility check, the OSCAR package =====
   // A value made safe to put inside an HTML attribute's quotes
   function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// A call giving a field OSCAR's calendar, "Calendar.setup({ inputField:"AccidentDate", … });", and
+// the field it names
+const CALENDAR_SETUP_RE = /Calendar\.setup\s*\(\s*\{[^}]*\}\s*\)\s*;?/g;
+const calendarFieldOf = (call) => (call.match(/inputField\s*:\s*["']([^"']+)["']/) || [])[1] || '';
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
 // _safeName, and no two the same: a name already taken gets the first number ending that isn't
 // ("name", "name_1", "name_2"), so it can't take another field's own "name_1"; _origName keeps
@@ -5009,9 +5016,10 @@ function inputMarkup(f, inlinePosStyle=''){
     const style = `${inlinePosStyle} border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;`;
     return `<input class="circleToggle" id="${id}" name="${fieldName}" type="text" value="" readonly="readonly" title="Click to circle" onclick="${toggle}" onkeydown="if(event.key===' '||event.key==='Enter'){${toggle} return false;} return false;" style="${style}">`;
   }
-  // (a date field is a plain text input too, which OSCAR fills with text)
+  // (a date field is a plain text input too, which OSCAR fills with text; its dateField class
+  // gives it OSCAR's calendar, which a click on it opens: setUpCalendars)
   const text = staticText(f), valueAttr = text ? ` value="${escAttr(text)}"` : '';
-  return `<input class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
+  return `<input class="gen_input noborder${f.type === 'date' ? ' dateField' : ''}" id="${id}" name="${fieldName}"${dbAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
 }
 
 
@@ -5255,9 +5263,11 @@ ${fieldMarkupScaled(f, naturalW, naturalH, scale)}
       addonScripts += `<script src="${escAttr(scriptSrc)}"><\/script>
 `;
     });
+    // (less their Calendar.setup calls: they name the imported eForm's fields, which this export
+    // names afresh, and its date fields get their calendars from setUpCalendars)
     state.snippets.inlineScripts.forEach(js => {
       addonScripts += `<script>
-${js}
+${js.replace(CALENDAR_SETUP_RE, '')}
 <\/script>
 `;
     });
@@ -5659,6 +5669,26 @@ function writeStrokes(strokes){
 <\/script>
 `;
   if (usesFreeDraw) startupSteps.push('setUpFreeDraw()');
+  // (date fields: OSCAR's own calendar, from its share/calendar folder, opened by a click on the
+  // field; each date field gets its own, by its id, however many there are. Opened outside
+  // OSCAR, where there is no Calendar, they stay plain text boxes. The format is OSCAR's "today"
+  // tag's, so a picked date and one OSCAR fills in look the same: "2016-01-29")
+  const usesCalendars = exportPages.some(page => getPageFields(page).some(f => f.type === 'date'));
+  if (usesCalendars) startupSteps.push('setUpCalendars()');
+  const calendarScript = !usesCalendars ? '' : `<link rel="stylesheet" type="text/css" media="all" href="../share/calendar/calendar.css">
+<script type="text/javascript" src="../share/calendar/calendar.js"><\/script>
+<script type="text/javascript" src="../share/calendar/lang/calendar-en.js"><\/script>
+<script type="text/javascript" src="../share/calendar/calendar-setup.js"><\/script>
+<script>
+// Gives each date field OSCAR's calendar, which a click on the field opens
+function setUpCalendars(){
+  if (typeof Calendar === 'undefined' || !Calendar.setup) return;
+  var fields = document.querySelectorAll('input.dateField');
+  for (var i = 0; i < fields.length; i++)
+    Calendar.setup({ inputField: fields[i].id, button: fields[i].id, ifFormat: '%Y-%m-%d', showsTime: false, singleClick: true, step: 1 });
+}
+<\/script>
+`;
   const signatureScript = !usesSignatures ? '' : `<script>
 // Signatures: each page's signature (data-signature-for) is the provider's stamp, their
 // signature image, one drawn by hand on its free draw canvas, or "Electronically signed"; its controls
@@ -5873,7 +5903,7 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  #page1, #page2 { transform-origin: top left; }
 </style>
 ${coreScripts}
-${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${signatureScript}${validationScript}${startupScript}</head>
+${fontButtonScript}${addonScripts}${newFormScript}${freeDrawScript}${calendarScript}${signatureScript}${validationScript}${startupScript}</head>
 <body onload="startup()">
 <form method="post" action="" name="FormName" id="FormName">
 ${(function(){
@@ -6524,7 +6554,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltD
   // Opening this page with #test at the end of its address runs tests/auto-detect.js (in the
   // tests folder beside this file) against it. Only then is Auto Detect reachable from outside.
   if (location.hash === '#test'){
-    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage, buildExportHtml };
+    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage, buildExportHtml, parseTemplateHtml };
     const s = document.createElement('script');
     s.src = 'tests/auto-detect.js';
     s.onerror = () => msg('Could not load tests/auto-detect.js: it must sit in a tests folder beside this page.', 'err');
@@ -6610,6 +6640,7 @@ The tool has two separate surfaces with different dependencies:
 | **jQuery** | 3.7.1 (default) or 1.7.1 (legacy option) | 3.7.1: cdnjs with an integrity hash. Both modes fall back to OSCAR's `../js/jquery-1.7.1.min.js` | MIT | © OpenJS Foundation and contributors. 1.7.1 was released dual MIT/GPL-2.0, © 2011 John Resig, and includes Sizzle.js. |
 | **jQuery Migrate** | 3.4.1 (default mode only) | cdnjs with an integrity hash | MIT | © OpenJS Foundation. Restores jQuery APIs that older OSCAR scripts may still call. |
 | **OSCAR `faxControl.js`** | Whatever the server ships | `${oscar_javascript_path}eforms/faxControl.js`, referenced and not copied | GPL-2.0 (part of OSCAR EMR) | Loaded at runtime from the OSCAR server. |
+| **OSCAR calendar** (`calendar.js`, `calendar-setup.js`, `calendar-en.js`, `calendar.css`) | Whatever the server ships | `../share/calendar/`, referenced and not copied, only when the eForm has a date field | Part of OSCAR EMR (the DHTML Calendar, LGPL) | Loaded at runtime from the OSCAR server; outside OSCAR, date fields are plain text boxes. |
 | **OSCAR eForm conventions** | n/a | `oscarDB="…"` tags, `${oscar_image_path}`, `${oscar_javascript_path}`, `../eform/displayImage.do?imagefile=consult_sig_…`, `eform.properties` package format | OSCAR EMR, GPL-2.0 | Interface names and placeholders, used for compatibility. They're API identifiers, not copied code. |
 
 ### Snippets likely derived from OSCAR community eForms
