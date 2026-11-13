@@ -526,6 +526,7 @@
           <option value="dmy">D-M-Y (29-01-2016)</option>
         </select>
       </label>
+      <div id="fDateFormatWarn" class="small" style="display:none;color:var(--red);margin-top:4px"></div>
       <div id="fGroupsNote" class="small" style="display:none;margin-top:8px"></div>
       <div class="grid2" style="margin-top:8px">
         <label>X<input id="fX" type="number"/></label>
@@ -2858,6 +2859,15 @@ else if (typeof exports === 'object')
   }
   // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
   function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
+  // Shows a date field's format, and warns when it is day first but its tag is one OSCAR fills year
+  // first: the field would start "2016-01-29" and the calendar write "29-01-2016" over it
+  function showDateFormat(f){
+    $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
+    const tag = usesCustomFill(f) ? '' : String(f.oscarTag || '').trim();
+    const clash = f.type === 'date' && dateFormatOf(f) === 'dmy' && YMD_DATE_TAGS.has(tag);
+    $('fDateFormatWarn').style.display = clash ? 'block' : 'none';
+    $('fDateFormatWarn').textContent = clash ? `OSCAR fills "${tag}" as Y-M-D (2016-01-29), but the calendar writes D-M-Y (29-01-2016): the field would mix the two. Choose Y-M-D, or another tag.` : '';
+  }
   // A field's height on the eForm, whose page is EXPORT_PAGE_W wide
   function eformHeight(f){ const pageInfo = state.pages[f.page]; return pageInfo && pageInfo.naturalW ? f.height * EXPORT_PAGE_W / pageInfo.naturalW : f.height; }
   // The font size typed in the Selected field editor (6 to 48), or null when it is still the
@@ -2903,8 +2913,8 @@ else if (typeof exports === 'object')
     const sel = $('fTagSelect'); if (sel) sel.value = f.oscarTag || '';
     showTagWarn(f.oscarTag);
     showFontRow(f);
-    $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
     $('fDateFormat').value = dateFormatOf(f);
+    showDateFormat(f);
     if (!selected) $('fFontSize').value = $('fFontSize').dataset.shown = '';
     showFillMode(f);
     showGroupsNote(f);
@@ -2946,7 +2956,7 @@ else if (typeof exports === 'object')
     showFillMode(f);
     // (a date field's format; one that stops being a date field keeps none)
     if (f.type === 'date' && $('fDateFormat').value === 'dmy') f.dateFormat = 'dmy'; else delete f.dateFormat;
-    $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
+    showDateFormat(f);
 
     // (a signature field with a plain numbered name is called "signature": it is the
     // provider's signature stamp)
@@ -4867,6 +4877,8 @@ const calendarFieldOf = (call) => (call.match(/inputField\s*:\s*["']([^"']+)["']
 // day first
 const DATE_FORMATS = { ymd: '%Y-%m-%d', dmy: '%d-%m-%Y' };
 const dateFormatOf = (f) => f.dateFormat === 'dmy' ? 'dmy' : 'ymd';
+// The standard tags OSCAR fills with a date, year first ("2016-01-29")
+const YMD_DATE_TAGS = new Set(['today', 'appt_date', 'dobc2', 'hc_renew_date', 'onEDB', 'bcEDD', 'dtap_immunization_date', 'flu_immunization_date']);
 // The format a calendar's own format names: day first ("%d/%m/%y", "%e-%m-%Y") or year first
 const dateFormatFrom = (calendarFormat) => /^\s*%[de]/.test(calendarFormat || '') ? 'dmy' : 'ymd';
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
