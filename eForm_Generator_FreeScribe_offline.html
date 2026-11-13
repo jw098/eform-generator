@@ -563,9 +563,9 @@
       
       <button id="btnCopyHtml" class="btn-green">Copy draft</button>
       <button id="btnDownloadHtml" class="btn-blue">Download draft</button>
-      <button id="btnDownloadOscarZip" class="btn-blue">Download OSCAR package (.zip)</button>
+      <button id="btnDownloadOscarZip" class="btn-violet">Export OSCAR eform (.zip)</button>
     </div>
-    <div class="small">Edit this output directly before Copy draft or Download draft. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible). The OSCAR package is always built from scratch from the pages and fields.</div>
+    <div class="small">Edit this output directly before Copy draft or Download draft. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible). The zip from Export OSCAR eform is always built from scratch from the pages and fields.</div>
     <textarea id="exportEditor" class="export-editor mono" placeholder="Build draft to populate editable HTML..." style="margin-top:8px"></textarea>
     
 
@@ -5921,7 +5921,7 @@ function buildOscarProperties(htmlFileName='generated_oscar_eform.html'){
   ].join('\n') + '\n';
 }
 
-// "Download OSCAR package (.zip)": the eForm's HTML, eform.properties and the page images, named
+// "Export OSCAR eform (.zip)": the eForm's HTML, eform.properties and the page images, named
 // as the HTML expects them
 async function downloadOscarPackage(){
   try {
@@ -5959,7 +5959,7 @@ async function downloadOscarPackage(){
     setTimeout(()=>URL.revokeObjectURL(url), 1200);
     msg(`Downloaded ${link.download} (HTML + eform.properties + images named ${pageImageName(1).replace(/1\.png$/, 'N.png')}).`, 'ok');
   } catch (err) {
-    msg('OSCAR package download failed: ' + (err.message || err), 'err');
+    msg('Export OSCAR eform failed: ' + (err.message || err), 'err');
   }
 }
 
