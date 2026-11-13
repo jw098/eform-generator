@@ -1658,8 +1658,8 @@ else if (typeof exports === 'object')
       const page = inferPage(box.ref || el);
       const name = (rawName && !GENERIC_NAME_RE.test(rawName)) ? rawName : (oscarTag || rawName);
 
-      // (an eForm this app made: its names lose the "_2", "_3"… that sanitizeUniqueFieldNames
-      // added to keep them apart, "patient_name_2" -> "patient_name")
+      // (an eForm this app made: its names lose the "_1", "_2"… that sanitizeUniqueFieldNames
+      // added to keep them apart, "patient_name_1" -> "patient_name")
       const cleanName = isGenerated ? name.replace(/_\d+$/, '') : name;
 
       const exportW = (isGenerated && template.pageExportW[page])
@@ -4828,16 +4828,19 @@ else if (typeof exports === 'object')
   // A value made safe to put inside an HTML attribute's quotes
   function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
-// _safeName, numbered when two would be the same ("name", "name_2"); _origName keeps its name
+// _safeName, and no two the same: a name already taken gets the first number ending that isn't
+// ("name", "name_1", "name_2"), so it can't take another field's own "name_1"; _origName keeps
+// its name
 function sanitizeUniqueFieldNames(fields){
-  const timesUsed = new Map();
+  const taken = new Set();
   return fields.map((f, idx) => {
     let base = String(f.name || '').trim();
     if (!base) base = `field_${idx+1}`;
     const safeBase = base.replace(/[^A-Za-z0-9_]/g, '_').replace(/^_+|_+$/g, '') || `field_${idx+1}`;
-    if (!timesUsed.has(safeBase)) { timesUsed.set(safeBase, 1); return { ...f, _safeName: safeBase, _origName: base }; }
-    const count = timesUsed.get(safeBase) + 1; timesUsed.set(safeBase, count);
-    return { ...f, _safeName: `${safeBase}_${count}`, _origName: base };
+    let safeName = safeBase;
+    for (let n = 1; taken.has(safeName); n++) safeName = `${safeBase}_${n}`;
+    taken.add(safeName);
+    return { ...f, _safeName: safeName, _origName: base };
   });
 }
 // Whether a field is filled by its custom text/action rather than its tag: it is while its
