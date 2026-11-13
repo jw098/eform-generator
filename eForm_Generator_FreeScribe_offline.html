@@ -2812,6 +2812,8 @@ else if (typeof exports === 'object')
     { id: 'user_last', label: 'Name: current user last name', short: 'user last', for: 'text' },
     { id: 'user_first', label: 'Name: current user first name', short: 'user first', for: 'text' },
     { id: 'user_first_last', label: 'Name: current user first name + last name', short: 'user first + last', for: 'text' },
+    { id: 'date_dmy', label: 'Date: D-M-Y', short: 'today D-M-Y', for: 'text' },
+    { id: 'date_ymd', label: 'Date: Y-M-D (same as oscarDB=today)', short: 'today Y-M-D', for: 'text' },
   ];
   const customActionById = (id) => CUSTOM_ACTIONS.find(a => a.id === id);
   // What the canvas shows for a field's custom fill, in its tag's place: a gear (drawn as text,
@@ -2859,14 +2861,18 @@ else if (typeof exports === 'object')
   }
   // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
   function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
-  // Shows a date field's format, and warns when it is day first but its tag is one OSCAR fills year
-  // first: the field would start "2016-01-29" and the calendar write "29-01-2016" over it
+  // Shows a date field's format, and warns when the date the field starts with is in another
+  // format than its calendar writes: a tag OSCAR fills year first ("today": "2016-01-29") on a
+  // day-first field, or a custom date fill ("Date: D-M-Y") in the other format
   function showDateFormat(f){
     $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
-    const tag = usesCustomFill(f) ? '' : String(f.oscarTag || '').trim();
-    const clash = f.type === 'date' && dateFormatOf(f) === 'dmy' && YMD_DATE_TAGS.has(tag);
+    const tag = usesCustomFill(f) ? '' : String(f.oscarTag || '').trim(), action = usesCustomFill(f) && customActionById(f.fill.action);
+    const startsAs = todayFormatToShow(f) || (YMD_DATE_TAGS.has(tag) ? 'ymd' : ''), writes = dateFormatOf(f);
+    const clash = f.type === 'date' && startsAs && startsAs !== writes;
+    const example = { ymd: 'Y-M-D (2016-01-29)', dmy: 'D-M-Y (29-01-2016)' };
     $('fDateFormatWarn').style.display = clash ? 'block' : 'none';
-    $('fDateFormatWarn').textContent = clash ? `OSCAR fills "${tag}" as Y-M-D (2016-01-29), but the calendar writes D-M-Y (29-01-2016): the field would mix the two. Choose Y-M-D, or another tag.` : '';
+    $('fDateFormatWarn').textContent = !clash ? '' : (tag ? `OSCAR fills "${tag}"` : `"${action.label}" fills today's date`) +
+      ` as ${example[startsAs]}, but the calendar writes ${example[writes]}: the field would mix the two. Choose ${startsAs === 'ymd' ? 'Y-M-D' : 'D-M-Y'}, or another ${tag ? 'tag' : 'action'}.`;
   }
   // A field's height on the eForm, whose page is EXPORT_PAGE_W wide
   function eformHeight(f){ const pageInfo = state.pages[f.page]; return pageInfo && pageInfo.naturalW ? f.height * EXPORT_PAGE_W / pageInfo.naturalW : f.height; }
@@ -5017,6 +5023,12 @@ function userNameToShow(f){
   if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
   return { user_last: 'last', user_first: 'first', user_first_last: 'first last' }[f.fill.action] || '';
 }
+// The format today's date is in that a field shows when the form opens ("dmy" or "ymd"), from its
+// custom fill ("Date: D-M-Y"), or '' for any other field
+function todayFormatToShow(f){
+  if (!usesCustomFill(f) || !['text','textarea','date'].includes(f.type)) return '';
+  return { date_dmy: 'dmy', date_ymd: 'ymd' }[f.fill.action] || '';
+}
 // The fixed text a field starts with on the eForm, from its custom fill ("Display static custom
 // text"), or '' for any other field
 function staticText(f){
@@ -5033,8 +5045,8 @@ function inputMarkup(f, inlinePosStyle=''){
   const fieldName = escAttr(f._safeName || f.name || 'field');
   const tag = usesCustomFill(f) ? '' : escAttr(f.oscarTag || '');
   const id = escAttr((f._safeName || f.name || 'field') + '_' + (f.id ?? ''));
-  const phones = phonesToShow(f), userName = userNameToShow(f);
-  const dbAttr = (tag ? ` oscarDB="${tag}"` : '') + (phones ? ` data-show-phones="${phones}"` : '') + (userName ? ` data-user-name="${userName}"` : '');
+  const phones = phonesToShow(f), userName = userNameToShow(f), todayFormat = todayFormatToShow(f);
+  const dbAttr = (tag ? ` oscarDB="${tag}"` : '') + (phones ? ` data-show-phones="${phones}"` : '') + (userName ? ` data-user-name="${userName}"` : '') + (todayFormat ? ` data-today-format="${todayFormat}"` : '');
 
   if (f.type === 'textarea') {
     return `<textarea class="gen_input noborder" id="${id}" name="${fieldName}"${dbAttr} style="${inlinePosStyle} resize:none;">${escAttr(staticText(f))}</textarea>`;
@@ -5500,7 +5512,8 @@ function loadFontSize(){
   const usesPhoneLists = exportPages.some(page => dataFields(getPageFields(page)).some(f => phonesToShow(f)));
   const usesPhones = usesPhoneSelect || usesPhoneLists;
   const usesUserNames = exportPages.some(page => dataFields(getPageFields(page)).some(f => userNameToShow(f)));
-  const newFormScript = !usesSexBoxes && !usesPhones && !usesUserNames ? '' : `<script>
+  const usesTodayDates = exportPages.some(page => dataFields(getPageFields(page)).some(f => todayFormatToShow(f)));
+  const newFormScript = !usesSexBoxes && !usesPhones && !usesUserNames && !usesTodayDates ? '' : `<script>
 // Whether the form is new (not opened again after it was saved)
 function isNewForm(){
   var flag = document.getElementById('newForm');
@@ -5547,6 +5560,18 @@ function fillUserNames(){
   var names = { 'last': last, 'first': first, 'first last': (first + ' ' + last).trim() };
   var fields = document.querySelectorAll('[data-user-name]');
   for (var i = 0; i < fields.length; i++) fields[i].value = names[fields[i].getAttribute('data-user-name')] || '';
+}
+<\/script>
+`) + (!usesTodayDates ? '' : `<script>
+// On a new form, each field showing today's date (data-today-format="dmy" or "ymd") shows it in
+// that format: "29-01-2016", or "2016-01-29" as OSCAR's "today" tag fills it
+function fillTodayDates(){
+  if (!isNewForm()) return;
+  var now = new Date(), two = function(n){ return (n < 10 ? '0' : '') + n; };
+  var day = two(now.getDate()), month = two(now.getMonth() + 1), year = now.getFullYear();
+  var dates = { 'dmy': day + '-' + month + '-' + year, 'ymd': year + '-' + month + '-' + day };
+  var fields = document.querySelectorAll('[data-today-format]');
+  for (var i = 0; i < fields.length; i++) fields[i].value = dates[fields[i].getAttribute('data-today-format')] || '';
 }
 <\/script>
 `) + (!usesPhoneLists ? '' : `<script>
@@ -5598,6 +5623,7 @@ function fillDefaultPhones(){
   if (usesPhoneSelect) startupSteps.push('fillDefaultPhones()');
   if (usesPhoneLists) startupSteps.push('fillPhoneLists()');
   if (usesUserNames) startupSteps.push('fillUserNames()');
+  if (usesTodayDates) startupSteps.push('fillTodayDates()');
   // (free draw areas: their script, and what was drawn put back on load)
   // (a signature can be drawn by hand on a free draw canvas, so it needs the script too)
   const usesSignatures = exportPages.some(page => getPageFields(page).some(f => f.type === 'signature'));
@@ -5953,7 +5979,7 @@ ${(function(){
     ...(usesSexBoxes ? ['<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">'] : []),
     ...(usesPhones ? [['Home', 'phone'], ['Cell', 'cell'], ['Work', 'phone2']].map(([kind, tag]) => `<input type="hidden" id="PatientPhone${kind}" name="PatientPhone${kind}" oscarDB="${tag}">`) : []),
     ...(usesUserNames ? ['<input type="hidden" id="CurrentUserName" name="CurrentUserName" oscarDB="current_user">'] : []),
-    ...(usesSexBoxes || usesPhones || usesUserNames ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
+    ...(usesSexBoxes || usesPhones || usesUserNames || usesTodayDates ? ['<input type="hidden" id="newForm" name="newForm" value="True">'] : [])
   ].map(line => '\n' + line).join('');
   return exportPages.map((page, idx) => {
     const pageInfo = state.pages[page];

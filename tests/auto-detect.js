@@ -411,6 +411,17 @@
     const e = exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }]]);
     sameList(calendarsSetUp(e), [`${e.inputs[0].id} %Y-%m-%d`, `${e.inputs[1].id} %d-%m-%Y`], 'the calendars set up');
   });
+  dateTest("the custom date fills show today's date in their format on a new form", () => {
+    const dateFill = (action) => ({ fill: { on: true, action } });
+    const e = exportOf([[1, 'Seen', 'date', dateFill('date_dmy')], [1, 'Signed', 'text', dateFill('date_ymd')], [1, 'Name']]);
+    const source = (e.html.match(/function fillTodayDates\(\)\{[\s\S]*?\n\}/) || [''])[0];
+    assert(source, 'the eForm has no fillTodayDates');
+    // (run as a new form would be, on 29 January 2016)
+    const OnTheDay = class extends Date { constructor(){ super(2016, 0, 29); } };
+    new Function('isNewForm', 'document', 'Date', source + '\nfillTodayDates();')(() => true, e.doc, OnTheDay);
+    sameList(e.inputs.map(el => el.value), ['29-01-2016', '2016-01-29', ''], 'the fields show');
+    assert(e.doc.getElementById('newForm'), 'the eForm has no newForm flag to tell a new form');
+  });
   dateTest('an eForm with no date field has no calendar', () => assert(!/calendar/i.test(exportOf([[1, 'Name']]).html), 'it mentions a calendar'));
   // (an eForm made elsewhere, as "ICBC CL489" is: its fields are date fields where its own
   // Calendar.setup names them, by id or name; and an eForm this app made reads back the same)
