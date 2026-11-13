@@ -5685,9 +5685,12 @@ function chooseSignature(key, kind){
 <\/script>
 `;
   if (usesSignatures) startupSteps.push('setUpSignatures()');
+  // (each field's name on the eForm, unique across all its pages, not just its own: OSCAR saves a
+  // form's values by name, so a "Name" on page 2 would share one with page 1's)
+  const namedFields = new Map(sanitizeUniqueFieldNames(exportPages.flatMap(page => dataFields(getPageFields(page)))).map(f => [f.id, f]));
   // (validation groups: each named by its fields' element ids on the eForm, as inputMarkup gives
   // them; a group with no field on an exported page is left out)
-  const elementIds = new Map(exportPages.flatMap(page => sanitizeUniqueFieldNames(dataFields(getPageFields(page))).map(f => [f.id, `${f._safeName}_${f.id}`])));
+  const elementIds = new Map([...namedFields.values()].map(f => [f.id, `${f._safeName}_${f.id}`]));
   const exportedGroups = state.validationGroups.map(g => ({ name: g.name, rule: g.rule, message: g.message || defaultGroupMessage(g),
     exclusive: g.exclusive, fields: groupFields(g).map(f => elementIds.get(f.id)).filter(Boolean) })).filter(g => g.fields.length);
   const usesValidation = exportedGroups.length > 0;
@@ -5874,9 +5877,9 @@ ${(function(){
     const pageInfo = state.pages[page];
     const scale = pageInfo.naturalW ? (EXPORT_W / pageInfo.naturalW) : 1;
     // (a field's controls take its name on the eForm, and no name of their own)
-    const namedFields = sanitizeUniqueFieldNames(dataFields(getPageFields(page)));
-    const eformName = new Map(namedFields.map(f => [f.id, f._safeName]));
-    const pageFields = [...namedFields, ...getPageFields(page).filter(b => isAttachedType(b.type) && eformName.has(b.target)).map(b => ({ ...b, _safeName: eformName.get(b.target) }))];
+    const pageNamedFields = dataFields(getPageFields(page)).map(f => namedFields.get(f.id));
+    const eformName = new Map(pageNamedFields.map(f => [f.id, f._safeName]));
+    const pageFields = [...pageNamedFields, ...getPageFields(page).filter(b => isAttachedType(b.type) && eformName.has(b.target)).map(b => ({ ...b, _safeName: eformName.get(b.target) }))];
     const sigFields = pageFields.filter(f => isSignatureField(f));
     if (sigFields.length > 1) console.warn(`Page ${page}: ${sigFields.length} signature fields found; only the first will be rendered.`);
     const sigField = sigFields[0] || null;
