@@ -4886,12 +4886,12 @@ function defaultFontSize(f, height){
 // can be made to fit it
 function hasOwnFontSize(f){ return ['text','textarea','checkbox'].includes(f.type) || !!phonesToShow(f) || !!userNameToShow(f) || (usesCustomFill(f) && f.fill.action === 'static_text' && f.type === 'date'); }
 // The text the canvas previews in a field, as the eForm will show it: its phones, with a sample
-// number in digits (wider than a placeholder such as "xxx"), the current user's name with a
-// sample one (OSCAR's own example, "Hutten-Czapski, Peter"), or its static text; '' for others
+// number in digits (wider than a placeholder such as "xxx"), the current user's name with
+// sample text, or its static text; '' for others
 function previewText(f){
   const phones = phonesToShow(f), userName = userNameToShow(f);
   if (phones) return phoneListText(phones.split(' ').map(kind => [kind, '555-555-5555']));
-  if (userName) return { last: 'Hutten-Czapski', first: 'Peter', 'first last': 'Peter Hutten-Czapski' }[userName];
+  if (userName) return { last: 'Last Name', first: 'First Name', 'first last': 'First Last Name' }[userName];
   return staticText(f);
 }
 // The patient's phones as a field lists them, given [kind, number] pairs: "(H): 604-555-0100.
