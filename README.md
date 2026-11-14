@@ -101,7 +101,7 @@ For now only eForms exported from here can be opened. For any other eForm, use `
 
 Open `Merge from another eForm (HTML)` on the right sidebar, click `Choose eForm HTML` and select the eForm's .html file. Then click `Add its fields/tags to these pages` to add its fields to the canvas. Use it on pages without fields (before Auto Detect, say), or you'll get two sets.
 
-Note: It imports the eForm's fields, tags and scripts, but not its images: upload the pages to the canvas first. If any pages are missing from the canvas, those pages' fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
+Note: It imports the eForm's fields, tags and scripts, but not its images: upload the pages to the canvas first. They can be any size: the fields are scaled from the width the eForm shows each page at (its `BGImage` image's width, or its page's) to your images. If any pages are missing from the canvas, those pages' fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
 
 The eForm's scripts (fax, print, signature, `onload`) go into your export too, unless you untick `Include extracted scripts / onload in export` in the same panel. `Auto-tag untagged` also uses the eForm's field names and tags to tag your other fields.
 

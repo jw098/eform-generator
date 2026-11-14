@@ -1697,7 +1697,7 @@ else if (typeof exports === 'object')
       nameTagMap: new Map(),
       snippets: { externalSrc: [], inlineScripts: [], actionFns: [], onloads: [], buttonHtml: [], signatureHtml: [] },
       isGenerated: false,
-      pageExportW: {},  // pageNo -> exported pixel width (for rescaling on apply)
+      pageExportW: {},  // pageNo -> the width its fields are placed against (for rescaling on apply)
       validationGroups: []   // an eForm this app made: its validation groups, by element id
     };
 
@@ -1713,17 +1713,23 @@ else if (typeof exports === 'object')
     );
     template.isGenerated = isGenerated;
 
-    if (isGenerated) {
-      // Read per-page export widths from the page wrapper divs
-      for (let page = 1; page <= MAX_PAGES; page++) {
-        const pageDiv = doc.getElementById('page' + page);
-        if (!pageDiv) break;
-        const style = parseAttr(pageDiv, 'style');
-        const w = parseStylePx(style, 'width');
-        const h = parseStylePx(style, 'height');
-        if (w && w.unit === 'px') template.pageExportW[page] = { w: w.val, h: h ? h.val : 0 };
-      }
+    // Each page's width in the eForm, which its fields are placed against: the width its page
+    // image is shown at ('<img id="BGImage2" style="width:850px">', OSCAR's name for a page's
+    // image, or its width attribute), else its page's ('<div id="page2" style="width:750px">').
+    // The fields are rescaled from it to the image loaded; a page with neither ('<img
+    // id="BGImage1" src="page1.png">') shows its image at its own size, so its fields aren't.
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const pageImg = doc.getElementById('BGImage' + page), pageDiv = doc.getElementById('page' + page);
+      if (!pageImg && !pageDiv) break;
+      const widthAttr = pageImg ? parseFloat(pageImg.getAttribute('width') || '') : NaN;
+      const imgW = pageImg && (parseStylePx(parseAttr(pageImg, 'style'), 'width') || (widthAttr > 0 ? { val: widthAttr, unit: 'px' } : null));
+      const divStyle = pageDiv ? parseAttr(pageDiv, 'style') : '';
+      const w = [imgW, parseStylePx(divStyle, 'width')].find(width => width && width.unit === 'px' && width.val > 0);
+      const h = parseStylePx(divStyle, 'height');
+      if (w) template.pageExportW[page] = { w: w.val, h: h ? h.val : 0 };
+    }
 
+    if (isGenerated) {
       // ── Signature fields from CanvasProSignature divs ──────────────────────
       for (let page = 1; page <= MAX_PAGES; page++) {
         const sigDiv = doc.getElementById(page === 1 ? 'CanvasProSignature' : 'CanvasProSignature' + page);
@@ -1813,9 +1819,7 @@ else if (typeof exports === 'object')
       // added to keep them apart, "patient_name_1" -> "patient_name")
       const cleanName = isGenerated ? name.replace(/_\d+$/, '') : name;
 
-      const exportW = (isGenerated && template.pageExportW[page])
-        ? template.pageExportW[page].w
-        : null;
+      const exportW = template.pageExportW[page] ? template.pageExportW[page].w : null;
 
       // (a textarea keeps its font size, and its font size buttons if it has them: a hidden
       // "<name>_fontsize" input saves the size the buttons set)
@@ -1952,8 +1956,8 @@ else if (typeof exports === 'object')
     const addedIds = new Map();
     [...onPages].sort((a, b) => (a.type === 'fontbuttons') - (b.type === 'fontbuttons')).forEach(tf => {
       if (tf.type === 'fontbuttons' && !addedIds.has(tf.targetTpl)) return;
-      // A field from an eForm this app made (it has _exportW) is rescaled from the width it was
-      // exported at to the page image's
+      // A field placed against a page width the eForm gives (it has _exportW) is rescaled from it
+      // to the page image's
       const pageInfo = state.pages[Number(tf.page)];
       let x = tf.x, y = tf.y, w = tf.width, h = tf.height;
       if (tf._exportW > 0 && pageInfo.naturalW > 0) {
