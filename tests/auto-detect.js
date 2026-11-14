@@ -118,12 +118,13 @@
   // Put an image on page n of the app and run Auto Detect on it, from no fields at all. What
   // it found stays on that page to look at afterwards (keep: false for a page reused at once).
   // pdf: { data, page } when the image is a page of a fillable PDF (its bytes in base64, and
-  // which page), given to the app as its PDF converter gives it; else the app has no PDF.
+  // which page), given to the app as its PDF converter gives it (the page's own form fields read
+  // from it, and it the source PDF); else the app has no PDF.
   const onShow = new Map();                              // page -> its fields, put back at the end
   async function detectOn(n, imgData, fileName, opts, keep = true, pdf = null){
     const img = await loadImage(imgData);
     T.createPageDOM(n);
-    T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName, ...(pdf ? { pdfPage: pdf.page } : {}) };
+    T.state.pages[n] = { imgData, naturalW: img.width, naturalH: img.height, fileName, ...(pdf ? { pdfPage: pdf.page, pdfFields: await T.readPdfFields(pdf.data, pdf.page) } : {}) };
     T.state.sourcePdf = pdf ? { name: fileName, data: pdf.data } : null;
     document.getElementById('img' + n).src = imgData;
     T.state.fields = [];
@@ -459,8 +460,8 @@
   dateTest("a fillable PDF's date fields are date fields, in the PDF's format", async () => {
     const keep = { pages: T.state.pages, fields: T.state.fields, sourcePdf: T.state.sourcePdf };
     try {
-      T.state.pages = { 1: { naturalW: 612, naturalH: 792, pdfPage: 1 } }; T.state.fields = [];
-      T.state.sourcePdf = { name: 'dates.pdf', data: fillablePdf([['Injured', 'dd/mm/yyyy'], ['Signed', 'yyyy-mm-dd'], ['Seen', 'mm/dd/yyyy'], ['Arrived', 'dd/mm/yyyy HH:MM'], ['Name', '']]) };
+      const data = fillablePdf([['Injured', 'dd/mm/yyyy'], ['Signed', 'yyyy-mm-dd'], ['Seen', 'mm/dd/yyyy'], ['Arrived', 'dd/mm/yyyy HH:MM'], ['Name', '']]);
+      T.state.pages = { 1: { naturalW: 612, naturalH: 792, pdfPage: 1, pdfFields: await T.readPdfFields(data, 1) } }; T.state.fields = [];
       const found = await T.pdfFormFields(1);
       sameList((found || []).map(f => `${f.label}: ${f.type}${f.dateFormat ? ', ' + f.dateFormat : ''}`),
         ['Injured: date, dmy_slash', 'Signed: date', 'Seen: date', 'Arrived: text', 'Name: text'], 'the fields read');

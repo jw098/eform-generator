@@ -2321,12 +2321,13 @@ else if (typeof exports === 'object')
     if (state.lasso && samePage(state.lasso.page,page)){ const lassoRect = lassoRectPx(state.lasso); const lassoBox=document.createElement('div'); lassoBox.className='lasso-box'; lassoBox.style.left=lassoRect.left+'px'; lassoBox.style.top=lassoRect.top+'px'; lassoBox.style.width=lassoRect.width+'px'; lassoBox.style.height=lassoRect.height+'px'; overlay.appendChild(lassoBox); }
   }
 
-  // Redraws every page and the panels that list or count fields
+  // Redraws every page and the panels that list or count fields, and "Detect from" as the pages
+  // allow
   function renderAll(){
     syncFontButtons();
     Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(n => renderPage(n));
     renderCounts(); renderSelectedEditor(); renderTemplateFieldList(); renderSnippetList(); renderValidationGroups();
-    renderUploadButton();
+    renderUploadButton(); refreshDetectMode();
   }
   // Names the page the upload button changes: "Upload Page 2 Image", or "Replace…" once it has one
   function renderUploadButton(){
@@ -2989,7 +2990,8 @@ else if (typeof exports === 'object')
 
   // Loads a PNG or JPEG file as a page's image. A page's fields are placed in its image's pixels,
   // so in place of an image the same shape (a page rendered at another width) they are scaled with
-  // it; in place of one another shape they would be out of place, so that is asked first.
+  // it; in place of one another shape they would be out of place, so that is asked first. The page
+  // loses its PDF form fields (pdfFields): an image chosen by hand isn't known to be the PDF's page.
   async function handleImageUpload(file, page){
     if (!file) return;
     if (!/^image\//i.test(file.type) && !/\.(png|jpe?g)$/i.test(file.name)) { msg('Please upload PNG/JPG image.', 'err'); return; }
@@ -3004,6 +3006,7 @@ else if (typeof exports === 'object')
       if (pageFields.length && sameShape && (sx !== 1 || sy !== 1))
         pageFields.forEach(f => { f.x *= sx; f.y *= sy; f.width *= sx; f.height *= sy; });
       state.pages[page].imgData = data; state.pages[page].naturalW = img.width; state.pages[page].naturalH = img.height; state.pages[page].fileName = file.name || pageImageName(page); 
+      delete state.pages[page].pdfPage; delete state.pages[page].pdfFields;
       const imgEl = getPageImgEl(page); imgEl.src = data;
       msg(`Loaded page ${page}: ${img.width}x${img.height}.` + longFormNote(), longFormNote() ? 'warn' : 'ok'); renderAll();
     }catch(err){ msg('Failed to load image: ' + (err.message || err), 'err'); }
@@ -3357,7 +3360,8 @@ else if (typeof exports === 'object')
     sessionPages.forEach(page => {
       const saved = session.pages[String(page)] || session.pages[page] || {};
       if (!state.pages[page]){ state.pages[page]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(page); }
-      state.pages[page] = { imgData:saved.imgData||null, naturalW:Number(saved.naturalW)||0, naturalH:Number(saved.naturalH)||0, fileName:saved.fileName||'', pdfPage:Number(saved.pdfPage)||null };
+      state.pages[page] = { imgData:saved.imgData||null, naturalW:Number(saved.naturalW)||0, naturalH:Number(saved.naturalH)||0, fileName:saved.fileName||'', pdfPage:Number(saved.pdfPage)||null,
+                            pdfFields: readSavedPdfFields(saved.pdfFields) };
       const imgEl=$('img'+page); if(imgEl) imgEl.src=state.pages[page].imgData||'';
     });
 
@@ -3484,6 +3488,7 @@ else if (typeof exports === 'object')
     try{
       const text = await readAsText(file);
       loadSessionObject(JSON.parse(text));
+      await readOldSessionPdfFields();
       savedWork = workSignature();
       renderUnsavedMark();
       msg(`Session loaded from ${file.name}.`, 'ok');
@@ -4859,46 +4864,39 @@ else if (typeof exports === 'object')
 
   // ===== Fields from a fillable PDF (added by FreeScribe) =====
   // When a page came from a PDF that has its own form fields, those fields are exact: their
-  // position, kind and name. Auto Detect uses them for that page instead of the fields it would
-  // find in the picture (whose rules and words it still reads, to tag them). Pages from scans,
-  // faxes, images or flat PDFs are detected from the picture, and so is every page when "Detect
-  // from" is set to "Visual detection" (state.detectMode).
+  // position, kind and name. They are read when the page is loaded onto the canvas, and kept on
+  // the page (`pdfFields`), so a page has its own PDF's fields whichever PDF is open in the
+  // converter later, and pages from different PDFs each have theirs. Auto Detect uses them for
+  // that page instead of the fields it would find in the picture (whose rules and words it still
+  // reads, to tag them). Pages from scans, faxes, images or flat PDFs are detected from the
+  // picture, and so is every page when "Detect from" is set to "Visual detection" (state.detectMode).
+  // A PDF given in base64, opened with pdf.js
+  async function pdfDocFromBase64(data){
+    const raw = atob(data), bytes = new Uint8Array(raw.length);
+    for (let i=0;i<raw.length;i++) bytes[i] = raw.charCodeAt(i);
+    await ensurePdfWorker();
+    return pdfjsLib.getDocument({ data: bytes }).promise;
+  }
   // The source PDF as pdf.js opened it, kept while the PDF (`key`, its data) stays the same
   let pdfFieldsDoc = { key: null, doc: null };
   // Opens the source PDF with pdf.js (once while it stays the same), or null when there is none
+  // (for a session saved before pages kept their PDF's fields: readOldSessionPdfFields)
   async function sourcePdfDoc(){
     if (!window.pdfjsLib || !state.sourcePdf || !state.sourcePdf.data) return null;
-    if (pdfFieldsDoc.key !== state.sourcePdf.data){
-      const raw = atob(state.sourcePdf.data), bytes = new Uint8Array(raw.length);
-      for (let i=0;i<raw.length;i++) bytes[i] = raw.charCodeAt(i);
-      await ensurePdfWorker();
-      pdfFieldsDoc = { key: state.sourcePdf.data, doc: await pdfjsLib.getDocument({ data: bytes }).promise };
-    }
+    if (pdfFieldsDoc.key !== state.sourcePdf.data) pdfFieldsDoc = { key: state.sourcePdf.data, doc: await pdfDocFromBase64(state.sourcePdf.data) };
     return pdfFieldsDoc.doc;
   }
   // Is a PDF annotation one of the form's fields to fill in: a text field, a list, a tick box or a
   // radio button (not a push button or a hidden one)?
   const isPdfFormField = (a) => a.subtype === 'Widget' && !a.hidden && !a.pushButton &&
     (a.fieldType === 'Tx' || a.fieldType === 'Ch' || (a.fieldType === 'Btn' && (a.checkBox || a.radioButton)));
-  // Does the source PDF have form fields on any page (is it a fillable PDF)?
-  async function pdfIsFillable(){
-    try {
-      const doc = await sourcePdfDoc();
-      if (!doc) return false;
-      for (let n = 1; n <= doc.numPages; n++)
-        if ((await (await doc.getPage(n)).getAnnotations({ intent: 'display' })).some(isPdfFormField)) return true;
-    } catch (err) { console.warn('Could not read the PDF\'s form fields:', err); }
-    return false;
-  }
-  // Whether the source PDF is fillable, as last found (it offers "PDF form fields" when it is)
-  let sourcePdfFillable = false;
-  // Shows "Detect from" as the source PDF allows: both choices for a fillable PDF, else only
-  // "Visual detection". A newly loaded fillable PDF (newPdf) starts on "PDF form fields".
-  async function refreshDetectMode({ newPdf = false } = {}){
-    const pdfData = () => (state.sourcePdf && state.sourcePdf.data) || null, data = pdfData();
-    const fillable = await pdfIsFillable();
-    if (pdfData() !== data) return;   // (another PDF came since: its check will show it)
-    sourcePdfFillable = fillable;
+  // Whether any page has its PDF's form fields (it came from a fillable PDF)
+  const formHasPdfFields = () => Object.values(state.pages).some(p => p && Array.isArray(p.pdfFields) && p.pdfFields.length > 0);
+  // Shows "Detect from" as the pages allow: both choices when a page has its PDF's form fields,
+  // else only "Visual detection". Pages just loaded from a fillable PDF (newPdf) start on "PDF
+  // form fields". (Run with each renderAll, so it follows pages added, replaced and removed.)
+  function refreshDetectMode({ newPdf = false } = {}){
+    const fillable = formHasPdfFields();
     if (newPdf) state.detectMode = 'pdf';
     const select = $('detectMode');
     select.querySelector('option[value="pdf"]').disabled = !fillable;
@@ -4917,20 +4915,17 @@ else if (typeof exports === 'object')
     const first = (pattern.match(/[dmy]/) || ['y'])[0];
     return (first === 'd' ? 'dmy' : 'ymd') + (first !== 'm' && pattern.includes('/') ? '_slash' : '');
   }
-  // A fillable PDF's own form fields on a page, at their places and with their names, when the
-  // page came from one (null otherwise, and Auto Detect works from the picture)
-  async function pdfFormFields(pageNo){
-    const p = state.pages[pageNo];
-    if (!p || !p.pdfPage || !p.naturalW) return null;
+  // A PDF page's own form fields (`pdfPageNo` of `doc`, the PDF as pdf.js opened it), read when
+  // the page is loaded onto the canvas and kept on it as its `pdfFields`: each one's place in
+  // fractions of the page's width (fx, fy, fw, fh: it fits the page's image at any size), its kind, its
+  // name (made unique when Auto Detect takes it), its label and its date format; [] for a page
+  // with none, or one that can't be read
+  async function readPdfPageFields(doc, pdfPageNo){
     try {
-      const doc = await sourcePdfDoc();
-      if (!doc || p.pdfPage > doc.numPages) return null;
-      const page = await doc.getPage(p.pdfPage);
-      const base = page.getViewport({ scale: 1 });
-      const vp = page.getViewport({ scale: p.naturalW / base.width });
+      if (!doc || !(pdfPageNo >= 1) || pdfPageNo > doc.numPages) return [];
+      const page = await doc.getPage(pdfPageNo);
+      const vp = page.getViewport({ scale: 1 });
       const annots = await page.getAnnotations({ intent: 'display' });
-      const used = new Set(state.fields.map(f => f.name));
-      const uniqueName = (name) => { let n = name, k = 2; while (used.has(n)) n = `${name}_${k++}`; used.add(n); return n; };
       const fieldNamePart = (v) => String(v || '').replace(/\[\d+\]/g, '').split('.').filter(Boolean).pop() || '';
       // (a PDF name as a field name: its last part, lowercase words joined by _)
       const tidy = (v) => fieldNamePart(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
@@ -4946,8 +4941,6 @@ else if (typeof exports === 'object')
         else if (a.fieldType === 'Btn' && (a.checkBox || a.radioButton)) type = 'checkbox';
         if (!type) return;
         const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
-        const x = Math.min(x1, x2), y = Math.min(y1, y2), width = Math.abs(x2 - x1), height = Math.abs(y2 - y1);
-        if (width < 2 || height < 2) return;
         // The PDF's field name, or its tooltip when the name is only a code ("2-02")
         const fromName = tidy(a.fieldName), fromTip = tidy(a.alternativeText);
         let name = (/[a-z]{3}/.test(fromName) ? fromName : (fromTip || fromName)) || (type === 'checkbox' ? 'checkbox' : 'text');
@@ -4955,14 +4948,48 @@ else if (typeof exports === 'object')
           const opt = tidy(a.buttonValue || a.exportValue);
           if (opt && !/^(on|yes|off|\d+)$/.test(opt) && !name.endsWith(opt)) name = `${name}_${opt}`;
         }
-        out.push({ page: pageNo, x, y, width, height, type, name: uniqueName(name), oscarTag: '',
-                   label: fieldNamePart(a.alternativeText || a.fieldName), ...(keptDateFormat(dateFormat) ? { dateFormat } : {}) });
+        out.push({ fx: Math.min(x1, x2) / vp.width, fy: Math.min(y1, y2) / vp.width, fw: Math.abs(x2 - x1) / vp.width, fh: Math.abs(y2 - y1) / vp.width,
+                   type, name, label: fieldNamePart(a.alternativeText || a.fieldName), ...(keptDateFormat(dateFormat) ? { dateFormat } : {}) });
       });
-      return out.length ? out : null;
+      return out;
     } catch (err) {
       console.warn('Could not read the PDF\'s form fields:', err);
-      return null;
+      return [];
     }
+  }
+  // A page's PDF form fields (its `pdfFields`) as fields on its image, each with a name no field
+  // has yet; null for a page with none (Auto Detect then works from the picture)
+  function pdfFormFields(pageNo){
+    const p = state.pages[pageNo];
+    if (!p || !p.naturalW || !Array.isArray(p.pdfFields) || !p.pdfFields.length) return null;
+    const used = new Set(state.fields.map(f => f.name));
+    const uniqueName = (name) => { let n = name, k = 2; while (used.has(n)) n = `${name}_${k++}`; used.add(n); return n; };
+    const out = [];
+    p.pdfFields.forEach(f => {
+      const x = f.fx * p.naturalW, y = f.fy * p.naturalW, width = f.fw * p.naturalW, height = f.fh * p.naturalW;
+      if (width < 2 || height < 2) return;
+      out.push({ page: pageNo, x, y, width, height, type: f.type, name: uniqueName(f.name), oscarTag: '', label: f.label || '',
+                 ...(keptDateFormat(f.dateFormat) ? { dateFormat: f.dateFormat } : {}) });
+    });
+    return out.length ? out : null;
+  }
+  // A page's saved `pdfFields` (a session's), each value checked; undefined when the session has
+  // none (saved before pages kept them: readOldSessionPdfFields reads them)
+  function readSavedPdfFields(saved){
+    if (!Array.isArray(saved)) return undefined;
+    const types = ['text', 'textarea', 'date', 'checkbox'];
+    return saved.filter(f => f && types.includes(f.type) && [f.fx, f.fy, f.fw, f.fh].every(Number.isFinite))
+      .map(f => ({ fx: f.fx, fy: f.fy, fw: f.fw, fh: f.fh, type: f.type, name: String(f.name || 'text'), label: String(f.label || ''),
+                   ...(keptDateFormat(f.dateFormat) ? { dateFormat: f.dateFormat } : {}) }));
+  }
+  // A session saved before pages kept their PDF's fields has the PDF and each page's number in it:
+  // reads each such page's fields from it, once
+  async function readOldSessionPdfFields(){
+    const pages = Object.values(state.pages).filter(p => p && p.pdfPage && !Array.isArray(p.pdfFields));
+    if (!pages.length) return;
+    try { const doc = await sourcePdfDoc(); for (const p of pages) p.pdfFields = await readPdfPageFields(doc, p.pdfPage); }
+    catch (err) { console.warn('Could not read the saved PDF\'s form fields:', err); }
+    refreshDetectMode();
   }
 
   // The tilt of a scanned page, in radians (0 when it is straight or can't be told). The page's
@@ -5337,7 +5364,7 @@ else if (typeof exports === 'object')
       if (fromPdf) msg((added ? `This page came from a fillable PDF: took ${added} field(s) straight from the PDF's own form fields (exact positions and names).` : nothingNew) + unread, added ? 'ok' : 'warn');
       else {
         // (a fillable PDF's page with none of its form fields, detected visually all the same)
-        const noPdfFields = sourcePdfFillable && state.detectMode === 'pdf' && p.pdfPage ? ` Page ${page} has no PDF form fields, so it was detected visually.` : '';
+        const noPdfFields = formHasPdfFields() && state.detectMode === 'pdf' && p.pdfPage ? ` Page ${page} has no PDF form fields, so it was detected visually.` : '';
         msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : nothingNew) + noPdfFields + custom + unread, added>0 ? 'ok' : 'warn');
       }
       return { added, wordsRead: !!read, fromPdf: !!fromPdf };
@@ -5374,7 +5401,7 @@ else if (typeof exports === 'object')
         const result = await detectCurrentPage({ undo: false });
         if (!result) { failed.push(page); continue; }
         done.push(page); added += result.added;
-        if (sourcePdfFillable && state.detectMode === 'pdf' && state.pages[page].pdfPage && !result.fromPdf) visualPages.push(page);
+        if (formHasPdfFields() && state.detectMode === 'pdf' && state.pages[page].pdfPage && !result.fromPdf) visualPages.push(page);
         if (!result.wordsRead) wordsUnread = true;
       }
     } finally {
@@ -6677,6 +6704,9 @@ function checkEform(){
     };
     if (!controls.file) return;
     let pdfDoc = null;
+    // (the PDF open in the converter: its name and bytes, made the form's source PDF only when
+    // its pages are loaded onto the canvas)
+    let pdfFile = null;
     let previewUrl = null;
     const canvasCtx = controls.canvas.getContext('2d', {willReadFrequently:true});
 
@@ -6729,11 +6759,13 @@ function checkEform(){
       });
     }
 
-    // Puts a converted image on a page of the mapper (making the page if it isn't there yet)
+    // Puts a converted image on a page of the mapper (making the page if it isn't there yet), with
+    // the PDF page's own form fields (readPdfPageFields)
     async function loadBlobIntoMapper(pageNo, blob, fileName='', pdfPage=null){
       const page = Number(pageNo) >= 1 ? Number(pageNo) : 1;
       const dataUrl = await blobToDataUrl(blob);
       const img = await loadImage(dataUrl);
+      const pdfFields = pdfPage ? await readPdfPageFields(pdfDoc, pdfPage) : [];
       if (!state.pages[page]){ state.pages[page]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(page); }
       const resolvedName = fileName || state.pages[page].fileName || pageImageName(page);
       state.pages[page] = {
@@ -6741,7 +6773,8 @@ function checkEform(){
         naturalW: img.naturalWidth || img.width || 0,
         naturalH: img.naturalHeight || img.height || 0,
         fileName: resolvedName,
-        pdfPage: pdfPage || null
+        pdfPage: pdfPage || null,
+        pdfFields
       };
       const imgEl = $('img'+page);
       if (imgEl) imgEl.src = dataUrl;
@@ -6771,10 +6804,10 @@ function checkEform(){
       const loaded = await runInTurn(async () => {
         try{
           showStatus('Loading PDF...');
-          const pdfBytes = await file.arrayBuffer();
-          fsCapturePdf(file.name, pdfBytes.slice(0));
+          const pdfBytes = await file.arrayBuffer(), kept = pdfBytes.slice(0);   // (pdf.js takes pdfBytes over)
           await ensurePdfWorker();
           pdfDoc = await pdfjsLib.getDocument({data:pdfBytes, StandardFontDataFactory: EmbeddedStandardFonts, useWorkerFetch: false}).promise;
+          pdfFile = { name: file.name, bytes: kept };
           controls.page.innerHTML = '';
           for(let i=1;i<=pdfDoc.numPages;i++){
             const option=document.createElement('option'); option.value=String(i); option.textContent=`Page ${i}`; controls.page.appendChild(option);
@@ -6904,7 +6937,8 @@ function checkEform(){
 
     // Puts converted images on the pages: the selected PDF page on the current page, or each PDF
     // page on the page of the same number (adding pages, up to MAX_PAGES; the rest are left out,
-    // and the messages say so). One undo step takes the whole load back.
+    // and the messages say so). The PDF becomes the form's source PDF (for FreeScribe, and the
+    // export's file names). One undo step takes the whole load back.
     async function loadOutputsIntoMapper(outputs){
       if(!outputs || !outputs.length){
         throw new Error('Nothing to load. Convert first.');
@@ -6927,6 +6961,7 @@ function checkEform(){
         }
         if (loaded) setCurrentPage(1);
       }
+      if (pdfFile) fsCapturePdf(pdfFile.name, pdfFile.bytes);
 
       renderAll();
       const tooMany = leftOut ? ` ${leftOut} page(s) after page ${MAX_PAGES} were left out: a form can have up to ${MAX_PAGES}.` : '';
@@ -7065,8 +7100,9 @@ function checkEform(){
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(binary);
   }
-  // Keeps the PDF the pages came from (saved with the session), for FreeScribe to read and for
-  // Auto Detect's "PDF form fields" (which a new fillable PDF starts on)
+  // Keeps the PDF the pages came from (saved with the session), for FreeScribe to read and for the
+  // export's file names; "Detect from" starts on "PDF form fields" when its pages have them (each
+  // page keeps its own, pdfFields)
   function fsCapturePdf(name, buffer){
     try { state.sourcePdf = { name: String(name || 'form.pdf'), data: fsBytesToBase64(buffer) }; }
     catch(_){ state.sourcePdf = null; }
@@ -7177,7 +7213,8 @@ function checkEform(){
   // Opening this page with #test at the end of its address runs tests/auto-detect.js (in the
   // tests folder beside this file) against it. Only then is Auto Detect reachable from outside.
   if (location.hash === '#test'){
-    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage, buildExportHtml, parseTemplateHtml, pdfFormFields };
+    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage, buildExportHtml, parseTemplateHtml, pdfFormFields,
+      readPdfFields: async (data, pdfPage) => readPdfPageFields(await pdfDocFromBase64(data), pdfPage) };
     const s = document.createElement('script');
     s.src = 'tests/auto-detect.js';
     s.onerror = () => msg('Could not load tests/auto-detect.js: it must sit in a tests folder beside this page.', 'err');
