@@ -16,14 +16,14 @@ To quickly generate an eForm, just do the following steps:
 
 There are 2 different approaches:
 
-- `PDF → PNG converter`: Upload the PDF file. Then click `Load into Mapper` (purple button).
+- `PDF → PNG converter`: Upload the PDF file. Then click `Load into Mapper`.
 - Upload images manually: Click `Upload Page 1 Image`, then select the desired image. For a multi-page eForm, click `+ Add Page`, which asks for the new page's image straight away. Repeat for all necessary pages. To change a page's image, open its tab and click the same button, now `Replace Page N Image`; a new image the same shape as the old one keeps the page's fields in place.
 
 If done correctly, your desired image should show up on the canvas. For multi-page eForms, click the `Page N` tabs to move between pages.
 
 ## Auto Detect
 
-Next, detect the location of the fields/input boxes. Click `Auto Detect (All Pages)` (purple button) to do every page, or `Auto Detect (Current Page)` for the page shown.
+Next, detect the location of the fields/input boxes. Click `Auto Detect (All Pages)` to do every page, or `Auto Detect (Current Page)` for the page shown.
 
 `Auto Detect (All Pages)` skips pages that already have fields, so it never puts a second set on top of your work, and one `Undo` takes back the whole run. To redo a page, clear it (`More` → `Clear Current Page`) and run Auto Detect again.
 
