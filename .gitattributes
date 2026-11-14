@@ -1,0 +1,2 @@
+# Line endings: text files are stored with LF in the repository; each checkout uses its own
+* text=auto
