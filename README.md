@@ -88,3 +88,9 @@ Open `eForm HTML import` on the right sidebar, click `Import eForm HTML` and sel
 Note: It imports the eForm's fields, tags and scripts, but not its images: upload the pages to the canvas first. If any pages are missing from the canvas, those pages' fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
 
 The eForm's scripts (fax, print, signature, `onload`) go into your export too, unless you untick `Include extracted scripts / onload in export` in the same panel. `Auto-tag untagged` also uses the eForm's field names and tags to tag your other fields.
+
+# Credits
+
+This eForm generator was built off the one made by Dr. R. Montazeri, the version from Oct 26 2026.
+
+https://oscargalaxy.org/download/oscar-eform-mapper-by-dr-montazeri/
