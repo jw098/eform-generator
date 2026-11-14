@@ -1087,6 +1087,8 @@ else if (typeof exports === 'object')
     templateGroups: [],
   };
   let syncingEditor = false;
+  // Whether an Auto Detect button's run is going on (Undo is off meanwhile)
+  let detectRunning = false;
   // The width of an exported eForm's pages, in its pixels
   const EXPORT_PAGE_W = 750;
   // The size of a font size button (▲ or ▼) on the eForm, and how far apart the two are, in its pixels
@@ -1186,7 +1188,8 @@ else if (typeof exports === 'object')
   function updateUndoBtn(){
     const undoBtn = $('btnUndo');
     if (!undoBtn) return;
-    undoBtn.disabled = state.undoStack.length === 0;
+    // (off while Auto Detect runs: undoing under it would bring back the pages it is filling in)
+    undoBtn.disabled = state.undoStack.length === 0 || detectRunning;
     undoBtn.textContent = state.undoStack.length ? `Undo (${state.undoStack.length})` : 'Undo';
   }
 
@@ -1249,6 +1252,7 @@ else if (typeof exports === 'object')
 
   // "Undo": takes back the last change
   function doUndo(){
+    if (detectRunning){ msg('Undo is off while Auto Detect runs: it comes back when Auto Detect finishes.', 'warn'); return; }
     if (!state.undoStack.length){ msg('Nothing to undo.', 'warn'); return; }
     const snapshot = state.undoStack.pop();
     updateUndoBtn();
@@ -5079,10 +5083,14 @@ else if (typeof exports === 'object')
     }
   }
   // Runs one of the Auto Detect buttons with both turned off, so a second click doesn't start
-  // another run on top of it
+  // another run on top of it, and Undo off (its button and Ctrl/Cmd+Z) until it ends
   async function runDetectButton(run){
     $('btnDetect').disabled = $('btnDetectAll').disabled = true;
-    try { await run(); } finally { $('btnDetect').disabled = $('btnDetectAll').disabled = false; }
+    detectRunning = true; updateUndoBtn();
+    try { await run(); } finally {
+      $('btnDetect').disabled = $('btnDetectAll').disabled = false;
+      detectRunning = false; updateUndoBtn();
+    }
   }
   $('btnDetect').addEventListener('click', () => runDetectButton(() => detectCurrentPage()));
   $('btnDetectAll').addEventListener('click', () => runDetectButton(detectAllPages));
