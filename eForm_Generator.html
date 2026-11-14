@@ -628,10 +628,10 @@
         <label style="display:flex;align-items:center;gap:6px"><input id="convOpt" type="checkbox" checked/> Optimize levels</label>
         <label style="display:flex;align-items:center;gap:6px"><input id="convStrip" type="checkbox" checked/> Strip alpha</label>
         <label style="display:flex;align-items:center;gap:6px">Levels<input id="convLevels" type="number" min="8" max="64" value="24" style="width:78px"/></label>
-        <span class="small">Tip: <b>Load into Mapper</b> puts the pages onto the canvas without downloading PNG files.</span>
+        <span class="small">Tip: <b>Load onto Canvas</b> puts the pages onto the canvas without downloading PNG files.</span>
       </div>
       <div class="row" style="margin-top:8px">
-        <button id="btnConvLoadOnly" class="btn-violet">Load into Mapper</button>
+        <button id="btnConvLoadOnly" class="btn-violet">Load onto Canvas</button>
         <button id="btnConvConvertDownload" class="btn-blue">Save as PNG</button>
         <button id="btnConvConvertAll" class="btn-green">Load + Save as PNG</button>
       </div>
@@ -6674,7 +6674,7 @@ function checkEform(){
       });
     }
 
-    // "Load into Mapper": converts and loads the images into the mapper without downloading them
+    // "Load onto Canvas": converts and loads the images onto the canvas without downloading them
     async function runLoadOnly(){
       if(!pdfDoc || convertWaiting) return;
       convertWaiting = true;
@@ -6704,7 +6704,7 @@ function checkEform(){
     controls.btnConvertAll.addEventListener('click', ()=> runConvertAction({download:true, load:true}));
 
     updateButtons();
-    showStatus('Converter ready (PNG output). Use Load into Mapper or Save as PNG.');
+    showStatus('Converter ready (PNG output). Use Load onto Canvas or Save as PNG.');
   }
 
   // ===== Start-up =====

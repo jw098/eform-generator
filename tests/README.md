@@ -146,7 +146,7 @@ From then on it runs with the others.
 
 **A fillable PDF** (one with its own form fields): Auto Detect takes the PDF's fields rather than
 finding them in the picture, so the test must give it the PDF too. Make the eForm from pages
-the app's PDF converter made (**Load into Mapper**, "All pages"), add the case as above, then
+the app's PDF converter made (**Load onto Canvas**, "All pages"), add the case as above, then
 put the PDF in the case's folder and name it in the case's entry in `cases/index.js` as `pdf`:
 
 ```js
