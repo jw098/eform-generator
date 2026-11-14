@@ -235,6 +235,7 @@
   .custom-badge[hidden]{display:none}
   .detect-progress{margin-top:8px;max-width:680px;font-size:12px;color:#374151}
   .detect-progress[hidden]{display:none}
+  #msg{min-height:31px}
   .detect-progress-track{margin-top:4px;height:6px;border-radius:999px;background:#ede9fe;overflow:hidden}
   .detect-progress-bar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#7c3aed);transition:width .2s ease}
   /* The page tabs, the current page's outlined in blue (an outline, where the buttons beside
@@ -369,6 +370,9 @@
       </details>
     </div>
     <div id="detectProgress" class="detect-progress" hidden role="status"><div id="detectProgressText"></div><div class="detect-progress-track"><div id="detectProgressBar" class="detect-progress-bar"></div></div><button id="btnDetectStop" type="button" class="btn-small" style="margin-top:6px" hidden title="Stops after the page being read now; the pages done keep their fields">Stop</button></div>
+    <!-- (what the last action did: "Detected 55 new field(s) on page 2."; under the buttons, where
+    the eye is after a click, its height kept so the page below doesn't move when one appears) -->
+    <div id="msg" class="small" style="margin-top:8px"></div>
 
     <!-- FreeScribe connection (added by FreeScribe): shown only when FreeScribe opens this page -->
     <div id="fsPanel" class="fs-panel" hidden>
@@ -409,7 +413,6 @@
 
     <div id="canvasContainer"></div>
 
-    <div id="msg" class="small" style="margin-top:8px"></div>
   </section>
 
   <aside class="card pane pane-right">
