@@ -155,8 +155,6 @@
     position:absolute;width:9px;height:9px;border:1px solid #fff;background:#2563eb;
   }
   .resize.se{right:-5px;bottom:-5px;cursor:nwse-resize}
-  .tab{padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;font-size:12px}
-  .tab.active{background:#eef4ff;border-color:#9dbafc}
   .kvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;font-size:12px}
   .kvs>div{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:6px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -239,12 +237,9 @@
   .detect-progress[hidden]{display:none}
   .detect-progress-track{margin-top:4px;height:6px;border-radius:999px;background:#ede9fe;overflow:hidden}
   .detect-progress-bar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#7c3aed);transition:width .2s ease}
-  .tab{
-    border-radius:999px;
-    border:1px solid #c8d7ff;
-    background:linear-gradient(180deg,#fff,#f3f7ff);
-    font-weight:600;
-  }
+  /* The page tabs, the current page's marked */
+  .tab{padding:6px 10px;border:1px solid #c8d7ff;border-radius:999px;background:linear-gradient(180deg,#fff,#f3f7ff);
+    cursor:pointer;font-size:12px;font-weight:600}
   .tab.active{background:linear-gradient(180deg,#e8f0ff,#dbeafe);border-color:#9fbcff;color:#1e3a8a}
   .kvs>div{background:linear-gradient(180deg,#fbfdff,#f0f6ff);border-color:#d7e4ff}
   .canvas-wrap{
