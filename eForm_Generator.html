@@ -1150,6 +1150,9 @@ else if (typeof exports === 'object')
   let syncingEditor = false;
   // Whether an Auto Detect button's run is going on (Undo is off meanwhile)
   let detectRunning = false;
+  // Turns the PDF converter's buttons on or off as it and Auto Detect stand (set when the
+  // converter starts)
+  let converterButtons = () => {};
   // The width of an exported eForm's pages, in its pixels
   const EXPORT_PAGE_W = 750;
   // The size of a font size button (▲ or ▼) on the eForm, and how far apart the two are, in its pixels
@@ -5390,8 +5393,10 @@ else if (typeof exports === 'object')
           failed.length || !done.length ? 'warn' : 'ok');
     }
   }
-  // The buttons that replace the pages (Open eForm, Load Session, Reset Everything)
-  const PAGE_REPLACING_BUTTONS = ['btnOpenEform', 'btnLoadSession', 'btnResetAll'];
+  // The buttons that replace the pages or their images, or renumber them (Open eForm, Load
+  // Session, Reset Everything, Upload Page Image, Remove This Page; and the PDF converter's two
+  // that load its images onto the pages: converterButtons)
+  const PAGE_REPLACING_BUTTONS = ['btnOpenEform', 'btnLoadSession', 'btnResetAll', 'btnUploadPage', 'btnRemovePage'];
   // Runs one of the Auto Detect buttons with both turned off (and "Detect from"), so a second
   // click doesn't start another run on top of it, Undo off (its button and Ctrl/Cmd+Z), and the
   // buttons that replace the pages off, as the run would add what it found to the new ones,
@@ -5399,11 +5404,11 @@ else if (typeof exports === 'object')
   async function runDetectButton(run){
     $('btnDetect').disabled = $('btnDetectAll').disabled = $('detectMode').disabled = true;
     PAGE_REPLACING_BUTTONS.forEach(id => { $(id).disabled = true; });
-    detectRunning = true; updateUndoBtn();
+    detectRunning = true; updateUndoBtn(); converterButtons();
     try { await run(); } finally {
       $('btnDetect').disabled = $('btnDetectAll').disabled = $('detectMode').disabled = false;
       PAGE_REPLACING_BUTTONS.forEach(id => { $(id).disabled = false; });
-      detectRunning = false; updateUndoBtn();
+      detectRunning = false; updateUndoBtn(); converterButtons();
     }
   }
   $('btnDetect').addEventListener('click', () => runDetectButton(() => detectCurrentPage()));
@@ -6677,13 +6682,16 @@ function checkEform(){
 
     // Shows a line under the converter (red for an error)
     function showStatus(text, err=false){ controls.status.textContent = text || ''; controls.status.style.color = err ? '#b91c1c' : '#374151'; }
-    // Turns the converter's buttons off while no PDF is loaded
+    // Turns the converter's buttons off while no PDF is loaded, and the two that load its images
+    // onto the pages while Auto Detect runs (it would read the new images, or add what it found
+    // to them)
     function updateButtons(){
       const disabled = !pdfDoc;
       controls.btnConvertDownload.disabled = disabled;
-      controls.btnLoadOnly.disabled = disabled;
-      controls.btnConvertAll.disabled = disabled;
+      controls.btnLoadOnly.disabled = disabled || detectRunning;
+      controls.btnConvertAll.disabled = disabled || detectRunning;
     }
+    converterButtons = updateButtons;
     // The converter's jobs (loading a PDF, a preview, a convert) all draw on one canvas, so they
     // take turns: each waits for the one before to finish, rather than being turned away while
     // it runs. Returns the job's result.
