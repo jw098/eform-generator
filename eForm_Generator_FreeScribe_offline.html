@@ -1329,6 +1329,32 @@ else if (typeof exports === 'object')
     return '';
   }
 
+  // A date's order as printed with it, day first ("D/M/Y", "(dd/mm/yyyy)") or year first
+  // ("YYYY/MM/DD"), in uppercase text; or just its start, which OCR reads more surely than the
+  // rest: "(dd/mm/yyyy)" read as "(dd/merenyy yy)"
+  const DAY_FIRST_RE = /\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b|\bD{1,2}\s*[\/.\-]\s*M/;
+  const YEAR_FIRST_RE = /\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b|\bY{2,4}\s*[\/.\-]\s*M/;
+
+  // Whether a field's label names one date, so the field is a date field: "Date", "Date signed",
+  // "Date of injury", "LMP date", "Due date". Not a birth date (a calendar is no help for one), nor
+  // dates ("Date(s)"), a date with something else ("Date and time", "Date and reason"), an age,
+  // or a question
+  function labelNamesADate(label){
+    if (/\?\s*$/.test(label || '')) return false;
+    const words = String(label || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const hasWord = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(words);
+    return hasWord('date') && !hasWord('dates|s|dob|birth|birthdate|time|hours|age|and|or');
+  }
+  // The format a date field's calendar should fill in, from the date's order and separator as
+  // printed with it ("(dd/mm/yyyy)" is D/M/Y, "YYYY-MM-DD" is Y-M-D), year first with dashes where
+  // it doesn't say, as OSCAR's "today" tag fills a date
+  function printedDateFormat(text){
+    const t = ' ' + String(text || '').toUpperCase() + ' ';
+    const order = DAY_FIRST_RE.exec(t) || YEAR_FIRST_RE.exec(t);
+    if (!order) return 'ymd';
+    return (DAY_FIRST_RE.test(order[0]) ? 'dmy' : 'ymd') + (/\//.test(order[0]) ? '_slash' : '');
+  }
+
   // A tag made more exact by the words printed under the field, or in its label: "FIRST  MIDDLE
   // LAST" under a name is the first name first (first_last_name; OSCAR's patient_name is "Last,
   // First"); "D/M/Y" under a birth date is day first (dobc; dobc2 is year first)
@@ -1337,10 +1363,8 @@ else if (typeof exports === 'object')
     const first = c.search(/\b(FIRST|GIVEN)\b/), last = c.search(/\b(LAST|SURNAME)\b/);
     if (tag === 'patient_name' && first >= 0 && last > first) return 'first_last_name';
     if (tag === 'dobc2' || tag === 'dob'){
-      // (or just its start, which OCR reads more surely than the rest: "(dd/mm/yyyy)" read as
-      // "(dd/merenyy yy)")
-      if (/\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b|\bD{1,2}\s*[\/.\-]\s*M/.test(c)) return 'dobc';
-      if (/\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b|\bY{2,4}\s*[\/.\-]\s*M/.test(c)) return 'dobc2';
+      if (DAY_FIRST_RE.test(c)) return 'dobc';
+      if (YEAR_FIRST_RE.test(c)) return 'dobc2';
     }
     return tag;
   }
@@ -1463,6 +1487,15 @@ else if (typeof exports === 'object')
       if (f.oscarTag !== 'today' || nameKey(f.label || '') !== 'date') return;
       const prev = fieldLeftOf(f, writes);
       if (prev && !prev.oscarTag) f.oscarTag = '';
+    });
+    // A one-line field whose label names a date is a date field, with OSCAR's calendar. Its format
+    // is the one printed with it ("(dd/mm/yyyy)"), or, where OSCAR fills it ("today"), OSCAR's,
+    // so the two don't mix
+    writes.forEach(f => {
+      if (f.type !== 'text' || !labelNamesADate(f.label)) return;
+      f.type = 'date';
+      const format = YMD_DATE_TAGS.has(f.oscarTag) ? 'ymd' : printedDateFormat((f.caption || '') + ' ' + f.label);
+      if (keptDateFormat(format)) f.dateFormat = format;
     });
   }
 

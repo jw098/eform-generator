@@ -73,6 +73,9 @@ What must agree:
   - actual tick boxes and fields with no expected one there.
 - **The `oscarDB` tags.** Each matched field's actual tag must be its expected tag (or both
   none).
+- **Date fields.** Each matched field that is a date field in the expected eForm (a date
+  input, or one it gives OSCAR's calendar with `Calendar.setup`) must be one in the actual
+  eForm too. Not the other way round: most eForms don't mark their date fields.
 
 Names aren't compared; they're only shown, to say which field a failure is about. The
 margin and overlap are set at the top of `auto-detect.js` (`MARGIN_PX`, `MARGIN_SHARE`,
@@ -182,7 +185,7 @@ reason, so it shows as "to do" rather than as a failure:
 (None of the cases has a to-do of its own at the moment; some have one for a variation.)
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
-and `extraFields` (in the actual eForm, but not expected), and `tags`. Delete the to-do once
+and `extraFields` (in the actual eForm, but not expected), `tags`, and `dates`. Delete the to-do once
 it passes. A variation's to-dos are the case's `variationTodo` in `cases/index.js`: each names
 the variation (as the panel names it), the page (leave it out for every page), the test,
 `ticks`, `extraTicks`, `fields` or `extraFields`, and the reason:

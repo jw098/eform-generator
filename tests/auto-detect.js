@@ -52,14 +52,17 @@
   //    there ("changeImage('page.png', 'BGImage')"), or else the largest image not yet used.
   //  - Fields: inputs, text areas and lists, except hidden ones, buttons, and anything inside
   //    a DoNotPrint block (on-screen controls). Tick boxes are checkboxes and radio buttons, and
-  //    inputs with an Xbox or xMarkOnly class. Each field's tag is its oscarDB attribute.
+  //    inputs with an Xbox or xMarkOnly class. Each field's tag is its oscarDB attribute. A date
+  //    field is a date input, one with the dateField class this app's export gives one, or one
+  //    the eForm gives OSCAR's calendar ("Calendar.setup({ inputField:"AccidentDate", … })").
   // A field type as the tests count it: a tick box, or a place to write; and the file name in a
   // src or URL ("tests/cases/x/page1.png?v=2" -> "page1.png")
   const kindOf = (type) => type === 'checkbox' ? 'tick' : 'write';
   const fileOf = (src) => decodeURIComponent(String(src).split(/[?#]/)[0].split(/[\/}=]/).pop());
-  // An eForm's pages: [{ n, file, imgData, boxes: [{ kind, x, y, width, height, tag }] }]
+  // An eForm's pages: [{ n, file, imgData, boxes: [{ kind, x, y, width, height, tag, date }] }]
   async function eformPages(html, images){
     const c = { html, images };
+    const calendarFields = new Set((html.match(/Calendar\.setup\s*\(\s*\{[^}]*\}/g) || []).map(call => (call.match(/inputField\s*:\s*["']([^"']+)["']/) || [])[1]).filter(Boolean));
     const frame = document.createElement('iframe');
     frame.setAttribute('sandbox', 'allow-same-origin');   // its layout, without running its scripts
     frame.style.cssText = 'position:absolute;left:-20000px;top:0;width:1600px;height:30000px;border:0;visibility:hidden';
@@ -101,8 +104,9 @@
         const b = pg.bg.getBoundingClientRect(), k = pg.bg.naturalWidth / b.width;
         const type = (el.getAttribute('type') || '').toLowerCase();
         const tick = type === 'checkbox' || type === 'radio' || /(^|\s)(xbox|xmarkonly)(\s|$)/i.test(el.className || '');
+        const date = type === 'date' || el.classList.contains('dateField') || calendarFields.has(el.id) || calendarFields.has(el.getAttribute('name'));
         pg.boxes.push({ kind: tick ? 'tick' : 'write', x: (r.left - b.left)*k, y: (r.top - b.top)*k, width: r.width*k, height: r.height*k,
-                        tag: el.getAttribute('oscardb') || '', id: el.getAttribute('name') || el.id || '' });
+                        tag: el.getAttribute('oscardb') || '', id: el.getAttribute('name') || el.id || '', date });
       });
       pages.forEach(p => delete p.bg);
       return pages;
@@ -241,6 +245,10 @@
     t('no actual field that isn\'t expected', 'extraFields', extra('write'), 'in the actual eForm, but not expected', 'field', 'fields');
     t('each field\'s actual oscarDB tag is the expected one', 'tags', r => r.pairs.filter(([e, f]) => e.tag !== f.tag)
       .map(([e, f]) => [e, `${where(e, false)}: expected ${tagOf(e.tag)}, actual ${tagOf(f.tag)}`]), 'oscarDB tags that differ', 'field', 'fields');
+    // (only this way round: most eForms don't mark their date fields, so an actual date field
+    // the eForm leaves as text isn't wrong)
+    t('each expected date field is an actual date field', 'dates', r => r.pairs.filter(([e, f]) => e.date && !f.date)
+      .map(([e]) => [e, `${where(e, false)}: expected a date field (with OSCAR's calendar), actual a text field`]), 'date fields that are text fields', 'field', 'fields');
     return run;
   }
 
