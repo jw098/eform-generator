@@ -29,13 +29,13 @@ The oscardb tag attached to each field will show up on the canvas.
 Above the canvas, and below the `Auto Detect (Current Page)` button, there are buttons to add input fields.
 
 - `Add Text Line`: Adds a single line text field to the top left corner.
-- `Add Text Area`: Adds a multi-line text field to the top left corner.
+- `Add Text Area`: Adds a multi-line text field to the top left corner, accompanying ▲▼ font size buttons.
 - `Place Checkbox`: Places a checkbox wherever you click the cursor.
 - `Checkbox px`: The size of checkboxes when you click with `Place Checkbox` active.
 - `Add Date`: Adds a single line text field to the top left corner, with a calendar selector.
 
 More buttons that add fields:
-- `Add Circle`: Adds a circle to the top left corner. In the actual eform, clicking will toggle on/off a circle.
+- `Add circle`: Adds a circle to the top left corner. In the actual eform, clicking will toggle on/off a circle.
 - `Free draw`: Adds a free draw box to the top left corner. The associated `Undo, Clear` controls can be moved separately from the free draw box; they can even be moved off the canvas to the right side bar.
 - `Add signature`: Adds a signature box to the bottom right corner. The associated `Stamp, Draw, Electronic, Clear` controls can be moved separately from the signature box; they can even be moved off the canvas to the right side bar.
 
@@ -55,12 +55,12 @@ If you click a specific input field, on the right sidebar will be a section for 
 
 As mentioned above, if you click a specific input field, on the right sidebar will be a section for `Selected field`.
 
-- `Name`: The name of the field. Does not affect directly function of the eform, but is used by the `Guess tag` button (see below).
+- `Name`: The field’s name in the eForm; OSCAR saves its value under it, so ensure you keep names unique. Also used by `Guess tag`.
 - `Fill with`: Dropdown that toggles between `OSCAR tag` and `Custom text/action`
     - `OSCAR tag`: oscardb tag, which then automatically pulls in its associated value when the eform is loaded on OSCAR. Shows up as green text on the canvas. You may choose the tag from the dropdown list, or manually type in the oscardb tag. If you manually input an oscardb tag that isn't in the standard OSCAR 12 tags, you will see a warning.
     - `Custom text/action`: These are an alternative to oscardb tags, particularly where the text or action you want isn't offered directly by the oscardb tag. e.g. checking a box based on gender, display two phone numbers, current user's first name or last name only, etc. These show up as purple text on the canvas. 
 - `Guess tag`: Guesses an oscardb tag based on the selected field's name.
-- `Font size`: Changes the font size
+- `Font size`: Changes the font size. Only appears for certain fields such as text lines, text areas, checkboxes and some custom fills.
 - `X`, `Y`, `W`, `H`: adjusts the x-position, y-position, width, and height respectively of the selected field.
 
 ## Validation
