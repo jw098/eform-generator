@@ -598,7 +598,7 @@
       </select>
     </label>
     <div class="row">
-      <button id="btnDownloadOscarZip" class="btn-violet" title="The eForm's HTML, its eform.properties and the page images, in one .zip">Export OSCAR eForm</button>
+      <button id="btnDownloadOscarZip" class="btn-violet" title="The eForm's HTML, its eform.properties and the page images, in one .zip">Export OSCAR eForm (.zip)</button>
       <button id="btnCopyHtml" class="btn-green" title="The eForm's HTML alone, to paste into OSCAR's eForm editor">Copy HTML</button>
       <button id="btnDownloadHtml" class="btn-blue" title="The eForm's HTML alone, as an .html file">Download HTML</button>
     </div>
@@ -6141,7 +6141,7 @@ function buildOscarProperties(htmlFileName='generated_oscar_eform.html'){
   ].join('\n') + '\n';
 }
 
-// "Export OSCAR eForm": the eForm's HTML, eform.properties and the page images, named
+// "Export OSCAR eForm (.zip)": the eForm's HTML, eform.properties and the page images, named
 // as the HTML expects them
 async function downloadOscarPackage(){
   try {
