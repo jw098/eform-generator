@@ -340,6 +340,7 @@
       <button id="btnRemovePage" class="btn-red" title="Removes the page shown, with its image and fields; the pages after it move up a number">&#8722; Remove This Page</button>
 
       <span class="detect-wrap"><button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button><button id="detectCustom" class="custom-badge" type="button" hidden title="Auto Detect is using tuning values that aren't the standard ones, so it may find fewer or wrong fields. Click to see them in Settings.">custom</button></span>
+      <button id="btnDetectAll" class="btn-violet" title="Runs Auto Detect on each page with an image and no fields yet, one after another; pages that already have fields are left as they are">Auto Detect (All Pages)</button>
     </div>
 
     <div class="row" style="margin-top:8px">
@@ -367,7 +368,7 @@
         </div>
       </details>
     </div>
-    <div id="detectProgress" class="detect-progress" hidden role="status"><div id="detectProgressText"></div><div class="detect-progress-track"><div id="detectProgressBar" class="detect-progress-bar"></div></div></div>
+    <div id="detectProgress" class="detect-progress" hidden role="status"><div id="detectProgressText"></div><div class="detect-progress-track"><div id="detectProgressBar" class="detect-progress-bar"></div></div><button id="btnDetectStop" type="button" class="btn-small" style="margin-top:6px" hidden title="Stops after the page being read now; the pages done keep their fields">Stop</button></div>
 
     <!-- FreeScribe connection (added by FreeScribe): shown only when FreeScribe opens this page -->
     <div id="fsPanel" class="fs-panel" hidden>
@@ -1114,9 +1115,16 @@ else if (typeof exports === 'object')
     m.textContent = text || '';
   };
 
+  // The page "Auto Detect (All Pages)" is on, while it runs: { page, index, count, stop }
+  let detectAllRun = null;
   // Shows how far Auto Detect has got, under its button: what it is doing, and a bar filled to
-  // `fraction` (0 to 1). No text hides it.
+  // `fraction` (0 to 1) of the page. No text hides it. During "Auto Detect (All Pages)" the text
+  // says which page ("Page 2 (2 of 5): …"), the bar fills for the whole run, and it stays up
+  // between pages.
   const showDetectProgress = (text, fraction = 0) => {
+    const run = detectAllRun;
+    if (!text && run) return;
+    if (text && run) { text = `Page ${run.page} (${run.index + 1} of ${run.count}): ${text}` + (run.stop ? ' Stopping after this page…' : ''); fraction = (run.index + Math.max(0, Math.min(1, fraction))) / run.count; }
     $('detectProgress').hidden = !text;
     $('detectProgressText').textContent = text || '';
     $('detectProgressBar').style.width = Math.round(Math.max(0, Math.min(1, fraction)) * 100) + '%';
@@ -4677,7 +4685,9 @@ else if (typeof exports === 'object')
 
   // "Auto Detect": finds the current page's tick boxes and places to write, from the picture
   // (pass 1), then reads the page's words to name them and suggest their tags (pass 2), and adds
-  // them to the page. opts.readWords: false skips reading the words (pass 1 alone)
+  // them to the page. opts.readWords: false skips reading the words (pass 1 alone); opts.undo:
+  // false saves no undo step (its caller saved one). Returns { added, wordsRead }, or nothing when
+  // it couldn't run
   async function detectCurrentPage(opts = {}){
     const page = state.currentPage, p = state.pages[page];
     if (!p.imgData || !p.naturalW) { msg('Upload page image first.', 'warn'); return; }
@@ -4975,7 +4985,7 @@ else if (typeof exports === 'object')
         return null;
       };
 
-      pushUndo();
+      if (opts.undo !== false) pushUndo();
       const before = getPageFields(page).length;
       let tN = getPageFields(page).filter(f=>f.type==='text'||f.type==='textarea').length + 1;
       let cN = getPageFields(page).filter(f=>f.type==='checkbox').length + 1;
@@ -5009,16 +5019,69 @@ else if (typeof exports === 'object')
       const custom = changes.length ? ` Custom tuning used: ${changes.join(', ')}.` : '';
       if (fromPdf) msg(`This page came from a fillable PDF: took ${added} field(s) straight from the PDF's own form fields (exact positions and names).` + unread, added ? 'ok' : 'warn');
       else msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + custom + unread, added>0 ? 'ok' : 'warn');
+      return { added, wordsRead: !!read };
     } catch(err) {
       msg('Detection failed: ' + (err.message || err), 'err');
     } finally {
       showDetectProgress(null);
     }
   }
-  // (the button is off while it runs, so a second click doesn't start it again)
-  $('btnDetect').addEventListener('click', async () => {
-    $('btnDetect').disabled = true;
-    try { await detectCurrentPage(); } finally { $('btnDetect').disabled = false; }
+  // "Auto Detect (All Pages)": Auto Detect on each page with an image and no fields yet, in turn,
+  // each shown as it is read; a page that already has fields (detected, added by hand, imported)
+  // is left as it is, as detecting it again would put a second set on top. One undo step takes
+  // back the whole run, and Stop ends it after the page being read.
+  async function detectAllPages(){
+    const withImage = Object.keys(state.pages).map(Number).sort((a,b) => a-b)
+      .filter(page => state.pages[page] && state.pages[page].imgData && state.pages[page].naturalW);
+    const hasFields = page => dataFields(getPageFields(page)).length > 0;
+    const todo = withImage.filter(page => !hasFields(page)), skipped = withImage.filter(hasFields);
+    const pageList = pages => (pages.length === 1 ? 'Page ' : 'Pages ') + pages.join(', ');
+    if (!withImage.length) { msg('Upload the page images first.', 'warn'); return; }
+    if (!todo.length) { msg('Every page already has fields, so none was detected again. To redo a page, clear it (More → Clear Current Page) and use Auto Detect (Current Page).', 'warn'); return; }
+    const startPage = state.currentPage;
+    pushUndo();
+    detectAllRun = { page: todo[0], index: 0, count: todo.length, stop: false };
+    $('btnDetectStop').hidden = false; $('btnDetectStop').disabled = false;
+    let added = 0, done = [], failed = [], wordsUnread = false;
+    try {
+      for (const [index, page] of todo.entries()){
+        if (detectAllRun.stop) break;
+        Object.assign(detectAllRun, { page, index });
+        // (a page removed or emptied since the run began is passed over)
+        if (!state.pages[page] || !state.pages[page].imgData) { failed.push(page); continue; }
+        setCurrentPage(page);
+        const result = await detectCurrentPage({ undo: false });
+        if (!result) { failed.push(page); continue; }
+        done.push(page); added += result.added;
+        if (!result.wordsRead) wordsUnread = true;
+      }
+    } finally {
+      const stoppedEarly = detectAllRun.stop && done.length + failed.length < todo.length;
+      detectAllRun = null;
+      $('btnDetectStop').hidden = true;
+      showDetectProgress(null);
+      setCurrentPage(startPage);
+      msg((done.length ? `Detected ${added} new field(s) on ${pageList(done).toLowerCase()}.` : 'No page was detected.') +
+          (failed.length ? ` ${pageList(failed)} failed.` : '') +
+          (stoppedEarly ? ` Stopped: ${pageList(todo.filter(page => !done.includes(page) && !failed.includes(page))).toLowerCase()} not detected.` : '') +
+          (skipped.length ? ` ${pageList(skipped)} already had fields, so ${skipped.length === 1 ? 'it was' : 'they were'} left as ${skipped.length === 1 ? 'it was' : 'they were'}.` : '') +
+          (wordsUnread ? ' (The words couldn\'t be read in this browser, so fields have plain names and no tags.)' : '') +
+          (done.length ? ' Undo takes back the whole run.' : ''),
+          failed.length || !done.length ? 'warn' : 'ok');
+    }
+  }
+  // Runs one of the Auto Detect buttons with both turned off, so a second click doesn't start
+  // another run on top of it
+  async function runDetectButton(run){
+    $('btnDetect').disabled = $('btnDetectAll').disabled = true;
+    try { await run(); } finally { $('btnDetect').disabled = $('btnDetectAll').disabled = false; }
+  }
+  $('btnDetect').addEventListener('click', () => runDetectButton(() => detectCurrentPage()));
+  $('btnDetectAll').addEventListener('click', () => runDetectButton(detectAllPages));
+  $('btnDetectStop').addEventListener('click', () => {
+    if (!detectAllRun) return;
+    detectAllRun.stop = true; $('btnDetectStop').disabled = true;
+    $('detectProgressText').textContent += ' Stopping after this page…';
   });
 
 

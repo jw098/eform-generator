@@ -7,7 +7,7 @@ Turns a PDF form into an OSCAR eForm.
 To quickly generate an eForm, just do the following steps:
 - Download `eForm_Generator.html` and open it in a browser; it runs offline.
 - Load the images: Under PDF->PNG converter, browse and select your PDF file. Click `Load into Mapper`. The image should show up in the canvas.
-- For each page in the canvas, click `Auto Detect (Current Page)`. Click the `Page 1`, `Page 2`, etc. tabs to change pages.
+- Click `Auto Detect (All Pages)`. Click the `Page 1`, `Page 2`, etc. tabs to check each page.
 - Click `Check eForm` to ensure there are no major issues with the eForm.
 - Click `Export OSCAR eForm (.zip)` to get the final .zip file, which can be imported into OSCAR.
 
@@ -22,7 +22,9 @@ If done correctly, your desired image should show up on the canvas. For multi-pa
 
 ## Auto Detect
 
-Next, detect the location of the fields/input boxes. For each page, click `Auto Detect (Current Page)` (purple button).
+Next, detect the location of the fields/input boxes. Click `Auto Detect (All Pages)` (purple button) to do every page, or `Auto Detect (Current Page)` for the page shown.
+
+`Auto Detect (All Pages)` skips pages that already have fields, so it never puts a second set on top of your work, and one `Undo` takes back the whole run. To redo a page, clear it (`More` → `Clear Current Page`) and run Auto Detect again.
 
 The eForm generator should automatically add boxes for all input fields. Using OCR, the script will also try to guess an appropriate name for the field, and more importantly, guess an oscarDB tag.
 
