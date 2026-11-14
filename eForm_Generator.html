@@ -322,7 +322,7 @@
 <div class="wrap">
   <section class="card pane pane-left">
     <h1>eForm Generator <span class="pill">Standalone / Offline</span></h1>
-    <div class="muted">Import an existing eForm's HTML for its fields, tags and fax/print scripts. Supports up to 20 pages, multi-select, local detection, and export.</div>
+    <div class="muted">Turns a PDF or scanned form into an OSCAR eForm: Auto Detect finds the fields and suggests their oscarDB tags; adjust them, check, and export. Runs offline, up to 20 pages.</div>
 
     <div class="quickstart">
       <span class="step-chip"><b>1</b> Convert/load PDF images</span>
@@ -351,7 +351,7 @@
       <button id="btnAdd" class="btn-green" title="Single line to write on">Add Text Line</button>
       <button id="btnAddTextarea" class="btn-green" title="A text area: several lines to write in, with font size buttons on the eForm">Add Text Area</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
-      <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
+      <label class="small" style="display:flex;align-items:center;gap:6px" title="The size of a checkbox placed by hand, in the page image's pixels">Checkbox size (px) <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
       <button id="btnAddDate" class="btn-green" title="A date field: on the eForm, a click on it opens OSCAR's calendar, which fills in the date in the format chosen for it (Y-M-D unless set otherwise)">Add Date</button>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
       <button id="btnUndo" title="Undo last action (Ctrl/Cmd+Z)">Undo</button>
@@ -361,9 +361,9 @@
       <details id="moreTools" class="more-tools">
         <summary class="btn" title="The buttons used less: circle, free draw, signature, copy and paste, clearing">More</summary>
         <div class="row">
-        <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add circle</button>
-        <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
-        <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand or &quot;Electronically signed&quot;; the choice and what is drawn are saved with the form">Add signature</button>
+        <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add Circle</button>
+        <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free Draw</button>
+        <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand or &quot;Electronically signed&quot;; the choice and what is drawn are saved with the form">Add Signature</button>
         <button id="btnCopySel">Copy Selected</button>
         <button id="btnPasteSel">Paste</button>
         <button id="btnDuplicateSel">Duplicate</button>
@@ -442,17 +442,17 @@
           <label>Snap px <input id="snapPx" type="number" value="8" min="1" max="40" style="width:78px"/></label>
           <label style="display:flex;align-items:center;gap:6px"><input id="chkGuides" type="checkbox" checked/> Show guides</label>
         </div>
-        <div class="small">Juno-style alignment help: selected fields can snap to nearby edges/centers.</div>
+        <div class="small">While you drag fields, they snap to the page's edges and centre and to other fields' edges.</div>
         <div class="hr"></div>
         <details id="detectionTuningPanel">
           <summary class="collapsible-summary"><span id="tuningPlus" class="plus-pill">+</span><span>Auto Detect tuning (advanced)</span><span id="tuningCustom" class="small"></span></summary>
           <div style="margin-top:8px">
-            <div class="small" style="margin-bottom:8px">Auto Detect is tested with the standard values; other values can find fewer or wrong fields.</div>
+            <div class="small" style="margin-bottom:8px">Auto Detect is tested with the standard values; other values can find fewer or wrong fields. They apply to visual detection only.</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
               <button id="btnPresetStandard" class="btn btn-small" title="The default values, the ones Auto Detect is tested with">Reset to standard</button>
-              <button id="btnPresetSmall" class="btn btn-small" title="For dense forms with small PDF checkboxes (10-16px)">Small boxes</button>
-              <button id="btnPresetLarge" class="btn btn-small" title="For larger hand-drawn or printed checkbox squares (20-35px)">Large boxes</button>
-              <button id="btnPresetLines" class="btn btn-small" title="Text input lines only, skip checkbox detection">Lines only</button>
+              <button id="btnPresetSmall" class="btn btn-small" title="Checkboxes about 6–20 px on a page 1500 px across">Small boxes</button>
+              <button id="btnPresetLarge" class="btn btn-small" title="Checkboxes about 16–50 px on a page 1500 px across">Large boxes</button>
+              <button id="btnPresetLines" class="btn btn-small" title="Lines and writing areas only, no checkboxes">Lines only</button>
             </div>
             <div class="grid3">
               <label title="In pixels on a page 1500 px across; scaled with the page">Min checkbox px<input id="minCb" type="number" value="8" min="4" max="60"/></label>
@@ -496,7 +496,7 @@
     <div class="row">
       <button id="btnAutoTag">Auto-tag untagged</button>
     </div>
-    <div class="small">Tags untagged fields from their names and labels, using imported templates' name↔tag map when there is one.</div>
+    <div class="small">Tags untagged fields from their names and labels, using the imported eForm HTML's names and tags when there is one.</div>
 
 
     <div class="hr"></div>
@@ -521,7 +521,7 @@
           </select>
         </label>
       </div>
-      <label id="fFillBlock" style="margin-top:8px;display:block" title="oscarDB tags will autofill the eForm with their associated text. However, some actions cannot be accomplished directly with oscarDB tags, such as checking the gender checkbox. Similarly, some text can't be derived directly from oscarDB tags (in OSCAR 12), such as the current user's last name.">Fill with
+      <label id="fFillBlock" style="margin-top:8px;display:block" title="oscarDB tags will autofill the eForm with their associated text. However, some actions cannot be accomplished directly with oscarDB tags, such as ticking the patient's sex checkbox. Similarly, some text can't be derived directly from oscarDB tags (in OSCAR 12), such as the current user's last name.">Fill with
         <select id="fFillMode">
           <option value="tag">OSCAR tag</option>
           <option value="custom">Custom text/action</option>
@@ -539,7 +539,7 @@
         <div class="row" style="align-items:stretch">
           <input id="fTag" type="text" list="tagSuggestions" placeholder="patient_name"/>
           <select id="fTagSelect" style="min-width:150px"><option value="">Choose tag...</option></select>
-          <button id="btnGuessTag" type="button" title="Guesses the OSCAR tag based on the field's name.">Guess tag</button>
+          <button id="btnGuessTag" type="button" title="Guesses the oscarDB tag from the field's name (and, for a field Auto Detect or an import found, the label printed beside it).">Guess tag</button>
         </div>
         <datalist id="tagSuggestions"></datalist>
       </label>
@@ -2349,7 +2349,7 @@ else if (typeof exports === 'object')
   // and circles alone ("Yes / No") make an "exactly one" group, anything else an "all filled" one
   $('btnNewGroup').addEventListener('click', () => {
     const fields = selectedValidatable();
-    if (!fields.length){ msg('Select the fields for the group first: text fields, textareas, dates, tick boxes or circles.', 'warn'); return; }
+    if (!fields.length){ msg('Select the fields for the group first: text fields, textareas, dates, checkboxes or circles.', 'warn'); return; }
     pushUndo();
     const ticks = fields.every(f => isTickType(f.type) || f.type === 'circle');
     const g = { id: nextGroupId(), name: fieldWords(fields[0]), rule: ticks && fields.length > 1 ? 'one' : 'all', message: '', exclusive: true, fieldIds: fields.map(f => f.id) };
@@ -4767,7 +4767,7 @@ else if (typeof exports === 'object')
     // and tagging; a pause after each step lets the page show it)
     const progress = async (text, fraction) => { showDetectProgress(text, fraction); await letPagePaint(); };
     try {
-      await progress('Finding the lines and tick boxes…', 0);
+      await progress('Finding the lines and checkboxes…', 0);
       const img = await loadImage(p.imgData);
       // Detect on the page at most 1600 pixels on its long side. A small page (under 1200,
       // scanned at a low resolution) is enlarged to that, up to twice its size, so its tick
@@ -4849,7 +4849,7 @@ else if (typeof exports === 'object')
         }
       }
 
-      await progress('Finding the lines and tick boxes…', 0.05);
+      await progress('Finding the lines and checkboxes…', 0.05);
       const newFields = [];
       // The rules: rows of ink at least lineMinPct% of the page's width long (gaps of up to two
       // pixels bridged)
@@ -4972,7 +4972,7 @@ else if (typeof exports === 'object')
         if(!dup) dedupCb.push(cand);
       });
 
-      await progress(`Found ${dedupCb.length} tick box(es). Finding the places to write…`, 0.1);
+      await progress(`Found ${dedupCb.length} checkbox(es). Finding the places to write…`, 0.1);
       // Text fields from the lines (added by FreeScribe). A field is the blank space you
       // write in: above a fill-in line, or between two rules (a table row or a box), beside or
       // under its printed label. Lines with words sitting on them (underlined headings, the
@@ -4999,7 +4999,7 @@ else if (typeof exports === 'object')
       let found = fromPdf || [...newFields, ...dedupCb];
       const ticks = found.filter(f => f.type === 'checkbox');
       const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
-                                 : `Found ${dedupCb.length} tick box(es) and ${newFields.length} place(s) to write.`;
+                                 : `Found ${dedupCb.length} checkbox(es) and ${newFields.length} place(s) to write.`;
       let read = null;
       if (opts.readWords !== false){
         await progress(`${foundSoFar} Reading the page's words to name them…`, 0.15);
