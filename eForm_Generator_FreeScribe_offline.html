@@ -61,6 +61,14 @@
   .btn-amber{background:var(--amber);border-color:var(--amber);color:#fff}
   .btn-red{background:var(--red);border-color:var(--red);color:#fff}
   button:disabled{opacity:.45;cursor:not-allowed}
+  /* "More": the buttons used less, on a line of their own under the others when open, "More"
+     staying where it is (its parts are the toolbar row's own) */
+  .more-tools{display:contents}
+  .more-tools > summary{list-style:none;display:inline-block}
+  .more-tools > summary::-webkit-details-marker{display:none}
+  .more-tools > summary::after{content:" \25BE"}
+  .more-tools[open] > summary::after{content:" \25B4"}
+  .more-tools > .row{flex-basis:100%}
   /* The Selected field editor: always there, greyed out while one field isn't selected */
   .sel-editor{border:0;padding:0;margin:0;min-width:0}
   .sel-editor:disabled{opacity:.5}
@@ -333,19 +341,27 @@
       <button id="btnAddTextarea" class="btn-green" title="A text area: several lines to write in, with font size buttons on the eForm">Add Text Area</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
-      <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add circle</button>
-      <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
-      <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand or &quot;Electronically signed&quot;; the choice and what is drawn are saved with the form">Add signature</button>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
-      <button id="btnCopySel">Copy Selected</button>
-      <button id="btnPasteSel">Paste</button>
-      <button id="btnDuplicateSel">Duplicate</button>
       <button id="btnUndo" title="Undo last action">Undo</button>
-      <button id="btnClearPage">Clear Current Page</button>
-      <button id="btnResetAll" class="btn-red">Reset Everything</button>
       <button id="btnSaveSession">Save Session</button>
       <button id="btnLoadSession">Load Session</button>
       <input id="fileSession" type="file" accept="application/json,.json" hidden />
+      <!-- (the buttons used less: a circle, free draw, the signature, copy and paste (Ctrl+C, Ctrl+V,
+      Ctrl+D do the same), and clearing the page or everything; shown with "More", which stays
+      open or closed as it was left) -->
+      <details id="moreTools" class="more-tools">
+        <summary class="btn" title="The buttons used less: circle, free draw, signature, copy and paste, clearing">More</summary>
+        <div class="row">
+        <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add circle</button>
+        <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free draw</button>
+        <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand or &quot;Electronically signed&quot;; the choice and what is drawn are saved with the form">Add signature</button>
+        <button id="btnCopySel">Copy Selected</button>
+        <button id="btnPasteSel">Paste</button>
+        <button id="btnDuplicateSel">Duplicate</button>
+        <button id="btnClearPage">Clear Current Page</button>
+        <button id="btnResetAll" class="btn-red">Reset Everything</button>
+        </div>
+      </details>
     </div>
     <div id="detectProgress" class="detect-progress" hidden role="status"><div id="detectProgressText"></div><div class="detect-progress-track"><div id="detectProgressBar" class="detect-progress-bar"></div></div></div>
 
@@ -2834,6 +2850,9 @@ else if (typeof exports === 'object')
     if (addFieldAtTop('date', 'date', p => [110 * p.naturalW / EXPORT_PAGE_W, Math.max(20, p.naturalH*0.03)]))
       msg('Added a date field: on the eForm, a click on it opens OSCAR\'s calendar. Its format is set under Date format.', 'ok');
   });
+  // "More" stays open or closed as it was last left, in this browser
+  try { if (localStorage.getItem('eformMapper.moreTools') === 'open') $('moreTools').open = true; } catch(e) {}
+  $('moreTools').addEventListener('toggle', () => { try { localStorage.setItem('eformMapper.moreTools', $('moreTools').open ? 'open' : 'closed'); } catch(e) {} });
   // "Add Text Area": a text area, two fifths of the page wide and a few lines high
   $('btnAddTextarea').addEventListener('click', () => addFieldAtTop('textarea', 'textarea', p => [p.naturalW*0.4, Math.max(60, p.naturalH*0.08)]));
 
