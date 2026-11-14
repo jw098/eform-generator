@@ -244,6 +244,17 @@
   .tab{padding:6px 10px;border:1px solid #c8d7ff;border-radius:999px;background:linear-gradient(180deg,#fff,#f3f7ff);
     cursor:pointer;font-size:12px;font-weight:600}
   .tab.active{background:#dbeafe;border:2px solid #2563eb;padding:5px 9px;color:#1e3a8a;font-weight:700}
+  .tab.add-page{border-style:dashed;color:#1d4ed8}
+  /* The bar over the page (its tabs and zoom): it scrolls with the pane until it reaches the
+     top, then stays there, so the pages can be switched from anywhere down the page. It reaches
+     over the card's padding (14px), so nothing shows past it, and keeps to one line: with many pages
+     the tabs scroll sideways */
+  .page-bar{position:sticky;top:0;z-index:30;background:var(--card);margin:10px -14px 0;padding:8px 14px;
+    border-bottom:1px solid var(--line);box-shadow:0 4px 8px -6px rgba(0,0,0,.25);flex-wrap:nowrap}
+  @media (min-width: 1024px){ .page-bar{top:-14px} }
+  .page-tabs{display:flex;gap:6px;align-items:center;overflow-x:auto;min-width:0;flex:0 1 auto}
+  .page-bar .tab{flex:none}
+  .page-bar-sep{flex:none;width:1px;height:22px;background:var(--line);margin:0 4px}
   .kvs>div{background:linear-gradient(180deg,#fbfdff,#f0f6ff);border-color:#d7e4ff}
   .canvas-wrap{
     border:1px solid #c0d3ff;
@@ -334,11 +345,9 @@
     <div id="converterTopMount"></div>
 
     <div class="row" style="margin-top:10px">
-      <!-- (the pages: a tab each, the image of the one shown, then adding and removing one) -->
-      <span id="tabsRow"></span>
+      <!-- (the page shown: its image and removing it; its tab and adding one are in the bar over the page) -->
       <button id="btnUploadPage" class="btn-blue" title="A PNG or JPEG image of the page shown. A new image the same shape as the old one keeps the page's fields in their places.">Upload Page 1 Image</button>
       <input id="fileImg" type="file" accept="image/png,image/jpeg,image/jpg" hidden/>
-      <button id="btnAddPage" class="btn-blue" title="Adds a page after the last, and asks for its image">+ Add Page</button>
       <button id="btnRemovePage" class="btn-red" title="Removes the page shown, with its image and fields; the pages after it move up a number">&#8722; Remove This Page</button>
 
       <label class="small detect-mode" title="Where Auto Detect takes a page's fields from. PDF form fields: a fillable PDF's own fields (exact places and names); a page with none is detected visually. Visual detection: the printed lines and boxes. Only a fillable PDF offers PDF form fields.">Detect from
@@ -406,12 +415,14 @@
       <div><b>Total fields</b><div id="kvTotal" class="small">0</div></div>
     </div>
 
-    <div class="row" style="margin-top:10px">
-      <span class="small"><b>Zoom</b></span>
+    <!-- (the bar over the page: a tab for each page, adding one, and the zoom) -->
+    <div class="row page-bar">
+      <span id="tabsRow" class="page-tabs"></span><button id="btnAddPage" class="tab add-page" type="button" title="Adds a page after the last, and asks for its image">+ Add Page</button>
+      <span class="page-bar-sep"></span>
+      <span class="small" title="Ctrl/Cmd+scroll over the page zooms"><b>Zoom</b></span>
       <button id="btnZoomOut" type="button" title="Zoom out">&minus;</button>
       <button id="btnZoomFit" class="zoom-level" type="button" title="Fit the page to the box">100%</button>
       <button id="btnZoomIn" type="button" title="Zoom in">+</button>
-      <span class="small">Ctrl/Cmd+scroll over the page zooms</span>
     </div>
 
     <div id="canvasContainer"></div>
@@ -2252,6 +2263,10 @@ else if (typeof exports === 'object')
       .map(el => [el, el.scrollLeft, el.scrollTop]);
     state.currentPage = page;
     Object.keys(state.pages).map(Number).forEach(pageNo => { const tab=$('tab'+pageNo); if(tab) tab.classList.toggle('active', pageNo===page); });
+    // (with more tabs than fit the bar, they scroll sideways: the current one is brought into view)
+    const tab = $('tab'+page), tabs = $('tabsRow');
+    if (tabs){ const left = tab.offsetLeft - tabs.offsetLeft, right = left + tab.offsetWidth;
+      if (left < tabs.scrollLeft) tabs.scrollLeft = left; else if (right > tabs.scrollLeft + tabs.clientWidth) tabs.scrollLeft = right - tabs.clientWidth; }
     renderAll();
     applyZoom(null, false);
     scrollers.forEach(([el, left, top]) => { el.scrollLeft = left; el.scrollTop = top; });
