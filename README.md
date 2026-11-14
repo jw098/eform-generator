@@ -46,7 +46,8 @@ Keyboard shortcuts do work. When a field is selected:
 - Arrow keys: nudge the field 1 pixel
 - Shift+Arrow keys: nudge the field 10 px
 - Ctrl/Cmd+C: copy
-- Ctrl/Cmd+V: paste to top left corner.
+- Ctrl/Cmd+V: paste: next to the original on the same page, at the top left corner on another page.
+- Ctrl/Cmd+D: duplicate, next to the original.
 - Delete: delete the field
 
 ## Editing input fields: oscardb, name, size, location
