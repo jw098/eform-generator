@@ -463,8 +463,10 @@
 
   <aside class="card pane pane-right">
     <!-- (the whole project: saved to a file and loaded from one; a dot on Save Session while
-    there are changes since) -->
+    there are changes since. "Open eForm…" opens an eForm this app exported, to edit) -->
     <div class="row">
+      <button id="btnOpenEform" class="btn-amber" title="Opens an eForm exported from here, to edit: its .zip, or its .html and page images chosen together. Replaces the work in progress">Open eForm…</button>
+      <input id="fileOpenEform" type="file" accept=".zip,application/zip,.html,.htm,text/html,.png,.jpg,.jpeg,image/png,image/jpeg,.properties" multiple hidden />
       <button id="btnLoadSession" title="Opens a session saved with Save Session: its pages, fields, tags and settings">Load Session</button>
       <button id="btnSaveSession" title="Saves everything (pages, fields, tags, settings) to a file, to pick up again with Load Session">Save Session<span id="unsavedMark" class="unsaved-mark" hidden> &#9679;</span></button>
       <input id="fileSession" type="file" accept="application/json,.json" hidden />
@@ -514,16 +516,16 @@
 
     <div class="hr"></div>
     <details id="templateImportPanel">
-      <summary class="collapsible-summary"><span id="templatePlus" class="plus-pill">+</span><span>eForm HTML import</span><span id="templateCount" class="small"></span></summary>
+      <summary class="collapsible-summary"><span id="templatePlus" class="plus-pill">+</span><span>Merge from another eForm (HTML)</span><span id="templateCount" class="small"></span></summary>
       <div style="margin-top:8px">
         <div id="templateLoaded" class="small" style="margin-bottom:8px"></div>
         <div class="row">
-          <button id="btnTemplate" class="btn-amber">Import eForm HTML</button>
+          <button id="btnTemplate" class="btn-amber">Choose eForm HTML</button>
           <input id="fileTemplates" type="file" accept=".html,.htm,text/html" hidden />
-          <button id="btnApplyTemplateFields">Add fields/tags from HTML</button>
+          <button id="btnApplyTemplateFields">Add its fields/tags to these pages</button>
           <button id="btnClearTemplate">Remove</button>
         </div>
-        <div class="small" style="margin-top:6px">Reads one eForm's positioned fields, oscarDB tags, fax/print/signature scripts and body onload handlers; importing another replaces it. <b>Add fields/tags from HTML</b> adds the eForm's fields with their tags; if your pages already have fields, they come as a second set.</div>
+        <div class="small" style="margin-top:6px">Reads one eForm's positioned fields, oscarDB tags, fax/print/signature scripts and body onload handlers; importing another replaces it. <b>Add its fields/tags to these pages</b> adds the eForm's fields with their tags to the pages you have loaded; if they already have fields, they come as a second set. (To edit an eForm exported from here, use <b>Open eForm…</b> instead.)</div>
 
         <div class="small" style="margin-top:8px"><b>Fields in the eForm</b></div>
         <div id="templateFieldList" class="list small"></div>
@@ -1909,20 +1911,25 @@ else if (typeof exports === 'object')
     state.templateGroups = [];
     state.snippets = { externalSrc: new Set(), inlineScripts: [], actionFns: new Set(), onloads: new Set(), buttonHtml: [], signatureHtml: [] };
   }
+  // Reads an eForm's HTML into the panel (in place of the one there): its fields, name↔tag map,
+  // validation groups and scripts
+  function importTemplate(text, fileName){
+    const template = parseTemplateHtml(text, fileName);
+    clearTemplate();
+    state.templateName = fileName;
+    state.templateFields = dedupeFields(template.fields);
+    state.templateGroups = template.validationGroups;
+    state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(nameKey(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(nameKey(f.label), f.oscarTag); }});
+    template.nameTagMap.forEach((tag,key)=> state.templateNameTagMap.set(key,tag));
+    const snippets = template.snippets;
+    state.snippets = { externalSrc: new Set(snippets.externalSrc), inlineScripts: [...new Set(snippets.inlineScripts)], actionFns: new Set(snippets.actionFns),
+                       onloads: new Set(snippets.onloads), buttonHtml: snippets.buttonHtml.slice(), signatureHtml: snippets.signatureHtml.slice() };
+  }
   $('btnTemplate').addEventListener('click', ()=> $('fileTemplates').click());
   $('fileTemplates').addEventListener('change', async (e)=>{
     const file = e.target.files && e.target.files[0]; if (!file) return;
     try{
-      const text = await readAsText(file), template = parseTemplateHtml(text, file.name);
-      clearTemplate();
-      state.templateName = file.name;
-      state.templateFields = dedupeFields(template.fields);
-      state.templateGroups = template.validationGroups;
-      state.templateFields.forEach(f => { if(f.oscarTag){ state.templateNameTagMap.set(nameKey(f.name), f.oscarTag); if(f.label) state.templateNameTagMap.set(nameKey(f.label), f.oscarTag); }});
-      template.nameTagMap.forEach((tag,key)=> state.templateNameTagMap.set(key,tag));
-      const snippets = template.snippets;
-      state.snippets = { externalSrc: new Set(snippets.externalSrc), inlineScripts: [...new Set(snippets.inlineScripts)], actionFns: new Set(snippets.actionFns),
-                         onloads: new Set(snippets.onloads), buttonHtml: snippets.buttonHtml.slice(), signatureHtml: snippets.signatureHtml.slice() };
+      importTemplate(await readAsText(file), file.name);
       $('templateImportPanel').open = true;
       renderAll();
       msg(`Imported ${file.name}: ${state.templateFields.length} field(s).`, 'ok');
@@ -1935,14 +1942,12 @@ else if (typeof exports === 'object')
     clearTemplate(); renderAll(); msg(`Removed ${name}.`, 'ok');
   });
 
-  // The eForm's fields, with their tags, added to your pages as they are. Fields already on those
-  // pages (Auto Detect's, or your own) are left alone, so the eForm's come as a second set.
-  $('btnApplyTemplateFields').addEventListener('click', ()=>{
-    if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
+  // The imported eForm's fields, with their tags and validation groups, added to the pages loaded
+  // (a field on a page not loaded is left out); returns how many were added and left out. An
+  // untagged field gets the tag guessTag suggests, unless `asTheyAre` (an eForm opened to edit,
+  // whose untagged fields were left so)
+  function addTemplateFields(asTheyAre = false){
     const onPages = state.templateFields.filter(tf => state.pages[Number(tf.page)]);
-    const alreadyThere = dataFields(state.fields).filter(f => onPages.some(tf => samePage(tf.page, f.page))).length;
-    if (alreadyThere && !confirm(`These pages already have ${alreadyThere} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
-    pushUndo();
     // (font size buttons go on their textarea's copy: added after the fields, with its new id)
     const addedIds = new Map();
     [...onPages].sort((a, b) => (a.type === 'fontbuttons') - (b.type === 'fontbuttons')).forEach(tf => {
@@ -1956,7 +1961,7 @@ else if (typeof exports === 'object')
         x = Math.round(x * scale); y = Math.round(y * scale); w = Math.round(w * scale); h = Math.round(h * scale);
       }
       const added = addField({ page:tf.page, x, y, width:w, height:h, type:tf.type, name:tf.name,
-        oscarTag: tf.oscarTag || guessTag(tf.name, tf.type, tf.label), label: tf.label || '',
+        oscarTag: tf.oscarTag || (asTheyAre ? '' : guessTag(tf.name, tf.type, tf.label)), label: tf.label || '',
         fontSize: tf.fontSize, fontButtons: tf.fontButtons, dateFormat: tf.dateFormat, target: tf.type === 'fontbuttons' ? addedIds.get(tf.targetTpl) : null });
       addedIds.set(tf.id, added.id);
     });
@@ -1966,9 +1971,19 @@ else if (typeof exports === 'object')
       const fieldIds = g.fieldIds.map(id => addedByElement.get(id)).filter(id => id != null);
       if (fieldIds.length) state.validationGroups.push({ ...g, id: nextGroupId(), fieldIds });
     });
+    return { added: onPages.length, leftOut: state.templateFields.length - onPages.length };
+  }
+  // "Add its fields/tags to these pages": the eForm's fields, with their tags, added to your pages
+  // as they are. Fields already on those pages (Auto Detect's, or your own) are left alone, so the
+  // eForm's come as a second set.
+  $('btnApplyTemplateFields').addEventListener('click', ()=>{
+    if (!state.templateFields.length){ msg('Import an eForm HTML first.', 'warn'); return; }
+    const alreadyThere = dataFields(state.fields).filter(f => state.templateFields.some(tf => state.pages[Number(tf.page)] && samePage(tf.page, f.page))).length;
+    if (alreadyThere && !confirm(`These pages already have ${alreadyThere} field(s) (from Auto Detect or added by hand). The eForm's fields will be added as a second set on top of them.\n\nAdd them anyway?`)) return;
+    pushUndo();
+    const { added, leftOut } = addTemplateFields();
     renderAll();
-    const leftOut = state.templateFields.length - onPages.length;
-    msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (leftOut ? `; ${leftOut} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
+    msg(`Added ${added} field(s) from ${state.templateName}` + (leftOut ? `; ${leftOut} on pages not loaded were left out.` : '.'), added ? 'ok' : 'warn');
   });
 
   // The tag an untagged field could have, from the imported eForm's name↔tag map, or else from its
@@ -3442,11 +3457,130 @@ else if (typeof exports === 'object')
     finally { e.target.value=''; }
   });
 
+  // ===== Open eForm…: an eForm exported from here, opened to edit =====
+  // The files of an eForm package by name, lower-cased and without any folder: each with its
+  // name, its text and its bytes. From a .zip (the OSCAR package the export makes, or the same
+  // files zipped again), or from its files chosen together. (A Mac's "__MACOSX/" and "._" copies
+  // are left out.)
+  async function eformPackageFiles(chosen){
+    const files = new Map();
+    const add = (path, text, blob) => {
+      const name = String(path).split('/').pop();
+      if (name && !/^\._/.test(name) && !/(^|\/)__MACOSX\//.test(path)) files.set(name.toLowerCase(), { name, text, blob });
+    };
+    for (const file of chosen){
+      if (/\.zip$/i.test(file.name)){
+        if (typeof JSZip === 'undefined') throw new Error('JSZip library not loaded.');
+        const zip = await JSZip.loadAsync(file);
+        zip.forEach((path, entry) => { if (!entry.dir) add(path, () => entry.async('string'), () => entry.async('blob')); });
+      } else add(file.name, () => readAsText(file), async () => file);
+    }
+    return files;
+  }
+  // eform.properties' values by key ("form.name=Mammography requisition")
+  function readProperties(text){
+    const props = {};
+    String(text || '').split(/\r?\n/).forEach(line => {
+      const match = line.match(/^\s*([^#!\s=:][^=:]*?)\s*[=:]\s*(.*)$/);
+      if (match) props[match[1]] = match[2].trim();
+    });
+    return props;
+  }
+  // Each page's image file in an eForm exported from here, where page n is
+  // '<div id="pageN" style="…width:750px…"><img id="BGImageN" src="${oscar_image_path}<file>">'.
+  // Throws, saying what it found, for an eForm laid out otherwise or a page image not among the files.
+  function exportedPageImages(doc, files){
+    const notExported = reason => new Error(`this eForm wasn't exported from here (${reason}). For now only an eForm exported from here can be opened; ` +
+      'to use another eForm\'s fields and tags, load its page images and use "Merge from another eForm (HTML)".');
+    const images = [];
+    for (let page = 1; page <= MAX_PAGES; page++){
+      const pageDiv = doc.getElementById('page' + page);
+      if (!pageDiv) break;
+      const img = pageDiv.querySelector('#BGImage' + page), width = parseStylePx(parseAttr(pageDiv, 'style'), 'width');
+      const fileName = ((img ? parseAttr(img, 'src') : '').match(/^\$\{oscar_image_path\}([^\/?#]+)$/) || [])[1];
+      if (!fileName || !width || width.unit !== 'px') throw notExported(`page ${page} has no page image set out as the export sets one`);
+      const file = files.get(fileName.toLowerCase());
+      if (!file) throw new Error(`${fileName}, the image of page ${page}, isn't among the files.`);
+      images.push(file);
+    }
+    if (!images.length) throw notExported('it has no page set out as the export sets one');
+    return images;
+  }
+  // An image file's bytes as a data: URL of the type its bytes are (the export names every page
+  // image ".png", a JPEG one too)
+  async function imageDataURL(blob){
+    const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    const type = head[0] === 0xFF && head[1] === 0xD8 ? 'image/jpeg' : head[0] === 0x89 && head[1] === 0x50 ? 'image/png' : (blob.type || 'image/png');
+    return readAsDataURL(new Blob([blob], { type }));
+  }
+  // Opens an eForm exported from here, to edit, in place of the work open (asking first when that
+  // has unsaved changes; Undo brings it back): its pages with their images, its fields with their
+  // tags and validation groups as they are, its title and author, and its form id, so exporting it
+  // again gives the same file names while the title stays the same. Returns what it opened, or
+  // null when the user said no.
+  async function openEform(chosen){
+    const files = await eformPackageFiles(chosen);
+    const propsFile = files.get('eform.properties');
+    const props = propsFile ? readProperties(await propsFile.text()) : {};
+    const htmls = [...files.values()].filter(f => /\.html?$/i.test(f.name));
+    const htmlFile = files.get(String(props['form.htmlFilename'] || '').toLowerCase()) || (htmls.length === 1 ? htmls[0] : null);
+    if (!htmlFile) throw new Error(htmls.length ? `there are ${htmls.length} .html files, and no eform.properties to say which is the eForm` : 'there is no eForm .html among the files');
+    const text = await htmlFile.text();
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    const pages = [];
+    for (const file of exportedPageImages(doc, files)){
+      const data = await imageDataURL(await file.blob());
+      pages.push({ data, img: await loadImage(data), name: file.name });
+    }
+    if (hasUnsavedWork() && !confirm(`Open ${htmlFile.name}? It replaces the pages and fields you have open, which have unsaved changes. (Save Session first to keep them; Undo also brings them back.)`)) return null;
+    pushUndo();
+    clearEverything();
+    pages.forEach(({ data, img, name }, i) => {
+      const page = i + 1, isNew = !state.pages[page];
+      state.pages[page] = { imgData: data, naturalW: img.width, naturalH: img.height, fileName: name };
+      if (isNew) createPageDOM(page);
+      getPageImgEl(page).src = data;
+    });
+    importTemplate(text, htmlFile.name);
+    // (its scripts are the ones the export writes anyway: kept as an imported eForm's, they would
+    // be in it twice)
+    state.snippets = { externalSrc: new Set(), inlineScripts: [], actionFns: new Set(), onloads: new Set(), buttonHtml: [], signatureHtml: [] };
+    addTemplateFields(true);
+    state.exportTitle = props['form.name'] || (doc.title || '').trim() || state.exportTitle;
+    state.exportAuthor = props['form.author'] || '';
+    $('eformTitle').value = state.exportTitle;
+    $('eformAuthor').value = state.exportAuthor;
+    const id = (htmlFile.name.match(/_([a-z0-9]{4,12})\.html?$/) || [])[1];
+    if (id) state.formId = id;
+    setCurrentPage(1);
+    renderAll();
+    return { name: htmlFile.name, pages: pages.length, fields: dataFields(state.fields).length };
+  }
+  $('btnOpenEform').addEventListener('click', ()=> $('fileOpenEform').click());
+  $('fileOpenEform').addEventListener('change', async (e)=>{
+    const chosen = [...(e.target.files || [])];
+    if (!chosen.length) return;
+    try{
+      const opened = await openEform(chosen);
+      if (opened){
+        savedWork = workSignature();
+        renderUnsavedMark();
+        msg(`Opened ${opened.name}: ${opened.pages} page(s), ${opened.fields} field(s).` + longFormNote(), longFormNote() ? 'warn' : 'ok');
+      }
+    }catch(err){ msg('Open eForm failed: ' + (err.message || err), 'err'); }
+    finally { e.target.value=''; }
+  });
+
   // "Reset Everything": back to one empty page, after asking (Undo brings it back)
   function resetEverything(){
     const ok = confirm('Reset everything? This clears all pages and their images, fields, validation groups, the eForm title and author, the imported eForm HTML and its scripts, and the source PDF. Undo brings back the pages, fields and validation groups, but not the rest.');
     if(!ok) return;
     pushUndo();
+    clearEverything();
+    msg('Reset complete.', 'ok');
+  }
+  // Back to one empty page: no fields, groups, imported eForm, source PDF, title or author
+  function clearEverything(){
     state.currentPage = 1;
     Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(page => { if(page>1) removeSinglePage(page,true); });
     state.pages[1] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
@@ -3468,7 +3602,6 @@ else if (typeof exports === 'object')
     if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
     if ($('eformAuthor')) $('eformAuthor').value = '';
     setCurrentPage(1);
-    msg('Reset complete.', 'ok');
   }
   $('btnResetAll').addEventListener('click', resetEverything);
 

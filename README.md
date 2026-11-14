@@ -91,9 +91,15 @@ Click `Export OSCAR eForm (.zip)` to get the final .zip file, which can be impor
 
 Use `Save Session`, located on the right sidebar, to keep your work. Use `Load Session` to resume.
 
-## Importing a pre-existing eForm
+## Opening an eForm to edit
 
-Open `eForm HTML import` on the right sidebar, click `Import eForm HTML` and select the eForm's .html file. Then click `Add fields/tags from HTML` to add its fields to the canvas. Use it on pages without fields (before Auto Detect, say), or you'll get two sets.
+Click `Open eForm…`, at the top of the right sidebar, and choose an eForm exported from here: its `.zip` (as `Export OSCAR eForm (.zip)` made it), or its .html and page images chosen together. It opens in place of what you have open, with its pages, fields, tags, validation groups, title and author as they were. Export it again (with the same title) and the files keep their names, so it replaces the old version in OSCAR.
+
+For now only eForms exported from here can be opened. For any other eForm, use `Merge from another eForm` below.
+
+## Merging from another eForm
+
+Open `Merge from another eForm (HTML)` on the right sidebar, click `Choose eForm HTML` and select the eForm's .html file. Then click `Add its fields/tags to these pages` to add its fields to the canvas. Use it on pages without fields (before Auto Detect, say), or you'll get two sets.
 
 Note: It imports the eForm's fields, tags and scripts, but not its images: upload the pages to the canvas first. If any pages are missing from the canvas, those pages' fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
 
