@@ -52,6 +52,7 @@ Keyboard shortcuts, when a field is selected:
 - Ctrl/Cmd+C: copy
 - Ctrl/Cmd+V: paste: next to the original on the same page, at the top left corner on another page.
 - Ctrl/Cmd+D: duplicate, next to the original.
+- Ctrl/Cmd+Z: undo (the same as the `Undo` button)
 - Delete or Backspace: delete the field
 
 ## Editing input fields: oscarDB, name, size, location

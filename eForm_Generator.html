@@ -350,7 +350,7 @@
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
       <button id="btnAddDate" class="btn-green" title="A date field: on the eForm, a click on it opens OSCAR's calendar, which fills in the date in the format chosen for it (Y-M-D unless set otherwise)">Add Date</button>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
-      <button id="btnUndo" title="Undo last action">Undo</button>
+      <button id="btnUndo" title="Undo last action (Ctrl/Cmd+Z)">Undo</button>
       <!-- (the buttons used less: a circle, free draw, the signature, copy and paste (Ctrl+C, Ctrl+V,
       Ctrl+D do the same), and clearing the page or everything; shown with "More", which stays
       open or closed as it was left) -->
@@ -390,7 +390,7 @@
     </div>
 
     <div class="row" style="margin-top:8px">
-      <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Ctrl/Cmd+C/V copy/paste</span>
+      <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Ctrl/Cmd+C/V copy/paste · Ctrl/Cmd+Z undo</span>
     </div>
 
     <div class="kvs" style="margin-top:10px">
@@ -2680,10 +2680,18 @@ else if (typeof exports === 'object')
     pasteCopiedFields();
   }
 
-  // Canvas shortcuts: Ctrl/Cmd+C, V and D copy, paste and duplicate; the arrow keys nudge the
-  // selected fields (Shift: 10 px); Delete or Backspace removes them
+  // Canvas shortcuts: Ctrl/Cmd+C, V and D copy, paste and duplicate; Ctrl/Cmd+Z undoes; the
+  // arrow keys nudge the selected fields (Shift: 10 px); Delete or Backspace removes them. In a
+  // box being typed in (a field's Name, say) they are the box's own, so Ctrl/Cmd+Z there undoes
+  // the typing.
   document.addEventListener('keydown', (e) => {
     if (isTypingTarget(e.target)) return;
+
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase()==='z'){
+      e.preventDefault();
+      doUndo();
+      return;
+    }
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='c'){
       if (!state.selected.size) return;
