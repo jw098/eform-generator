@@ -299,7 +299,7 @@
     pointer-events:none;z-index:19;
   }
 
-  /* The compatibility check's results */
+  /* Check eForm's results */
   .preflight-list{margin-top:6px;max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fbfdff}
   .pf-ok{color:#065f46;font-size:12px}
   .pf-warn{color:#92400e;font-size:12px}
@@ -328,8 +328,8 @@
     <div class="quickstart">
       <span class="step-chip"><b>1</b> Convert/load PDF images</span>
       <span class="step-chip"><b>2</b> Detect + adjust fields</span>
-      <span class="step-chip"><b>3</b> Auto-tag / template-match</span>
-      <span class="step-chip"><b>4</b> Run preflight + export</span>
+      <span class="step-chip"><b>3</b> Check eForm</span>
+      <span class="step-chip"><b>4</b> Export OSCAR eForm</span>
     </div>
 
     <div id="converterTopMount"></div>
@@ -573,13 +573,13 @@
     </label>
 
     <div class="hr"></div>
-    <div class="panel-title">OSCAR/Juno preflight</div>
+    <div class="panel-title">Check before export</div>
     <div class="row">
-      <button id="btnPreflight" class="btn-violet">Run compatibility check</button>
+      <button id="btnPreflight" class="btn-violet" title="Checks the eForm that Export OSCAR eform (.zip) builds, from the pages and fields as they are now">Check eForm</button>
       <button id="btnInsertPlaceholders">Repair image placeholders in draft</button>
     </div>
     <div id="preflightBox" class="preflight-list small"></div>
-    <div class="small">Checks placeholders, duplicate names, untagged fields, and out-of-bounds fields before upload/import.</div>
+    <div class="small">The OSCAR/Juno preflight: checks the eForm the export builds for image placeholders, its form and Submit button, duplicate names, untagged fields, and fields off the page, before upload/import.</div>
 
     <div class="hr"></div>
     <div class="panel-title">Export (editable before save)</div>
@@ -4959,7 +4959,7 @@ else if (typeof exports === 'object')
 
 
   
-  // ===== Export: the eForm's HTML, the compatibility check, the OSCAR package =====
+  // ===== Export: the eForm's HTML, Check eForm, the OSCAR package =====
   // A value made safe to put inside an HTML attribute's quotes
   function escAttr(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // A call giving a field OSCAR's calendar, "Calendar.setup({ inputField:"AccidentDate", … });", and
@@ -5170,11 +5170,10 @@ function inputMarkup(f, inlinePosStyle=''){
 
 
 
-// The compatibility check: each check on the export draft (or `htmlText`) and the fields, with
-// its level (ok, warn or err) and what it found
-function preflightChecks(htmlText=''){
+// The checks on an eForm's HTML: its image placeholders, form, Submit button and oscarDB tags,
+// each with its level (ok, warn or err) and what it found
+function htmlChecks(html){
   const out = [];
-  const html = String(htmlText || $('exportEditor').value || '');
   const hasImagePath = html.includes('${oscar_image_path}');
 
   out.push({ level: hasImagePath ? 'ok':'err', text: hasImagePath ? 'Image src uses ${oscar_image_path} placeholder.' : 'Missing ${oscar_image_path} in image src(s).' });
@@ -5187,7 +5186,13 @@ function preflightChecks(htmlText=''){
 
   const hasOscarDb = /oscarDB\s*=\s*["'][^"']+["']/i.test(html);
   out.push({ level: hasOscarDb ? 'ok':'warn', text: hasOscarDb ? 'oscarDB tags detected.' : 'No oscarDB tags detected (fields may not autofill).' });
+  return out;
+}
 
+// Check eForm: the checks on the exported eForm's HTML (`html`) and on the fields, each with its
+// level (ok, warn or err) and what it found
+function eformChecks(html){
+  const out = htmlChecks(html);
   const nameCounts = new Map();
   dataFields(state.fields).forEach(f => {
     const name = String(f.name||'').trim();
@@ -5233,11 +5238,11 @@ function preflightChecks(htmlText=''){
   return out;
 }
 
-// Lists the compatibility check's results under its button
+// Lists Check eForm's results under its button
 function renderPreflight(results){
     const resultsBox = $('preflightBox');
     if (!resultsBox) return;
-    if (!results || !results.length){ resultsBox.innerHTML = '<div class="small" style="color:#64748b">Run preflight to see checks.</div>'; return; }
+    if (!results || !results.length){ resultsBox.innerHTML = '<div class="small" style="color:#64748b">Check eForm to see what to fix before export.</div>'; return; }
     resultsBox.innerHTML = results.map(result => `<div class="pf-${result.level}" style="margin-bottom:4px">• ${escHtml(result.text)}</div>`).join('');
   }
 
@@ -5246,7 +5251,7 @@ function renderPreflight(results){
 // at its file in OSCAR's image folder (${oscar_image_path}…), building the draft if it is empty
 function repairImagePlaceholders(){
   let html = String($('exportEditor').value || '');
-  if (!html.trim()) html = buildExportHtml();
+  if (!html.trim()) html = state.lastBuiltDraft = buildExportHtml();
   // Replace each BGImage src with the correct ${oscar_image_path} placeholder.
   // Match id="BGImage1", id="BGImage2", etc. and fix their src.
   let patched = 0;
@@ -5268,7 +5273,7 @@ function repairImagePlaceholders(){
   }
   $('exportEditor').value = html;
   msg(patched ? `Repaired ${patched} image placeholder(s).` : 'No image placeholders needed repair.', patched ? 'ok' : 'warn');
-  renderPreflight(preflightChecks(html));
+  checkEform();
 }
 
 
@@ -6162,6 +6167,24 @@ async function downloadOscarPackage(){
   }
 }
 
+// "Check eForm": checks the eForm that Export OSCAR eform (.zip) would build now, from the
+// pages and fields, not the draft in the editor (which can be out of date or edited by hand).
+// A draft edited by hand is what Copy draft and Download draft give, so its own HTML is checked
+// too; one only out of date is said to be.
+function checkEform(){
+  let html;
+  try { html = buildExportHtml(); }
+  catch(err){ renderPreflight([{ level: 'err', text: 'Could not build the eForm: ' + (err.message || err) }]); return; }
+  const results = eformChecks(html);
+  const draft = $('exportEditor').value || '';
+  if (draft.trim() && draft !== state.lastBuiltDraft){
+    results.push({ level: 'warn', text: 'The draft in the editor has been edited by hand: Copy draft and Download draft give it with those edits, but Export OSCAR eform (.zip) builds the eForm afresh without them.' });
+    htmlChecks(draft).filter(r => r.level !== 'ok').forEach(r => results.push({ level: r.level, text: 'In the edited draft: ' + r.text }));
+  } else if (draft.trim() && draft !== html)
+    results.push({ level: 'warn', text: 'The draft in the editor is older than the latest changes: Build HTML draft to update it before Copy draft or Download draft (Export OSCAR eform (.zip) is always up to date).' });
+  renderPreflight(results);
+}
+
 // "Build HTML draft": puts a freshly built eForm in the export editor
 function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltDraft = buildExportHtml(); msg('Built export HTML draft in editor.', 'ok'); }catch(err){ msg('Build failed: ' + (err.message || err), 'err'); }}
 
@@ -6194,11 +6217,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltD
   $('btnDownloadHtml').addEventListener('click', downloadExport);
   if ($('btnDownloadOscarZip')) $('btnDownloadOscarZip').addEventListener('click', downloadOscarPackage);
 
-  if ($('btnPreflight')) $('btnPreflight').addEventListener('click', ()=>{
-    const html = $('exportEditor').value || '';
-    const results = preflightChecks(html);
-    renderPreflight(results);
-  });
+  if ($('btnPreflight')) $('btnPreflight').addEventListener('click', checkEform);
   if ($('btnInsertPlaceholders')) $('btnInsertPlaceholders').addEventListener('click', repairImagePlaceholders);
 
   if ($('eformTitle')) {
