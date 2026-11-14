@@ -336,12 +336,12 @@
     <div id="converterTopMount"></div>
 
     <div class="row" style="margin-top:10px">
-      <!-- (the pages: a tab each, then adding and removing one, and the image of the one shown) -->
+      <!-- (the pages: a tab each, the image of the one shown, then adding and removing one) -->
       <span id="tabsRow"></span>
-      <button id="btnAddPage" class="btn-blue" title="Adds a page after the last, and asks for its image">+ Add Page</button>
-      <button id="btnRemovePage" class="btn-red" title="Removes the page shown, with its image and fields; the pages after it move up a number">&#8722; Remove This Page</button>
       <button id="btnUploadPage" class="btn-blue" title="A PNG or JPEG image of the page shown. A new image the same shape as the old one keeps the page's fields in their places.">Upload Page 1 Image</button>
       <input id="fileImg" type="file" accept="image/png,image/jpeg,image/jpg" hidden/>
+      <button id="btnAddPage" class="btn-blue" title="Adds a page after the last, and asks for its image">+ Add Page</button>
+      <button id="btnRemovePage" class="btn-red" title="Removes the page shown, with its image and fields; the pages after it move up a number">&#8722; Remove This Page</button>
 
       <span class="detect-wrap"><button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button><button id="detectCustom" class="custom-badge" type="button" hidden title="Auto Detect is using tuning values that aren't the standard ones, so it may find fewer or wrong fields. Click to see them in Settings.">custom</button></span>
     </div>
