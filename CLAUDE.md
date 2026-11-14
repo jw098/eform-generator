@@ -50,7 +50,8 @@ filled in or ticked by hand. Don't loosen a rule for filled-in forms.
 
 Auto Detect works from the picture, in two passes. When the page came from a fillable PDF,
 the PDF's own form fields are taken as they are (`pdfFormFields`: positions, names and labels)
-in place of the fields pass 1 finds; pass 1 still reads the page's rules, and pass 2 only what's
+in place of the fields pass 1 finds, unless "Detect from" is set to "Visual detection"
+(`state.detectMode`; it offers "PDF form fields" only for a fillable PDF, `refreshDetectMode`); pass 1 still reads the page's rules, and pass 2 only what's
 printed around them (`sectionFields`) and their tags (`tagFields`).
 
 **Pass 1: the picture only, no OCR.** It must not rely on OCR: it finds the fields from the

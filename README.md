@@ -27,6 +27,10 @@ Next, detect the location of the fields/input boxes. Click `Auto Detect (All Pag
 
 `Auto Detect (All Pages)` skips pages that already have fields, so it never puts a second set on top of your work, and one `Undo` takes back the whole run. To redo a page, clear it (`More` → `Clear Current Page`) and run Auto Detect again.
 
+`Detect from` (next to the buttons) chooses where the fields come from:
+- `PDF form fields`: a fillable PDF's own fields, with their exact positions and the PDF's names. A page with no PDF form fields is detected visually. This is the default for a fillable PDF.
+- `Visual detection`: the printed lines and boxes, with names from the printed labels. Use it when a fillable PDF's fields are poor (missing, misplaced, or named `Text1`). For page images and flat PDFs, it's the only choice.
+
 The eForm generator should automatically add boxes for all input fields. Using OCR, the script will also try to guess an appropriate name for the field, and more importantly, guess an oscarDB tag.
 
 Checkboxes, circles, free draw areas and signatures never get an oscarDB tag. A checkbox can still be ticked automatically with a `Custom text/action`, such as one for the patient's sex.
