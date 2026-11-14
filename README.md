@@ -40,7 +40,7 @@ Revealed by the `More` button:
 - `Add signature`: Adds a signature box to the bottom right corner. The associated `Stamp, Draw, Electronic, Clear` controls can be moved separately from the signature box; they can even be moved off the canvas to the right side bar.
 
 ## Adjusting position of fields
-All fields can be moved and resized, as well as copy/pasted. 
+All fields can be moved and resized, and copied and pasted. 
 
 Keyboard shortcuts, when a field is selected:
 - Arrow keys: nudge the field 1 pixel
@@ -57,7 +57,7 @@ If you click a specific input field, its data will be in the right sidebar under
 - `Name`: The field’s name in the eForm; OSCAR saves its value under it, so ensure you keep names unique. Also used by `Guess tag`.
 - `Fill with`: Dropdown that toggles between `OSCAR tag` and `Custom text/action`
     - `OSCAR tag`: oscarDB tag, which then automatically pulls in its associated value when the eForm is loaded on OSCAR. Shows up as green text on the canvas. You may choose the tag from the dropdown list, or manually type in the oscarDB tag. If you manually input an oscarDB tag that isn't in the standard OSCAR 12 tags, you will see a warning.
-    - `Custom text/action`: These are an alternative to oscarDB tags, particularly where the text or action you want isn't offered directly by the oscarDB tag. e.g. checking a box based on patient's sex, display two phone numbers, current user's first name or last name only, etc. These show up as purple text on the canvas. 
+    - `Custom text/action`: These are an alternative to oscarDB tags, particularly where the text or action you want isn't offered directly by the oscarDB tag. for example, ticking a box for the patient's sex, showing two phone numbers, or only the current user's first or last name. These show up as purple text on the canvas. 
 - `Guess tag`: Guesses an oscarDB tag based on the selected field's name.
 - `Font size`: Changes the font size. Only appears for certain fields such as text lines, text areas, checkboxes and some custom fills.
 - `X`, `Y`, `W`, `H`: adjusts the x-position, y-position, width, and height respectively of the selected field.
@@ -81,6 +81,8 @@ Use `Save Session`, located on the right sidebar, to keep your work. Use `Load S
 
 ## Importing a pre-existing eForm
 
-Use `Import eForm HTML` from the right sidebar. Select the eForm .html to be imported. Then click `Add fields/tags from HTML`, for its fields to be added to the canvas.
+Open `eForm HTML import` on the right sidebar, click `Import eForm HTML` and select the eForm's .html file. Then click `Add fields/tags from HTML` to add its fields to the canvas. Use it on pages without fields (before Auto Detect, say), or you'll get two sets.
 
-Note: This only imports the eForm's fields. It will not import any of the images. All the necessary images must first be uploaded separately to the canvas. If any pages are missing from the canvas, those page's fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
+Note: It imports the eForm's fields, tags and scripts, but not its images: upload the pages to the canvas first. If any pages are missing from the canvas, those pages' fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
+
+The eForm's scripts (fax, print, signature, `onload`) go into your export too, unless you untick `Include extracted scripts / onload in export` in the same panel. `Auto-tag untagged` also uses the eForm's field names and tags to tag your other fields.
