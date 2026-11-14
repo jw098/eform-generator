@@ -524,6 +524,8 @@
         <select id="fDateFormat">
           <option value="ymd">Y-M-D (2016-01-29)</option>
           <option value="dmy">D-M-Y (29-01-2016)</option>
+          <option value="ymd_slash">Y/M/D (2016/01/29)</option>
+          <option value="dmy_slash">D/M/Y (29/01/2016)</option>
         </select>
       </label>
       <div id="fDateFormatWarn" class="small" style="display:none;color:var(--red);margin-top:4px"></div>
@@ -1704,7 +1706,7 @@ else if (typeof exports === 'object')
         label,
         ...(parseAttr(el, 'id') ? { elementId: parseAttr(el, 'id') } : {}),
         ...(type === 'textarea' ? { fontButtons, ...(fontSize > 0 ? { fontSize: Math.round(fontSize) } : {}) } : {}),
-        ...(type === 'date' && dateFormat === 'dmy' ? { dateFormat } : {}),
+        ...(type === 'date' && keptDateFormat(dateFormat) ? { dateFormat } : {}),
         ...(exportW ? { _exportW: exportW } : {})
       };
       template.fields.push(field);
@@ -1895,7 +1897,7 @@ else if (typeof exports === 'object')
     };
     if (partial.fontSize) f.fontSize = partial.fontSize;
     if (partial.fontButtons === false) f.fontButtons = false;
-    if (partial.dateFormat === 'dmy') f.dateFormat = 'dmy';
+    if (keptDateFormat(partial.dateFormat)) f.dateFormat = partial.dateFormat;
     if (partial.fill) f.fill = { ...partial.fill };
     if (partial.target != null) f.target = partial.target;
     state.fields.push(f);
@@ -2862,17 +2864,17 @@ else if (typeof exports === 'object')
   // A typed tag that isn't standard is kept, with a warning: OSCAR may not fill it in
   function showTagWarn(tag){ $('fTagWarn').style.display = tag && !STANDARD_TAGS.has(tag) ? 'block' : 'none'; }
   // Shows a date field's format, and warns when the date the field starts with is in another
-  // format than its calendar writes: a tag OSCAR fills year first ("today": "2016-01-29") on a
-  // day-first field, or a custom date fill ("Date: D-M-Y") in the other format
+  // format than its calendar writes (in order or separator): a tag OSCAR fills "2016-01-29"
+  // ("today") on a field set to another format, or a custom date fill ("Date: D-M-Y") on one set
+  // to any but its own
   function showDateFormat(f){
     $('fDateFormatRow').style.display = f.type === 'date' ? 'block' : 'none';
     const tag = usesCustomFill(f) ? '' : String(f.oscarTag || '').trim(), action = usesCustomFill(f) && customActionById(f.fill.action);
     const startsAs = todayFormatToShow(f) || (YMD_DATE_TAGS.has(tag) ? 'ymd' : ''), writes = dateFormatOf(f);
     const clash = f.type === 'date' && startsAs && startsAs !== writes;
-    const example = { ymd: 'Y-M-D (2016-01-29)', dmy: 'D-M-Y (29-01-2016)' };
     $('fDateFormatWarn').style.display = clash ? 'block' : 'none';
     $('fDateFormatWarn').textContent = !clash ? '' : (tag ? `OSCAR fills "${tag}"` : `"${action.label}" fills today's date`) +
-      ` as ${example[startsAs]}, but the calendar writes ${example[writes]}: the field would mix the two. Choose ${startsAs === 'ymd' ? 'Y-M-D' : 'D-M-Y'}, or another ${tag ? 'tag' : 'action'}.`;
+      ` as ${DATE_FORMATS[startsAs].label}, but the calendar writes ${DATE_FORMATS[writes].label}: the field would mix the two. Choose ${DATE_FORMATS[startsAs].label.split(' ')[0]}, or another ${tag ? 'tag' : 'action'}.`;
   }
   // A field's height on the eForm, whose page is EXPORT_PAGE_W wide
   function eformHeight(f){ const pageInfo = state.pages[f.page]; return pageInfo && pageInfo.naturalW ? f.height * EXPORT_PAGE_W / pageInfo.naturalW : f.height; }
@@ -2961,7 +2963,8 @@ else if (typeof exports === 'object')
     }
     showFillMode(f);
     // (a date field's format; one that stops being a date field keeps none)
-    if (f.type === 'date' && $('fDateFormat').value === 'dmy') f.dateFormat = 'dmy'; else delete f.dateFormat;
+    const dateFormat = f.type === 'date' && keptDateFormat($('fDateFormat').value);
+    if (dateFormat) f.dateFormat = dateFormat; else delete f.dateFormat;
     showDateFormat(f);
 
     // (a signature field with a plain numbered name is called "signature": it is the
@@ -3085,7 +3088,7 @@ else if (typeof exports === 'object')
         label: String(f.label || ''),
         ...(Number(f.fontSize) > 0 ? { fontSize: Number(f.fontSize) } : {}),
         ...(f.fontButtons === false ? { fontButtons: false } : {}),
-        ...(f.dateFormat === 'dmy' ? { dateFormat: 'dmy' } : {}),
+        ...(keptDateFormat(f.dateFormat) ? { dateFormat: f.dateFormat } : {}),
         ...(f.fill && typeof f.fill === 'object' ? { fill: { on: f.fill.on !== false, action: String(f.fill.action || ''), ...(f.fill.text != null ? { text: String(f.fill.text) } : {}) } } : {}),
         ...(isAttachedType(f.type) ? { target: Number(f.target), ...(f.anchor ? { anchor: { x: Number(f.anchor.x), y: Number(f.anchor.y) } } : {}) } : {})
       };
@@ -4878,15 +4881,21 @@ else if (typeof exports === 'object')
 // the field it names
 const CALENDAR_SETUP_RE = /Calendar\.setup\s*\(\s*\{[^}]*\}\s*\)\s*;?/g;
 const calendarFieldOf = (call) => (call.match(/inputField\s*:\s*["']([^"']+)["']/) || [])[1] || '';
-// The formats a date field's calendar can fill in, as OSCAR's calendar writes them: year first, as
-// OSCAR's "today" tag fills a date (the one a field has unless it is given dateFormat: 'dmy'), or
-// day first
-const DATE_FORMATS = { ymd: '%Y-%m-%d', dmy: '%d-%m-%Y' };
-const dateFormatOf = (f) => f.dateFormat === 'dmy' ? 'dmy' : 'ymd';
+// The formats a date field's calendar can fill in, as OSCAR's calendar writes them and as the
+// Selected field editor names them: year first with dashes, as OSCAR's "today" tag fills a date (the
+// one a field has unless it is given another, `dateFormat`), day first, and each with slashes
+const DATE_FORMATS = {
+  ymd: { calendar: '%Y-%m-%d', label: 'Y-M-D (2016-01-29)' }, dmy: { calendar: '%d-%m-%Y', label: 'D-M-Y (29-01-2016)' },
+  ymd_slash: { calendar: '%Y/%m/%d', label: 'Y/M/D (2016/01/29)' }, dmy_slash: { calendar: '%d/%m/%Y', label: 'D/M/Y (29/01/2016)' },
+};
+const dateFormatOf = (f) => DATE_FORMATS[f.dateFormat] ? f.dateFormat : 'ymd';
 // The standard tags OSCAR fills with a date, year first ("2016-01-29")
 const YMD_DATE_TAGS = new Set(['today', 'appt_date', 'dobc2', 'hc_renew_date', 'onEDB', 'bcEDD', 'dtap_immunization_date', 'flu_immunization_date']);
-// The format a calendar's own format names: day first ("%d/%m/%y", "%e-%m-%Y") or year first
-const dateFormatFrom = (calendarFormat) => /^\s*%[de]/.test(calendarFormat || '') ? 'dmy' : 'ymd';
+// A format as a field keeps it: none for the year-first one it has anyway
+const keptDateFormat = (format) => DATE_FORMATS[format] && format !== 'ymd' ? format : undefined;
+// The format a calendar's own format names: day first ("%d/%m/%y", "%e-%m-%Y") or year first, with
+// slashes or dashes
+const dateFormatFrom = (calendarFormat) => (/^\s*%[de]/.test(calendarFormat || '') ? 'dmy' : 'ymd') + (/\//.test(calendarFormat || '') ? '_slash' : '');
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
 // _safeName, and no two the same: a name already taken gets the first number ending that isn't
 // ("name", "name_1", "name_2"), so it can't take another field's own "name_1"; _origName keeps
@@ -5070,7 +5079,7 @@ function inputMarkup(f, inlinePosStyle=''){
   // gives it OSCAR's calendar, which a click on it opens, filling the date as data-date-format
   // says: setUpCalendars)
   const text = staticText(f), valueAttr = text ? ` value="${escAttr(text)}"` : '';
-  const dateAttr = f.type === 'date' ? ` data-date-format="${DATE_FORMATS[dateFormatOf(f)]}"` : '';
+  const dateAttr = f.type === 'date' ? ` data-date-format="${DATE_FORMATS[dateFormatOf(f)].calendar}"` : '';
   return `<input class="gen_input noborder${f.type === 'date' ? ' dateField' : ''}" id="${id}" name="${fieldName}"${dbAttr}${dateAttr}${valueAttr} type="text" autocomplete="off" style="${inlinePosStyle}">`;
 }
 

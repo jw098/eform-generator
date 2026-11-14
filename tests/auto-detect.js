@@ -407,9 +407,10 @@
     assert((e.html.match(/share\/calendar\/calendar\.js/g) || []).length === 1, "OSCAR's calendar isn't loaded once");
     assert(/setUpCalendars\(\);/.test(e.html.match(/function startup\(\)\{[\s\S]*?\n\}/)[0]), "startup() doesn't set up the calendars");
   });
-  dateTest('each fills in its own format: year first unless set day first', () => {
-    const e = exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }]]);
-    sameList(calendarsSetUp(e), [`${e.inputs[0].id} %Y-%m-%d`, `${e.inputs[1].id} %d-%m-%Y`], 'the calendars set up');
+  dateTest('each fills in its own format: Y-M-D unless set otherwise', () => {
+    const formats = [undefined, 'dmy', 'ymd_slash', 'dmy_slash'];
+    const e = exportOf(formats.map((dateFormat, i) => [1, 'Date' + i, 'date', dateFormat ? { dateFormat } : {}]));
+    sameList(calendarsSetUp(e), ['%Y-%m-%d', '%d-%m-%Y', '%Y/%m/%d', '%d/%m/%Y'].map((format, i) => `${e.inputs[i].id} ${format}`), 'the calendars set up');
   });
   dateTest("the custom date fills show today's date in their format on a new form", () => {
     const dateFill = (action) => ({ fill: { on: true, action } });
@@ -425,16 +426,16 @@
   dateTest('an eForm with no date field has no calendar', () => assert(!/calendar/i.test(exportOf([[1, 'Name']]).html), 'it mentions a calendar'));
   // (an eForm made elsewhere, as "ICBC CL489" is: its fields are date fields where its own
   // Calendar.setup names them, by id or name; and an eForm this app made reads back the same)
-  const importedTypes = (html) => T.parseTemplateHtml(html, 'test.html').fields.map(f => `${f.name}: ${f.type}${f.dateFormat === 'dmy' ? ', D-M-Y' : ''}`);
+  const importedTypes = (html) => T.parseTemplateHtml(html, 'test.html').fields.map(f => `${f.name}: ${f.type}${f.dateFormat ? ', ' + f.dateFormat : ''}`);
   dateTest("an imported eForm's fields with OSCAR's calendar are date fields", () => {
     const at = (top) => `style="position:absolute; left:10px; top:${top}px; width:100px; height:20px"`;
     sameList(importedTypes(`<html><body><input type="text" id="AccidentDate" ${at(10)}><input type="text" name="SeenOn" ${at(40)}><input type="text" id="Name" ${at(70)}>
 <script>Calendar.setup({ inputField:"AccidentDate", ifFormat: "%d/%m/%y", button:"AccidentDate" }); Calendar.setup({ inputField:'SeenOn' });<\/script></body></html>`),
-      ['AccidentDate: date, D-M-Y', 'SeenOn: date', 'Name: text'], 'the fields read');
+      ['AccidentDate: date, dmy_slash', 'SeenOn: date', 'Name: text'], 'the fields read');
   });
   dateTest('an exported date field reads back as one, in its format', () => {
-    const types = importedTypes(exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }], [1, 'Name']]).html);
-    sameList(types.filter(t => /^(Seen|Due|Name):/.test(t)), ['Seen: date', 'Due: date, D-M-Y', 'Name: text'], 'the fields read');
+    const types = importedTypes(exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }], [1, 'Born', 'date', { dateFormat: 'ymd_slash' }], [1, 'Name']]).html);
+    sameList(types.filter(t => /^(Seen|Due|Born|Name):/.test(t)), ['Seen: date', 'Due: date, dmy', 'Born: date, ymd_slash', 'Name: text'], 'the fields read');
   });
 
   async function runTests(list){
