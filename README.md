@@ -26,6 +26,8 @@ Next, detect the location of the fields/input boxes. For each page, click `Auto 
 
 The eForm generator should automatically add boxes for all input fields. Using OCR, the script will also try to guess an appropriate name for the field, and more importantly, guess an oscarDB tag.
 
+Checkboxes, circles, free draw areas and signatures never get an oscarDB tag. A checkbox can still be ticked automatically with a `Custom text/action`, such as one for the patient's sex.
+
 ## Manually adding fields
 Above the canvas, and below the `Auto Detect (Current Page)` button, there are buttons to add input fields.
 
