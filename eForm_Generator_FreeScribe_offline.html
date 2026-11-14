@@ -5259,7 +5259,7 @@ function eformChecks(){
   // label suggests a tag, "Patient Name", are pointed out, and nothing is said when there are none)
   const couldBeTagged = dataFields(state.fields).map(f => [f, suggestedTag(f)]).filter(([, tag]) => tag);
   if (couldBeTagged.length) out.push({ level: 'warn', text: `${couldBeTagged.length} field(s) look like OSCAR could fill them in but have no oscarDB tag: ` +
-    couldBeTagged.slice(0, 6).map(([f, tag]) => `${f.name} (${tag})`).join(', ') + (couldBeTagged.length > 6 ? ', …' : '') + '. Auto-tag untagged tags them.' });
+    couldBeTagged.slice(0, 6).map(([f, tag]) => `${f.name} (${tag})`).join(', ') + (couldBeTagged.length > 6 ? ', …' : '') + '. The "Auto-tag untagged" button can tag them.' });
 
   // (validation runs from the eForm's Submit buttons, so it needs them; a group needs fields)
   if (state.validationGroups.length){
