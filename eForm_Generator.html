@@ -1747,30 +1747,32 @@ else if (typeof exports === 'object')
 
     if (isGenerated) {
       // ── Signature fields from CanvasProSignature divs ──────────────────────
-      for (let page = 1; page <= MAX_PAGES; page++) {
-        const sigDiv = doc.getElementById(page === 1 ? 'CanvasProSignature' : 'CanvasProSignature' + page);
-        if (!sigDiv) continue;
+      // (each box, in the order it comes, so a page's first stays its first: on the page its id
+      // names, "CanvasProSignature2" or "CanvasProSignature2_2" on page 2, else the one it is in)
+      doc.querySelectorAll('[id^="CanvasProSignature"]').forEach((sigDiv, index) => {
+        const pageInId = Number((sigDiv.id.match(/^CanvasProSignature(\d+)/) || [])[1]);
+        const page = pageInId >= 1 ? Math.min(pageInId, MAX_PAGES) : inferPage(sigDiv);
         const style = parseAttr(sigDiv, 'style');
         const left = parseStylePx(style, 'left');
         const top = parseStylePx(style, 'top');
         const sigImg = sigDiv.querySelector('img');
-        if (!left || !top || !sigImg) continue;
+        if (!left || !top || !sigImg) return;
         const w = parseFloat(sigImg.getAttribute('width') || '') || 120;
         const h = parseFloat(sigImg.getAttribute('height') || '') || 30;
         template.fields.push({
-          id: `tpl_${fileName}_sig${page}`,
+          id: `tpl_${fileName}_sig${index}`,
           page,
           x: left.val,
           y: top.val,
           width: w,
           height: h,
           type: 'signature',
-          name: 'signature',
+          name: sigImg.id || 'signature',   // (its name on the eForm: "signature", "signature_2", "signature2"…)
           oscarTag: '',
           label: '',
           _exportW: template.pageExportW[page] ? template.pageExportW[page].w : 750
         });
-      }
+      });
     }
 
     // (the fields the eForm gives OSCAR's calendar, "Calendar.setup({ inputField:"AccidentDate",
@@ -3028,18 +3030,19 @@ else if (typeof exports === 'object')
     selectOne(f.id); renderAll();
     msg('Added a circle: drag it over the choice it circles, and size it by its corner. On the eForm, a click circles it or takes the circle away.', 'ok');
   });
-  // "Add signature": the page's signature (an eForm has one a page), the size of a signature
-  // line, at the foot of the page on the right, with its controls beside it; one already on the
-  // page is selected instead
+  // "Add signature": a signature the size of a signature line, at the foot of the page on the
+  // right, with its controls beside it; a page can have several (the patient's, a witness's), each
+  // added above the last
   $('btnSignature').addEventListener('click', ()=>{
     const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
-    const existing = getPageFields(state.currentPage).find(f => f.type === 'signature');
-    if (existing){ selectOne(existing.id); renderAll(); msg('This page has a signature already (an eForm has one a page): it is selected.', 'warn'); return; }
+    const already = getPageFields(state.currentPage).filter(f => f.type === 'signature').length;
     pushUndo();
-    const k = p.naturalW / EXPORT_PAGE_W, width = SIGNATURE_W * k, height = SIGNATURE_H * k;
-    const f = addField({ page: state.currentPage, x: Math.max(0, p.naturalW - width - 30 * k), y: Math.max(0, p.naturalH - height - 60 * k), width, height, type: 'signature', name: 'signature', oscarTag: '' });
+    const k = p.naturalW / EXPORT_PAGE_W, width = SIGNATURE_W * k, height = SIGNATURE_H * k, step = height + SIG_TOOLS_H * k + 10 * k;
+    const f = addField({ page: state.currentPage, x: Math.max(0, p.naturalW - width - 30 * k), y: Math.max(0, p.naturalH - height - 60 * k - already * step), width, height,
+                         type: 'signature', name: already ? `signature_${already + 1}` : 'signature', oscarTag: '' });
     selectOne(f.id); renderAll();
-    msg('Added a signature: on the eForm, the provider\'s signature image, one drawn by hand, or "Electronically signed". Drag it over the signature line; its controls can be moved on their own.', 'ok');
+    msg(`Added a signature${already ? ` (this page's ${already + 1}${['', '', 'nd', 'rd'][already + 1] || 'th'})` : ''}: on the eForm, the provider's signature image, one drawn by hand, or "Electronically signed". Drag it over the signature line; its controls can be moved on their own.` +
+        (already ? ' Each starts as the provider\'s stamp, so a second signer (the patient, a witness) chooses Draw or Electronic.' : ''), 'ok');
   });
   // Adds a field of a type at the page's top left, `size(page)` its width and height, and selects
   // it, to be moved and sized over its place
@@ -5517,9 +5520,14 @@ function drawToolsMarkup(name, x, y){
   // (the row inside its own box: a display set on the box itself would keep it from hiding in print)
   return `<div class="DoNotPrint FreeDrawTools" data-draw-tools-for="${name}" style="position:absolute; left:${x}px; top:${y}px; width:${DRAW_TOOLS_W}px; height:${DRAW_TOOLS_H}px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%; font-size:11px;">${pens}<button type="button" data-draw-tool="undo" style="height:18px; padding:0 4px; font-size:11px;">Undo</button><button type="button" data-draw-tool="clear" style="height:18px; padding:0 4px; font-size:11px;">Clear</button></div></div>`;
 }
-// The name a page's signature goes by on the eForm: its stamp's image id ("signature",
-// "signature2"…), and the start of its hidden inputs' names
-function signatureKey(pageNo){ return Number(pageNo) === 1 ? 'signature' : `signature${pageNo}`; }
+// The name a page's nth signature goes by on the eForm: its stamp's image id, and the start of
+// its hidden inputs' names. A page's first is "signature" on page 1, "signature2" on page 2…, as
+// eForms made before a page could have more than one name it; the others add their number
+// ("signature_2", "signature2_2"), which no page's first can be
+function signatureKey(pageNo, n = 1){ return (Number(pageNo) === 1 ? 'signature' : `signature${pageNo}`) + (n > 1 ? `_${n}` : ''); }
+// The id of the box holding a page's nth signature: OSCAR's "CanvasProSignature" on page 1,
+// "CanvasProSignature2" on page 2…, with the signature's number after it as signatureKey adds it
+function signatureBoxId(pageNo, n = 1){ return 'CanvasProSignature' + (Number(pageNo) === 1 ? '' : pageNo) + (n > 1 ? `_${n}` : ''); }
 // A signature's controls on the eForm (not printed), at (x, y): Stamp (the provider's signature
 // image, as it starts), Draw (signed by hand, on the signature's free draw canvas) or Electronic
 // ("Electronically signed"), and Clear, which takes off what was drawn; `key` is the
@@ -5624,7 +5632,8 @@ function eformChecks(){
   const includeButtons = $('chkIncludeButtons').checked;
   out.push({ level: includeButtons ? 'ok' : 'warn', text: includeButtons ? 'Submit / Fax & Submit / Print & Submit buttons included.' : 'The Submit / Fax & Submit / Print & Submit buttons are left out of the export: the eForm needs buttons of its own to be submitted.' });
   const nameCounts = new Map();
-  dataFields(state.fields).forEach(f => {
+  // (a signature's name on the eForm comes from its place, signatureKey, not its name)
+  dataFields(state.fields).filter(f => f.type !== 'signature').forEach(f => {
     const name = String(f.name||'').trim();
     if (!name) return;
     nameCounts.set(name, (nameCounts.get(name)||0)+1);
@@ -5751,25 +5760,24 @@ function buildExportHtml(){
     if (f.type === 'fontbuttons') return fontButtonsMarkup(f._safeName, x, y);
     if (f.type === 'phoneselect') return phoneSelectMarkup(f._safeName, x, y);
     if (f.type === 'drawtools') return drawToolsMarkup(f._safeName, x, y);
-    if (f.type === 'sigtools') return signatureToolsMarkup(signatureKey(f.page), x, y);
+    if (f.type === 'sigtools') return signatureToolsMarkup(f._sigKey, x, y);
     if (f.type === 'drawing') return drawingMarkup(escAttr(f._safeName), escAttr(f._safeName + '_' + f.id), x, y, w, h);
     const inlinePos = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; font-family:sans-serif; font-size:${fieldFontSize(f, h)}px; background-color:transparent;`;
     return inputMarkup(f, inlinePos);
   }
 
-  // The signature for a page's signature field: OSCAR's CanvasProSignature stamp (the provider's
+  // A signature field, the nth on its page: OSCAR's CanvasProSignature stamp (the provider's
   // signature image) and, over it, a free draw canvas to sign by hand and the words
   // "Electronically signed", each hidden until its controls choose it; the hidden inputs keep
   // what was drawn ("signature_drawn") and the choice ("signature_choice": stamp, draw or
   // electronic), so the form opens as it was saved
-  function signatureMarkup(sigField, naturalW, naturalH, scale, pageNo){
-    if(!sigField) return '';
+  function signatureMarkup(sigField, naturalW, naturalH, scale, pageNo, n){
     const x = Math.round(clamp(scaled(sigField.x, scale), 0, Math.max(0, scaled(naturalW, scale))));
     const y = Math.round(clamp(scaled(sigField.y, scale), 0, Math.max(0, scaled(naturalH, scale))));
     const w = Math.max(40, Math.round(scaled(sigField.width || 150, scale)));
     const h = Math.max(16, Math.round(scaled(sigField.height || 40, scale)));
-    const divId = pageNo === 1 ? 'CanvasProSignature' : `CanvasProSignature${pageNo}`;
-    const key = signatureKey(pageNo);
+    const divId = signatureBoxId(pageNo, n);
+    const key = signatureKey(pageNo, n);
     return `<div id="${divId}" class="sig" data-signature-for="${key}" style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px;">
     <img id="${key}" name="${key}" src="\${oscar_image_path}BNK.png" width="${w}" height="${h}" style="z-index:10;">
     <div class="FreeDraw" data-draw-for="${key}_drawn" style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; z-index:11; visibility:hidden;"><canvas style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; touch-action:none; cursor:crosshair;"></canvas></div>
@@ -5780,11 +5788,11 @@ function buildExportHtml(){
 `;
   }
 
-  // A page of the eForm: its background image, signature stamp and fields, a page break after
+  // A page of the eForm: its background image, signatures and fields, a page break after
   // it unless it is the last, then `afterHtml` (the buttons) outside it. A page with controls in
   // the margin right of it (controlMarginW) doesn't hide what runs past it: they show on screen,
   // and aren't printed
-  function pageMarkup(pageNo, fields, sigField, naturalW, naturalH, bgSrc, scale, hasNext, tailHtml='', afterHtml=''){
+  function pageMarkup(pageNo, fields, sigFields, naturalW, naturalH, bgSrc, scale, hasNext, tailHtml='', afterHtml=''){
     const breakAfter = hasNext ? 'always' : 'auto';
     const pageW = scaled(naturalW, scale);
     const pageH = scaled(naturalH, scale);
@@ -5793,7 +5801,7 @@ function buildExportHtml(){
 `;
     out += `<img id="BGImage${pageNo}" src="${escAttr(bgSrc)}" style="position:absolute;left:0;top:0;width:${pageW}px;height:${pageH}px;">
 `;
-    out += signatureMarkup(sigField, naturalW, naturalH, scale, pageNo);
+    sigFields.forEach((sigField, i) => { out += signatureMarkup(sigField, naturalW, naturalH, scale, pageNo, i + 1); });
     fields.forEach(f=>{ out += `<!-- ${escHtml(f.name || f._safeName || 'field')} -->
 ${fieldMarkupScaled(f, naturalW, naturalH, scale)}
 `; });
@@ -6263,7 +6271,7 @@ function setUpCalendars(){
 <\/script>
 `;
   const signatureScript = !usesSignatures ? '' : `<script>
-// Signatures: each page's signature (data-signature-for) is the provider's stamp, their
+// Signatures: each signature (data-signature-for) is the provider's stamp, their
 // signature image, one drawn by hand on its free draw canvas, or "Electronically signed"; its controls
 // (data-signature-tools-for) choose which, and the choice is kept in its hidden input
 // "<name>_choice", so the form opens as it was saved (a new form, with the stamp)
@@ -6494,17 +6502,17 @@ ${(function(){
     // (a field's controls take its name on the eForm, and no name of their own)
     const pageNamedFields = dataFields(getPageFields(page)).map(f => namedFields.get(f.id));
     const eformName = new Map(pageNamedFields.map(f => [f.id, f._safeName]));
-    const pageFields = [...pageNamedFields, ...getPageFields(page).filter(b => isAttachedType(b.type) && eformName.has(b.target)).map(b => ({ ...b, _safeName: eformName.get(b.target) }))];
-    const sigFields = pageFields.filter(f => isSignatureField(f));
-    if (sigFields.length > 1) console.warn(`Page ${page}: ${sigFields.length} signature fields found; only the first will be rendered.`);
-    const sigField = sigFields[0] || null;
-    // (an eForm has one signature a page: another's controls go with it)
-    const fields = pageFields.filter(f => !isSignatureField(f) && (f.type !== 'sigtools' || (sigField && f.target === sigField.id)));
+    // (each signature named by its place among the page's, its controls by the same name)
+    const sigFields = pageNamedFields.filter(f => isSignatureField(f));
+    const sigKey = new Map(sigFields.map((f, i) => [f.id, signatureKey(page, i + 1)]));
+    const pageFields = [...pageNamedFields, ...getPageFields(page).filter(b => isAttachedType(b.type) && eformName.has(b.target))
+      .map(b => ({ ...b, _safeName: eformName.get(b.target), ...(b.type === 'sigtools' ? { _sigKey: sigKey.get(b.target) } : {}) }))];
+    const fields = pageFields.filter(f => !isSignatureField(f) && (f.type !== 'sigtools' || f._sigKey));
     const imageSrc = '${oscar_image_path}' + pageImageName(page);
     const isLast = idx === exportPages.length - 1;
     const tailHtml = '';
     const afterHtml = isLast ? (bottomButtons || '') + '\n' + hiddenCurrentUser + hiddenNewFormFields : '';
-    return pageMarkup(page, fields, sigField, pageInfo.naturalW, pageInfo.naturalH, imageSrc, scale, !isLast, tailHtml, afterHtml);
+    return pageMarkup(page, fields, sigFields, pageInfo.naturalW, pageInfo.naturalH, imageSrc, scale, !isLast, tailHtml, afterHtml);
   }).join('');
 })()}
 </form>
