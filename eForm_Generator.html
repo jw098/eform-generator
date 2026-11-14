@@ -406,7 +406,7 @@
     </div>
 
     <div class="row" style="margin-top:8px">
-      <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Ctrl/Cmd+C/V copy/paste · Ctrl/Cmd+Z undo</span>
+      <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Esc deselects · J/K or ←/→ (nothing selected) = next/previous page · Ctrl/Cmd+C/V copy/paste · Ctrl/Cmd+Z undo</span>
     </div>
 
     <div class="kvs" style="margin-top:10px">
@@ -2710,9 +2710,10 @@ else if (typeof exports === 'object')
   }
 
   // Canvas shortcuts: Ctrl/Cmd+C, V and D copy, paste and duplicate; Ctrl/Cmd+Z undoes; the
-  // arrow keys nudge the selected fields (Shift: 10 px); Delete or Backspace removes them. In a
-  // box being typed in (a field's Name, say) they are the box's own, so Ctrl/Cmd+Z there undoes
-  // the typing.
+  // arrow keys nudge the selected fields (Shift: 10 px); Delete or Backspace removes them; Esc
+  // clears the selection. J and K go to the next and previous page, and so do → and ← while no
+  // field is selected (with one selected they nudge it). In a box being typed in (a field's
+  // Name, say) or a dropdown they are the box's own, so Ctrl/Cmd+Z there undoes the typing.
   document.addEventListener('keydown', (e) => {
     if (isTypingTarget(e.target)) return;
 
@@ -2738,6 +2739,20 @@ else if (typeof exports === 'object')
       e.preventDefault();
       duplicateSelectedFields();
       return;
+    }
+
+    if (e.key==='Escape' && state.selected.size){ state.selected.clear(); renderAll(); return; }
+    // (the next or previous page; none past the first or the last. Not with Ctrl, Cmd or Alt:
+    // Ctrl+J, Cmd+K and Alt+arrows are the browser's. The selection, on the page left, is
+    // cleared, so the arrows go on switching pages)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey){
+      const step = { j: 1, k: -1 }[e.key.toLowerCase()] || (!state.selected.size && { ArrowRight: 1, ArrowLeft: -1 }[e.key]);
+      if (step){
+        e.preventDefault();
+        const pages = Object.keys(state.pages).map(Number).sort((a,b)=>a-b), next = pages[pages.indexOf(state.currentPage) + step];
+        if (next != null){ state.selected.clear(); setCurrentPage(next); }
+        return;
+      }
     }
 
     if (!state.selected.size) return;
@@ -2812,7 +2827,7 @@ else if (typeof exports === 'object')
     }).observe(img);
 
     const tab = document.createElement('button');
-    tab.id='tab'+page; tab.className='tab'; tab.textContent='Page '+page;
+    tab.id='tab'+page; tab.className='tab'; tab.textContent='Page '+page; tab.title='J/K (or ←/→ with no field selected) go to the next and previous page';
     tab.addEventListener('click', ()=> setCurrentPage(page));
     $('tabsRow').appendChild(tab);
   }
