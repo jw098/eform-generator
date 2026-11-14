@@ -9,7 +9,7 @@ To quickly generate an eForm, just do the following steps:
 - Load the images: Under PDF->PNG converter, browse and select your PDF file. Click `Load into Mapper`. The image should show up in the canvas.
 - For each page in the canvas, click `Auto Detect (Current Page)`. Click the `Page 1`, `Page 2`, etc. tabs to change pages.
 - Click `Check eForm` to ensure there are no major issues with the eForm.
-- Click `Export OSCAR eform (.zip)` to get the final .zip file, which can be imported into OSCAR.
+- Click `Export OSCAR eForm` to get the final .zip file, which can be imported into OSCAR.
 
 ## Upload images
 
@@ -73,4 +73,4 @@ Checks the eForm for problems such as duplicate names, untagged fields, fields o
 
 ## Export
 
-Click `Export OSCAR eform (.zip)` to get the final .zip file, which can be imported into OSCAR.
+Click `Export OSCAR eForm` to get the final .zip file, which can be imported into OSCAR.

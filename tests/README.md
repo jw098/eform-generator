@@ -132,7 +132,7 @@ tab in the app, with what Auto Detect found drawn on it.
 ## Adding a test case
 
 1. In the app, make the eForm as it should be: every box in place, with its `oscarDB` tag.
-   Download it with **Export OSCAR eform (.zip)** (a zip of the HTML and its page images). An
+   Download it with **Export OSCAR eForm** (a zip of the HTML and its page images). An
    eForm made elsewhere works too: use its `.html` and its background image(s).
 2. Open the app with `#test`, click **Add a test case…** in the panel, and pick the zip (or
    the `.html` and its images together). The case runs straight away; its results appear in
