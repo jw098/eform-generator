@@ -2602,6 +2602,14 @@ else if (typeof exports === 'object')
     // (a control may sit in the margin right of the page)
     const rightLimit = (type) => (pageInfo.naturalW||1) + (isAttachedType(type) ? controlMarginW(page) : 0);
     state.selected.clear();
+    // (each copied field, not a control, gets a name no field has: the original's, numbered on from it, "phone" → "phone_2",
+    // "phone_2" → "phone_3")
+    const usedNames = new Set(state.fields.map(f => f.name));
+    const freeName = (name) => {
+      const base = String(name).replace(/_\d+$/, '') || 'field';
+      let k = 2; while (usedNames.has(`${base}_${k}`)) k++;
+      usedNames.add(`${base}_${k}`); return `${base}_${k}`;
+    };
     // (the controls last, each on its field's copy)
     const pastedIds = new Map();
     [...state.clipboardFields].sort((a, b) => isAttachedType(a.type) - isAttachedType(b.type)).forEach((copied, i) => {
@@ -2614,7 +2622,7 @@ else if (typeof exports === 'object')
         width: w,
         height: h,
         type: copied.type || 'text',
-        name: copied.name ? `${copied.name}_copy` : `field_${state.nextId+i}`,
+        name: isAttachedType(copied.type) ? copied.name : freeName(copied.name || 'field'),
         oscarTag: copied.oscarTag || '',
         fontSize: copied.fontSize, fontButtons: copied.fontButtons, dateFormat: copied.dateFormat, fill: copied.fill,
         target: isAttachedType(copied.type) ? pastedIds.get(copied.target) : null
