@@ -24,4 +24,4 @@ jobs:
           python3 -m http.server 8000 >/dev/null 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8000/ && break; sleep 1; done
       - name: Run the tests
-        run: node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" --variations
+        run: node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" --variations

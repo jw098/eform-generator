@@ -6,7 +6,7 @@ package). **Auto Detect** finds the tick boxes and the places to write, and sugg
 
 ## Layout
 
-- `eForm_Generator_FreeScribe_offline.html`: the whole app, one file (~6,200 lines). It runs
+- `eForm_Generator.html`: the whole app, one file (~6,200 lines). It runs
   offline from disk, so its libraries are embedded (pdf.js, Tesseract.js with its English
   data, an Emscripten module): lines ~500–870 are minified or base64 vendor code, some lines
   megabytes long. Don't edit them, and keep searches off them (a search that hits them prints
@@ -91,7 +91,7 @@ Playwright's own Chromium; on GitHub it's the runner's Chrome):
 
 ```
 python3 -m http.server 8000 &
-PW_CHANNEL= node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" --variations
+PW_CHANNEL= node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" --variations
 ```
 
 Every test must pass; to-dos (○) are allowed. CI runs the same on each push.
@@ -100,8 +100,8 @@ For a change meant not to change what Auto Detect finds (a refactor, a tidy-up),
 exact snapshots before and after. They are deterministic, so any diff comes from the change:
 
 ```
-PW_CHANNEL= node tests/snapshot.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" > before.txt
-PW_CHANNEL= node tests/snapshot.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" > after.txt
+PW_CHANNEL= node tests/snapshot.js "http://localhost:8000/eForm_Generator.html#test" > before.txt
+PW_CHANNEL= node tests/snapshot.js "http://localhost:8000/eForm_Generator.html#test" > after.txt
 diff before.txt after.txt
 ```
 
@@ -116,7 +116,7 @@ matched, red missing, orange extra, magenta tags that differ, grey skipped), as 
 list:
 
 ```
-PW_CHANNEL= node tests/show.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" tests/cases/referral-form/referral_form_3c1x42_page1.png out.png
+PW_CHANNEL= node tests/show.js "http://localhost:8000/eForm_Generator.html#test" tests/cases/referral-form/referral_form_3c1x42_page1.png out.png
 ```
 
 `show.js` uses the tests' own machinery (`T.harness` in `tests/auto-detect.js`, which stops

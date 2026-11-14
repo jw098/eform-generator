@@ -5,7 +5,7 @@ Turns a PDF form into an OSCAR eForm.
 ## Quick start
 
 To quickly generate an eForm, just do the following steps:
-- Download `eForm_Generator_FreeScribe_offline.html` and open it in a browser; it runs offline.
+- Download `eForm_Generator.html` and open it in a browser; it runs offline.
 - Load the images: Under PDF->PNG converter, browse and select your PDF file. Click `Load into Mapper`. The image should show up in the canvas.
 - For each page in the canvas, click `Auto Detect (Current Page)`. Click the `Page 1`, `Page 2`, etc. tabs to change pages.
 - Click `Check eForm` to ensure there are no major issues with the eForm.

@@ -20,7 +20,7 @@ writing them into the eForm's HTML.
 Open the app with `#test` at the end of its address, for example:
 
 ```
-file:///C:/path/to/eForm_Generator_FreeScribe_offline.html#test
+file:///C:/path/to/eForm_Generator.html#test
 ```
 
 If the app is already open, add `#test` and reload. Nothing needs installing; the tests run
@@ -31,7 +31,7 @@ Opened from disk like this, the panel first asks you to **choose the `tests/case
 A page opened from disk may show an image file but isn't allowed to read its pixels, or to
 read other files at all, so it asks for the folder; nothing leaves your computer. If the app
 is served over http instead (for example `python -m http.server` in this folder, then
-`http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test`), it reads the files
+`http://localhost:8000/eForm_Generator.html#test`), it reads the files
 itself and doesn't ask.
 
 ## On GitHub
@@ -48,7 +48,7 @@ To run it the same way on your own computer (with Node and Chrome installed):
 ```
 npm install --no-save playwright
 python -m http.server 8000
-node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#test" --variations
+node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" --variations
 ```
 
 (Leave out `--variations` to skip the poorer copies.)
