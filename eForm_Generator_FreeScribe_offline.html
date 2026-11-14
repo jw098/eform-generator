@@ -334,9 +334,12 @@
     <div id="converterTopMount"></div>
 
     <div class="row" style="margin-top:10px">
-      <span id="uploadButtonsRow"></span>
-      <button id="btnAddPage" class="btn-blue">+ Add Page</button>
+      <!-- (the pages: a tab each, then adding and removing one, and the image of the one shown) -->
+      <span id="tabsRow"></span>
+      <button id="btnAddPage" class="btn-blue" title="Adds a page after the last, and asks for its image">+ Add Page</button>
       <button id="btnRemovePage" class="btn-red">&#8722; Remove Last Page</button>
+      <button id="btnUploadPage" class="btn-blue" title="A PNG or JPEG image of the page shown. A new image the same shape as the old one keeps the page's fields in their places.">Upload Page 1 Image</button>
+      <input id="fileImg" type="file" accept="image/png,image/jpeg,image/jpg" hidden/>
 
       <span class="detect-wrap"><button id="btnDetect" class="btn-violet">Auto Detect (Current Page)</button><button id="detectCustom" class="custom-badge" type="button" hidden title="Auto Detect is using tuning values that aren't the standard ones, so it may find fewer or wrong fields. Click to see them in Settings.">custom</button></span>
     </div>
@@ -391,7 +394,6 @@
     </div>
 
     <div class="row" style="margin-top:8px">
-      <span id="tabsRow"></span>
       <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Ctrl/Cmd+C/V copy/paste</span>
     </div>
 
@@ -2200,6 +2202,12 @@ else if (typeof exports === 'object')
     syncFontButtons();
     Object.keys(state.pages).map(Number).sort((a,b)=>a-b).forEach(n => renderPage(n));
     renderCounts(); renderSelectedEditor(); renderTemplateFieldList(); renderSnippetList(); renderValidationGroups();
+    renderUploadButton();
+  }
+  // Names the page the upload button changes: "Upload Page 2 Image", or "Replace…" once it has one
+  function renderUploadButton(){
+    const pageInfo = state.pages[state.currentPage];
+    $('btnUploadPage').textContent = `${pageInfo && pageInfo.imgData ? 'Replace' : 'Upload'} Page ${state.currentPage} Image`;
   }
   // Makes a page the one shown and edited, and marks its tab
   function setCurrentPage(page){
@@ -2718,7 +2726,7 @@ else if (typeof exports === 'object')
   // The most pages a form can have
   const MAX_PAGES = 10;
 
-  // Makes a page's parts: its image and overlay, its "Upload Page n image" button and its tab
+  // Makes a page's parts: its image and overlay, and its tab
   function createPageDOM(page){
     if ($('canvas'+page+'Wrap')) return;
     const wrap = document.createElement('div');
@@ -2737,17 +2745,8 @@ else if (typeof exports === 'object')
       if (page === state.currentPage) applyZoom();
     }).observe(img);
 
-    const uploadBtn = document.createElement('button');
-    uploadBtn.id='btnUpload'+page; uploadBtn.className='btn-blue'; uploadBtn.textContent='Upload Page '+page+' image';
-    const fileInput = document.createElement('input');
-    fileInput.id='fileImg'+page; fileInput.type='file'; fileInput.accept='image/png,image/jpeg,image/jpg'; fileInput.hidden=true;
-    uploadBtn.addEventListener('click', ()=> fileInput.click());
-    fileInput.addEventListener('change', e => { handleImageUpload(e.target.files[0], page); e.target.value=''; });
-    $('uploadButtonsRow').appendChild(uploadBtn);
-    $('uploadButtonsRow').appendChild(fileInput);
-
     const tab = document.createElement('button');
-    tab.id='tab'+page; tab.className='tab'; tab.textContent='Edit Page '+page;
+    tab.id='tab'+page; tab.className='tab'; tab.textContent='Page '+page;
     tab.addEventListener('click', ()=> setCurrentPage(page));
     $('tabsRow').appendChild(tab);
   }
@@ -2763,21 +2762,20 @@ else if (typeof exports === 'object')
     state.fields = state.fields.filter(f => Number(f.page)!==page);
     delete state.pages[page];
     const wrap=$('canvas'+page+'Wrap'); if(wrap) wrap.remove();
-    const uploadBtn=$('btnUpload'+page); if(uploadBtn) uploadBtn.remove();
-    const fileInput=$('fileImg'+page); if(fileInput) fileInput.remove();
     const tab=$('tab'+page); if(tab) tab.remove();
     return true;
   }
 
-  // "+ Add Page": adds an empty page after the last and shows it
+  // Adds an empty page after the last and shows it; returns whether it did
   function addPage(){
     const page = getPageCount()+1;
-    if (page>MAX_PAGES){ msg('Maximum '+MAX_PAGES+' pages supported.','warn'); return; }
+    if (page>MAX_PAGES){ msg('Maximum '+MAX_PAGES+' pages supported.','warn'); return false; }
     pushUndo();
     state.pages[page] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
     createPageDOM(page);
     setCurrentPage(page);
     msg('Page '+page+' added. Upload an image for it.','ok');
+    return true;
   }
 
   // "− Remove Last Page": removes the last page, unless it is the only one
@@ -2790,19 +2788,31 @@ else if (typeof exports === 'object')
     msg('Removed page '+lastPage+'.','ok');
   }
 
-  // Loads a PNG or JPEG file as a page's image
+  // Loads a PNG or JPEG file as a page's image. A page's fields are placed in its image's pixels,
+  // so in place of an image the same shape (a page rendered at another width) they are scaled with
+  // it; in place of one another shape they would be out of place, so that is asked first.
   async function handleImageUpload(file, page){
     if (!file) return;
     if (!/^image\//i.test(file.type) && !/\.(png|jpe?g)$/i.test(file.name)) { msg('Please upload PNG/JPG image.', 'err'); return; }
     try{
       const data = await readAsDataURL(file), img = await loadImage(data);
+      const old = state.pages[page], pageFields = getPageFields(page);
+      const sx = old.naturalW ? img.width / old.naturalW : 1, sy = old.naturalH ? img.height / old.naturalH : 1;
+      const sameShape = Math.abs(sx - sy) <= 0.01 * Math.max(sx, sy);
+      if (pageFields.length && !sameShape &&
+          !confirm(`The new image of page ${page} is a different shape from the old one, so its ${pageFields.length} field(s) may be out of place. Use it anyway?`)) return;
       pushUndo();
+      if (pageFields.length && sameShape && (sx !== 1 || sy !== 1))
+        pageFields.forEach(f => { f.x *= sx; f.y *= sy; f.width *= sx; f.height *= sy; });
       state.pages[page].imgData = data; state.pages[page].naturalW = img.width; state.pages[page].naturalH = img.height; state.pages[page].fileName = file.name || pageImageName(page); 
       const imgEl = getPageImgEl(page); imgEl.src = data;
       msg(`Loaded page ${page}: ${img.width}x${img.height}`, 'ok'); renderAll();
     }catch(err){ msg('Failed to load image: ' + (err.message || err), 'err'); }
   }
-  // (each page's upload button and tab are wired up in createPageDOM)
+  // "Upload Page n Image": the image of the page shown
+  $('btnUploadPage').addEventListener('click', () => $('fileImg').click());
+  $('fileImg').addEventListener('change', e => { handleImageUpload(e.target.files[0], state.currentPage); e.target.value=''; });
+  // (each page's tab is wired up in createPageDOM)
   // The display and snap settings: labels, tags, snapping, its distance and its guides
   $('chkLabels').addEventListener('change', (e)=>{ state.showLabels = e.target.checked; renderAll(); });
   $('chkTags').addEventListener('change', (e)=>{ state.showTags = e.target.checked; renderAll(); });
@@ -3281,7 +3291,7 @@ else if (typeof exports === 'object')
     clearTemplate();
 
     const firstImg=$('img1'); if(firstImg) firstImg.src='';
-    Object.keys(state.pages).map(Number).forEach(page=>{ const fileInput=$('fileImg'+page); if(fileInput) fileInput.value=''; });
+    $('fileImg').value = '';
     $('fileTemplates').value = '';
     state.exportTitle = 'Generated OSCAR eForm';
     state.exportAuthor = '';
@@ -6502,7 +6512,8 @@ function checkEform(){
 
   // ===== Start-up =====
   createPageDOM(1);
-  if ($('btnAddPage')) $('btnAddPage').addEventListener('click', addPage);
+  // "+ Add Page": a new page, and its image asked for straight away
+  if ($('btnAddPage')) $('btnAddPage').addEventListener('click', () => { if (addPage()) $('fileImg').click(); });
   if ($('btnRemovePage')) $('btnRemovePage').addEventListener('click', removePage);
 
   mountConverterTop();

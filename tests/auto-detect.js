@@ -714,7 +714,7 @@
   const hint = document.createElement('div');
   hint.style.cssText = 'color:#555;font-size:12px;margin-bottom:6px';
   hint.textContent = 'Expected: the test case\'s eForm. Actual: the eForm built from what Auto Detect found on its page image. ' +
-    'Click a line to open it. Each test page is on its own "Edit Page" tab, with what Auto Detect found drawn on it. How the tests work: tests/README.md.';
+    'Click a line to open it. Each test page is on its own "Page" tab, with what Auto Detect found drawn on it. How the tests work: tests/README.md.';
   const adder = document.createElement('div');
   adder.style.cssText = 'margin-bottom:6px';
   const addBtn = document.createElement('button');

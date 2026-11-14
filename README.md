@@ -7,7 +7,7 @@ Turns a PDF form into an OSCAR eForm.
 To quickly generate an eform, just do the following steps:
 - Download `eForm_Generator_FreeScribe_offline.html` and open it in a browser; it runs offline.
 - Load the images: Under PDF->PNG converter, browse and select your PDF file. Click `Load into Mapper`. The image should show up in the canvas.
-- For each page in the canvas, click `Auto Detect (Current Page)`. Click the `Edit Page 1`, `Edit Page 2`, etc. button to change pages.
+- For each page in the canvas, click `Auto Detect (Current Page)`. Click the `Page 1`, `Page 2`, etc. tabs to change pages.
 - Click `Check eForm` to ensure there are no major issues with the eform.
 - Click `Export OSCAR eform (.zip)` to get the final .zip file, which can be imported into OSCAR.
 
@@ -16,9 +16,9 @@ To quickly generate an eform, just do the following steps:
 There are 2 different approaches:
 
 - PDF -> PNG converter: Upload the PDF file. Then click `Load into Mapper` (purple button).
-- Upload images manually: Click `Upload Page 1 image`, then select the desired image. For a multi-page eform, click `+ Add Page`, then click `Upload Page 2 image`, then select your desired page 2 image. Repeat this process for all necessary pages.
+- Upload images manually: Click `Upload Page 1 Image`, then select the desired image. For a multi-page eform, click `+ Add Page`, which asks for the new page's image straight away. Repeat for all necessary pages. To change a page's image, open its tab and click `Replace Page N Image`; a new image the same shape as the old one keeps the page's fields in place.
 
-If done correctly, your desired image should show up on the canvas. For multi-page eforms, click the `Edit Page X` to move between different pages.
+If done correctly, your desired image should show up on the canvas. For multi-page eforms, click the `Page N` tabs to move between pages.
 
 ## Auto Detect
 

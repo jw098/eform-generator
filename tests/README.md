@@ -126,7 +126,7 @@ A panel appears at the top right with one line per case:
 - ○ amber, "to do": something Auto Detect doesn't manage yet (see below); not a failure.
 - ★ blue: a to-do that now passes. Take it off the to-do list.
 
-Click a line to see each test under it. Each case's page is also on its own **Edit Page**
+Click a line to see each test under it. Each case's page is also on its own **Page**
 tab in the app, with what Auto Detect found drawn on it.
 
 ## Adding a test case
