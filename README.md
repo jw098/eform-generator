@@ -74,3 +74,13 @@ Checks the eForm for problems such as duplicate names, untagged fields, fields o
 ## Export
 
 Click `Export OSCAR eForm (.zip)` to get the final .zip file, which can be imported into OSCAR.
+
+## Saving your work
+
+Use `Save Session`, located on the right sidebar, to keep your work. Use `Load Session` to resume.
+
+## Importing a pre-existing eForm
+
+Use `Import eForm HTML` from the right sidebar. Select the eForm .html to be imported. Then click `Add fields/tags from HTML`, for its fields to be added to the canvas.
+
+Note: This only imports the eForm's fields. It will not import any of the images. All the necessary images must first be uploaded separately to the canvas. If any pages are missing from the canvas, those page's fields will be skipped. e.g. If the eForm .html has 3 pages, but only 2 pages are uploaded to the canvas, only 2 pages will receive fields from the eForm.
