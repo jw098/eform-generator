@@ -1254,7 +1254,8 @@ else if (typeof exports === 'object')
     undoBtn.textContent = state.undoStack.length ? `Undo (${state.undoStack.length})` : 'Undo';
   }
 
-  // A copy of everything Undo puts back: the pages, fields, selection and display settings
+  // A copy of everything Undo puts back: the pages, fields, selection and display settings, and
+  // which form they are (its id, the PDF it came from, its title and author: see restoreFromUndo)
   function snapshotForUndo(){
     return {
       currentPage: state.currentPage,
@@ -1266,7 +1267,8 @@ else if (typeof exports === 'object')
       showTags: state.showTags,
       placeCheckboxMode: state.placeCheckboxMode,
       snap: { ...state.snap },
-      validationGroups: copyGroups(state.validationGroups)
+      validationGroups: copyGroups(state.validationGroups),
+      form: { id: formId(), sourcePdf: state.sourcePdf, title: state.exportTitle, author: state.exportAuthor }
     };
   }
 
@@ -1289,6 +1291,20 @@ else if (typeof exports === 'object')
     state.showLabels = snapshot.showLabels === true;
     state.showTags = snapshot.showTags !== false;
     if (snapshot.snap && typeof snapshot.snap === 'object') state.snap = { ...state.snap, ...snapshot.snap };
+    // (undoing what put another form in place, Open eForm or Reset Everything, brings back the
+    // form that was there, its id with it: else its pages would be exported under the other
+    // form's file names, over that form's in OSCAR. Within one form, the title and author stay
+    // as typed, and the source PDF as chosen.)
+    const form = snapshot.form;
+    if (form && form.id && form.id !== state.formId){
+      state.formId = form.id;
+      state.sourcePdf = form.sourcePdf || null;
+      state.exportTitle = String(form.title || 'Generated OSCAR eForm');
+      state.exportAuthor = String(form.author || '');
+      if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
+      if ($('eformAuthor')) $('eformAuthor').value = state.exportAuthor;
+      fsShowPdf(); refreshDetectMode();
+    }
 
     Object.keys(state.pages).map(Number).forEach(page => { const img=$('img'+page); if(img) img.src=state.pages[page].imgData||''; });
     $('chkLabels').checked = state.showLabels;
@@ -5574,18 +5590,20 @@ function inputMarkup(f, inlinePosStyle=''){
   }
   if (f.type === 'checkbox') {
     // (a read-only text box over the printed box, with no border of its own: a click, Space or
-    // Enter writes an X in it or takes it out)
+    // Enter writes an X in it or takes it out. Other keys do what they do, Tab going on to the
+    // next field, but Backspace, which an older browser takes for "Back" in a read-only box)
     const style = `${inlinePosStyle} border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;`;
     const sex = sexToTick(f), sexAttr = sex ? ` data-tick-if-sex="${sex}"` : '';
-    return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr}${sexAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return false;" style="${style}">`;
+    return `<input class="xMarkOnly noborder" id="${id}" name="${fieldName}"${dbAttr}${sexAttr} type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="${style}">`;
   }
   if (f.type === 'circle') {
     // (a read-only text box with a round border, clear until a click, Space or Enter writes "O" in
     // it and draws the border (".circleToggle[value='O']"); the value attribute is set too, as
-    // OSCAR sets it when a saved form is opened, so the same rule shows it then)
+    // OSCAR sets it when a saved form is opened, so the same rule shows it then; other keys as a
+    // tick box's)
     const toggle = "this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();";
     const style = `${inlinePosStyle} border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;`;
-    return `<input class="circleToggle" id="${id}" name="${fieldName}" type="text" value="" readonly="readonly" title="Click to circle" onclick="${toggle}" onkeydown="if(event.key===' '||event.key==='Enter'){${toggle} return false;} return false;" style="${style}">`;
+    return `<input class="circleToggle" id="${id}" name="${fieldName}" type="text" value="" readonly="readonly" title="Click to circle" onclick="${toggle}" onkeydown="if(event.key===' '||event.key==='Enter'){${toggle} return false;} return event.key!=='Backspace';" style="${style}">`;
   }
   // (a date field is a plain text input too, which OSCAR fills with text; its dateField class
   // gives it OSCAR's calendar, which a click on it opens, filling the date as data-date-format
@@ -5900,11 +5918,14 @@ function SignForm() {
     }
   } catch(e){}
 }
+// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
+// with ids "clinic_fax_12"), or null
+function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
 // The fax number to send to: the first filled-in fax number field on the form
 function getFaxTargetNo(){
   var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
   for (var i=0;i<ids.length;i++){
-    var input = document.getElementById(ids[i]);
+    var input = fieldCalled(ids[i]);
     if (!input) continue;
     var faxNo = (input.value || '').trim();
     if (faxNo) return faxNo;
@@ -5921,11 +5942,11 @@ function syncFaxNoMirror(){
 // form has one of those
 function primeFaxNo(){
   try{
-    var faxNoBox = document.getElementById('faxNo');
+    var faxNoBox = fieldCalled('faxNo');
     if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
     var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
     for (var i=0;i<candidates.length;i++){
-      var input = document.getElementById(candidates[i]);
+      var input = fieldCalled(candidates[i]);
       if (!input) continue;
       var faxNo = (input.value || '').trim();
       if (faxNo){ faxNoBox.value = faxNo; break; }
