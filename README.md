@@ -22,7 +22,7 @@ If done correctly, your desired image should show up on the canvas. For multi-pa
 
 ## Auto Detect
 
-We now need to detect the location of the fields/input boxes. For each page, click `Auto Detect (Current Page)` (purple button).
+Next, detect the location of the fields/input boxes. For each page, click `Auto Detect (Current Page)` (purple button).
 
 The eform generator should automatically add boxes for all input fields. Using OCR, the script will also try to guess an appropriate name for the field, and more importantly, guess an oscardb tag.
 
@@ -30,7 +30,7 @@ The eform generator should automatically add boxes for all input fields. Using O
 Above the canvas, and below the `Auto Detect (Current Page)` button, there are buttons to add input fields.
 
 - `Add Text Line`: Adds a single line text field to the top left corner.
-- `Add Text Area`: Adds a multi-line text field to the top left corner, accompanying ▲▼ font size buttons.
+- `Add Text Area`: Adds a multi-line text field to the top left corner, with ▲▼ font size buttons.
 - `Place Checkbox`: Places a checkbox where you click, sized by `Checkbox px`.
 - `Add Date`: Adds a single line text field to the top left corner, with a calendar selector.
 
@@ -42,13 +42,13 @@ Revealed by the `More` button:
 ## Adjusting position of fields
 All fields can be moved and resized, as well as copy/pasted. 
 
-Keyboard shortcuts do work. When a field is selected: 
+Keyboard shortcuts, when a field is selected:
 - Arrow keys: nudge the field 1 pixel
 - Shift+Arrow keys: nudge the field 10 px
 - Ctrl/Cmd+C: copy
 - Ctrl/Cmd+V: paste: next to the original on the same page, at the top left corner on another page.
 - Ctrl/Cmd+D: duplicate, next to the original.
-- Delete: delete the field
+- Delete or Backspace: delete the field
 
 ## Editing input fields: oscardb, name, size, location
 
@@ -63,9 +63,9 @@ If you click a specific input field, its data will be in the right sidebar under
 - `X`, `Y`, `W`, `H`: adjusts the x-position, y-position, width, and height respectively of the selected field.
 
 ## Validation
-eform validation allows it so that when the end-user submits an eform, the user gets a pop-up that certain fields are empty.
+Validation warns the person submitting the eForm when required fields are empty.
 
-To create a validation group, select one or more fields on the canvas. You may use Ctrl-click or Shift-click or drag-click to select multiple fields. Then click `+ New group from selected`. You can set the rule to either `All filled` or `Exactly one`. If the rule is broken when the eform is submitted, a warning pops up for the user. To remove any field from the group, click the `x` button next to it under `Fields`.
+To create a validation group, select one or more fields on the canvas. You may use Ctrl-click or Shift-click, or drag on a blank part of the page, to select multiple fields. Then click `+ New group from selected`. You can set the rule to either `All filled` or `Exactly one`. If the rule is broken when the eform is submitted, a warning pops up for the user. To remove any field from the group, click the `x` button next to it under `Fields`.
 
 ## Check eform
 
