@@ -322,7 +322,7 @@
 <div class="wrap">
   <section class="card pane pane-left">
     <h1>OSCAR eForm Mapper <span class="pill">Standalone / Offline</span></h1>
-    <div class="muted">Import an existing eForm's HTML for its fields, tags and fax/print scripts. Supports up to 10 pages, multi-select, local detection, and export.</div>
+    <div class="muted">Import an existing eForm's HTML for its fields, tags and fax/print scripts. Supports up to 20 pages, multi-select, local detection, and export.</div>
 
     <div class="quickstart">
       <span class="step-chip"><b>1</b> Convert/load PDF images</span>
@@ -1035,6 +1035,10 @@ else if (typeof exports === 'object')
     'cytology_no', 'guardian_label', 'guardian_label2', 'email'
   ]);
 
+  // The most pages a form can have (adding pages, the PDF converter and an imported eForm all
+  // keep to it)
+  const MAX_PAGES = 20;
+
   const state = {
     currentPage: 1,
     pages: {
@@ -1531,7 +1535,7 @@ else if (typeof exports === 'object')
     while (ancestor && ancestor !== ancestor.ownerDocument.body){
       const idAndClass = ((ancestor.id || '') + ' ' + (ancestor.className || '').toString()).toLowerCase();
       const match = idAndClass.match(/(?:page|copy)[_\- ]?(\d{1,2})(?!\d)/);
-      if (match && +match[1] >= 1) return Math.min(+match[1], 10);
+      if (match && +match[1] >= 1) return Math.min(+match[1], MAX_PAGES);
       if (/second/.test(idAndClass)) return 2;
       ancestor = ancestor.parentElement;
     }
@@ -1635,7 +1639,7 @@ else if (typeof exports === 'object')
 
     if (isGenerated) {
       // Read per-page export widths from the page wrapper divs
-      for (let page = 1; page <= 10; page++) {
+      for (let page = 1; page <= MAX_PAGES; page++) {
         const pageDiv = doc.getElementById('page' + page);
         if (!pageDiv) break;
         const style = parseAttr(pageDiv, 'style');
@@ -1645,7 +1649,7 @@ else if (typeof exports === 'object')
       }
 
       // ── Signature fields from CanvasProSignature divs ──────────────────────
-      for (let page = 1; page <= 10; page++) {
+      for (let page = 1; page <= MAX_PAGES; page++) {
         const sigDiv = doc.getElementById(page === 1 ? 'CanvasProSignature' : 'CanvasProSignature' + page);
         if (!sigDiv) continue;
         const style = parseAttr(sigDiv, 'style');
@@ -2723,8 +2727,6 @@ else if (typeof exports === 'object')
     overlay.addEventListener('pointerdown', (e)=>{ if(e.pointerType&&e.pointerType!=='mouse') onOverlayMouseDown(e,page); });
   }
 
-  // The most pages a form can have
-  const MAX_PAGES = 10;
 
   // Makes a page's parts: its image and overlay, and its tab
   function createPageDOM(page){
@@ -6423,12 +6425,13 @@ function checkEform(){
     }
 
     // Puts converted images on the mapper's pages: the selected PDF page on the current page, or
-    // each PDF page on the page of the same number (adding pages, up to 10)
+    // each PDF page on the page of the same number (adding pages, up to MAX_PAGES; the rest are
+    // left out, and the status says so)
     async function loadOutputsIntoMapper(outputs){
       if(!outputs || !outputs.length){
         throw new Error('Nothing to load. Convert first.');
       }
-      let loaded = 0;
+      let loaded = 0, leftOut = 0;
 
       if(controls.mode.value === 'single'){
         const targetPage = state.currentPage >= 1 ? state.currentPage : 1;
@@ -6437,17 +6440,17 @@ function checkEform(){
         setCurrentPage(targetPage);
       } else {
         for (const output of outputs){
-          if (output.page >= 1 && output.page <= 10){
+          if (output.page >= 1 && output.page <= MAX_PAGES){
             if (output.page > 1 && !state.pages[output.page] && getPageCount() < output.page) addPage();
             await loadBlobIntoMapper(output.page, output.blob, pageImageName(output.page), output.page);
             loaded++;
-          }
+          } else leftOut++;
         }
         if (loaded) setCurrentPage(1);
       }
 
       renderAll();
-      showStatus(`Loaded ${loaded} page(s) into mapper.`);
+      showStatus(`Loaded ${loaded} page(s) into mapper.` + (leftOut ? ` ${leftOut} page(s) after page ${MAX_PAGES} were left out: a form can have up to ${MAX_PAGES}.` : ''), !!leftOut);
     }
 
     // (a second convert while one waits or runs is a double click: it is ignored)
