@@ -76,7 +76,8 @@ no tags).
 5. Names from the labels, then tags (`tagFields`: `fieldOwners` → `guessTag` / `askedFor` /
    `TAG_FOR` → `captionTag`), then date fields: a one-line field whose label names a date
    (`labelNamesADate`, not a birth date) becomes one, in the format printed with it
-   (`printedDateFormat`).
+   (`printedDateFormat`). A fillable PDF's field the PDF formats as a date is one already, in
+   its format (`pdfDateFormat`).
 
 The pass-2 steps pass what they learn on the fields themselves (`box`, `_words`, `_split`…);
 the list is in the comment at the head of "Pass 2". Shared tests: `sideRule` /

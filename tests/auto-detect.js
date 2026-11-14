@@ -441,6 +441,33 @@
 <script>Calendar.setup({ inputField:"AccidentDate", ifFormat: "%d/%m/%y", button:"AccidentDate" }); Calendar.setup({ inputField:'SeenOn' });<\/script></body></html>`),
       ['AccidentDate: date, dmy_slash', 'SeenOn: date', 'Name: text'], 'the fields read');
   });
+  // (a fillable PDF's text fields: the date format its own script formats each in,
+  // "AFDate_FormatEx("dd/mm/yyyy")", as the app reads it. The PDF is made here: one page, a text
+  // field for each [name, format], none for no format)
+  function fillablePdf(fields){
+    const objects = ['<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [' + fields.map((f, i) => `${4 + i} 0 R`).join(' ') + '] >> >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Annots [' + fields.map((f, i) => `${4 + i} 0 R`).join(' ') + '] >>',
+      ...fields.map(([name, format], i) => `<< /Type /Annot /Subtype /Widget /FT /Tx /T (${name}) /P 3 0 R /Rect [50 ${700 - 40*i} 250 ${720 - 40*i}]` +
+        (format ? ` /AA << /F << /S /JavaScript /JS (AFDate_FormatEx\\("${format}"\\);) >> >>` : '') + ' >>')];
+    let pdf = '%PDF-1.7\n', offsets = [];
+    objects.forEach((o, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n` + offsets.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+    return btoa(pdf + `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  }
+  dateTest("a fillable PDF's date fields are date fields, in the PDF's format", async () => {
+    const keep = { pages: T.state.pages, fields: T.state.fields, sourcePdf: T.state.sourcePdf };
+    try {
+      T.state.pages = { 1: { naturalW: 612, naturalH: 792, pdfPage: 1 } }; T.state.fields = [];
+      T.state.sourcePdf = { name: 'dates.pdf', data: fillablePdf([['Injured', 'dd/mm/yyyy'], ['Signed', 'yyyy-mm-dd'], ['Seen', 'mm/dd/yyyy'], ['Arrived', 'dd/mm/yyyy HH:MM'], ['Name', '']]) };
+      const found = await T.pdfFormFields(1);
+      sameList((found || []).map(f => `${f.label}: ${f.type}${f.dateFormat ? ', ' + f.dateFormat : ''}`),
+        ['Injured: date, dmy_slash', 'Signed: date', 'Seen: date', 'Arrived: text', 'Name: text'], 'the fields read');
+    } finally {
+      T.state.pages = keep.pages; T.state.fields = keep.fields; T.state.sourcePdf = keep.sourcePdf;
+    }
+  });
   dateTest('an exported date field reads back as one, in its format', () => {
     const types = importedTypes(exportOf([[1, 'Seen', 'date'], [1, 'Due', 'date', { dateFormat: 'dmy' }], [1, 'Born', 'date', { dateFormat: 'ymd_slash' }], [1, 'Name']]).html);
     sameList(types.filter(t => /^(Seen|Due|Born|Name):/.test(t)), ['Seen: date', 'Due: date, dmy', 'Born: date, ymd_slash', 'Name: text'], 'the fields read');

@@ -1393,7 +1393,7 @@ else if (typeof exports === 'object')
   // Each labelled text field's owner, as a Map. `read` is OCR's words in lines; boxOf as for
   // tagFields
   function fieldOwners(found, read, boxOf){
-    const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea') && f.label);
+    const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea' || f.type === 'date') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
     writes.forEach(f => (f._words || []).forEach(w => labelOf.set(w, f)));
     const fieldOfWord = (w) => labelOf.get(w) || null;
@@ -1476,7 +1476,8 @@ else if (typeof exports === 'object')
   // boxOf(x0, f): the bordered box a field (with its label from x0) is in, if any.
   function tagFields(found, read, boxOf){
     const owners = fieldOwners(found, read, boxOf);
-    const writes = found.filter(f => f.type === 'text' || f.type === 'textarea');
+    // (a fillable PDF's field can be a date field already: its own date format says so)
+    const writes = found.filter(f => f.type === 'text' || f.type === 'textarea' || f.type === 'date');
     writes.forEach(f => {
       if (!f.label || f.oscarTag) return;
       f.oscarTag = guessTag('', f.type, f.label, owners.get(f));
@@ -1488,14 +1489,16 @@ else if (typeof exports === 'object')
       const prev = fieldLeftOf(f, writes);
       if (prev && !prev.oscarTag) f.oscarTag = '';
     });
-    // A one-line field whose label names a date is a date field, with OSCAR's calendar. Its format
-    // is the one printed with it ("(dd/mm/yyyy)"), or, where OSCAR fills it ("today"), OSCAR's,
-    // so the two don't mix
+    // A one-line field whose label names a date is a date field, with OSCAR's calendar, in the
+    // format printed with it ("(dd/mm/yyyy)"). A date field OSCAR fills ("today") takes OSCAR's
+    // format instead, whatever is printed or a fillable PDF says, so the two don't mix
     writes.forEach(f => {
-      if (f.type !== 'text' || !labelNamesADate(f.label)) return;
-      f.type = 'date';
-      const format = YMD_DATE_TAGS.has(f.oscarTag) ? 'ymd' : printedDateFormat((f.caption || '') + ' ' + f.label);
-      if (keptDateFormat(format)) f.dateFormat = format;
+      if (f.type === 'text' && labelNamesADate(f.label)){
+        f.type = 'date';
+        const format = printedDateFormat((f.caption || '') + ' ' + f.label);
+        if (keptDateFormat(format)) f.dateFormat = format;
+      }
+      if (f.type === 'date' && YMD_DATE_TAGS.has(f.oscarTag)) delete f.dateFormat;
     });
   }
 
@@ -4476,6 +4479,18 @@ else if (typeof exports === 'object')
   const USE_PDF_FIELDS = true;
   // The source PDF as pdf.js opened it, kept while the PDF (`key`, its data) stays the same
   let pdfFieldsDoc = { key: null, doc: null };
+  // The date format a fillable PDF's text field is formatted in, from its own scripts (pdf.js's
+  // `actions`: "AFDate_FormatEx("dd/mm/yyyy")" in its Format or Keystroke script), as a date
+  // field's format ("dmy_slash"); null for a field that isn't a date. Day or year first, with
+  // slashes or dashes; a month-first date ("mm/dd/yyyy"), which no format here has, is "ymd",
+  // as a date field is unless set otherwise; one with a time ("dd/mm/yyyy HH:MM") isn't a date
+  function pdfDateFormat(actions){
+    const scripts = Object.values(actions || {}).flat().join('\n');
+    const pattern = ((scripts.match(/AFDate_(?:Format|Keystroke)Ex\s*\(\s*["']([^"']+)["']/) || [])[1] || '').toLowerCase();
+    if (!pattern || /h|:|tt/.test(pattern)) return null;
+    const first = (pattern.match(/[dmy]/) || ['y'])[0];
+    return (first === 'd' ? 'dmy' : 'ymd') + (first !== 'm' && pattern.includes('/') ? '_slash' : '');
+  }
   // A fillable PDF's own form fields on a page, at their places and with their names, when the
   // page came from one (null otherwise, and Auto Detect works from the picture)
   async function pdfFormFields(pageNo){
@@ -4503,7 +4518,10 @@ else if (typeof exports === 'object')
       annots.forEach(a => {
         if (a.subtype !== 'Widget' || a.hidden || a.pushButton) return;
         let type = null;
-        if (a.fieldType === 'Tx') type = a.multiLine ? 'textarea' : 'text';
+        // (a one-line text field the PDF formats as a date is a date field, in that format)
+        const dateFormat = a.fieldType === 'Tx' && !a.multiLine ? pdfDateFormat(a.actions) : null;
+        if (dateFormat) type = 'date';
+        else if (a.fieldType === 'Tx') type = a.multiLine ? 'textarea' : 'text';
         else if (a.fieldType === 'Ch') type = 'text';
         else if (a.fieldType === 'Btn' && (a.checkBox || a.radioButton)) type = 'checkbox';
         if (!type) return;
@@ -4518,7 +4536,7 @@ else if (typeof exports === 'object')
           if (opt && !/^(on|yes|off|\d+)$/.test(opt) && !name.endsWith(opt)) name = `${name}_${opt}`;
         }
         out.push({ page: pageNo, x, y, width, height, type, name: uniqueName(name), oscarTag: '',
-                   label: fieldNamePart(a.alternativeText || a.fieldName) });
+                   label: fieldNamePart(a.alternativeText || a.fieldName), ...(keptDateFormat(dateFormat) ? { dateFormat } : {}) });
       });
       return out.length ? out : null;
     } catch (err) {
@@ -6662,7 +6680,7 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltD
   // Opening this page with #test at the end of its address runs tests/auto-detect.js (in the
   // tests folder beside this file) against it. Only then is Auto Detect reachable from outside.
   if (location.hash === '#test'){
-    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage, buildExportHtml, parseTemplateHtml };
+    window.eformMapperTest = { state, detectCurrentPage, renderAll, createPageDOM, setCurrentPage, buildExportHtml, parseTemplateHtml, pdfFormFields };
     const s = document.createElement('script');
     s.src = 'tests/auto-detect.js';
     s.onerror = () => msg('Could not load tests/auto-detect.js: it must sit in a tests folder beside this page.', 'err');
