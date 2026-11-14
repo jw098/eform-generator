@@ -579,7 +579,7 @@
       <button id="btnInsertPlaceholders">Repair image placeholders in draft</button>
     </div>
     <div id="preflightBox" class="preflight-list small"></div>
-    <div class="small">The OSCAR/Juno preflight: checks the eForm the export builds for image placeholders, its form and Submit button, duplicate names, untagged fields, and fields off the page, before upload/import.</div>
+    <div class="small">The OSCAR/Juno preflight: checks the eForm that Export OSCAR eform (.zip) builds for duplicate names, untagged fields, fields off the page, pages with no image and left-out Submit buttons, before upload/import.</div>
 
     <div class="hr"></div>
     <div class="panel-title">Export (editable before save)</div>
@@ -5170,29 +5170,14 @@ function inputMarkup(f, inlinePosStyle=''){
 
 
 
-// The checks on an eForm's HTML: its image placeholders, form, Submit button and oscarDB tags,
-// each with its level (ok, warn or err) and what it found
-function htmlChecks(html){
+// Check eForm: the checks on the fields and the export's settings, each with its level (ok, warn
+// or err) and what it found. (The eForm the export builds always has its pages' images at
+// ${oscar_image_path} and its <form>, so they aren't checked; what can go wrong is in the fields
+// and settings. Untagged fields are counted below.)
+function eformChecks(){
   const out = [];
-  const hasImagePath = html.includes('${oscar_image_path}');
-
-  out.push({ level: hasImagePath ? 'ok':'err', text: hasImagePath ? 'Image src uses ${oscar_image_path} placeholder.' : 'Missing ${oscar_image_path} in image src(s).' });
-
-  const hasForm = /<form\b/i.test(html);
-  out.push({ level: hasForm ? 'ok':'err', text: hasForm ? 'Form tag detected.' : 'Missing <form> wrapper (required for submit/save).' });
-
-  const hasSubmit = /type=["']submit["']/i.test(html);
-  out.push({ level: hasSubmit ? 'ok':'warn', text: hasSubmit ? 'Submit button detected.' : 'No submit button detected.' });
-
-  const hasOscarDb = /oscarDB\s*=\s*["'][^"']+["']/i.test(html);
-  out.push({ level: hasOscarDb ? 'ok':'warn', text: hasOscarDb ? 'oscarDB tags detected.' : 'No oscarDB tags detected (fields may not autofill).' });
-  return out;
-}
-
-// Check eForm: the checks on the exported eForm's HTML (`html`) and on the fields, each with its
-// level (ok, warn or err) and what it found
-function eformChecks(html){
-  const out = htmlChecks(html);
+  const includeButtons = $('chkIncludeButtons').checked;
+  out.push({ level: includeButtons ? 'ok' : 'warn', text: includeButtons ? 'Submit / Fax & Submit / Print & Submit buttons included.' : 'The Submit / Fax & Submit / Print & Submit buttons are left out of the export: the eForm needs buttons of its own to be submitted.' });
   const nameCounts = new Map();
   dataFields(state.fields).forEach(f => {
     const name = String(f.name||'').trim();
@@ -5251,7 +5236,7 @@ function renderPreflight(results){
 // at its file in OSCAR's image folder (${oscar_image_path}…), building the draft if it is empty
 function repairImagePlaceholders(){
   let html = String($('exportEditor').value || '');
-  if (!html.trim()) html = state.lastBuiltDraft = buildExportHtml();
+  if (!html.trim()) html = buildExportHtml();
   // Replace each BGImage src with the correct ${oscar_image_path} placeholder.
   // Match id="BGImage1", id="BGImage2", etc. and fix their src.
   let patched = 0;
@@ -5273,7 +5258,6 @@ function repairImagePlaceholders(){
   }
   $('exportEditor').value = html;
   msg(patched ? `Repaired ${patched} image placeholder(s).` : 'No image placeholders needed repair.', patched ? 'ok' : 'warn');
-  checkEform();
 }
 
 
@@ -6167,22 +6151,12 @@ async function downloadOscarPackage(){
   }
 }
 
-// "Check eForm": checks the eForm that Export OSCAR eform (.zip) would build now, from the
-// pages and fields, not the draft in the editor (which can be out of date or edited by hand).
-// A draft edited by hand is what Copy draft and Download draft give, so its own HTML is checked
-// too; one only out of date is said to be.
+// "Check eForm": checks the eForm that Export OSCAR eform (.zip) would build now, from the pages
+// and fields (not the draft in the editor), and that it can be built
 function checkEform(){
-  let html;
-  try { html = buildExportHtml(); }
-  catch(err){ renderPreflight([{ level: 'err', text: 'Could not build the eForm: ' + (err.message || err) }]); return; }
-  const results = eformChecks(html);
-  const draft = $('exportEditor').value || '';
-  if (draft.trim() && draft !== state.lastBuiltDraft){
-    results.push({ level: 'warn', text: 'The draft in the editor has been edited by hand: Copy draft and Download draft give it with those edits, but Export OSCAR eform (.zip) builds the eForm afresh without them.' });
-    htmlChecks(draft).filter(r => r.level !== 'ok').forEach(r => results.push({ level: r.level, text: 'In the edited draft: ' + r.text }));
-  } else if (draft.trim() && draft !== html)
-    results.push({ level: 'warn', text: 'The draft in the editor is older than the latest changes: Build HTML draft to update it before Copy draft or Download draft (Export OSCAR eform (.zip) is always up to date).' });
-  renderPreflight(results);
+  try { buildExportHtml(); }
+  catch(err){ renderPreflight([{ level: 'err', text: 'The eForm can\'t be built: ' + (err.message || err) }]); return; }
+  renderPreflight(eformChecks());
 }
 
 // "Build HTML draft": puts a freshly built eForm in the export editor
