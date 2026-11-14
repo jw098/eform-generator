@@ -329,6 +329,8 @@
 
     <div class="row" style="margin-top:8px">
       <button id="btnAdd" class="btn-green">Add Field</button>
+      <button id="btnAddDate" class="btn-green" title="A date field: on the eForm, a click on it opens OSCAR's calendar, which fills in the date in the format chosen for it (Y-M-D unless set otherwise)">Add Date</button>
+      <button id="btnAddTextarea" class="btn-green" title="A text area: several lines to write in, with font size buttons on the eForm">Add Text Area</button>
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <label class="small" style="display:flex;align-items:center;gap:6px">Checkbox px <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
       <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add circle</button>
@@ -2815,12 +2817,25 @@ else if (typeof exports === 'object')
     selectOne(f.id); renderAll();
     msg('Added a signature: on the eForm, the provider\'s signature image, one drawn by hand, or "Electronically signed". Drag it over the signature line; its controls can be moved on their own.', 'ok');
   });
-  $('btnAdd').addEventListener('click', ()=>{
-    const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
+  // Adds a field of a type at the page's top left, `size(page)` its width and height, and selects
+  // it, to be moved and sized over its place
+  function addFieldAtTop(type, name, size){
+    const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return null; }
     pushUndo();
-    const f = addField({ page: state.currentPage, x:30, y:30, width:Math.max(120,p.naturalW*0.2), height:Math.max(20,p.naturalH*0.03), type:'text', name:`field_${state.fields.length+1}`, oscarTag:'' });
+    const [width, height] = size(p);
+    const f = addField({ page: state.currentPage, x: 30, y: 30, width, height, type, name: `${name}_${state.fields.length+1}`, oscarTag: '' });
     selectOne(f.id); renderAll();
+    return f;
+  }
+  // "Add Field": a text field, a fifth of the page wide and a line high
+  $('btnAdd').addEventListener('click', () => addFieldAtTop('text', 'field', p => [Math.max(120, p.naturalW*0.2), Math.max(20, p.naturalH*0.03)]));
+  // "Add Date": a date field, a line high and as wide as a date in the eForm's pixels
+  $('btnAddDate').addEventListener('click', () => {
+    if (addFieldAtTop('date', 'date', p => [110 * p.naturalW / EXPORT_PAGE_W, Math.max(20, p.naturalH*0.03)]))
+      msg('Added a date field: on the eForm, a click on it opens OSCAR\'s calendar. Its format is set under Date format.', 'ok');
   });
+  // "Add Text Area": a text area, two fifths of the page wide and a few lines high
+  $('btnAddTextarea').addEventListener('click', () => addFieldAtTop('textarea', 'textarea', p => [p.naturalW*0.4, Math.max(60, p.naturalH*0.08)]));
 
   $('btnAddCheckbox').addEventListener('click', ()=>{
     const p = state.pages[state.currentPage];
