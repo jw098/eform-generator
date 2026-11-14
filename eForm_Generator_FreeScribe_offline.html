@@ -177,7 +177,6 @@
   .hr{height:1px;background:var(--line);margin:10px 0}
 
   .lasso-box{position:absolute;border:1px dashed #2563eb;background:rgba(37,99,235,.12);pointer-events:none;z-index:20}
-  .export-editor{width:100%;min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .preview-frame{width:100%;height:260px;border:1px solid var(--line);border-radius:8px;background:#fff}
 
   .btn-active{background:#dbeafe!important;border-color:#60a5fa!important;color:#1e3a8a!important}
@@ -576,13 +575,12 @@
     <div class="panel-title">Check before export</div>
     <div class="row">
       <button id="btnPreflight" class="btn-violet" title="Checks the eForm that Export OSCAR eform (.zip) builds, from the pages and fields as they are now">Check eForm</button>
-      <button id="btnInsertPlaceholders">Repair image placeholders in draft</button>
     </div>
     <div id="preflightBox" class="preflight-list small"></div>
     <div class="small">The OSCAR/Juno preflight: checks the eForm that Export OSCAR eform (.zip) builds for duplicate names, untagged fields, fields off the page, pages with no image and left-out Submit buttons, before upload/import.</div>
 
     <div class="hr"></div>
-    <div class="panel-title">Export (editable before save)</div>
+    <div class="panel-title">Export</div>
     <label style="margin-bottom:6px;display:flex;align-items:center;gap:7px"><input id="chkIncludeButtons" type="checkbox" checked/> Include Submit / Fax &amp; Submit / Print &amp; Submit buttons in export</label>
     <label style="margin-bottom:8px;display:block">jQuery in exported eForm
       <select id="exportJquery" title="Modern: jQuery 3.7.1 + Migrate 3.4.1 (keeps older OSCAR scripts working), falls back to OSCAR's local copy if the CDN is unreachable. Legacy: OSCAR's bundled jquery-1.7.1 only (no internet, but has known XSS advisories).">
@@ -591,14 +589,11 @@
       </select>
     </label>
     <div class="row">
-      <button id="btnBuildDraft">Build HTML draft</button>
-      
-      <button id="btnCopyHtml" class="btn-green">Copy draft</button>
-      <button id="btnDownloadHtml" class="btn-blue">Download draft</button>
-      <button id="btnDownloadOscarZip" class="btn-violet">Export OSCAR eform (.zip)</button>
+      <button id="btnDownloadOscarZip" class="btn-violet" title="The eForm's HTML, its eform.properties and the page images, in one .zip">Export OSCAR eform (.zip)</button>
+      <button id="btnCopyHtml" class="btn-green" title="The eForm's HTML alone, to paste into OSCAR's eForm editor">Copy HTML</button>
+      <button id="btnDownloadHtml" class="btn-blue" title="The eForm's HTML alone, as an .html file">Download HTML</button>
     </div>
-    <div class="small">Edit this output directly before Copy draft or Download draft. Use src like ${oscar_image_path}your_image.png (OSCAR-compatible). The zip from Export OSCAR eform is always built from scratch from the pages and fields.</div>
-    <textarea id="exportEditor" class="export-editor mono" placeholder="Build draft to populate editable HTML..." style="margin-top:8px"></textarea>
+    <div class="small">Each is built afresh from the pages and fields as they are. The HTML alone looks for the page images in OSCAR's image library under their names in the .zip, so upload them under those names.</div>
     
 
     <div class="hr"></div>
@@ -1079,9 +1074,6 @@ else if (typeof exports === 'object')
     validationGroups: [],
     openGroupId: null,
     templateGroups: [],
-    // (the export draft as last built, or loaded with a session: a draft that differs has been
-    // edited by hand)
-    lastBuiltDraft: '',
   };
   let syncingEditor = false;
   // The width of an exported eForm's pages, in its pixels
@@ -3089,7 +3081,7 @@ else if (typeof exports === 'object')
 
   // ===== Sessions: save, load, leave and reset =====
   // Everything a saved session keeps: the pages and their images, the fields, the imported
-  // eForm, the settings and the export draft
+  // eForm and the settings
   function serializeSession(){
     return {
       app: 'oscar-eform-mapper',
@@ -3115,7 +3107,6 @@ else if (typeof exports === 'object')
         signatureHtml: state.snippets.signatureHtml.slice(),
       },
       tuning: getTuning(),
-      exportDraft: $('exportEditor').value || '',
       exportTitle: state.exportTitle || ($('eformTitle')?.value || 'Generated OSCAR eForm'),
       exportAuthor: state.exportAuthor || ($('eformAuthor')?.value || ''),
       formId: formId(),
@@ -3191,7 +3182,6 @@ else if (typeof exports === 'object')
 
     setTuning(session.tuning || {});
     syncTuningMarker();
-    $('exportEditor').value = state.lastBuiltDraft = typeof session.exportDraft === 'string' ? session.exportDraft : '';
     state.exportTitle = String(session.exportTitle || 'Generated OSCAR eForm');
     if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
     state.exportAuthor = String(session.exportAuthor || '');
@@ -3212,14 +3202,14 @@ else if (typeof exports === 'object')
     renderAll();
   }
 
-  // The work a refresh or closing the tab would lose: the pages, fields, imported eForm, export
-  // draft, title, author and tuning, as they were at the last Save Session or Load Session. The browser asks before leaving when it has
+  // The work a refresh or closing the tab would lose: the pages, fields, imported eForm,
+  // title, author and tuning, as they were at the last Save Session or Load Session. The browser asks before leaving when it has
   // changed since (or was never saved) and there is any.
   function workSignature(){
     const pages = Object.entries(state.pages).filter(([,pageInfo]) => pageInfo.imgData)
       .map(([page,pageInfo]) => [page, pageInfo.fileName, pageInfo.naturalW, pageInfo.naturalH, String(pageInfo.imgData).length]);
     if (!pages.length && !state.fields.length) return '';
-    return JSON.stringify([pages, state.fields, state.validationGroups, state.templateName, $('exportEditor').value,
+    return JSON.stringify([pages, state.fields, state.validationGroups, state.templateName,
       $('eformTitle').value, $('eformAuthor').value, getTuning()]);
   }
   let savedWork = '';
@@ -3259,7 +3249,7 @@ else if (typeof exports === 'object')
 
   // "Reset Everything": back to one empty page, after asking (Undo brings it back)
   function resetEverything(){
-    const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, snippets, and export draft.');
+    const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, and snippets.');
     if(!ok) return;
     pushUndo();
     state.currentPage = 1;
@@ -3276,7 +3266,6 @@ else if (typeof exports === 'object')
     const firstImg=$('img1'); if(firstImg) firstImg.src='';
     Object.keys(state.pages).map(Number).forEach(page=>{ const fileInput=$('fileImg'+page); if(fileInput) fileInput.value=''; });
     $('fileTemplates').value = '';
-    $('exportEditor').value = '';
     state.exportTitle = 'Generated OSCAR eForm';
     state.exportAuthor = '';
     state.formId = newFormId();
@@ -5232,33 +5221,6 @@ function renderPreflight(results){
   }
 
   
-// "Repair image placeholders in draft": points each page's background image in the export draft
-// at its file in OSCAR's image folder (${oscar_image_path}…), building the draft if it is empty
-function repairImagePlaceholders(){
-  let html = String($('exportEditor').value || '');
-  if (!html.trim()) html = buildExportHtml();
-  // Replace each BGImage src with the correct ${oscar_image_path} placeholder.
-  // Match id="BGImage1", id="BGImage2", etc. and fix their src.
-  let patched = 0;
-  for (let page = 1; page <= 10; page++){
-    const bgIdRe = new RegExp('(<img[^>]*id=["\']BGImage' + page + '["\'][^>]*src=)["\'][^"\']*["\']', 'i');
-    const bgSrcRe = new RegExp('(<img[^>]*src=)["\'][^"\']*["\']([^>]*id=["\']BGImage' + page + '["\'])', 'i');
-    const imageName = pageImageName(page);
-    const replacement = '$1"${oscar_image_path}' + imageName + '"';
-    const before = html;
-    html = html.replace(bgIdRe, replacement);
-    if (html === before) html = html.replace(bgSrcRe, '$1"${oscar_image_path}' + imageName + '"$2');
-    if (html !== before) patched++;
-  }
-  // Fallback: if no BGImage ids found, patch first unresolved img src
-  if (patched === 0 && !html.includes('${oscar_image_path}')){
-    html = html.replace(/<img([^>]*?)src=["'][^"']*["']([^>]*?)>/i,
-      '<img$1src="${oscar_image_path}' + pageImageName(1) + '"$2>');
-    patched = 1;
-  }
-  $('exportEditor').value = html;
-  msg(patched ? `Repaired ${patched} image placeholder(s).` : 'No image placeholders needed repair.', patched ? 'ok' : 'warn');
-}
 
 
 
@@ -6114,14 +6076,7 @@ function buildOscarProperties(htmlFileName='generated_oscar_eform.html'){
 async function downloadOscarPackage(){
   try {
     if (typeof JSZip === 'undefined') throw new Error('JSZip library not loaded.');
-    // (built from scratch, so it names the pages' images as they are named in the package, and
-    // has every change since the draft was built; the draft shows it after. A draft edited by
-    // hand is replaced only when the user agrees.)
-    const draft = $('exportEditor').value || '';
-    if (draft.trim() && draft !== state.lastBuiltDraft &&
-        !confirm('The export draft has been edited by hand. The package is built from scratch from the pages and fields, so those edits will not be in it, and the draft will show the new build.\n\nDownload the package anyway?')) return;
     const html = buildExportHtml();
-    $('exportEditor').value = state.lastBuiltDraft = html;
     const htmlFileName = exportHtmlFileName();
     const zip = new JSZip();
     zip.file(htmlFileName, html);
@@ -6151,16 +6106,14 @@ async function downloadOscarPackage(){
   }
 }
 
-// "Check eForm": checks the eForm that Export OSCAR eform (.zip) would build now, from the pages
-// and fields (not the draft in the editor), and that it can be built
+// "Check eForm": checks the eForm the export would build now, from the pages and fields, and that
+// it can be built
 function checkEform(){
   try { buildExportHtml(); }
   catch(err){ renderPreflight([{ level: 'err', text: 'The eForm can\'t be built: ' + (err.message || err) }]); return; }
   renderPreflight(eformChecks());
 }
 
-// "Build HTML draft": puts a freshly built eForm in the export editor
-function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltDraft = buildExportHtml(); msg('Built export HTML draft in editor.', 'ok'); }catch(err){ msg('Build failed: ' + (err.message || err), 'err'); }}
 
   // The eForm's HTML without any PDF controls: buttons, inputs and links that mention PDF, and
   // the PDF helper functions an imported eForm's scripts may call
@@ -6179,20 +6132,15 @@ function buildDraftIntoEditor(){ try{ $('exportEditor').value = state.lastBuiltD
     return out;
   }
 
-  // The eForm's HTML to copy or download: the export editor's, or a fresh build when it is empty
-  function getEditorHtml(){ const draft=$('exportEditor').value||''; return stripPdfControls(draft.trim() ? draft : buildExportHtml()); }
-  // "Copy draft": copies the eForm's HTML to the clipboard
-  async function copyExport(){ try{ await navigator.clipboard.writeText(getEditorHtml()); msg('Copied OSCAR HTML draft to clipboard.', 'ok'); }catch(err){ msg('Copy failed: ' + (err.message || err), 'err'); }}
-  // "Download draft": downloads the eForm's HTML
-  function downloadExport(){ try{ const html=getEditorHtml(); const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=exportHtmlFileName(); document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); msg('Downloaded ' + link.download, 'ok'); }catch(err){ msg('Download failed: ' + (err.message || err), 'err'); }}
-  $('btnBuildDraft').addEventListener('click', buildDraftIntoEditor);
-  
+  // "Copy HTML": copies the eForm's HTML, freshly built, to the clipboard
+  async function copyExport(){ try{ await navigator.clipboard.writeText(buildExportHtml()); msg('Copied the eForm\'s HTML to the clipboard.', 'ok'); }catch(err){ msg('Copy failed: ' + (err.message || err), 'err'); }}
+  // "Download HTML": downloads the eForm's HTML, freshly built
+  function downloadExport(){ try{ const html=buildExportHtml(); const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=exportHtmlFileName(); document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); msg('Downloaded ' + link.download, 'ok'); }catch(err){ msg('Download failed: ' + (err.message || err), 'err'); }}
   $('btnCopyHtml').addEventListener('click', copyExport);
   $('btnDownloadHtml').addEventListener('click', downloadExport);
   if ($('btnDownloadOscarZip')) $('btnDownloadOscarZip').addEventListener('click', downloadOscarPackage);
 
   if ($('btnPreflight')) $('btnPreflight').addEventListener('click', checkEform);
-  if ($('btnInsertPlaceholders')) $('btnInsertPlaceholders').addEventListener('click', repairImagePlaceholders);
 
   if ($('eformTitle')) {
     $('eformTitle').value = state.exportTitle;

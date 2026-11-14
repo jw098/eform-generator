@@ -3,7 +3,7 @@
 //
 // The app loads this file when opened with #test at the end of its address. For each test
 // case (an eForm and its page images) it puts each page in the app, runs Auto Detect there,
-// builds the eForm from what was found ("Build HTML draft"), and compares that eForm with the
+// builds the eForm from what was found (as the export does), and compares that eForm with the
 // case's: where the boxes are, and their oscarDB tags (not their names). Results show in a
 // panel at the top right, which can also add a test case, and run Auto Detect on poorer copies
 // of the cases marked "variations" (tick boxes and fields) when asked.
@@ -135,7 +135,7 @@
   }
   const showAll = () => { T.state.fields = [...onShow.values()].flat(); T.setCurrentPage(1); };
 
-  // The eForm the app builds ("Build HTML draft") from what Auto Detect found on `count` pages
+  // The eForm the app exports from what Auto Detect found on `count` pages
   // of the app from page `first` on, as { html, images } to read like a case's eForm. The draft
   // is built from those pages alone: the app's pages and fields are swapped for them meanwhile.
   function draftOf(first, count){
@@ -371,7 +371,7 @@
   // ----- Run -----
   // Runs each test in turn: a pass or fail, or for a to-do, "to do" or "to-do now passing"
   // ----- The exported eForm: field names, date fields -----
-  // The eForm "Build HTML draft" makes from fields made by hand, `[page, name, type, more]` each (a
+  // The eForm the export makes from fields made by hand, `[page, name, type, more]` each (a
   // text field unless given; `more`, anything else it has), in the order given: its HTML, and each field's input (null where there
   // is none). It is built from them alone (the app's pages and fields swapped out meanwhile, as
   // draftOf does), on blank pages

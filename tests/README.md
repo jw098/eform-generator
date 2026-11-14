@@ -9,7 +9,7 @@ files as they are (the app's OSCAR package, unzipped), so its images can be open
 at like any other. The tests do what you would do in the app:
 
 1. put the case's page image(s) in the app and run **Auto Detect**;
-2. build the eForm from what it found with **Build HTML draft**;
+2. build the eForm from what it found, as the export does;
 3. compare that eForm with the case's eForm.
 
 So they check the whole way from page image to eForm: finding the boxes, tagging them, and
@@ -58,7 +58,7 @@ node tests/ci.js "http://localhost:8000/eForm_Generator_FreeScribe_offline.html#
 Two eForms are compared, page by page:
 
 - **Expected:** the test case's eForm.
-- **Actual:** the eForm built (with Build HTML draft) from what Auto Detect found on the
+- **Actual:** the eForm the export builds from what Auto Detect found on the
   case's page image.
 
 What must agree:
