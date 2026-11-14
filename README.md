@@ -71,7 +71,7 @@ To create a validation group, select one or more fields on the canvas. You may u
 
 ## Check eForm
 
-Checks the eForm for problems such as duplicate names, untagged fields, fields off the page, and pages with no image.
+Checks the eForm for problems such as duplicate names, fields that look like they need a tag, fields off the page, and pages with no image.
 
 ## Export
 

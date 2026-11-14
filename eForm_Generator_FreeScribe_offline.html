@@ -582,7 +582,7 @@
       <button id="btnPreflight" class="btn-violet" title="Checks the eForm as it would be exported now">Check eForm</button>
     </div>
     <div id="preflightBox" class="preflight-list small"></div>
-    <div class="small">Checks the eForm for problems such as duplicate names, untagged fields, fields off the page, and pages with no image.</div>
+    <div class="small">Checks the eForm for problems such as duplicate names, fields that look like they need a tag, fields off the page, and pages with no image.</div>
 
     <div class="hr"></div>
     <div class="panel-title">Export</div>
@@ -1900,15 +1900,21 @@ else if (typeof exports === 'object')
     msg(`Added ${onPages.length} field(s) from ${state.templateName}` + (leftOut ? `; ${leftOut} on pages not loaded were left out.` : '.'), onPages.length ? 'ok' : 'warn');
   });
 
+  // The tag an untagged field could have, from the imported eForm's name↔tag map, or else from its
+  // name and label; '' for a field with a tag or a custom fill, one that never takes a tag (a tick
+  // box), or one nothing suggests a tag for. Auto-tag untagged gives it; Check eForm points it out.
+  function suggestedTag(f){
+    if (String(f.oscarTag||'').trim() || usesCustomFill(f) || isTickType(f.type) || isAttachedType(f.type)) return '';
+    const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
+    return fromMap || guessTag(f.name, f.type, f.label);
+  }
   // "Auto-tag untagged": tags each untagged field but a tick box (or one with a custom fill)
-  // from the imported eForm's name↔tag map, or else from its name and label
+  // with its suggestedTag
   function autoTagUnmapped(){
     pushUndo();
     let changed=0;
     state.fields.forEach(f => {
-      if (f.oscarTag || usesCustomFill(f) || isTickType(f.type) || isAttachedType(f.type)) return;
-      const fromMap = state.templateNameTagMap.get(nameKey(f.name)) || (f.label ? state.templateNameTagMap.get(nameKey(f.label)) : '');
-      const tag = fromMap || guessTag(f.name, f.type, f.label);
+      const tag = suggestedTag(f);
       if (tag){ f.oscarTag=tag; changed++; }
     });
     renderAll(); msg(changed ? `Auto-tagged ${changed} field(s).` : 'No fields were auto-tagged.', changed ? 'ok':'warn');
@@ -5249,8 +5255,11 @@ function eformChecks(){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
-  const untagged = dataFields(state.fields).filter(f => !usesCustomFill(f) && !String(f.oscarTag||'').trim() && f.type !== 'checkbox' && f.type !== 'circle' && f.type !== 'signature' && f.type !== 'drawing');
-  out.push({ level: untagged.length ? 'warn':'ok', text: untagged.length ? `${untagged.length} field(s) (excluding checkboxes/circles/signature) have no oscarDB tag and won't autofill.` : 'All data fields have oscarDB tags.' });
+  // (most untagged fields are filled in by hand, "Reason for referral": only those whose name or
+  // label suggests a tag, "Patient Name", are pointed out, and nothing is said when there are none)
+  const couldBeTagged = dataFields(state.fields).map(f => [f, suggestedTag(f)]).filter(([, tag]) => tag);
+  if (couldBeTagged.length) out.push({ level: 'warn', text: `${couldBeTagged.length} field(s) look like OSCAR could fill them in but have no oscarDB tag: ` +
+    couldBeTagged.slice(0, 6).map(([f, tag]) => `${f.name} (${tag})`).join(', ') + (couldBeTagged.length > 6 ? ', …' : '') + '. Auto-tag untagged tags them.' });
 
   // (validation runs from the eForm's Submit buttons, so it needs them; a group needs fields)
   if (state.validationGroups.length){
