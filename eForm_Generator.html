@@ -2714,15 +2714,20 @@ else if (typeof exports === 'object')
     });
   }
 
-  // Whether a key press is going into a text box or list (so it isn't a canvas shortcut)
+  // Whether a key press is going into a text box or list (so it isn't a canvas shortcut). A tick
+  // box, radio button or button with focus ("Show tags" just clicked) takes no typing, so the
+  // shortcuts go on working
+  const UNTYPED_INPUTS = ['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'range', 'color', 'image'];
   function isTypingTarget(target){
     if (!target) return false;
     const tagName=(target.tagName||'').toLowerCase();
-    return tagName==='input' || tagName==='textarea' || tagName==='select' || target.isContentEditable;
+    if (tagName==='input') return !UNTYPED_INPUTS.includes(String(target.type||'').toLowerCase());
+    return tagName==='textarea' || tagName==='select' || target.isContentEditable;
   }
 
-  // Copies the selected fields, keeping their places relative to each other and where they were
-  // on their page (for a paste on the same page)
+  // Copies the selected fields (with their labels, for Auto-tag and validation messages), keeping
+  // their places relative to each other and where they were on their page (for a paste on the
+  // same page)
   function copySelectedFields(){
     // (a field's controls go with it, and come back on it; controls without their field don't)
     const selectedFields = state.fields.filter(f => isAttachedType(f.type) ? state.selected.has(f.target) : state.selected.has(f.id));
@@ -2739,7 +2744,7 @@ else if (typeof exports === 'object')
       height: f.height,
       type: f.type,
       name: f.name,
-      oscarTag: f.oscarTag || '',
+      oscarTag: f.oscarTag || '', label: f.label || '',
       fontSize: f.fontSize, fontButtons: f.fontButtons, dateFormat: f.dateFormat, fill: f.fill && { ...f.fill },
       copiedId: f.id, target: f.target
     }));
@@ -2784,7 +2789,7 @@ else if (typeof exports === 'object')
         height: h,
         type: copied.type || 'text',
         name: isAttachedType(copied.type) ? copied.name : freeName(copied.name || 'field'),
-        oscarTag: copied.oscarTag || '',
+        oscarTag: copied.oscarTag || '', label: copied.label || '',
         fontSize: copied.fontSize, fontButtons: copied.fontButtons, dateFormat: copied.dateFormat, fill: copied.fill,
         target: isAttachedType(copied.type) ? pastedIds.get(copied.target) : null
       });
@@ -3279,20 +3284,23 @@ else if (typeof exports === 'object')
   $('fFontButtons').addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); });
   ['fFillMode','fCustomAction','fDateFormat'].forEach(id => $(id).addEventListener('change', () => { if (state.selected.size===1) pushUndo(); applyEditorToSelected(); }));
 
-  // Choosing a tag from the list gives the field that tag
+  // Choosing a tag from the list gives the field that tag (an undo step of its own)
   $('fTagSelect').addEventListener('change', ()=>{
     const chosenTag = $('fTagSelect').value;
-    if(!chosenTag) return;
+    if(!chosenTag || state.selected.size !== 1) return;
+    pushUndo();
     $('fTag').value = chosenTag;
     applyEditorToSelected();
   });
 
-  // "Guess tag": the tag guessTag gives the field from its name and label, if it finds one
+  // "Guess tag": the tag guessTag gives the field from its name and label, if it finds one (an
+  // undo step of its own)
   $('btnGuessTag').addEventListener('click', ()=>{
     if (state.selected.size !== 1) return;
     const id=[...state.selected][0], f=state.fields.find(k=>k.id===id); if(!f) return;
     const guessedTag = guessTag(f.name, f.type, f.label);
     if(guessedTag){
+      pushUndo();
       $('fTag').value = guessedTag;
       applyEditorToSelected();
     }
@@ -5382,13 +5390,19 @@ else if (typeof exports === 'object')
           failed.length || !done.length ? 'warn' : 'ok');
     }
   }
+  // The buttons that replace the pages (Open eForm, Load Session, Reset Everything)
+  const PAGE_REPLACING_BUTTONS = ['btnOpenEform', 'btnLoadSession', 'btnResetAll'];
   // Runs one of the Auto Detect buttons with both turned off (and "Detect from"), so a second
-  // click doesn't start another run on top of it, and Undo off (its button and Ctrl/Cmd+Z) until it ends
+  // click doesn't start another run on top of it, Undo off (its button and Ctrl/Cmd+Z), and the
+  // buttons that replace the pages off, as the run would add what it found to the new ones,
+  // until it ends
   async function runDetectButton(run){
     $('btnDetect').disabled = $('btnDetectAll').disabled = $('detectMode').disabled = true;
+    PAGE_REPLACING_BUTTONS.forEach(id => { $(id).disabled = true; });
     detectRunning = true; updateUndoBtn();
     try { await run(); } finally {
       $('btnDetect').disabled = $('btnDetectAll').disabled = $('detectMode').disabled = false;
+      PAGE_REPLACING_BUTTONS.forEach(id => { $(id).disabled = false; });
       detectRunning = false; updateUndoBtn();
     }
   }
