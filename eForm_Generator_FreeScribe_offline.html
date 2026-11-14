@@ -230,6 +230,8 @@
   .btn-red{background:linear-gradient(180deg,#ef4444,#dc2626);border-color:#dc2626;color:#fff}
   .btn-small{padding:4px 8px;font-size:12px;border-radius:8px;}
   .detect-wrap{position:relative;display:inline-flex}
+  /* Save Session's dot while there are unsaved changes */
+  .unsaved-mark{color:#d97706}
   .custom-badge{position:absolute;top:-9px;right:-6px;padding:1px 6px;font-size:10px;line-height:14px;border-radius:999px;
     background:#d97706;border:1px solid #fff;color:#fff;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.25)}
   .custom-badge[hidden]{display:none}
@@ -352,9 +354,6 @@
       <button id="btnAddDate" class="btn-green" title="A date field: on the eForm, a click on it opens OSCAR's calendar, which fills in the date in the format chosen for it (Y-M-D unless set otherwise)">Add Date</button>
       <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
       <button id="btnUndo" title="Undo last action">Undo</button>
-      <button id="btnSaveSession">Save Session</button>
-      <button id="btnLoadSession">Load Session</button>
-      <input id="fileSession" type="file" accept="application/json,.json" hidden />
       <!-- (the buttons used less: a circle, free draw, the signature, copy and paste (Ctrl+C, Ctrl+V,
       Ctrl+D do the same), and clearing the page or everything; shown with "More", which stays
       open or closed as it was left) -->
@@ -417,6 +416,14 @@
   </section>
 
   <aside class="card pane pane-right">
+    <!-- (the whole project: saved to a file and loaded from one; a dot on Save Session while
+    there are changes since) -->
+    <div class="row">
+      <button id="btnLoadSession" title="Opens a session saved with Save Session: its pages, fields, tags and settings">Load Session</button>
+      <button id="btnSaveSession" title="Saves everything (pages, fields, tags, settings) to a file, to pick up again with Load Session">Save Session<span id="unsavedMark" class="unsaved-mark" hidden> &#9679;</span></button>
+      <input id="fileSession" type="file" accept="application/json,.json" hidden />
+    </div>
+    <div class="hr"></div>
     <details id="settingsPanel">
       <summary class="collapsible-summary"><span id="settingsPlus" class="plus-pill">+</span><span>Settings</span><span id="settingsCustom" class="small"></span></summary>
       <div style="margin-top:8px">
@@ -3265,10 +3272,19 @@ else if (typeof exports === 'object')
       $('eformTitle').value, $('eformAuthor').value, getTuning()]);
   }
   let savedWork = '';
+  // Whether there is work that has changed since the last Save Session or Load Session
+  function hasUnsavedWork(){ const work = workSignature(); return !!work && work !== savedWork; }
   window.addEventListener('beforeunload', e => {
-    const work = workSignature();
-    if (work && work !== savedWork){ e.preventDefault(); e.returnValue = ''; }
+    if (hasUnsavedWork()){ e.preventDefault(); e.returnValue = ''; }
   });
+  // Shows Save Session's dot while there are unsaved changes (checked each second, so a change
+  // made anywhere, a field, a title or a setting, shows)
+  function renderUnsavedMark(){
+    const unsaved = hasUnsavedWork();
+    $('unsavedMark').hidden = !unsaved;
+    $('btnSaveSession').title = (unsaved ? 'Unsaved changes. ' : '') + 'Saves everything (pages, fields, tags, settings) to a file, to pick up again with Load Session';
+  }
+  setInterval(renderUnsavedMark, 1000);
 
   // "Save Session": downloads the session as eform_mapper_session_<date>_<time>.json
   $('btnSaveSession').addEventListener('click', ()=>{
@@ -3283,6 +3299,7 @@ else if (typeof exports === 'object')
       link.download = `eform_mapper_session_${timestamp}.json`;
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      renderUnsavedMark();
       msg('Session saved.', 'ok');
     }catch(err){ msg('Save session failed: ' + (err.message || err), 'err'); }
   });
@@ -3294,6 +3311,7 @@ else if (typeof exports === 'object')
       const text = await readAsText(file);
       loadSessionObject(JSON.parse(text));
       savedWork = workSignature();
+      renderUnsavedMark();
       msg(`Session loaded from ${file.name}.`, 'ok');
     }catch(err){ msg('Load session failed: ' + (err.message || err), 'err'); }
     finally { e.target.value=''; }
