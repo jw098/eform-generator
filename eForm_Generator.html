@@ -1,10 +1,10 @@
 <!doctype html>
 <!--
-  OSCAR eForm Mapper (eForm Generator) - Standalone v19
+  eForm Generator
   Copyright (c) 2026 the eForm Generator author(s)
   Licensed under the MIT License - the text is at the end of this file (id="licenses").
 
-  Third-party components (full list: eForm_Generator_ATTRIBUTIONS.md):
+  Third-party components (full list: the attributions at the end of this file, id="licenses"):
     - PDF.js 3.11.174  (c) Mozilla Foundation - Apache-2.0  (embedded in this file)
     - JSZip 3.10.1     (c) Stuart Knightley et al. - MIT (dual MIT/GPL-3.0) (embedded in this file)
     - Tesseract.js 5.1.1 and tesseract.js-core 5.1.1 - Apache-2.0, with Tesseract OCR
@@ -17,9 +17,9 @@
   one file works with no internet and no other files. Their licence texts are at the end
   of this file (id="licenses").
 
-  FreeScribe's edition: each form gets its own image and file names, and a "Find fields"
-  button appears only when FreeScribe opens the page (look for "FreeScribe connection").
-  Rebuild with scripts/build_standalone_mapper.py in the FreeScribe repository.
+  It began as FreeScribe's edition of the OSCAR eForm Mapper (Standalone v19), by
+  Dr. R. Montazeri, and has been developed on its own since. The "Find fields" button still
+  appears when FreeScribe opens the page (look for "FreeScribe connection").
 -->
 <html lang="en">
 <head>
@@ -6893,11 +6893,9 @@ function checkEform(){
 
 </body>
 <script type="text/plain" id="licenses">
-Licences of the eForm Mapper and of the libraries embedded in this file.
-(The attributions describe the folder edition, where the libraries sit in vendor/;
-in this single-file edition the same, unmodified libraries are embedded above.)
+Licences of the eForm Generator and of the libraries embedded in this file.
 
-==== OSCAR eForm Mapper (eForm Generator) - MIT License ====
+==== eForm Generator - MIT License ====
 
 MIT License
 
@@ -6921,102 +6919,60 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
--------------------------------------------------------------------------------
-This license covers eForm_Generator.html only. Files in vendor/ keep their own
-licenses (vendor/LICENSE-pdfjs.txt, vendor/LICENSE-jszip.md). See
-eForm_Generator_ATTRIBUTIONS.md for all third-party components.
+This licence covers the eForm Generator's own code in this file. The libraries embedded in it
+keep their own licences, which follow the attributions below.
 
 ==== Third-party attributions ====
 
-# eForm Generator — Third-Party Attributions & Licenses
+# eForm Generator: third-party attributions
 
-**Tool:** `eForm_Generator.html` ("OSCAR eForm Mapper, Standalone v19")
-**Audited:** 2026-10-06. Updated the same day after the changes listed under [Changes made](#changes-made-2026-10-06).
-**Tool's own license:** MIT. See `LICENSE.txt`; the header comment in `eForm_Generator.html` names the license and third-party parts.
+The eForm Generator began as the "OSCAR eForm Mapper" (Standalone v19) by Dr. R. Montazeri, in an
+edition prepared for FreeScribe. It has two parts with different dependencies: the app itself,
+which runs in your browser while you build a form, and the eForms it exports, which run in OSCAR.
 
-The tool has two separate surfaces with different dependencies:
+## 1. Embedded in this file (the app)
 
-1. **The mapper itself**: what runs in your browser while you build a form.
-2. **The generated eForm**: the HTML and ZIP package it exports, which runs inside OSCAR/Juno.
+All are embedded unmodified, so the app works offline with no other files.
 
----
+| Library | Version | Used for | Licence |
+|---|---|---|---|
+| **PDF.js**, its worker and standard fonts | 3.11.174 | Reading PDFs: the PDF → PNG converter and a fillable PDF's form fields | Apache-2.0, (c) Mozilla Foundation and contributors; the fonts: Foxit (BSD-style) and Liberation (SIL OFL 1.1) |
+| **JSZip** (with pako and small helpers) | 3.10.1 | Building the OSCAR eForm .zip | MIT or GPL-3.0 (MIT used), (c) Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso |
+| **Tesseract.js** and tesseract.js-core | 5.1.1 | Reading a page's words (OCR) for Auto Detect's names and tags | Apache-2.0; compiled in: Tesseract OCR (Apache-2.0), Leptonica (BSD-2-Clause), libpng, zlib, IJG libjpeg |
+| **English language data** (eng.traineddata, tessdata_best_int) | | OCR | Apache-2.0 |
 
-## 1. Libraries loaded by the mapper
+Field detection itself (`detectCurrentPage` and the functions it calls) is the app's own code,
+using standard image-processing techniques. No third-party code or trained model.
 
-| Library | Version | Loaded from | Used for | License | Copyright |
-|---|---|---|---|---|---|
-| **PDF.js** (`pdf.min.js` + `pdf.worker.min.js`) | 3.11.174 | `vendor/` folder, with cdnjs fallback | PDF → PNG page converter | Apache License 2.0 | © Mozilla Foundation and contributors |
-| **JSZip** | 3.10.1 | `vendor/` folder, with cdnjs fallback | Building `oscar_eform_package.zip` | Dual **MIT** or GPL-3.0 (you choose; MIT is the practical choice) | © 2009–2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso |
+## 2. Referenced by the exported eForms
 
-**Bundled inside JSZip's distribution:** pako (MIT; includes zlib-derived code under the zlib license), plus small MIT-licensed helpers (`lie`, `setimmediate`, `readable-stream`). The JSZip MIT notice covers redistribution of the minified build.
+| Item | Source | Licence | Notes |
+|---|---|---|---|
+| **jQuery** 3.7.1 + **jQuery Migrate** 3.4.1 (the default) | cdnjs, with integrity hashes | MIT, (c) OpenJS Foundation | Falls back to OSCAR's own copy when cdnjs can't be reached |
+| **jQuery** 1.7.1 (the legacy option, and the fallback) | OSCAR's `../js/jquery-1.7.1.min.js` | MIT (released dual MIT/GPL-2.0), (c) 2011 John Resig | Has known XSS advisories (CVE-2012-6708, CVE-2015-9251, CVE-2019-11358, CVE-2020-11022, CVE-2020-11023) |
+| **OSCAR `faxControl.js`** | `${oscar_javascript_path}eforms/faxControl.js`, referenced, not copied | GPL-2.0 (part of OSCAR EMR) | Loaded from the OSCAR server |
+| **OSCAR calendar** (`calendar.js`, `calendar-setup.js`, `calendar-en.js`, `calendar.css`) | `../share/calendar/`, referenced, not copied, only when the eForm has a date field | Part of OSCAR EMR (the DHTML Calendar, LGPL) | Loaded from the OSCAR server; outside OSCAR, date fields are plain text boxes |
+| **OSCAR eForm conventions** | `oscarDB="..."` tags, `${oscar_image_path}`, `${oscar_javascript_path}`, `../eform/displayImage.do?imagefile=consult_sig_...`, the `eform.properties` package | OSCAR EMR, GPL-2.0 | Names and placeholders, used for compatibility, not copied code |
 
-### Obligations
-- **Apache-2.0 (PDF.js):** the library is now vendored, so its license ships with it in `vendor/LICENSE-pdfjs.txt`. Keep that file whenever you copy the `vendor/` folder.
-- **MIT (JSZip):** the license is in `vendor/LICENSE-jszip.md`, and the minified file keeps its own header.
+Some of the export's scripts follow patterns common to publicly shared OSCAR eForms, and look
+adapted from them: the `parent-field` / `child-*` show and hide and `only-one-*` checkbox
+handlers; `setDirtyFlag` / `releaseDirtyFlag` / `confirmExit` with its "You have attempted to leave
+this page..." message; `SignForm()` loading `consult_sig_<providerNo>.png`; and the `setFaxNo`,
+`checkGender` and `loadSig` stubs. Their source isn't known. If they came from OSCAR's own code
+they are GPL-2.0, as OSCAR is; the eForms run inside OSCAR, so there's no conflict. Credit the
+OSCAR eForm community when sharing the app.
 
-### Not a dependency
-- **Fonts:** the CSS lists `Inter, Segoe UI, Arial` and `ui-monospace, SFMono-Regular, Menlo`. None of these are downloaded; they render only if already installed on the machine. No attribution is needed.
-- **Field detection** (`detectCurrentPage`, `rectScan`, `isRealBox`): original code using standard image-processing techniques (adaptive threshold, gradient map, flood-fill connected components, run-length line finding). No third-party code or model.
-- No `fetch`, analytics, `localStorage` or other network calls beyond the CDN script loads.
+An imported eForm's scripts, when "Include extracted scripts / onload in export" is ticked, go
+into the export with whatever licence that eForm had.
 
----
+## 3. Network
 
-## 2. Dependencies embedded in the generated eForm
-
-| Item | Version / form | Source | License | Notes |
-|---|---|---|---|---|
-| **jQuery** | 3.7.1 (default) or 1.7.1 (legacy option) | 3.7.1: cdnjs with an integrity hash. Both modes fall back to OSCAR's `../js/jquery-1.7.1.min.js` | MIT | © OpenJS Foundation and contributors. 1.7.1 was released dual MIT/GPL-2.0, © 2011 John Resig, and includes Sizzle.js. |
-| **jQuery Migrate** | 3.4.1 (default mode only) | cdnjs with an integrity hash | MIT | © OpenJS Foundation. Restores jQuery APIs that older OSCAR scripts may still call. |
-| **OSCAR `faxControl.js`** | Whatever the server ships | `${oscar_javascript_path}eforms/faxControl.js`, referenced and not copied | GPL-2.0 (part of OSCAR EMR) | Loaded at runtime from the OSCAR server. |
-| **OSCAR calendar** (`calendar.js`, `calendar-setup.js`, `calendar-en.js`, `calendar.css`) | Whatever the server ships | `../share/calendar/`, referenced and not copied, only when the eForm has a date field | Part of OSCAR EMR (the DHTML Calendar, LGPL) | Loaded at runtime from the OSCAR server; outside OSCAR, date fields are plain text boxes. |
-| **OSCAR eForm conventions** | n/a | `oscarDB="…"` tags, `${oscar_image_path}`, `${oscar_javascript_path}`, `../eform/displayImage.do?imagefile=consult_sig_…`, `eform.properties` package format | OSCAR EMR, GPL-2.0 | Interface names and placeholders, used for compatibility. They're API identifiers, not copied code. |
-
-### Snippets likely derived from OSCAR community eForms
-The export template (around lines 2553–2680) includes several patterns that are common across publicly shared OSCAR eForms:
-
-- `parent-field` / `child-*` show/hide and `only-one-*` exclusive-checkbox jQuery handlers
-- `setDirtyFlag` / `releaseDirtyFlag` / `confirmExit`, including the "You have attempted to leave this page…" message
-- `SignForm()` loading `consult_sig_<providerNo>.png`
-- `setFaxNo`, `checkGender` and `loadSig` stubs
-
-**Provenance:** unconfirmed. These look adapted from community eForm templates and the OSCAR eForm documentation rather than written from scratch. If the originals were taken from OSCAR's source tree, they're GPL-2.0. Generated eForms run *inside* OSCAR, which is itself GPL-2.0, so in practice there's no conflict. Still, credit the OSCAR eForm community if you share the tool. If you know which template these came from, add it here.
-
-**Template import:** the tool can also copy external `<script src>` URLs and inline scripts *from eForms you import* into the export (`includeSnippets`). Those carry whatever license the imported eForm had. You are responsible for them case by case.
-
-### Platform
-- **OSCAR EMR** (McMaster University / OSCAR EMR community): GPL-2.0.
-- **Juno EMR** (an OSCAR fork; referenced in the "OSCAR/Juno preflight" panel): inherits GPL-2.0 from OSCAR.
-
----
-
-## 3. Third-party services contacted at runtime
-
-| Service | When | What's sent |
+| What | When | What's sent |
 |---|---|---|
-| cdnjs (Cloudflare) | Mapper: only if `vendor/` is missing | Your IP and user agent (script request only; no form or patient data) |
-| cdnjs (Cloudflare) | Generated eForm in default jQuery mode, each time it opens in OSCAR | The clinic workstation's IP and user agent |
+| The app | Never, except to FreeScribe on this computer when FreeScribe opens the app | The source PDF, or else the page images, to FreeScribe only, when "Find fields" is used |
+| cdnjs (Cloudflare) | An exported eForm in the default jQuery mode, each time it opens in OSCAR | The clinic computer's IP address and browser, as for any web request; no form or patient data |
 
-With `vendor/` next to the HTML, the mapper runs fully offline. Choosing "OSCAR local 1.7.1 (legacy)" makes generated eForms contact no third-party services. Page images and patient data never leave the browser.
-
----
-
-## 4. Under consideration (not yet integrated)
-
-| Item | License | Notes |
-|---|---|---|
-| CommonForms / **FFDNet-S/L** (Joe Barrow), github.com/jbarrow/commonforms | **Unverified**: confirm before use | YOLO-based. Ultralytics YOLO weights are commonly AGPL-3.0, which would matter if the tool is distributed. |
-| onnxruntime-web | MIT (© Microsoft) | Would be required to run FFDNet in the browser. |
-
----
-
-## Changes made (2026-10-06)
-
-1. **License and header:** an MIT `LICENSE.txt` was added, and a header comment in the HTML lists third-party components. The copyright line reads "the eForm Generator author(s)"; put your name there.
-2. **jQuery upgrade:** exported eForms now default to jQuery 3.7.1 + Migrate 3.4.1. 1.7.1 has known XSS advisories: CVE-2012-6708, CVE-2015-9251, CVE-2019-11358, CVE-2020-11022 and CVE-2020-11023. A new "jQuery in exported eForm" option keeps legacy 1.7.1 (OSCAR's local copy, no internet). `.error()` was changed to `.on('error')`, which works in both versions. The Google CDN reference was removed. **Before rolling out, test fax, print and signature on your OSCAR/Juno server.** If `faxControl.js` misbehaves, switch the option to legacy.
-3. **Offline:** PDF.js and JSZip are in `vendor/` with their licenses. Opened by double-click (`file://`), the PDF worker runs on the main thread because browsers block Web Workers there; it's slower on large PDFs but works.
-4. **Integrity:** every CDN `<script>` (fallbacks and exported jQuery) has a SHA-384 SRI hash. One gap: the pdf.js *worker* fallback from the CDN is launched as a Web Worker, which can't carry an SRI hash. Keeping `vendor/` in place avoids it.
-
-A backup of the original is at `eForm_Generator_v19_backup.html`.
+With "OSCAR local 1.7.1 (legacy)", exported eForms contact no third-party services.
 
 ==== PDF.js 3.11.174 - Apache License 2.0 ====
 
