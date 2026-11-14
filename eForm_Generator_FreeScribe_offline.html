@@ -2174,7 +2174,7 @@ else if (typeof exports === 'object')
       margin.style.left = (pageInfo.naturalW * sx) + 'px'; margin.style.width = (marginW * sx) + 'px';
       margin.innerHTML = '<span>Controls can go here (not printed)</span>'; overlay.appendChild(margin);
     }
-    if (state.currentPage === page && wrap.dataset.controlMargin !== String(marginW)){ wrap.dataset.controlMargin = String(marginW); applyZoom(); }
+    if (state.currentPage === page && wrap.dataset.controlMargin !== String(marginW)){ wrap.dataset.controlMargin = String(marginW); applyZoom(null, false); }
     getPageFields(page).forEach(f => overlay.appendChild(fieldElement(f, page)));
     // (a preview that runs past its field, across or, in a textarea, down: red)
     overlay.querySelectorAll('.field-preview').forEach(d => {
@@ -2213,12 +2213,17 @@ else if (typeof exports === 'object')
     const pageInfo = state.pages[state.currentPage];
     $('btnUploadPage').textContent = `${pageInfo && pageInfo.imgData ? 'Replace' : 'Upload'} Page ${state.currentPage} Image`;
   }
-  // Makes a page the one shown and edited, and marks its tab
+  // Makes a page the one shown and edited, and marks its tab. The view stays where it was: the
+  // pane's scroll (or the window's, on a narrow screen) and, zoomed in, the page box's, which the
+  // browser would otherwise set back to the top while one page is hidden and the next not yet shown.
   function setCurrentPage(page){
+    const scrollers = [document.querySelector('.pane-left'), document.scrollingElement, $('canvasContainer')].filter(Boolean)
+      .map(el => [el, el.scrollLeft, el.scrollTop]);
     state.currentPage = page;
     Object.keys(state.pages).map(Number).forEach(pageNo => { const tab=$('tab'+pageNo); if(tab) tab.classList.toggle('active', pageNo===page); });
     renderAll();
-    applyZoom();
+    applyZoom(null, false);
+    scrollers.forEach(([el, left, top]) => { el.scrollLeft = left; el.scrollTop = top; });
   }
 
   // ===== Zoom =====
@@ -2227,8 +2232,10 @@ else if (typeof exports === 'object')
   // Shows the current page at state.zoom: fitted to the box's width at 1 (no wider than the image
   // itself), else that fitted width times the zoom. The box
   // keeps the size it has at 1 and scrolls. `anchor` ({x, y} in screen pixels) is the point that
-  // stays where it is on screen (the mouse for Ctrl+scroll; else the box's middle).
-  function applyZoom(anchor){
+  // stays where it is on screen (the mouse for Ctrl+scroll; else the box's middle). With
+  // keepSpot false (another page shown, or a page's size changing on its own) it doesn't scroll:
+  // the anchor's point would be measured on the image at its old size, and the view would jump.
+  function applyZoom(anchor, keepSpot = true){
     const box = $('canvasContainer'), page = state.currentPage, pageInfo = state.pages[page];
     const wrap = getPageWrap(page), img = getPageImgEl(page);
     $('btnZoomFit').textContent = Math.round(state.zoom * 100) + '%';
@@ -2255,7 +2262,7 @@ else if (typeof exports === 'object')
       img.style.width = (fitW * state.zoom) + 'px';
       wrap.style.paddingRight = (fitW * state.zoom * marginShare) + 'px';
     }
-    if (img.offsetWidth === oldW) return;
+    if (!keepSpot || img.offsetWidth === oldW) return;
     // (scrolls so the anchor's point on the image is back under it)
     const newRect = img.getBoundingClientRect();
     box.scrollLeft += newRect.left + share.x * newRect.width - at.x;
@@ -2744,7 +2751,7 @@ else if (typeof exports === 'object')
     if (window.ResizeObserver) new ResizeObserver(() => {
       if (!state.pages[page]) return;
       renderPage(page);
-      if (page === state.currentPage) applyZoom();
+      if (page === state.currentPage) applyZoom(null, false);
     }).observe(img);
 
     const tab = document.createElement('button');
