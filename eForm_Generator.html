@@ -254,6 +254,16 @@
   @media (min-width: 1024px){ .page-bar{top:-14px} }
   .page-tabs{display:flex;gap:6px;align-items:center;overflow-x:auto;min-width:0;flex:0 1 auto}
   .page-bar .tab{flex:none}
+  /* The shortcuts list: under its button at the bar's right end, on hover, on focus, or held open by a click */
+  .shortcuts{position:relative;margin-left:auto;flex:none}
+  .shortcuts-btn{padding:5px 10px;border-radius:999px;font-size:12px;color:var(--muted)}
+  .shortcuts-list{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:max-content;max-width:min(460px,90vw);
+    grid-template-columns:auto 1fr;gap:5px 14px;align-items:baseline;padding:10px 14px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.18);font-size:12px;color:var(--text)}
+  .shortcuts:hover .shortcuts-list,.shortcuts:focus-within .shortcuts-list,.shortcuts.open .shortcuts-list{display:grid}
+  .shortcuts-head{grid-column:1/-1;font-weight:700;margin-top:4px;color:#1e3a8a}
+  .shortcuts-head:first-child{margin-top:0}
+  .shortcuts-list kbd{font:11px/1 ui-monospace,Consolas,monospace;padding:2px 5px;border:1px solid #cfd8e3;border-bottom-width:2px;border-radius:4px;background:#f8fafc}
   .page-bar-sep{flex:none;width:1px;height:22px;background:var(--line);margin:0 4px}
   .kvs>div{background:linear-gradient(180deg,#fbfdff,#f0f6ff);border-color:#d7e4ff}
   .canvas-wrap{
@@ -362,7 +372,7 @@
       <button id="btnAddCheckbox" class="btn-green">Place Checkbox</button>
       <label class="small" style="display:flex;align-items:center;gap:6px" title="The size of a checkbox placed by hand, in the page image's pixels">Checkbox size (px) <input id="manualCbSize" type="number" min="6" max="120" value="20" style="width:80px"/></label>
       <button id="btnAddDate" class="btn-green" title="A date field: on the eForm, a click on it opens OSCAR's calendar, which fills in the date in the format chosen for it (Y-M-D unless set otherwise)">Add Date</button>
-      <button id="btnDeleteSel" class="btn-red">Delete Selected</button>
+      <button id="btnDeleteSel" class="btn-red" title="Deletes the selected fields (Delete or Backspace)">Delete Selected</button>
       <button id="btnUndo" title="Undo last action (Ctrl/Cmd+Z)">Undo</button>
       <!-- (the buttons used less: a circle, free draw, the signature, copy and paste (Ctrl+C, Ctrl+V,
       Ctrl+D do the same), and clearing the page or everything; shown with "More", which stays
@@ -373,9 +383,9 @@
         <button id="btnCircle" class="btn-green" title="An oval that a click on the eForm draws or takes away, to circle a printed choice (Yes / No, Left / Right); moved and sized over it like any field, and saved with the form">Add Circle</button>
         <button id="btnFreeDraw" class="btn-green" title="An area of the page to draw on in the eForm (to mark a diagram, say), with pen colours, Undo and Clear; what is drawn is saved with the form">Free Draw</button>
         <button id="btnSignature" class="btn-green" title="The provider's signature: on the eForm, their signature image from OSCAR, or, chosen with its controls (not printed), one drawn by hand or &quot;Electronically signed&quot;; the choice and what is drawn are saved with the form">Add Signature</button>
-        <button id="btnCopySel">Copy Selected</button>
-        <button id="btnPasteSel">Paste</button>
-        <button id="btnDuplicateSel">Duplicate</button>
+        <button id="btnCopySel" title="Copies the selected fields (Ctrl/Cmd+C)">Copy Selected</button>
+        <button id="btnPasteSel" title="Pastes the copied fields: next to the originals on the same page, at the top left on another (Ctrl/Cmd+V)">Paste</button>
+        <button id="btnDuplicateSel" title="Copies the selected fields next to themselves (Ctrl/Cmd+D)">Duplicate</button>
         <button id="btnClearPage">Clear Current Page</button>
         <button id="btnResetAll" class="btn-red">Reset Everything</button>
         </div>
@@ -405,10 +415,6 @@
       <div class="small" style="margin-top:4px">Works for computer-made PDFs, scanned or faxed PDFs, and page images (PNG, JPEG). Scans are read with OCR on this computer.</div>
     </div>
 
-    <div class="row" style="margin-top:8px">
-      <span class="small">Shift/Ctrl/Cmd click = multi-select · Drag blank area = lasso · Arrow keys nudge · Shift+Arrow = 10px · Esc deselects · J/K or ←/→ (nothing selected) = next/previous page · Ctrl/Cmd+C/V copy/paste · Ctrl/Cmd+Z undo</span>
-    </div>
-
     <div class="kvs" style="margin-top:10px">
       <div><b>Page</b><div id="kvPage" class="small">1</div></div>
       <div><b>Fields on page</b><div id="kvCount" class="small">0</div></div>
@@ -419,10 +425,32 @@
     <div class="row page-bar">
       <span id="tabsRow" class="page-tabs"></span><button id="btnAddPage" class="tab add-page" type="button" title="Adds a page after the last, and asks for its image">+ Add Page</button>
       <span class="page-bar-sep"></span>
-      <span class="small" title="Ctrl/Cmd+scroll over the page zooms"><b>Zoom</b></span>
-      <button id="btnZoomOut" type="button" title="Zoom out">&minus;</button>
+      <span class="small"><b>Zoom</b></span>
+      <button id="btnZoomOut" type="button" title="Zoom out (Ctrl/Cmd+scroll over the page)">&minus;</button>
       <button id="btnZoomFit" class="zoom-level" type="button" title="Fit the page to the box">100%</button>
-      <button id="btnZoomIn" type="button" title="Zoom in">+</button>
+      <button id="btnZoomIn" type="button" title="Zoom in (Ctrl/Cmd+scroll over the page)">+</button>
+      <!-- (every mouse and keyboard shortcut, in a list shown on hover or a click) -->
+      <span id="shortcuts" class="shortcuts">
+        <button id="btnShortcuts" type="button" class="shortcuts-btn" aria-expanded="false" aria-controls="shortcutsList">&#9000;&#xFE0E; Shortcuts</button>
+        <div id="shortcutsList" class="shortcuts-list" role="tooltip">
+          <div class="shortcuts-head">Pages</div>
+          <span><kbd>J</kbd> / <kbd>K</kbd></span><span>Next / previous page</span>
+          <span><kbd>&rarr;</kbd> / <kbd>&larr;</kbd></span><span>Next / previous page, with no field selected</span>
+          <div class="shortcuts-head">Selecting</div>
+          <span><kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+click</span><span>Add a field to the selection, or take it out</span>
+          <span>Drag on blank page</span><span>Select the fields in a box (lasso)</span>
+          <span><kbd>Esc</kbd></span><span>Clear the selection</span>
+          <div class="shortcuts-head">Selected fields</div>
+          <span>Arrow keys</span><span>Nudge 1 px (<kbd>Shift</kbd>: 10 px)</span>
+          <span><kbd>Delete</kbd> / <kbd>Backspace</kbd></span><span>Delete</span>
+          <span><kbd>Ctrl/Cmd</kbd>+<kbd>C</kbd></span><span>Copy</span>
+          <span><kbd>Ctrl/Cmd</kbd>+<kbd>V</kbd></span><span>Paste</span>
+          <span><kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd></span><span>Duplicate</span>
+          <span><kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd></span><span>Undo</span>
+          <div class="shortcuts-head">View</div>
+          <span><kbd>Ctrl/Cmd</kbd>+scroll</span><span>Zoom in or out around the mouse</span>
+        </div>
+      </span>
     </div>
 
     <div id="canvasContainer"></div>
@@ -6740,6 +6768,10 @@ function checkEform(){
   // ===== Start-up =====
   createPageDOM(1);
   // "+ Add Page": a new page, and its image asked for straight away
+  // The shortcuts list: a click holds it open (for a touch screen, where there's no hover) or
+  // closes it; a click elsewhere closes it
+  $('btnShortcuts').addEventListener('click', () => { const open = $('shortcuts').classList.toggle('open'); $('btnShortcuts').setAttribute('aria-expanded', String(open)); if (!open) $('btnShortcuts').blur(); });
+  document.addEventListener('mousedown', (e) => { if (!$('shortcuts').contains(e.target)){ $('shortcuts').classList.remove('open'); $('btnShortcuts').setAttribute('aria-expanded', 'false'); } });
   if ($('btnAddPage')) $('btnAddPage').addEventListener('click', () => { if (addPage()) $('fileImg').click(); });
   if ($('btnRemovePage')) $('btnRemovePage').addEventListener('click', removePage);
 

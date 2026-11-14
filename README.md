@@ -51,6 +51,8 @@ Revealed by the `More` button:
 ## Adjusting position of fields
 All fields can be moved and resized, and copied and pasted. 
 
+Every shortcut is listed under the `Shortcuts` button, at the right end of the bar over the page. To switch pages: J and K (next and previous), or the right and left arrows while no field is selected. Esc clears the selection.
+
 Keyboard shortcuts, when a field is selected:
 - Arrow keys: nudge the field 1 pixel
 - Shift+Arrow keys: nudge the field 10 px
