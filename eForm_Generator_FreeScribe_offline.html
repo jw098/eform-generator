@@ -237,10 +237,11 @@
   .detect-progress[hidden]{display:none}
   .detect-progress-track{margin-top:4px;height:6px;border-radius:999px;background:#ede9fe;overflow:hidden}
   .detect-progress-bar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#7c3aed);transition:width .2s ease}
-  /* The page tabs, the current page's marked */
+  /* The page tabs, the current page's outlined in blue (an outline, where the buttons beside
+     them are filled, so it reads as the page shown, not as a button) */
   .tab{padding:6px 10px;border:1px solid #c8d7ff;border-radius:999px;background:linear-gradient(180deg,#fff,#f3f7ff);
     cursor:pointer;font-size:12px;font-weight:600}
-  .tab.active{background:linear-gradient(180deg,#e8f0ff,#dbeafe);border-color:#9fbcff;color:#1e3a8a}
+  .tab.active{background:#dbeafe;border:2px solid #2563eb;padding:5px 9px;color:#1e3a8a;font-weight:700}
   .kvs>div{background:linear-gradient(180deg,#fbfdff,#f0f6ff);border-color:#d7e4ff}
   .canvas-wrap{
     border:1px solid #c0d3ff;
