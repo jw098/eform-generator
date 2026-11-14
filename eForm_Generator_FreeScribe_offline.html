@@ -2509,10 +2509,13 @@ else if (typeof exports === 'object')
     renderAll();
   }
 
-  // Pressing on a field: turns off "Place Checkbox" mode, selects the field (Shift/Ctrl/Cmd adds
-  // to the selection), then starts resizing it from its handle or dragging the selection
+  // Pressing on a field: turns off "Place Checkbox" mode, takes the focus off a sidebar box (its
+  // Name, say) so the shortcuts act on the field again, selects the field (Shift/Ctrl/Cmd adds to
+  // the selection), then starts resizing it from its handle or dragging the selection
   function onFieldMouseDown(e, f, page){
     if (state.placeCheckboxMode) setPlaceCheckboxMode(false);
+    // (preventDefault below keeps the browser from moving the focus itself)
+    if (isTypingTarget(document.activeElement)) document.activeElement.blur();
     e.preventDefault(); e.stopPropagation();
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     if (additive) toggleSelect(f.id); else if (!state.selected.has(f.id) || state.selected.size !== 1) selectOne(f.id);
