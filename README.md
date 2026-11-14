@@ -1,8 +1,11 @@
 # eform Generator - How to use
 
+Turns a PDF form into an OSCAR eForm.
+
 ## Quick start
 
 To quickly generate an eform, just do the following steps:
+- Download `eForm_Generator_FreeScribe_offline.html` and open it in a browser; it runs offline.
 - Load the images: Under PDF->PNG converter, browse and select your PDF file. Click `Load into Mapper`. The image should show up in the canvas.
 - For each page in the canvas, click `Auto Detect (Current Page)`. Click the `Edit Page 1`, `Edit Page 2`, etc. button to change pages.
 - Click `Check eForm` to ensure there are no major issues with the eform.
@@ -23,18 +26,15 @@ We now need to detect the location of the fields/input boxes. For each page, cli
 
 The eform generator should automatically add boxes for all input fields. Using OCR, the script will also try to guess an appropriate name for the field, and more importantly, guess an oscardb tag.
 
-The oscardb tag attached to each field will show up on the canvas.
-
 ## Manually adding fields
 Above the canvas, and below the `Auto Detect (Current Page)` button, there are buttons to add input fields.
 
 - `Add Text Line`: Adds a single line text field to the top left corner.
 - `Add Text Area`: Adds a multi-line text field to the top left corner, accompanying ▲▼ font size buttons.
-- `Place Checkbox`: Places a checkbox wherever you click the cursor.
-- `Checkbox px`: The size of checkboxes when you click with `Place Checkbox` active.
+- `Place Checkbox`: Places a checkbox where you click, sized by `Checkbox px`.
 - `Add Date`: Adds a single line text field to the top left corner, with a calendar selector.
 
-More buttons that add fields:
+Revealed by the `More` button:
 - `Add circle`: Adds a circle to the top left corner. In the actual eform, clicking will toggle on/off a circle.
 - `Free draw`: Adds a free draw box to the top left corner. The associated `Undo, Clear` controls can be moved separately from the free draw box; they can even be moved off the canvas to the right side bar.
 - `Add signature`: Adds a signature box to the bottom right corner. The associated `Stamp, Draw, Electronic, Clear` controls can be moved separately from the signature box; they can even be moved off the canvas to the right side bar.
@@ -49,16 +49,14 @@ Keyboard shortcuts do work. When a field is selected:
 - Ctrl/Cmd+V: paste to top left corner.
 - Delete: delete the field
 
-If you click a specific input field, on the right sidebar will be a section for `Selected field`.
-
 ## Editing input fields: oscardb, name, size, location
 
-As mentioned above, if you click a specific input field, on the right sidebar will be a section for `Selected field`.
+If you click a specific input field, its data will be in the right sidebar under `Selected field`.
 
 - `Name`: The field’s name in the eForm; OSCAR saves its value under it, so ensure you keep names unique. Also used by `Guess tag`.
 - `Fill with`: Dropdown that toggles between `OSCAR tag` and `Custom text/action`
     - `OSCAR tag`: oscardb tag, which then automatically pulls in its associated value when the eform is loaded on OSCAR. Shows up as green text on the canvas. You may choose the tag from the dropdown list, or manually type in the oscardb tag. If you manually input an oscardb tag that isn't in the standard OSCAR 12 tags, you will see a warning.
-    - `Custom text/action`: These are an alternative to oscardb tags, particularly where the text or action you want isn't offered directly by the oscardb tag. e.g. checking a box based on gender, display two phone numbers, current user's first name or last name only, etc. These show up as purple text on the canvas. 
+    - `Custom text/action`: These are an alternative to oscardb tags, particularly where the text or action you want isn't offered directly by the oscardb tag. e.g. checking a box based on patient's sex, display two phone numbers, current user's first name or last name only, etc. These show up as purple text on the canvas. 
 - `Guess tag`: Guesses an oscardb tag based on the selected field's name.
 - `Font size`: Changes the font size. Only appears for certain fields such as text lines, text areas, checkboxes and some custom fills.
 - `X`, `Y`, `W`, `H`: adjusts the x-position, y-position, width, and height respectively of the selected field.
