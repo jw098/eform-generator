@@ -337,7 +337,7 @@
       <!-- (the pages: a tab each, then adding and removing one, and the image of the one shown) -->
       <span id="tabsRow"></span>
       <button id="btnAddPage" class="btn-blue" title="Adds a page after the last, and asks for its image">+ Add Page</button>
-      <button id="btnRemovePage" class="btn-red">&#8722; Remove Last Page</button>
+      <button id="btnRemovePage" class="btn-red" title="Removes the page shown, with its image and fields; the pages after it move up a number">&#8722; Remove This Page</button>
       <button id="btnUploadPage" class="btn-blue" title="A PNG or JPEG image of the page shown. A new image the same shape as the old one keeps the page's fields in their places.">Upload Page 1 Image</button>
       <input id="fileImg" type="file" accept="image/png,image/jpeg,image/jpg" hidden/>
 
@@ -2780,14 +2780,30 @@ else if (typeof exports === 'object')
     return true;
   }
 
-  // "− Remove Last Page": removes the last page, unless it is the only one
+  // "− Remove This Page": removes the page shown with its image and fields (asking first when it
+  // has either), unless it is the only one. The pages after it move up a number, their images
+  // and fields with them, so each page's parts (its image, overlay and tab) now show the page
+  // that was after it, and the last page's go.
   function removePage(){
-    const lastPage = getPageCount();
+    const page = state.currentPage, lastPage = getPageCount();
     if (lastPage<=1){ msg('Cannot remove the only page.','warn'); return; }
+    const pageFields = getPageFields(page), moveUp = page < lastPage;
+    if ((pageFields.length || state.pages[page].imgData) &&
+        !confirm(`Remove page ${page}? This will delete its image and ${pageFields.length} field(s)` +
+          (moveUp ? `, and page${lastPage - page > 1 ? `s ${page+1}–${lastPage}` : ` ${lastPage}`} will move up a number.` : '.'))) return;
     pushUndo();
-    if (!removeSinglePage(lastPage)){ state.undoStack.pop(); updateUndoBtn(); return; }
-    setCurrentPage(Math.min(state.currentPage, lastPage-1));
-    msg('Removed page '+lastPage+'.','ok');
+    state.fields = state.fields.filter(f => !samePage(f.page, page));
+    state.fields.forEach(f => { if (Number(f.page) > page) f.page = Number(f.page) - 1; });
+    for (let n = page; n < lastPage; n++) state.pages[n] = state.pages[n+1];
+    removeSinglePage(lastPage, true);
+    Object.keys(state.pages).map(Number).forEach(n => { const img = getPageImgEl(n); if (img) img.src = state.pages[n].imgData || ''; });
+    // (a paste goes beside the copied fields only on their page, which may have moved or gone)
+    const from = state.clipboardFrom;
+    if (from) state.clipboardFrom = samePage(from.page, page) ? null : { ...from, page: Number(from.page) > page ? Number(from.page) - 1 : Number(from.page) };
+    state.pasteCount = {};
+    state.selected.clear();
+    setCurrentPage(Math.min(page, lastPage-1));
+    msg(`Removed page ${page}.` + (moveUp ? ' The pages after it moved up a number.' : ''), 'ok');
   }
 
   // Loads a PNG or JPEG file as a page's image. A page's fields are placed in its image's pixels,
