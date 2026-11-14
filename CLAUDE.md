@@ -208,3 +208,5 @@ size it against the page.
   leave a to-do in its test case rather than an exception in the code, or, if a general fix
   isn't possible, a skip (see "To-do or skip").
 - Commit messages: a short summary of what changed, in the same plain style as the comments.
+- Push finished work straight to `main` (once the tests pass), not to a separate branch, and
+  open no pull request unless asked.
