@@ -2817,15 +2817,16 @@ else if (typeof exports === 'object')
     return true;
   }
 
-  // Adds an empty page after the last and shows it; returns whether it did
-  function addPage(){
+  // Adds an empty page after the last and shows it; returns whether it did. opts.quiet: no undo
+  // step and no message (the PDF converter, adding a PDF's pages, saves one and says what it loaded)
+  function addPage(opts = {}){
     const page = getPageCount()+1;
     if (page>MAX_PAGES){ msg('Maximum '+MAX_PAGES+' pages supported.','warn'); return false; }
-    pushUndo();
+    if (!opts.quiet) pushUndo();
     state.pages[page] = { imgData:null, naturalW:0, naturalH:0, fileName:'' };
     createPageDOM(page);
     setCurrentPage(page);
-    msg('Page '+page+' added. Upload an image for it.','ok');
+    if (!opts.quiet) msg('Page '+page+' added: choose its image.','ok');
     return true;
   }
 
@@ -3357,7 +3358,7 @@ else if (typeof exports === 'object')
 
   // "Reset Everything": back to one empty page, after asking (Undo brings it back)
   function resetEverything(){
-    const ok = confirm('Reset everything? This clears images, fields, the imported eForm HTML, and snippets.');
+    const ok = confirm('Reset everything? This clears all pages and their images, fields, validation groups, the eForm title and author, the imported eForm HTML and its scripts, and the source PDF. Undo brings back the pages, fields and validation groups, but not the rest.');
     if(!ok) return;
     pushUndo();
     state.currentPage = 1;
@@ -5078,11 +5079,13 @@ else if (typeof exports === 'object')
       const unread = read || opts.readWords === false ? '' : ' (The page\'s words couldn\'t be read in this browser, so fields have plain names and no tags.)';
       const changes = tuningChanges();
       const custom = changes.length ? ` Custom tuning used: ${changes.join(', ')}.` : '';
-      if (fromPdf) msg(`This page came from a fillable PDF: took ${added} field(s) straight from the PDF's own form fields (exact positions and names).` + unread, added ? 'ok' : 'warn');
+      // (nothing added: say whether nothing was found, or what was found is on the page already)
+      const nothingNew = found.length ? `No new fields: the ${found.length} field(s) found are already on page ${page}.` : `No fields found on page ${page}.`;
+      if (fromPdf) msg((added ? `This page came from a fillable PDF: took ${added} field(s) straight from the PDF's own form fields (exact positions and names).` : nothingNew) + unread, added ? 'ok' : 'warn');
       else {
         // (a fillable PDF's page with none of its form fields, detected visually all the same)
         const noPdfFields = sourcePdfFillable && state.detectMode === 'pdf' && p.pdfPage ? ` Page ${page} has no PDF form fields, so it was detected visually.` : '';
-        msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : 'No new fields found. Try adjusting checkbox size/tolerance.') + noPdfFields + custom + unread, added>0 ? 'ok' : 'warn');
+        msg((added > 0 ? `Detected ${added} new field(s) on page ${page}.` : nothingNew) + noPdfFields + custom + unread, added>0 ? 'ok' : 'warn');
       }
       return { added, wordsRead: !!read, fromPdf: !!fromPdf };
     } catch(err) {
@@ -6610,14 +6613,15 @@ function checkEform(){
       return outputs;
     }
 
-    // Puts converted images on the mapper's pages: the selected PDF page on the current page, or
-    // each PDF page on the page of the same number (adding pages, up to MAX_PAGES; the rest are
-    // left out, and the status says so)
+    // Puts converted images on the pages: the selected PDF page on the current page, or each PDF
+    // page on the page of the same number (adding pages, up to MAX_PAGES; the rest are left out,
+    // and the messages say so). One undo step takes the whole load back.
     async function loadOutputsIntoMapper(outputs){
       if(!outputs || !outputs.length){
         throw new Error('Nothing to load. Convert first.');
       }
       let loaded = 0, leftOut = 0;
+      pushUndo();
 
       if(controls.mode.value === 'single'){
         const targetPage = state.currentPage >= 1 ? state.currentPage : 1;
@@ -6627,7 +6631,7 @@ function checkEform(){
       } else {
         for (const output of outputs){
           if (output.page >= 1 && output.page <= MAX_PAGES){
-            if (output.page > 1 && !state.pages[output.page] && getPageCount() < output.page) addPage();
+            if (output.page > 1 && !state.pages[output.page] && getPageCount() < output.page) addPage({ quiet: true });
             await loadBlobIntoMapper(output.page, output.blob, pageImageName(output.page), output.page);
             loaded++;
           } else leftOut++;
@@ -6636,7 +6640,11 @@ function checkEform(){
       }
 
       renderAll();
-      showStatus(`Loaded ${loaded} page(s) onto the canvas.` + (leftOut ? ` ${leftOut} page(s) after page ${MAX_PAGES} were left out: a form can have up to ${MAX_PAGES}.` : ''), !!leftOut);
+      const tooMany = leftOut ? ` ${leftOut} page(s) after page ${MAX_PAGES} were left out: a form can have up to ${MAX_PAGES}.` : '';
+      showStatus(`Loaded ${loaded} page(s) onto the canvas.` + tooMany, !!leftOut);
+      const from = state.sourcePdf && state.sourcePdf.name ? ` from ${state.sourcePdf.name}` : '';
+      msg((controls.mode.value === 'single' ? `Loaded PDF page ${outputs[0].page}${from} onto page ${state.currentPage}.`
+                                            : `Loaded ${loaded} page(s)${from}.`) + tooMany, leftOut ? 'warn' : 'ok');
     }
 
     // (a second convert while one waits or runs is a double click: it is ignored)
