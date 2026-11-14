@@ -1,6 +1,6 @@
 # Auto Detect tests
 
-These tests check **Auto Detect**, the button in the eForm Mapper that finds the tick boxes
+These tests check **Auto Detect**, the button in the eForm Generator that finds the tick boxes
 and the places to write on a form's page image and suggests their OSCAR tags.
 
 A **test case is a finished eForm**: the eForm HTML and its page image(s), with every box in

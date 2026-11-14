@@ -1,4 +1,4 @@
-# eForm Generator (OSCAR eForm Mapper)
+# eForm Generator
 
 A single-page browser app that turns a scanned or PDF form into an OSCAR eForm: put fields
 on the page image, tag them with `oscarDB` tags, and export the eForm's HTML (or an OSCAR
