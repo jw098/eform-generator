@@ -54,7 +54,17 @@ Tick each box as it passes; note what went wrong under any that fails.
 - [ ] Draw mode: signing by hand works
 - [ ] Electronic mode shows "Electronically signed"
 - [ ] Chosen mode and drawn signature are kept after saving and reopening
-- [ ] A page with more than one signature: each works on its own
+
+### Two signatures on the same page
+
+The feature test eForm has two on page 2: "Provider signature" and "Second signature".
+
+- [ ] On a new form, both show the stamp (the provider's signature image)
+- [ ] Each has its own Stamp, Draw and Electronic controls, next to it
+- [ ] Changing one's mode leaves the other's as it was (first on Draw, second on Electronic)
+- [ ] Drawing in one doesn't appear in the other, and Clear clears only its own
+- [ ] Submit with them in different modes (one drawn, one stamped), then reopen: each comes back in its own mode, with its own drawing
+- [ ] Both print, each in its own mode, and neither's controls print
 
 ## 7. Rules between fields
 
