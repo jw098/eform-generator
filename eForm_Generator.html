@@ -1284,7 +1284,7 @@ else if (typeof exports === 'object')
       Object.keys(state.pages).map(Number).sort((a,b)=>b-a).forEach(page => { if(!snapshotPages.includes(page)) removeSinglePage(page,true); });
       snapshotPages.forEach(page => {
         if (!state.pages[page]){ state.pages[page]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(page); }
-        Object.assign(state.pages[page], snapshot.pages[String(page)]);
+        state.pages[page] = { ...snapshot.pages[String(page)] };   // (whole: a key it didn't have, a PDF's fields, goes)
       });
     }
     state.fields = Array.isArray(snapshot.fields) ? snapshot.fields.map(f => ({ ...f })) : [];
@@ -1297,7 +1297,7 @@ else if (typeof exports === 'object')
     // (undoing what put another form in place, Open eForm or Reset Everything, brings back the
     // form that was there, its id with it: else its pages would be exported under the other
     // form's file names, over that form's in OSCAR. Within one form, the title and author stay
-    // as typed, and the source PDF as chosen.)
+    // as typed, and the source PDF goes back with the pages it came with.)
     const form = snapshot.form;
     if (form && form.id && form.id !== state.formId){
       state.formId = form.id;
@@ -1306,6 +1306,9 @@ else if (typeof exports === 'object')
       state.exportAuthor = String(form.author || '');
       if ($('eformTitle')) $('eformTitle').value = state.exportTitle;
       if ($('eformAuthor')) $('eformAuthor').value = state.exportAuthor;
+      fsShowPdf(); refreshDetectMode();
+    } else if (form && (form.sourcePdf || null) !== state.sourcePdf){
+      state.sourcePdf = form.sourcePdf || null;
       fsShowPdf(); refreshDetectMode();
     }
 
@@ -3006,7 +3009,7 @@ else if (typeof exports === 'object')
       if (pageFields.length && sameShape && (sx !== 1 || sy !== 1))
         pageFields.forEach(f => { f.x *= sx; f.y *= sy; f.width *= sx; f.height *= sy; });
       state.pages[page].imgData = data; state.pages[page].naturalW = img.width; state.pages[page].naturalH = img.height; state.pages[page].fileName = file.name || pageImageName(page); 
-      delete state.pages[page].pdfPage; delete state.pages[page].pdfFields;
+      delete state.pages[page].pdfPage; delete state.pages[page].pdfFields; delete state.pages[page].pdfSource;
       const imgEl = getPageImgEl(page); imgEl.src = data;
       msg(`Loaded page ${page}: ${img.width}x${img.height}.` + longFormNote(), longFormNote() ? 'warn' : 'ok'); renderAll();
     }catch(err){ msg('Failed to load image: ' + (err.message || err), 'err'); }
@@ -3361,7 +3364,7 @@ else if (typeof exports === 'object')
       const saved = session.pages[String(page)] || session.pages[page] || {};
       if (!state.pages[page]){ state.pages[page]={imgData:null,naturalW:0,naturalH:0,fileName:''}; createPageDOM(page); }
       state.pages[page] = { imgData:saved.imgData||null, naturalW:Number(saved.naturalW)||0, naturalH:Number(saved.naturalH)||0, fileName:saved.fileName||'', pdfPage:Number(saved.pdfPage)||null,
-                            pdfFields: readSavedPdfFields(saved.pdfFields) };
+                            pdfFields: readSavedPdfFields(saved.pdfFields), pdfSource: typeof saved.pdfSource === 'string' ? saved.pdfSource : null };
       const imgEl=$('img'+page); if(imgEl) imgEl.src=state.pages[page].imgData||'';
     });
 
@@ -6761,7 +6764,7 @@ function checkEform(){
 
     // Puts a converted image on a page of the mapper (making the page if it isn't there yet), with
     // the PDF page's own form fields (readPdfPageFields)
-    async function loadBlobIntoMapper(pageNo, blob, fileName='', pdfPage=null){
+    async function loadBlobIntoMapper(pageNo, blob, fileName='', pdfPage=null, pdfSource=null){
       const page = Number(pageNo) >= 1 ? Number(pageNo) : 1;
       const dataUrl = await blobToDataUrl(blob);
       const img = await loadImage(dataUrl);
@@ -6774,7 +6777,8 @@ function checkEform(){
         naturalH: img.naturalHeight || img.height || 0,
         fileName: resolvedName,
         pdfPage: pdfPage || null,
-        pdfFields
+        pdfFields,
+        pdfSource: pdfPage ? pdfSource : null
       };
       const imgEl = $('img'+page);
       if (imgEl) imgEl.src = dataUrl;
@@ -6944,26 +6948,33 @@ function checkEform(){
         throw new Error('Nothing to load. Convert first.');
       }
       let loaded = 0, leftOut = 0;
+      let source = null;
+      try { source = pdfFile ? fsSourcePdfFor(pdfFile.name, pdfFile.bytes) : null; } catch(_){}
+      const sourceKey = source ? source.key || null : null;
       pushUndo();
 
-      if(controls.mode.value === 'single'){
-        const targetPage = state.currentPage >= 1 ? state.currentPage : 1;
-        await loadBlobIntoMapper(targetPage, outputs[0].blob, pageImageName(targetPage), outputs[0].page);
-        loaded = 1;
-        setCurrentPage(targetPage);
-      } else {
-        for (const output of outputs){
-          if (output.page >= 1 && output.page <= MAX_PAGES){
-            if (output.page > 1 && !state.pages[output.page] && getPageCount() < output.page) addPage({ quiet: true });
-            await loadBlobIntoMapper(output.page, output.blob, pageImageName(output.page), output.page);
-            loaded++;
-          } else leftOut++;
+      // (a page that fails to load stops the rest: the pages loaded before it keep their PDF,
+      // as the form's source PDF, and are drawn)
+      try {
+        if(controls.mode.value === 'single'){
+          const targetPage = state.currentPage >= 1 ? state.currentPage : 1;
+          await loadBlobIntoMapper(targetPage, outputs[0].blob, pageImageName(targetPage), outputs[0].page, sourceKey);
+          loaded = 1;
+          setCurrentPage(targetPage);
+        } else {
+          for (const output of outputs){
+            if (output.page >= 1 && output.page <= MAX_PAGES){
+              if (output.page > 1 && !state.pages[output.page] && getPageCount() < output.page) addPage({ quiet: true });
+              await loadBlobIntoMapper(output.page, output.blob, pageImageName(output.page), output.page, sourceKey);
+              loaded++;
+            } else leftOut++;
+          }
+          if (loaded) setCurrentPage(1);
         }
-        if (loaded) setCurrentPage(1);
+      } finally {
+        if (loaded && pdfFile) fsSetSourcePdf(source);
+        renderAll();
       }
-      if (pdfFile) fsCapturePdf(pdfFile.name, pdfFile.bytes);
-
-      renderAll();
       const tooMany = leftOut ? ` ${leftOut} page(s) after page ${MAX_PAGES} were left out: a form can have up to ${MAX_PAGES}.` : '';
       showStatus(`Loaded ${loaded} page(s) onto the canvas.` + tooMany, !!leftOut);
       const from = state.sourcePdf && state.sourcePdf.name ? ` from ${state.sourcePdf.name}` : '';
@@ -7100,14 +7111,32 @@ function checkEform(){
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(binary);
   }
-  // Keeps the PDF the pages came from (saved with the session), for FreeScribe to read and for the
-  // export's file names; "Detect from" starts on "PDF form fields" when its pages have them (each
-  // page keeps its own, pdfFields)
-  function fsCapturePdf(name, buffer){
-    try { state.sourcePdf = { name: String(name || 'form.pdf'), data: fsBytesToBase64(buffer) }; }
-    catch(_){ state.sourcePdf = null; }
+  // A short key that tells one PDF from another, from its bytes (FNV-1a and its length): each page
+  // loaded from a PDF is marked with its PDF's (pdfSource)
+  function pdfKey(buffer){
+    const bytes = new Uint8Array(buffer);
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < bytes.length; i++) hash = Math.imul(hash ^ bytes[i], 0x01000193);
+    return bytes.length.toString(36) + '-' + (hash >>> 0).toString(36);
+  }
+  // The source PDF for a PDF's bytes: the form's own when it is the same PDF (a session saved
+  // before PDFs had keys has one without), else a new one with its key
+  function fsSourcePdfFor(name, buffer){
+    const key = pdfKey(buffer);
+    if (state.sourcePdf && state.sourcePdf.key === key) return state.sourcePdf;
+    const data = fsBytesToBase64(buffer);
+    if (state.sourcePdf && !state.sourcePdf.key && state.sourcePdf.data === data) return state.sourcePdf;
+    return { name: String(name || 'form.pdf'), data, key };
+  }
+  // Makes `source` the PDF the pages came from (saved with the session), for FreeScribe to read
+  // and for the export's file names; a different PDF from before starts "Detect from" on "PDF
+  // form fields" when its pages have them (each page keeps its own, pdfFields), the same one
+  // leaves it as the user set it
+  function fsSetSourcePdf(source){
+    const isNew = (source || null) !== state.sourcePdf;
+    state.sourcePdf = source || null;
     fsShowPdf();
-    refreshDetectMode({ newPdf: true });
+    refreshDetectMode({ newPdf: isNew });
   }
   // Says in the FreeScribe panel which PDF FreeScribe will read, if any
   function fsShowPdf(){
@@ -7141,12 +7170,15 @@ function checkEform(){
     const replace = $('fsReplace').checked;
     const before = dataFields(state.fields).filter(f => pages.includes(Number(f.page))).length;
     const kept = replace ? state.fields.filter(f => !pages.includes(Number(f.page))) : state.fields;
+    // (the PDF is read only when every page is its page: one loaded from another PDF, or an image
+    // chosen by hand, is read from the images, all of them, as FreeScribe takes one or the other)
+    const fromPdf = !!state.sourcePdf && pages.every(page => (state.pages[page].pdfSource || null) === (state.sourcePdf.key || null));
     FS.busy = true; $('btnFsDetect').disabled = true;
-    msg(state.sourcePdf ? 'FreeScribe is reading the PDF and suggesting tags… (scanned pages and the AI step take a few seconds each)'
+    msg(fromPdf ? 'FreeScribe is reading the PDF and suggesting tags… (scanned pages and the AI step take a few seconds each)'
                         : 'FreeScribe is reading the page images with OCR and suggesting tags… (a few seconds a page)');
     try{
       const request = { tagCatalog: [...STANDARD_TAGS], takenNames: kept.map(f => f.name) };
-      if (state.sourcePdf){
+      if (fromPdf){
         request.pdf = state.sourcePdf.data;
         request.pages = pages.map(page => ({ page, pdfPage: state.pages[page].pdfPage || page,
                                           naturalW: state.pages[page].naturalW, naturalH: state.pages[page].naturalH }));
@@ -7199,7 +7231,12 @@ function checkEform(){
   $('fsPdfFile').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    try { fsCapturePdf(file.name, await file.arrayBuffer()); msg(`Source PDF set to ${file.name}.`, 'ok'); }
+    try {
+      const source = fsSourcePdfFor(file.name, await file.arrayBuffer());
+      pushUndo();
+      Object.values(state.pages).forEach(p => { if (p && p.imgData) p.pdfSource = source.key || null; });   // (they are its pages, page for page)
+      fsSetSourcePdf(source); msg(`Source PDF set to ${file.name}.`, 'ok');
+    }
     catch(err){ msg('Could not read that PDF: ' + (err.message || err), 'err'); }
     finally { e.target.value = ''; }
   });
