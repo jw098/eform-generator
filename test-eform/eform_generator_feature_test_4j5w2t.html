@@ -492,7 +492,7 @@ function chooseSignature(key, kind){
 // circled, or one field filled in). A group not met only warns: the form may be submitted
 // anyway. "exclusive" takes the tick or circle off a group's other boxes when one is ticked or
 // circled.
-var validationGroups = [{"name":"Smoker","rule":"one","message":"Choose exactly one of: Yes, No","exclusive":true,"fields":["smoker_yes_42","smoker_no_43"]},{"name":"Side","rule":"one","message":"Circle one side.","exclusive":true,"fields":["side_left_44","side_right_45","side_bilateral_46"]},{"name":"Referral details","rule":"all","message":"Fill in: Reason for referral, Requested by (required)","exclusive":true,"fields":["reason_47","requested_by_48"]}];
+var validationGroups = [{"name":"Smoker","rule":"one","message":"Choose exactly one of: Yes, No","exclusive":true,"fields":["smoker_yes_42","smoker_no_43"]},{"name":"Side","rule":"one","message":"Circle one side.","exclusive":true,"fields":["side_left_44","side_right_45","side_bilateral_46"]},{"name":"Referral details","rule":"all","message":"Fill in: Reason for referral, Requested by (required)","exclusive":true,"fields":["reason_47","requested_by_48"]},{"name":"Follow-up","rule":"one","message":"Choose exactly one of: Yes, No","exclusive":true,"fields":["followup_yes_55","followup_no_56"]},{"name":"Result","rule":"one","message":"Circle one result.","exclusive":true,"fields":["result_normal_57","result_abnormal_58"]}];
 // (set once the form has been checked on the way to submitting, so the Submit button that
 // follows doesn't check it again)
 var requiredChecked = false;
@@ -563,6 +563,7 @@ function watchBox(group, box){
 function startup(){
   changeImage('eform_generator_feature_test_4j5w2t_page1.png', 'BGImage1');
   changeImage('eform_generator_feature_test_4j5w2t_page2.png', 'BGImage2');
+  changeImage('eform_generator_feature_test_4j5w2t_page3.png', 'BGImage3');
   loadFontSize();
   setFaxNo();
   primeFaxNo();
@@ -646,7 +647,7 @@ function startup(){
 <!-- followup_date -->
 <input class="gen_input noborder dateField" id="followup_date_30" name="followup_date" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:307px; top:879px; width:162px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
 </div>
-<div id="page2" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:visible;">
+<div id="page2" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:visible;">
 <img id="BGImage2" src="${oscar_image_path}eform_generator_feature_test_4j5w2t_page2.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
 <div id="CanvasProSignature2" class="sig" data-signature-for="signature2" style="position:absolute; left:388px; top:659px; width:250px; height:60px;">
     <img id="signature2" name="signature2" src="${oscar_image_path}BNK.png" width="250" height="60" style="z-index:10;">
@@ -715,6 +716,38 @@ function startup(){
 <div class="DoNotPrint SignatureTools" data-signature-tools-for="signature2" data-draw-tools-for="signature2_drawn" style="position:absolute; left:640px; top:659px; width:206px; height:20px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%;"><button type="button" data-signature-choice="stamp" title="The provider's signature image" style="height:18px; padding:0 5px; font-size:11px;">Stamp</button><button type="button" data-signature-choice="draw" title="Sign by hand" style="height:18px; padding:0 5px; font-size:11px;">Draw</button><button type="button" data-signature-choice="electronic" title="Electronically signed" style="height:18px; padding:0 5px; font-size:11px;">Electronic</button><button type="button" data-draw-tool="clear" title="Take off what was drawn" style="height:18px; padding:0 5px; font-size:11px;">Clear</button></div></div>
 <!-- signature_2 -->
 <div class="DoNotPrint SignatureTools" data-signature-tools-for="signature2_2" data-draw-tools-for="signature2_2_drawn" style="position:absolute; left:640px; top:750px; width:206px; height:20px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%;"><button type="button" data-signature-choice="stamp" title="The provider's signature image" style="height:18px; padding:0 5px; font-size:11px;">Stamp</button><button type="button" data-signature-choice="draw" title="Sign by hand" style="height:18px; padding:0 5px; font-size:11px;">Draw</button><button type="button" data-signature-choice="electronic" title="Electronically signed" style="height:18px; padding:0 5px; font-size:11px;">Electronic</button><button type="button" data-draw-tool="clear" title="Take off what was drawn" style="height:18px; padding:0 5px; font-size:11px;">Clear</button></div></div>
+</div>
+<div id="page3" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:visible;">
+<img id="BGImage3" src="${oscar_image_path}eform_generator_feature_test_4j5w2t_page3.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<div id="CanvasProSignature3" class="sig" data-signature-for="signature3" style="position:absolute; left:388px; top:454px; width:250px; height:60px;">
+    <img id="signature3" name="signature3" src="${oscar_image_path}BNK.png" width="250" height="60" style="z-index:10;">
+    <div class="FreeDraw" data-draw-for="signature3_drawn" style="position:absolute; left:0; top:0; width:250px; height:60px; z-index:11; visibility:hidden;"><canvas style="position:absolute; left:0; top:0; width:250px; height:60px; touch-action:none; cursor:crosshair;"></canvas></div>
+    <div class="SignatureElectronic" style="position:absolute; left:0; top:0; width:250px; height:60px; display:flex; align-items:center; justify-content:center; font-family:Georgia, serif; font-size:18px; font-weight:bold; font-style:italic; z-index:11; visibility:hidden;">"Electronically signed"</div>
+  </div>
+<input type="hidden" id="signature3_drawn" name="signature3_drawn">
+<input type="hidden" id="signature3_choice" name="signature3_choice">
+<!-- patient_name_p3 -->
+<input class="gen_input noborder" id="patient_name_p3_53" name="patient_name_p3" oscarDB="patient_name" type="text" autocomplete="off" style="position:absolute; left:248px; top:129px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- exam_date -->
+<input class="gen_input noborder dateField" id="exam_date_54" name="exam_date" data-date-format="%Y-%m-%d" type="text" autocomplete="off" style="position:absolute; left:307px; top:152px; width:162px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- followup_yes -->
+<input class="xMarkOnly noborder" id="followup_yes_55" name="followup_yes" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:271px; top:177px; width:13px; height:13px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- followup_no -->
+<input class="xMarkOnly noborder" id="followup_no_56" name="followup_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:341px; top:177px; width:13px; height:13px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- result_normal -->
+<input class="circleToggle" id="result_normal_57" name="result_normal" type="text" value="" readonly="readonly" title="Click to circle" onclick="this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:268px; top:197px; width:55px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent; border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;">
+<!-- result_abnormal -->
+<input class="circleToggle" id="result_abnormal_58" name="result_abnormal" type="text" value="" readonly="readonly" title="Click to circle" onclick="this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:356px; top:197px; width:67px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent; border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;">
+<!-- notes_p3 -->
+<textarea class="gen_input noborder" id="notes_p3_59" name="notes_p3" style="position:absolute; left:55px; top:245px; width:589px; height:172px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- foot_p3 -->
+<input class="gen_input noborder" id="foot_p3_61" name="foot_p3" type="text" autocomplete="off" style="position:absolute; left:248px; top:909px; width:452px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- notes_p3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:647px; top:245px;" onclick="changeFontSize('notes_p3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:647px; top:265px;" onclick="changeFontSize('notes_p3', -1);">&#9660;</span>
+<input type="hidden" name="notes_p3_fontsize" id="notes_p3_fontsize">
+<!-- signature_p3 -->
+<div class="DoNotPrint SignatureTools" data-signature-tools-for="signature3" data-draw-tools-for="signature3_drawn" style="position:absolute; left:640px; top:454px; width:206px; height:20px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%;"><button type="button" data-signature-choice="stamp" title="The provider's signature image" style="height:18px; padding:0 5px; font-size:11px;">Stamp</button><button type="button" data-signature-choice="draw" title="Sign by hand" style="height:18px; padding:0 5px; font-size:11px;">Draw</button><button type="button" data-signature-choice="electronic" title="Electronically signed" style="height:18px; padding:0 5px; font-size:11px;">Electronic</button><button type="button" data-draw-tool="clear" title="Take off what was drawn" style="height:18px; padding:0 5px; font-size:11px;">Clear</button></div></div>
 </div>
 
 <div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">

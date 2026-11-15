@@ -2,8 +2,8 @@
 
 Everything an eForm from the eForm Generator should do once it is in OSCAR. Use the feature test
 eForm in this folder (`eform_generator_feature_test_4j5w2t_oscar_package.zip`; open
-`eform_generator_session_20261115_0142.json` with Load Session to change it), and open it on a
-test patient with sex, all three phones, address, health card number, family doctor and referral
+`eform_generator_session_20261115_0424.json` with Load Session to change it; it has three pages),
+and open it on a test patient with sex, all three phones, address, health card number, family doctor and referral
 doctor filled in.
 
 Tick each box as it passes; note what went wrong under any that fails.
@@ -18,6 +18,7 @@ Tick each box as it passes; note what went wrong under any that fails.
 ## 2. Layout
 
 - [ ] Fields sit on their printed lines and boxes on every page (check page 2 onwards especially)
+- [ ] Page 3's fields are in place, including "Foot of the page" at its very bottom
 - [ ] Text fits its fields at the default font size: nothing cut off, long words wrap in text areas
 - [ ] Controls in the right margin are visible on screen and don't cover the form (phone selector,
       free draw toolbar, signature controls)
@@ -51,6 +52,7 @@ Tick each box as it passes; note what went wrong under any that fails.
 
 - [ ] Stamp mode shows the provider's signature image
 - [ ] Stamp is hidden for a provider with no signature image
+- [ ] The signature on page 3 works as well as those on page 2
 - [ ] Draw mode: signing by hand works
 - [ ] Electronic mode shows "Electronically signed"
 - [ ] Chosen mode and drawn signature are kept after saving and reopening
@@ -86,6 +88,7 @@ The feature test eForm has two on page 2: "Provider signature" and "Second signa
 ## 9. Print
 
 - [ ] One printed page per form page: right page breaks, no blank pages at the end
+- [ ] Three pages print as three, with page 3's "Foot of the page" line on page 3, not pushed onto a fourth
 - [ ] Print scaling is right on Letter (or A4) paper
 - [ ] None of the on-screen controls print (buttons, toolbars, signature controls, font buttons, phone selector)
 - [ ] Ticks, circles, drawings and the signature do print
