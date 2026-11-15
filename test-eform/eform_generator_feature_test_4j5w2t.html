@@ -1,0 +1,738 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>eForm Generator Feature Test</title>
+<meta name="author" content="eForm Generator">
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	overflow: hidden;
+ }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; background:transparent; text-align:center; font-weight:bold; }
+ .circleToggle { -webkit-appearance:none; appearance:none; }
+ .circleToggle[value="O"] { border-color:#000 !important; }
+ .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+// Points a page's background image at its file: in OSCAR's image folder once the eForm is in
+// OSCAR (opened over http), or beside the eForm's HTML when it is opened from disk
+function changeImage(img, imgId){
+  var bg = document.getElementById(imgId);
+  if (bg) bg.src = resourceLink(img);
+}
+// A file's address: "${oscar_image_path}page1.png" in OSCAR, "page1.png" opened from disk
+function resourceLink(resource){
+  var prefix = (window.location.href.toLowerCase().indexOf('http') != -1) ? '${oscar_image_path}' : '';
+  return prefix + resource;
+}
+</script>
+
+<script>
+// Fields shown by a choice: ticking a "parent-field" shows the fields of class "child-<its id>"
+// (or "child-<its value>"); of the boxes sharing an "only-one-…" class, only one stays ticked
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+// "Print & Submit": prints the form
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+// Typing in the form marks it changed, so leaving asks first; submitting clears that
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+// The warning shown on leaving a changed form
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+// (OSCAR's own functions that startup() calls, where this OSCAR doesn't have them: they do nothing)
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+// Shows the current provider's signature image in each page's signature stamp ("signature",
+// "signature2"…; hidden where they have none)
+function SignForm() {
+  try {
+    var providerField = document.getElementById('current_user_id'), provNum = providerField ? providerField.value : '';
+    var stamps = document.querySelectorAll('[id^="CanvasProSignature"] img');
+    for (var i = 0; i < stamps.length; i++){
+      stamps[i].onerror = function(){ this.style.display = 'none'; };
+      stamps[i].src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+      stamps[i].alt = provNum;
+    }
+  } catch(e){}
+}
+// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
+// with ids "clinic_fax_12"), or null
+function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
+// The fax number to send to: the first filled-in fax number field on the form
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var input = fieldCalled(ids[i]);
+    if (!input) continue;
+    var faxNo = (input.value || '').trim();
+    if (faxNo) return faxNo;
+  }
+  return '';
+}
+// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
+function syncFaxNoMirror(){
+  var faxNo = getFaxTargetNo();
+  var hiddenFaxNo = document.getElementById('faxnumber');
+  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
+}
+// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
+// form has one of those
+function primeFaxNo(){
+  try{
+    var faxNoBox = fieldCalled('faxNo');
+    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var input = fieldCalled(candidates[i]);
+      if (!input) continue;
+      var faxNo = (input.value || '').trim();
+      if (faxNo){ faxNoBox.value = faxNo; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var faxControl = document.getElementById('faxControl');
+    if (faxControl){
+      faxControl.style.display = 'inline-block';
+      if (faxControl.children && faxControl.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+// "Fax & Submit": fills in the fax number, faxes, then submits the form
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
+}
+</script>
+
+<script>
+// Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
+// its hidden "<name>_fontsize" input so it is saved with the form
+function changeFontSize(name, delta){
+  var box = document.getElementsByName(name)[0], saved = document.getElementsByName(name + '_fontsize')[0];
+  if (!box) return;
+  var size = Math.max(6, (parseInt(window.getComputedStyle(box).fontSize, 10) || 12) + delta);
+  box.style.fontSize = size + 'px';
+  if (saved){ saved.value = size; saved.setAttribute('value', size); }
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On load: gives each textarea back the font size saved with the form
+function loadFontSize(){
+  var saved = document.querySelectorAll("input[name$='_fontsize']");
+  for (var i = 0; i < saved.length; i++){
+    if (!saved[i].value) continue;
+    var box = document.getElementsByName(saved[i].name.slice(0, -'_fontsize'.length))[0];
+    if (box) box.style.fontSize = saved[i].value + 'px';
+  }
+}
+</script>
+<script>
+// Whether the form is new (not opened again after it was saved)
+function isNewForm(){
+  var flag = document.getElementById('newForm');
+  return !!flag && flag.value === 'True';
+}
+// Marks the form saved, so the next time it opens what it was saved with stays
+function markFormSaved(){
+  var flag = document.getElementById('newForm');
+  if (flag){ flag.value = 'False'; flag.setAttribute('value', 'False'); }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var form = document.getElementById('FormName');
+  if (form) form.addEventListener('submit', markFormSaved);
+});
+</script>
+<script>
+// On a new form, ticks each box for the patient's sex (data-tick-if-sex="M" or "F"), from the
+// hidden PatientGender field that OSCAR fills
+function tickSexBoxes(){
+  var sexField = document.getElementById('PatientGender');
+  if (!isNewForm() || !sexField) return;
+  var sex = String(sexField.value || '').trim().toUpperCase();
+  var boxes = document.querySelectorAll('[data-tick-if-sex]');
+  for (var i = 0; i < boxes.length; i++){
+    if (sex && boxes[i].getAttribute('data-tick-if-sex') === sex) boxes[i].value = 'X';
+  }
+}
+</script>
+<script>
+// The patient's phone of a kind ("home", "cell" or "work"), from the hidden fields OSCAR fills
+function patientPhone(kind){
+  var field = document.getElementById({ home: 'PatientPhoneHome', cell: 'PatientPhoneCell', work: 'PatientPhoneWork' }[kind]);
+  return field ? String(field.value || '').trim() : '';
+}
+</script>
+<script>
+// On a new form, each field showing the current user's name (data-user-name="last", "first" or
+// "first last") shows that part of it, from the hidden CurrentUserName field that OSCAR fills
+// with "Last, First"
+function fillUserNames(){
+  var nameField = document.getElementById('CurrentUserName');
+  if (!isNewForm() || !nameField) return;
+  var parts = String(nameField.value || '').split(','), last = (parts[0] || '').trim(), first = (parts[1] || '').trim();
+  var names = { 'last': last, 'first': first, 'first last': (first + ' ' + last).trim() };
+  var fields = document.querySelectorAll('[data-user-name]');
+  for (var i = 0; i < fields.length; i++) fields[i].value = names[fields[i].getAttribute('data-user-name')] || '';
+}
+</script>
+<script>
+// On a new form, each field showing today's date (data-today-format="dmy" or "ymd") shows it in
+// that format: "29-01-2016", or "2016-01-29" as OSCAR's "today" tag fills it
+function fillTodayDates(){
+  if (!isNewForm()) return;
+  var now = new Date(), two = function(n){ return (n < 10 ? '0' : '') + n; };
+  var day = two(now.getDate()), month = two(now.getMonth() + 1), year = now.getFullYear();
+  var dates = { 'dmy': day + '-' + month + '-' + year, 'ymd': year + '-' + month + '-' + day };
+  var fields = document.querySelectorAll('[data-today-format]');
+  for (var i = 0; i < fields.length; i++) fields[i].value = dates[fields[i].getAttribute('data-today-format')] || '';
+}
+</script>
+<script>
+// On a new form, each field listing phones (data-show-phones="home cell") shows the patient's
+// phones of those kinds: "(H): 604-555-0100. (C): 778-555-0199." (a kind they have none of is
+// left out)
+function fillPhoneLists(){
+  if (!isNewForm()) return;
+  var fields = document.querySelectorAll('[data-show-phones]');
+  for (var i = 0; i < fields.length; i++){
+    var kinds = fields[i].getAttribute('data-show-phones').split(' '), parts = [];
+    for (var j = 0; j < kinds.length; j++){
+      var number = patientPhone(kinds[j]);
+      if (number) parts.push('(' + kinds[j].charAt(0).toUpperCase() + '): ' + number + '.');
+    }
+    fields[i].value = parts.join(' ');
+  }
+}
+</script>
+<script>
+// Writes the patient's phone of a kind in the field called `name`: "604-555-0100, cell", or
+// nothing when they have no phone of that kind
+function writePhone(name, kind){
+  var box = document.getElementsByName(name)[0];
+  if (!box || !kind) return;
+  var number = patientPhone(kind);
+  box.value = number ? number + ', ' + kind : '';
+}
+// A phone selector's choice: writes that phone in its field
+function choosePhone(name, kind){
+  writePhone(name, kind);
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On a new form, each phone field shows the patient's first phone of home, cell and work, and
+// its selector says which
+function fillDefaultPhones(){
+  if (!isNewForm()) return;
+  var kinds = ['home', 'cell', 'work'], kind = 'home';
+  for (var i = 0; i < kinds.length; i++){ if (patientPhone(kinds[i])){ kind = kinds[i]; break; } }
+  var selectors = document.querySelectorAll('select[data-phone-for]');
+  for (var j = 0; j < selectors.length; j++){
+    selectors[j].value = kind;
+    writePhone(selectors[j].getAttribute('data-phone-for'), kind);
+  }
+}
+</script>
+<style type="text/css" media="screen">
+ .FreeDraw { outline: 1px dashed #9ca3af; }
+</style>
+<script>
+// Free draw areas: each .FreeDraw canvas is drawn on with a mouse, pen or finger, and what is
+// drawn is kept in its hidden input (data-draw-for), so OSCAR saves it with the form and it is
+// drawn again when the form opens. A stroke is kept as its pen colour and its points, in the
+// area's pixels: "#000000|10,20 14,26;#d00000|…". Its toolbar (data-draw-tools-for) chooses the
+// pen, takes back the last stroke (Undo) or all of them (Clear).
+function setUpFreeDraw(){
+  var areas = document.querySelectorAll('.FreeDraw');
+  for (var i = 0; i < areas.length; i++) setUpFreeDrawArea(areas[i]);
+}
+// Sets up one free draw area: its canvas, its saved strokes and its toolbar
+function setUpFreeDrawArea(area){
+  var name = area.getAttribute('data-draw-for'), store = document.getElementsByName(name)[0];
+  var canvas = area.getElementsByTagName('canvas')[0];
+  if (!store || !canvas || !canvas.getContext) return;
+  // (twice the area's size, so it prints sharp)
+  var width = area.offsetWidth, height = area.offsetHeight, sharpness = 2;
+  canvas.width = width * sharpness; canvas.height = height * sharpness;
+  var context = canvas.getContext('2d');
+  context.scale(sharpness, sharpness); context.lineWidth = 2; context.lineCap = 'round'; context.lineJoin = 'round';
+  var strokes = readStrokes(store.value), stroke = null, pen = '#000000';
+  // Draws one stroke: a dot for a single point, else a line through its points
+  function drawStroke(s){
+    context.strokeStyle = s.color; context.fillStyle = s.color;
+    if (s.points.length === 1){ context.beginPath(); context.arc(s.points[0][0], s.points[0][1], 1.2, 0, 2 * Math.PI); context.fill(); return; }
+    context.beginPath(); context.moveTo(s.points[0][0], s.points[0][1]);
+    for (var j = 1; j < s.points.length; j++) context.lineTo(s.points[j][0], s.points[j][1]);
+    context.stroke();
+  }
+  // Draws every stroke again (after Undo or Clear, and when the form opens)
+  function redraw(){
+    context.clearRect(0, 0, width, height);
+    for (var j = 0; j < strokes.length; j++) drawStroke(strokes[j]);
+  }
+  // Keeps the strokes in the hidden input, so they are saved with the form
+  function save(){
+    var text = writeStrokes(strokes);
+    store.value = text; store.setAttribute('value', text);
+    if (typeof setDirtyFlag === 'function') setDirtyFlag();
+  }
+  // Where a pointer is in the area's pixels (whatever the page's zoom)
+  function pointAt(e){
+    var box = canvas.getBoundingClientRect();
+    return [Math.round((e.clientX - box.left) * width / box.width), Math.round((e.clientY - box.top) * height / box.height)];
+  }
+  canvas.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+    stroke = { color: pen, points: [pointAt(e)] }; strokes.push(stroke); drawStroke(stroke);
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if (!stroke) return;
+    // (a point only once the pen has moved 2px, so a stroke keeps few)
+    var point = pointAt(e), last = stroke.points[stroke.points.length - 1];
+    if (Math.abs(point[0] - last[0]) + Math.abs(point[1] - last[1]) < 2) return;
+    stroke.points.push(point);
+    context.strokeStyle = stroke.color; context.beginPath(); context.moveTo(last[0], last[1]); context.lineTo(point[0], point[1]); context.stroke();
+  });
+  // (a stroke ends when the pen lifts or leaves)
+  var endStroke = function(){ if (stroke){ stroke = null; save(); } };
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+  var tools = document.querySelector('[data-draw-tools-for="' + name + '"]');
+  if (tools) tools.addEventListener('click', function(e){
+    var button = e.target;
+    if (button.getAttribute('data-draw-pen')){
+      pen = button.getAttribute('data-draw-pen');
+      var pens = tools.querySelectorAll('[data-draw-pen]');
+      for (var j = 0; j < pens.length; j++) pens[j].style.border = pens[j] === button ? '2px solid #333' : '1px solid #999';
+    }
+    if (button.getAttribute('data-draw-tool') === 'undo' && strokes.length){ strokes.pop(); redraw(); save(); }
+    if (button.getAttribute('data-draw-tool') === 'clear' && strokes.length && confirm('Clear this drawing?')){ strokes = []; redraw(); save(); }
+  });
+  redraw();
+}
+// The strokes kept in a free draw area's input, read back ("#000000|10,20 14,26;…"); what can't
+// be read is left out
+function readStrokes(text){
+  var strokes = [], parts = String(text || '').split(';');
+  for (var i = 0; i < parts.length; i++){
+    var bar = parts[i].indexOf('|'); if (bar < 0) continue;
+    var color = parts[i].slice(0, bar), points = [], pairs = parts[i].slice(bar + 1).split(' ');
+    if (!/^#[0-9a-fA-F]{6}$/.test(color)) continue;
+    for (var j = 0; j < pairs.length; j++){
+      var xy = pairs[j].split(',');
+      if (xy.length === 2 && isFinite(xy[0]) && isFinite(xy[1]) && xy[0] !== '' && xy[1] !== '') points.push([Number(xy[0]), Number(xy[1])]);
+    }
+    if (points.length) strokes.push({ color: color, points: points });
+  }
+  return strokes;
+}
+// Strokes written for a free draw area's input: "#000000|10,20 14,26;#d00000|…"
+function writeStrokes(strokes){
+  var parts = [];
+  for (var i = 0; i < strokes.length; i++){
+    var points = [];
+    for (var j = 0; j < strokes[i].points.length; j++) points.push(strokes[i].points[j].join(','));
+    parts.push(strokes[i].color + '|' + points.join(' '));
+  }
+  return parts.join(';');
+}
+</script>
+<link rel="stylesheet" type="text/css" media="all" href="../share/calendar/calendar.css">
+<script type="text/javascript" src="../share/calendar/calendar.js"></script>
+<script type="text/javascript" src="../share/calendar/lang/calendar-en.js"></script>
+<script type="text/javascript" src="../share/calendar/calendar-setup.js"></script>
+<script>
+// Gives each date field OSCAR's calendar, which a click on the field opens
+function setUpCalendars(){
+  if (typeof Calendar === 'undefined' || !Calendar.setup) return;
+  var fields = document.querySelectorAll('input.dateField');
+  for (var i = 0; i < fields.length; i++)
+    Calendar.setup({ inputField: fields[i].id, button: fields[i].id, ifFormat: fields[i].getAttribute('data-date-format') || '%Y-%m-%d', showsTime: false, singleClick: true, step: 1 });
+}
+</script>
+<script>
+// Signatures: each signature (data-signature-for) is the provider's stamp, their
+// signature image, one drawn by hand on its free draw canvas, or "Electronically signed"; its controls
+// (data-signature-tools-for) choose which, and the choice is kept in its hidden input
+// "<name>_choice", so the form opens as it was saved (a new form, with the stamp)
+function setUpSignatures(){
+  var signatures = document.querySelectorAll('[data-signature-for]');
+  for (var i = 0; i < signatures.length; i++){
+    var key = signatures[i].getAttribute('data-signature-for'), choice = document.getElementsByName(key + '_choice')[0];
+    chooseSignature(key, choice && (choice.value === 'draw' || choice.value === 'electronic') ? choice.value : 'stamp');
+  }
+  var tools = document.querySelectorAll('[data-signature-tools-for]');
+  for (var j = 0; j < tools.length; j++) tools[j].addEventListener('click', function(e){
+    var kind = e.target.getAttribute('data-signature-choice');
+    if (!kind) return;
+    chooseSignature(this.getAttribute('data-signature-tools-for'), kind);
+    if (typeof setDirtyFlag === 'function') setDirtyFlag();
+  });
+}
+// Shows a signature as the stamp ('stamp'), as drawn ('draw') or as "Electronically signed"
+// ('electronic'), keeps the choice, and marks it on its controls (Clear only while it is drawn)
+function chooseSignature(key, kind){
+  var signature = document.querySelector('[data-signature-for="' + key + '"]'); if (!signature) return;
+  var stamp = signature.getElementsByTagName('img')[0], drawn = signature.querySelector('.FreeDraw'), electronic = signature.querySelector('.SignatureElectronic');
+  if (stamp) stamp.style.visibility = kind === 'stamp' ? '' : 'hidden';
+  if (drawn) drawn.style.visibility = kind === 'draw' ? 'visible' : 'hidden';
+  if (electronic) electronic.style.visibility = kind === 'electronic' ? 'visible' : 'hidden';
+  var choice = document.getElementsByName(key + '_choice')[0];
+  if (choice){ choice.value = kind; choice.setAttribute('value', kind); }
+  var tools = document.querySelector('[data-signature-tools-for="' + key + '"]'); if (!tools) return;
+  var choices = tools.querySelectorAll('[data-signature-choice]');
+  for (var i = 0; i < choices.length; i++) choices[i].style.fontWeight = choices[i].getAttribute('data-signature-choice') === kind ? 'bold' : 'normal';
+  var clear = tools.querySelector('[data-draw-tool="clear"]');
+  if (clear) clear.style.visibility = kind === 'draw' ? '' : 'hidden';
+}
+</script>
+<style type="text/css" media="screen">
+ .RequiredMissing { outline:2px solid #dc2626 !important; background-color:rgba(220,38,38,.18) !important; }
+</style>
+<script>
+// Validation groups: fields that must be filled in before the form is submitted. A group's rule
+// is "all" (each of its fields filled in) or "one" (exactly one of them: one box ticked or
+// circled, or one field filled in). A group not met only warns: the form may be submitted
+// anyway. "exclusive" takes the tick or circle off a group's other boxes when one is ticked or
+// circled.
+var validationGroups = [{"name":"Smoker","rule":"one","message":"Choose exactly one of: Yes, No","exclusive":true,"fields":["smoker_yes_42","smoker_no_43"]},{"name":"Side","rule":"one","message":"Circle one side.","exclusive":true,"fields":["side_left_44","side_right_45","side_bilateral_46"]},{"name":"Referral details","rule":"all","message":"Fill in: Reason for referral, Requested by (required)","exclusive":true,"fields":["reason_47","requested_by_48"]}];
+// (set once the form has been checked on the way to submitting, so the Submit button that
+// follows doesn't check it again)
+var requiredChecked = false;
+// Whether a field has something in it: typed text, a tick box's X or a circle's O
+function isFilled(box){ return !!box && String(box.value || '').replace(/^\s+|\s+$/g, '') !== ''; }
+// A group's fields on the form
+function groupBoxes(group){
+  var boxes = [];
+  for (var i = 0; i < group.fields.length; i++){ var box = document.getElementById(group.fields[i]); if (box) boxes.push(box); }
+  return boxes;
+}
+// Whether a group's rule holds
+function groupMet(group){
+  var boxes = groupBoxes(group), filled = 0;
+  for (var i = 0; i < boxes.length; i++) if (isFilled(boxes[i])) filled++;
+  return group.rule === 'one' ? filled === 1 : filled === boxes.length;
+}
+// Outlines in red the fields a group still needs (all of an "exactly one" group's, the empty
+// ones of an "all" group's), or takes the outline away
+function markGroup(group, missing){
+  var boxes = groupBoxes(group);
+  for (var i = 0; i < boxes.length; i++){
+    var show = missing && (group.rule === 'one' || !isFilled(boxes[i]));
+    boxes[i].className = boxes[i].className.replace(/\s*RequiredMissing/g, '') + (show ? ' RequiredMissing' : '');
+  }
+  group.marked = missing;
+}
+// Checks every group before the form is submitted, outlines what is missing and says which
+// groups aren't met; whether to go on: when every group is met, or the user chooses to submit
+// anyway
+function checkRequiredFields(){
+  var missing = [], first = null;
+  for (var i = 0; i < validationGroups.length; i++){
+    var group = validationGroups[i], met = groupMet(group);
+    markGroup(group, !met);
+    if (met) continue;
+    missing.push(group.message);
+    if (!first) first = groupBoxes(group)[0];
+  }
+  if (!missing.length) return true;
+  try { if (first) first.scrollIntoView({ block: 'center' }); } catch(e){ try { first.scrollIntoView(); } catch(e2){} }
+  return confirm('This form is not complete:\n- ' + missing.join('\n- ') + '\n\nClick OK to submit it anyway, or Cancel to complete the fields outlined in red.');
+}
+// On load: a group's red outline goes once its rule holds, and in an "exactly one" group that
+// is exclusive, ticking or circling one of its boxes takes the tick or circle off the others
+function setUpValidation(){
+  for (var i = 0; i < validationGroups.length; i++){
+    var boxes = groupBoxes(validationGroups[i]);
+    for (var j = 0; j < boxes.length; j++) watchBox(validationGroups[i], boxes[j]);
+  }
+}
+// Watches one of a group's fields for a change (after its own click handler has ticked it)
+function watchBox(group, box){
+  var isToggle = function(b){ return /xMarkOnly|circleToggle/.test(b.className); };
+  var changed = function(){
+    if (group.rule === 'one' && group.exclusive && isToggle(box) && isFilled(box)){
+      var boxes = groupBoxes(group);
+      for (var k = 0; k < boxes.length; k++){ if (boxes[k] !== box && isToggle(boxes[k])){ boxes[k].value = ''; boxes[k].setAttribute('value', ''); } }
+    }
+    if (group.marked) markGroup(group, !groupMet(group));
+  };
+  var events = ['click', 'keyup', 'input', 'change'];
+  for (var e = 0; e < events.length; e++) box.addEventListener(events[e], changed);
+}
+</script>
+<script>
+// On load: shows each page's background image, then sets up the fax number, signature and the rest
+function startup(){
+  changeImage('eform_generator_feature_test_4j5w2t_page1.png', 'BGImage1');
+  changeImage('eform_generator_feature_test_4j5w2t_page2.png', 'BGImage2');
+  loadFontSize();
+  setFaxNo();
+  primeFaxNo();
+  syncFaxNoMirror();
+  SignForm();
+  checkGender();
+  tickSexBoxes();
+  fillDefaultPhones();
+  fillPhoneLists();
+  fillUserNames();
+  fillTodayDates();
+  setUpFreeDraw();
+  setUpCalendars();
+  setUpSignatures();
+  setUpValidation();
+}
+</script>
+</head>
+<body onload="startup()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}eform_generator_feature_test_4j5w2t_page1.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- patient_last -->
+<input class="gen_input noborder" id="patient_last_1" name="patient_last" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:248px; top:129px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- patient_first -->
+<input class="gen_input noborder" id="patient_first_2" name="patient_first" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:248px; top:152px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- patient_full -->
+<input class="gen_input noborder" id="patient_full_3" name="patient_full" oscarDB="patient_name" type="text" autocomplete="off" style="position:absolute; left:248px; top:176px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- dob -->
+<input class="gen_input noborder" id="dob_4" name="dob" oscarDB="dob" type="text" autocomplete="off" style="position:absolute; left:248px; top:199px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- age -->
+<input class="gen_input noborder" id="age_5" name="age" oscarDB="age" type="text" autocomplete="off" style="position:absolute; left:248px; top:223px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- sex -->
+<input class="gen_input noborder" id="sex_6" name="sex" oscarDB="sex" type="text" autocomplete="off" style="position:absolute; left:248px; top:246px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- hin -->
+<input class="gen_input noborder" id="hin_7" name="hin" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:248px; top:270px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- hin_version -->
+<input class="gen_input noborder" id="hin_version_8" name="hin_version" oscarDB="hinversion" type="text" autocomplete="off" style="position:absolute; left:248px; top:294px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- chart_no -->
+<input class="gen_input noborder" id="chart_no_9" name="chart_no" oscarDB="chartno" type="text" autocomplete="off" style="position:absolute; left:248px; top:317px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- address -->
+<input class="gen_input noborder" id="address_10" name="address" oscarDB="address" type="text" autocomplete="off" style="position:absolute; left:248px; top:341px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- city -->
+<input class="gen_input noborder" id="city_11" name="city" oscarDB="city" type="text" autocomplete="off" style="position:absolute; left:248px; top:364px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- province -->
+<input class="gen_input noborder" id="province_12" name="province" oscarDB="province" type="text" autocomplete="off" style="position:absolute; left:248px; top:388px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- postal -->
+<input class="gen_input noborder" id="postal_13" name="postal" oscarDB="postal" type="text" autocomplete="off" style="position:absolute; left:248px; top:411px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- phone_home -->
+<input class="gen_input noborder" id="phone_home_14" name="phone_home" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:248px; top:435px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- phone_work -->
+<input class="gen_input noborder" id="phone_work_15" name="phone_work" oscarDB="phone2" type="text" autocomplete="off" style="position:absolute; left:248px; top:458px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- phone_cell -->
+<input class="gen_input noborder" id="phone_cell_16" name="phone_cell" oscarDB="cell" type="text" autocomplete="off" style="position:absolute; left:248px; top:482px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- email -->
+<input class="gen_input noborder" id="email_17" name="email" oscarDB="email" type="text" autocomplete="off" style="position:absolute; left:248px; top:505px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- provider -->
+<input class="gen_input noborder" id="provider_18" name="provider" oscarDB="current_user" type="text" autocomplete="off" style="position:absolute; left:248px; top:563px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- provider_no -->
+<input class="gen_input noborder" id="provider_no_19" name="provider_no" oscarDB="current_user_ohip_no" type="text" autocomplete="off" style="position:absolute; left:248px; top:586px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- family_doctor -->
+<input class="gen_input noborder" id="family_doctor_20" name="family_doctor" oscarDB="doctor" type="text" autocomplete="off" style="position:absolute; left:248px; top:610px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- family_doctor_no -->
+<input class="gen_input noborder" id="family_doctor_no_21" name="family_doctor_no" oscarDB="doctor_ohip_no" type="text" autocomplete="off" style="position:absolute; left:248px; top:634px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- referral_name -->
+<input class="gen_input noborder" id="referral_name_22" name="referral_name" oscarDB="referral_name" type="text" autocomplete="off" style="position:absolute; left:248px; top:657px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- referral_fax -->
+<input class="gen_input noborder" id="referral_fax_23" name="referral_fax" oscarDB="referral_fax" type="text" autocomplete="off" style="position:absolute; left:248px; top:681px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- clinic_name -->
+<input class="gen_input noborder" id="clinic_name_24" name="clinic_name" oscarDB="clinic_name" type="text" autocomplete="off" style="position:absolute; left:248px; top:704px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- clinic_address -->
+<input class="gen_input noborder" id="clinic_address_25" name="clinic_address" oscarDB="clinic_addressLineFull" type="text" autocomplete="off" style="position:absolute; left:248px; top:728px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- clinic_phone -->
+<input class="gen_input noborder" id="clinic_phone_26" name="clinic_phone" oscarDB="clinic_phone" type="text" autocomplete="off" style="position:absolute; left:248px; top:751px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- clinic_fax -->
+<input class="gen_input noborder" id="clinic_fax_27" name="clinic_fax" oscarDB="clinic_fax" type="text" autocomplete="off" style="position:absolute; left:248px; top:775px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- today -->
+<input class="gen_input noborder" id="today_28" name="today" oscarDB="today" type="text" autocomplete="off" style="position:absolute; left:248px; top:832px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- visit_date -->
+<input class="gen_input noborder dateField" id="visit_date_29" name="visit_date" data-date-format="%Y-%m-%d" type="text" autocomplete="off" style="position:absolute; left:307px; top:856px; width:162px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- followup_date -->
+<input class="gen_input noborder dateField" id="followup_date_30" name="followup_date" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:307px; top:879px; width:162px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+</div>
+<div id="page2" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:visible;">
+<img id="BGImage2" src="${oscar_image_path}eform_generator_feature_test_4j5w2t_page2.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<div id="CanvasProSignature2" class="sig" data-signature-for="signature2" style="position:absolute; left:388px; top:659px; width:250px; height:60px;">
+    <img id="signature2" name="signature2" src="${oscar_image_path}BNK.png" width="250" height="60" style="z-index:10;">
+    <div class="FreeDraw" data-draw-for="signature2_drawn" style="position:absolute; left:0; top:0; width:250px; height:60px; z-index:11; visibility:hidden;"><canvas style="position:absolute; left:0; top:0; width:250px; height:60px; touch-action:none; cursor:crosshair;"></canvas></div>
+    <div class="SignatureElectronic" style="position:absolute; left:0; top:0; width:250px; height:60px; display:flex; align-items:center; justify-content:center; font-family:Georgia, serif; font-size:18px; font-weight:bold; font-style:italic; z-index:11; visibility:hidden;">"Electronically signed"</div>
+  </div>
+<input type="hidden" id="signature2_drawn" name="signature2_drawn">
+<input type="hidden" id="signature2_choice" name="signature2_choice">
+<div id="CanvasProSignature2_2" class="sig" data-signature-for="signature2_2" style="position:absolute; left:388px; top:750px; width:250px; height:60px;">
+    <img id="signature2_2" name="signature2_2" src="${oscar_image_path}BNK.png" width="250" height="60" style="z-index:10;">
+    <div class="FreeDraw" data-draw-for="signature2_2_drawn" style="position:absolute; left:0; top:0; width:250px; height:60px; z-index:11; visibility:hidden;"><canvas style="position:absolute; left:0; top:0; width:250px; height:60px; touch-action:none; cursor:crosshair;"></canvas></div>
+    <div class="SignatureElectronic" style="position:absolute; left:0; top:0; width:250px; height:60px; display:flex; align-items:center; justify-content:center; font-family:Georgia, serif; font-size:18px; font-weight:bold; font-style:italic; z-index:11; visibility:hidden;">"Electronically signed"</div>
+  </div>
+<input type="hidden" id="signature2_2_drawn" name="signature2_2_drawn">
+<input type="hidden" id="signature2_2_choice" name="signature2_2_choice">
+<!-- sex_m -->
+<input class="xMarkOnly noborder" id="sex_m_31" name="sex_m" data-tick-if-sex="M" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:247px; top:130px; width:13px; height:13px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- sex_f -->
+<input class="xMarkOnly noborder" id="sex_f_32" name="sex_f" data-tick-if-sex="F" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:329px; top:130px; width:13px; height:13px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- phone_pick -->
+<input class="gen_input noborder" id="phone_pick_33" name="phone_pick" type="text" autocomplete="off" style="position:absolute; left:248px; top:152px; width:280px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- phones_2 -->
+<input class="gen_input noborder" id="phones_2_34" name="phones_2" data-show-phones="home cell" type="text" autocomplete="off" style="position:absolute; left:248px; top:176px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- phones_3 -->
+<input class="gen_input noborder" id="phones_3_35" name="phones_3" data-show-phones="home cell work" type="text" autocomplete="off" style="position:absolute; left:248px; top:199px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- user_last -->
+<input class="gen_input noborder" id="user_last_36" name="user_last" data-user-name="last" type="text" autocomplete="off" style="position:absolute; left:248px; top:223px; width:233px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- user_first -->
+<input class="gen_input noborder" id="user_first_37" name="user_first" data-user-name="first" type="text" autocomplete="off" style="position:absolute; left:248px; top:246px; width:233px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- user_first_last -->
+<input class="gen_input noborder" id="user_first_last_38" name="user_first_last" data-user-name="first last" type="text" autocomplete="off" style="position:absolute; left:248px; top:270px; width:233px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- today_dmy -->
+<input class="gen_input noborder" id="today_dmy_39" name="today_dmy" data-today-format="dmy" type="text" autocomplete="off" style="position:absolute; left:248px; top:294px; width:162px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- today_ymd -->
+<input class="gen_input noborder" id="today_ymd_40" name="today_ymd" data-today-format="ymd" type="text" autocomplete="off" style="position:absolute; left:248px; top:317px; width:162px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- static_note -->
+<input class="gen_input noborder" id="static_note_41" name="static_note" value="Static text from the generator" type="text" autocomplete="off" style="position:absolute; left:248px; top:341px; width:454px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- smoker_yes -->
+<input class="xMarkOnly noborder" id="smoker_yes_42" name="smoker_yes" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:247px; top:399px; width:13px; height:13px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- smoker_no -->
+<input class="xMarkOnly noborder" id="smoker_no_43" name="smoker_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:318px; top:399px; width:13px; height:13px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- side_left -->
+<input class="circleToggle" id="side_left_44" name="side_left" type="text" value="" readonly="readonly" title="Click to circle" onclick="this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:245px; top:419px; width:36px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent; border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;">
+<!-- side_right -->
+<input class="circleToggle" id="side_right_45" name="side_right" type="text" value="" readonly="readonly" title="Click to circle" onclick="this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:321px; top:419px; width:44px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent; border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;">
+<!-- side_bilateral -->
+<input class="circleToggle" id="side_bilateral_46" name="side_bilateral" type="text" value="" readonly="readonly" title="Click to circle" onclick="this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:404px; top:419px; width:60px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent; border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;">
+<!-- reason -->
+<textarea class="gen_input noborder" id="reason_47" name="reason" style="position:absolute; left:55px; top:468px; width:589px; height:72px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- requested_by -->
+<input class="gen_input noborder" id="requested_by_48" name="requested_by" type="text" autocomplete="off" style="position:absolute; left:248px; top:554px; width:280px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- body_diagram -->
+<div class="FreeDraw" data-draw-for="body_diagram" style="position:absolute; left:54px; top:628px; width:304px; height:151px; z-index:4;"><canvas style="position:absolute; left:0; top:0; width:304px; height:151px; touch-action:none; cursor:crosshair;"></canvas></div>
+<input type="hidden" id="body_diagram_49" name="body_diagram">
+<!-- faxNo -->
+<input class="gen_input noborder" id="faxNo_50" name="faxNo" type="text" autocomplete="off" style="position:absolute; left:436px; top:609px; width:265px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent;">
+<!-- reason -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:647px; top:468px;" onclick="changeFontSize('reason', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:647px; top:488px;" onclick="changeFontSize('reason', -1);">&#9660;</span>
+<input type="hidden" name="reason_fontsize" id="reason_fontsize">
+<!-- phone_pick -->
+<select class="DoNotPrint" data-phone-for="phone_pick" title="Which of the patient's phones the field shows" style="position:absolute; left:530px; top:152px; width:100px; height:20px; font-size:12px; z-index:5;" onchange="choosePhone('phone_pick', this.value);"><option value="">Choose phone…</option><option value="home">Home</option><option value="cell">Cell</option><option value="work">Work</option></select>
+<!-- body_diagram -->
+<div class="DoNotPrint FreeDrawTools" data-draw-tools-for="body_diagram" style="position:absolute; left:54px; top:780px; width:168px; height:20px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%; font-size:11px;"><button type="button" data-draw-pen="#000000" title="Black pen" style="width:18px; height:18px; padding:0; border:2px solid #333; border-radius:9px; background:#000000;"></button><button type="button" data-draw-pen="#d00000" title="Red pen" style="width:18px; height:18px; padding:0; border:1px solid #999; border-radius:9px; background:#d00000;"></button><button type="button" data-draw-pen="#0040d0" title="Blue pen" style="width:18px; height:18px; padding:0; border:1px solid #999; border-radius:9px; background:#0040d0;"></button><button type="button" data-draw-tool="undo" style="height:18px; padding:0 4px; font-size:11px;">Undo</button><button type="button" data-draw-tool="clear" style="height:18px; padding:0 4px; font-size:11px;">Clear</button></div></div>
+<!-- signature -->
+<div class="DoNotPrint SignatureTools" data-signature-tools-for="signature2" data-draw-tools-for="signature2_drawn" style="position:absolute; left:640px; top:659px; width:206px; height:20px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%;"><button type="button" data-signature-choice="stamp" title="The provider's signature image" style="height:18px; padding:0 5px; font-size:11px;">Stamp</button><button type="button" data-signature-choice="draw" title="Sign by hand" style="height:18px; padding:0 5px; font-size:11px;">Draw</button><button type="button" data-signature-choice="electronic" title="Electronically signed" style="height:18px; padding:0 5px; font-size:11px;">Electronic</button><button type="button" data-draw-tool="clear" title="Take off what was drawn" style="height:18px; padding:0 5px; font-size:11px;">Clear</button></div></div>
+<!-- signature_2 -->
+<div class="DoNotPrint SignatureTools" data-signature-tools-for="signature2_2" data-draw-tools-for="signature2_2_drawn" style="position:absolute; left:640px; top:750px; width:206px; height:20px; z-index:6;"><div style="display:flex; gap:3px; align-items:center; height:100%;"><button type="button" data-signature-choice="stamp" title="The provider's signature image" style="height:18px; padding:0 5px; font-size:11px;">Stamp</button><button type="button" data-signature-choice="draw" title="Sign by hand" style="height:18px; padding:0 5px; font-size:11px;">Draw</button><button type="button" data-signature-choice="electronic" title="Electronically signed" style="height:18px; padding:0 5px; font-size:11px;">Electronic</button><button type="button" data-draw-tool="clear" title="Take off what was drawn" style="height:18px; padding:0 5px; font-size:11px;">Clear</button></div></div>
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="if(!requiredChecked &amp;&amp; !checkRequiredFields()) return false; requiredChecked=false; releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="if(!checkRequiredFields()) return; requiredChecked=true; formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="if(!checkRequiredFields()) return; requiredChecked=true; formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">
+<input type="hidden" id="PatientPhoneHome" name="PatientPhoneHome" oscarDB="phone">
+<input type="hidden" id="PatientPhoneCell" name="PatientPhoneCell" oscarDB="cell">
+<input type="hidden" id="PatientPhoneWork" name="PatientPhoneWork" oscarDB="phone2">
+<input type="hidden" id="CurrentUserName" name="CurrentUserName" oscarDB="current_user">
+<input type="hidden" id="newForm" name="newForm" value="True">
+
+</form>
+</body>
+</html>
