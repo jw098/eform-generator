@@ -2,7 +2,7 @@
 // tests/cases; tests/README.md explains how it all works.
 //
 // The app loads this file when opened with #test at the end of its address. For each test
-// case (an eForm and its page images) it puts each page in the app, runs Auto Detect there,
+// case (an eForm and its page images, or a session the eForm is exported from) it puts each page in the app, runs Auto Detect there,
 // builds the eForm from what was found (as the export does), and compares that eForm with the
 // case's: where the boxes are, and their oscarDB tags (not their names). Results show in a
 // panel at the top right, which can also add a test case, and run Auto Detect on poorer copies
@@ -155,6 +155,28 @@
         const bg = doc.getElementById('BGImage' + i);
         if (bg) images[fileOf(bg.getAttribute('src') || '')] = pages[i].imgData;
       }
+      return { html, images };
+    } finally {
+      T.state.pages = keep.pages; T.state.fields = keep.fields; T.state.currentPage = keep.current;
+    }
+  }
+
+  // A case given as a session (the file Save Session saves): its eForm as the export builds it
+  // from the session's pages and fields, as { html, images } to read like a case's eForm. It is
+  // built from them alone (the app's pages and fields swapped out meanwhile, as draftOf does)
+  function eformOfSession(session){
+    if (!session || typeof session.pages !== 'object' || !Array.isArray(session.fields)) throw new Error("it isn't a session the app saved (it has no pages or fields)");
+    const numbers = Object.keys(session.pages).map(Number).filter(n => n >= 1).sort((a, b) => a - b);
+    if (!numbers.length || numbers.some(n => !(session.pages[n] || {}).imgData)) throw new Error('a page of the session has no image');
+    const keep = { pages: T.state.pages, fields: T.state.fields, current: T.state.currentPage };
+    try {
+      T.state.pages = Object.fromEntries(numbers.map(n => [n, { ...session.pages[n] }]));
+      T.state.fields = session.fields.map(f => ({ ...f }));
+      T.state.currentPage = numbers[0];
+      const html = T.buildExportHtml();
+      // The eForm names each page's image; give it the session's images under those names
+      const doc = new DOMParser().parseFromString(html, 'text/html'), images = {};
+      numbers.forEach(n => { const bg = doc.getElementById('BGImage' + n); if (bg) images[fileOf(bg.getAttribute('src') || '')] = session.pages[n].imgData; });
       return { html, images };
     } finally {
       T.state.pages = keep.pages; T.state.fields = keep.fields; T.state.currentPage = keep.current;
@@ -503,8 +525,15 @@
     if (!f) throw new Error(`tests/cases/${path} is missing from the folder chosen`);
     return f;
   };
-  // A case read from its files: { name, html, images, pdf }
+  // A case read from its files: { name, html, images, pdf }. A case given as a session is the
+  // eForm the export builds from it (eformOfSession)
   async function loadCase(entry, getFile){
+    if (entry.session){
+      let session;
+      try { session = JSON.parse(await (await getFile(`${entry.folder}/${entry.session}`)).text()); }
+      catch (err){ throw new Error(`tests/cases/${entry.folder}/${entry.session} can't be read as a session: ${err.message || err}`); }
+      return { name: entry.name || session.exportTitle || entry.folder, ...eformOfSession(session), pdf: null };
+    }
     const html = await (await getFile(`${entry.folder}/${entry.eform}`)).text();
     const images = {};
     for (const name of entry.images || []) images[name] = await asDataUrl(await getFile(`${entry.folder}/${name}`));
@@ -600,10 +629,18 @@
   const slugOf = (s) => String(s).toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'test-case';
   const mimeOf = (name) => /\.png$/i.test(name) ? 'image/png' : /\.gif$/i.test(name) ? 'image/gif' : 'image/jpeg';
   const readFile = (file, how) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r[how](file); });
-  // A case from the files picked: the eForm's HTML and images, its title from eform.properties
+  // A case from the files picked: the eForm's HTML and images, its title from eform.properties;
+  // or a session (Save Session's .json), the eForm the export builds from it
   async function caseFromFiles(files){
     let html = '', htmlName = '', title = '';
     const images = {};
+    const sessionFile = [...files].find(f => /\.json$/i.test(f.name));
+    if (sessionFile){
+      const text = await readFile(sessionFile, 'readAsText');
+      let session;
+      try { session = JSON.parse(text); } catch (err){ throw new Error(`${sessionFile.name} isn't a session the app saved`); }
+      return { name: session.exportTitle || sessionFile.name.replace(/\.[^.]+$/, ''), ...eformOfSession(session), sessionName: sessionFile.name, sessionText: text };
+    }
     for (const file of files){
       if (/\.zip$/i.test(file.name)){
         const zip = await JSZip.loadAsync(file);
@@ -617,7 +654,7 @@
       } else if (/\.html?$/i.test(file.name)){ html = await readFile(file, 'readAsText'); htmlName = file.name; }
       else if (/\.(png|jpe?g|gif)$/i.test(file.name)) images[file.name] = await readFile(file, 'readAsDataURL');
     }
-    if (!html) throw new Error('no eForm HTML among the files picked (choose the eForm package zip, or the .html with its images)');
+    if (!html) throw new Error('no eForm HTML among the files picked (choose the eForm package zip, the .html with its images, or a saved session)');
     if (!Object.keys(images).length) throw new Error('no page images among the files picked');
     return { name: title || htmlName.replace(/\.[^.]+$/, ''), html, images, htmlName };
   }
@@ -630,11 +667,14 @@
   };
   const listFileText = (entries) =>
     `// The Auto Detect test cases. Each is a folder here holding a finished eForm: its HTML and its\n` +
-    `// page image(s), as the app's OSCAR package has them (unzip the package into the folder).\n` +
+    `// page image(s), as the app's OSCAR package has them (unzip the package into the folder); or\n` +
+    `// the session it was made in, as Save Session saves it (its pages and fields, which the tests\n` +
+    `// export as the app does).\n` +
     `//   name    what the test results call it\n` +
     `//   folder  its folder in tests/cases\n` +
     `//   eform   the eForm's HTML file, in that folder\n` +
     `//   images  its page images, in that folder\n` +
+    `//   session (in place of eform and images) the session's .json file, in that folder\n` +
     `//   pdf     (optional) the fillable PDF the page images were made from (by the app's PDF\n` +
     `//           converter, its pages in order), in that folder: Auto Detect is given it as the\n` +
     `//           converter gives it, and takes the PDF's own form fields (no variations: a copy of a\n` +
@@ -678,13 +718,20 @@
       const eform = c.htmlName || `${slug}.html`, images = Object.keys(c.images);
       const save = document.createElement('div');
       save.style.cssText = 'margin:6px 0;padding:6px 8px;background:#f1f5f9;border-radius:6px';
-      save.append(`"${c.name}" ran as a test case (its results are below). To keep it in the suite: make the folder tests/cases/${slug}, put the eForm's files in it (unzip the package there, or save these: `);
       const fileBtn = (label, make) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => download(label, make()); return b; };
-      save.append(fileBtn(eform, () => new Blob([c.html], { type: 'text/html' })), ' ');
-      images.forEach(name => save.append(fileBtn(name, () => { const [head, b64] = c.images[name].split(','); const bin = atob(b64), a = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: head.slice(5).split(';')[0] }); }), ' '));
+      // (a session is its one file; an eForm is its HTML and images)
+      if (c.sessionName){
+        save.append(`"${c.name}" ran as a test case (its results are below). To keep it in the suite: make the folder tests/cases/${slug}, put the session in it (`);
+        save.append(fileBtn(c.sessionName, () => new Blob([c.sessionText], { type: 'application/json' })));
+      } else {
+        save.append(`"${c.name}" ran as a test case (its results are below). To keep it in the suite: make the folder tests/cases/${slug}, put the eForm's files in it (unzip the package there, or save these: `);
+        save.append(fileBtn(eform, () => new Blob([c.html], { type: 'text/html' })), ' ');
+        images.forEach(name => save.append(fileBtn(name, () => { const [head, b64] = c.images[name].split(','); const bin = atob(b64), a = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: head.slice(5).split(';')[0] }); }), ' '));
+      }
       save.append('), and save this into tests/cases: ');
-      save.append(fileBtn('index.js', () => new Blob([listFileText([...list, { name: c.name, folder: slug, eform, images }])], { type: 'text/javascript' })));
+      const entry = c.sessionName ? { name: c.name, folder: slug, session: c.sessionName } : { name: c.name, folder: slug, eform, images };
+      save.append(fileBtn('index.js', () => new Blob([listFileText([...list, entry])], { type: 'text/javascript' })));
       panel.insertBefore(save, groupsBox);
       note.textContent = '';
     } catch (err) {
@@ -720,9 +767,9 @@
   adder.style.cssText = 'margin-bottom:6px';
   const addBtn = document.createElement('button');
   addBtn.textContent = 'Add a test case…';
-  addBtn.title = 'Pick a finished eForm: the package zip the app downloads, or the .html with its page images';
+  addBtn.title = 'Pick a finished eForm: the package zip the app downloads, the .html with its page images, or a session saved with Save Session';
   const picker = document.createElement('input');
-  picker.type = 'file'; picker.multiple = true; picker.accept = '.zip,.html,.htm,.png,.jpg,.jpeg,.gif'; picker.hidden = true;
+  picker.type = 'file'; picker.multiple = true; picker.accept = '.zip,.html,.htm,.png,.jpg,.jpeg,.gif,.json'; picker.hidden = true;
   picker.id = 'autoDetectAddCase';
   const note = document.createElement('span');
   note.style.cssText = 'margin-left:8px;color:#555;font-size:12px';

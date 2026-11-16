@@ -15,7 +15,8 @@
 // with the variation's skips (its variationSkip, and the case's own skips for fields). (Tick
 // boxes are matched here as fields are, not by their centre as the variation tests do.)
 // The page image is one of a case's, as tests/cases/index.js lists it, e.g.
-// tests/cases/referral-form/referral_form_3c1x42_page1.png. Without out.png, the picture is
+// tests/cases/referral-form/referral_form_3c1x42_page1.png; for a case given as a session, its
+// page by number, e.g. tests/cases/my-form/page1. Without out.png, the picture is
 // saved where you run it, as <image name>.compare.png. The app must be served over http, as
 // for ci.js. Uses the Chrome installed on the machine (PW_CHANNEL=chrome, the default); set PW_CHANNEL= to use
 // Playwright's own Chromium instead.
@@ -46,8 +47,10 @@ const fs = require('fs'), path = require('path');
       const entry = (window.TEST_CASE_LIST || []).find(e => e.folder === folder);
       if (!entry) throw new Error(`tests/cases/index.js has no case in folder "${folder}"`);
       const c = await H.loadCase(entry, H.fromServer());
-      const pg = (await H.eformPages(c.html, c.images)).find(p => p.file === file);
-      if (!pg) throw new Error(`"${file}" isn't one of the case's pages (${entry.images.join(', ')})`);
+      // (a page by its image's name, or by number: "page2", as a session's pages are named)
+      const all = await H.eformPages(c.html, c.images), byNumber = file.match(/^page(\d+)$/i);
+      const pg = all.find(p => byNumber ? p.n === Number(byNumber[1]) : p.file === file);
+      if (!pg) throw new Error(`"${file}" isn't one of the case's pages (${all.map(p => entry.session ? 'page' + p.n : p.file).join(', ')})`);
       // Auto Detect on this page alone (or its poorer copy), then the eForm built from what it
       // found, read like the case's, in the page's own pixels
       const V = variation ? H.VARIATIONS.find(v => v.name === variation) : null;

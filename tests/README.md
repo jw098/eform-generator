@@ -6,7 +6,9 @@ and the places to write on a form's page image and suggests their OSCAR tags.
 A **test case is a finished eForm**: the eForm HTML and its page image(s), with every box in
 the right place and the right `oscarDB` tag. Each case is a folder in `cases/` holding those
 files as they are (the app's OSCAR package, unzipped), so its images can be opened and looked
-at like any other. The tests do what you would do in the app:
+at like any other. A case can instead be the **session** the eForm was made in (the `.json`
+**Save Session** saves): the tests export it as the app does, and it is then tested the same
+way. The tests do what you would do in the app:
 
 1. put the case's page image(s) in the app and run **Auto Detect**;
 2. build the eForm from what it found, as the export does;
@@ -156,16 +158,31 @@ put the PDF in the case's folder and name it in the case's entry in `cases/index
 Its pages are the eForm's, in order. Such a case has no variations: a poorer copy of a page is
 a picture only, with no PDF behind it.
 
+**A session as the case.** A case can be the session the eForm was made in, in place of its
+eForm and images: in the app, place and tag every box, then **Save Session**. Pick that `.json`
+with **Add a test case…** (or put it in the case's folder yourself), and name it in the case's
+entry as `session`, in place of `eform` and `images`:
+
+```js
+{ "name": "Lab requisition", "folder": "lab-requisition", "session": "lab_requisition_session.json" }
+```
+
+The tests build the case's eForm from it with the app's own export, then compare as for any
+other case; skips, to-dos and variations work the same. It is easier to change than an eForm
+(open the session, fix the box, save it again), but it is tested through the export as it is
+now: a change to the export changes what the case expects. A session from a fillable PDF isn't
+supported (its page images are given to Auto Detect as pictures).
+
 ## The files
 
 | File | What it is |
 |---|---|
 | `cases/index.js` | The list of test cases: each one's name, folder, eForm file and page images, and any to-dos. |
-| `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s), and the fillable PDF they were made from, for a case with one. |
+| `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s), and the fillable PDF they were made from, for a case with one; or the session it was made in (`.json`). |
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 | `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
 | `snapshot.js` | Prints exactly what Auto Detect finds on each case's images (no margin), to compare before and after a change that shouldn't change it. |
-| `show.js` | Draws one case page with its expected and actual boxes, matched as the tests match them (skips in grey), and saves it as a PNG: `node tests/show.js <app url#test> tests/cases/<folder>/<image> [out.png]`. With `--variation "0.7× size"`, it draws what Auto Detect finds on that poorer copy instead, on the page itself. |
+| `show.js` | Draws one case page with its expected and actual boxes, matched as the tests match them (skips in grey), and saves it as a PNG: `node tests/show.js <app url#test> tests/cases/<folder>/<image> [out.png]` (for a case given as a session, `page1`, `page2`… in place of `<image>`). With `--variation "0.7× size"`, it draws what Auto Detect finds on that poorer copy instead, on the page itself. |
 
 ## To-dos
 

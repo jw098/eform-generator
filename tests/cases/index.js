@@ -1,9 +1,12 @@
 // The Auto Detect test cases. Each is a folder here holding a finished eForm: its HTML and its
-// page image(s), as the app's OSCAR package has them (unzip the package into the folder).
+// page image(s), as the app's OSCAR package has them (unzip the package into the folder); or
+// the session it was made in, as Save Session saves it (its pages and fields, which the tests
+// export as the app does).
 //   name    what the test results call it
 //   folder  its folder in tests/cases
 //   eform   the eForm's HTML file, in that folder
 //   images  its page images, in that folder
+//   session (in place of eform and images) the session's .json file, in that folder
 //   pdf     (optional) the fillable PDF the page images were made from (by the app's PDF
 //           converter, its pages in order), in that folder: Auto Detect is given it as the
 //           converter gives it, and takes the PDF's own form fields (no variations: a copy of a
@@ -30,10 +33,7 @@ window.TEST_CASE_LIST = [
   {
     "name": "eForm Generator feature test, page 1",
     "folder": "feature-test",
-    "eform": "eform_generator_feature_test_page_1_p1case.html",
-    "images": [
-      "eform_generator_feature_test_page_1_p1case_page1.png"
-    ],
+    "session": "feature_test_page1_session.json",
     "variations": true
   },
   {
