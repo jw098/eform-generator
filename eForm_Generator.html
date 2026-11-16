@@ -4633,9 +4633,11 @@ else if (typeof exports === 'object')
       const near = (a, b) => Math.abs(a - b) <= lineHeight*0.5;
       const sideless = (L) => ![L.x1+1, L.x2-1].some(x => ruleUp(x, L.y1));
       const blank = (xa, xb, ya, yb) => { for (let y=ya; y<=yb; y++) for (let x=xa; x<=xb; x++) if (isInk(x,y)) return false; return true; };
-      // (no label: hardly any columns of ink just before the line, on its row; a box's side is one or two)
+      // (no label: hardly any columns of ink before the line, on its row, however far to its left:
+      // a box's side is one or two. "Last name    ____" with the labels in a column of their own
+      // is a list of fill-in lines, not a writing area)
       const unlabelled = (L) => {
-        const ya = Math.max(0, L.y1 - Math.round(lineHeight*0.6)), xa = Math.max(0, L.x1 - Math.round(lineHeight*3));
+        const ya = Math.max(0, L.y1 - Math.round(lineHeight*0.6)), xa = 0;
         let cols = 0;
         for (let x=xa; x<L.x1-4; x++){ for (let y=ya; y<L.y1-1; y++) if (isInk(x,y)){ cols++; break; } }
         return cols <= lineHeight*0.3;
