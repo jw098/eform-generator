@@ -28,6 +28,15 @@
 //           extraFields; without a page, every page
 window.TEST_CASE_LIST = [
   {
+    "name": "eForm Generator feature test, page 1",
+    "folder": "feature-test",
+    "eform": "eform_generator_feature_test_page_1_p1case.html",
+    "images": [
+      "eform_generator_feature_test_page_1_p1case_page1.png"
+    ],
+    "variations": true
+  },
+  {
     "name": "Referral form",
     "folder": "referral-form",
     "eform": "referral_form_3c1x42.html",
