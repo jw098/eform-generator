@@ -2,7 +2,7 @@
 
 Everything an eForm from the eForm Generator should do once it is in OSCAR. Use the feature test
 eForm in this folder (`eform_generator_feature_test_4j5w2t_oscar_package.zip`; open
-`eform_generator_session_20261116_1912.json` with Load Session to change it; it has three pages),
+`eform_generator_session_20261116_2019.json` with Load Session to change it; it has three pages),
 and open it on a test patient with sex, all three phones, address, health card number, family doctor and referral
 doctor filled in.
 
