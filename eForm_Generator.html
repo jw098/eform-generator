@@ -4434,16 +4434,24 @@ else if (typeof exports === 'object')
       // The phrase just left of it on its row: the nearest words, no further apart than a few
       // letters, the nearest no further from the field than about a dozen (a label set well apart
       // from its blank), not across a tick box (a tick box's words too: "☐ Other: ____" is the box's
-      // label and the line's)
+      // label and the line's). Further away, only a label in a column of its own: the row's only
+      // words before the field, a phrase, not a sentence, with no other field between ("Last name
+      // ________" with the labels lined up down the page's left and the lines down its right)
       const row = words.filter(w => onRow(f, w) && w.x1 <= f.x + 6).sort((a,b) => b.x1-a.x1);
       // (the label to its left: the words just before it on its row, taken while they are close)
       const leftOf = () => {
         const got = [];
         for (const w of row){
           const start = got.length ? got[got.length-1].x0 : f.x;
-          if (start - w.x1 > wordHeight*(got.length ? 2.5 : 12)) break;
+          if (got.length && start - w.x1 > wordHeight*2.5) break;
           if (boxes.some(b => onRow(f, b) && b.x >= w.x1 - 2 && b.x + b.width <= start + 2)) break;
           got.push(w);
+        }
+        if (got.length && f.x - got[0].x1 > wordHeight*12){
+          const end = got[0].x1;
+          const alone = got.length === row.length && !isSentence([...got].reverse()) &&
+                        !fields.some(g => g !== f && g.y < f.y + f.height && g.y + g.height > f.y && g.x + g.width > end && g.x < f.x);
+          if (!alone) return [];
         }
         return got.reverse();
       };
