@@ -184,6 +184,17 @@ taking or missing is a skip of one small region too (with its `test`), once a ge
 been tried; a variation is where a threshold fitted to one rendering shows, so try first to
 size it against the page.
 
+## Changing a rule
+
+Discuss before fixing. When Auto Detect gets something wrong, first find the cause and say
+what it is, with the evidence (the printed text, the values a temporary `console.log` showed,
+a picture), and propose the fix: what the rule would say, why it is general, and what it may
+cost on other forms (with options where there is more than one way). Then wait for the user to
+agree before changing any detection or tagging rule in `eForm_Generator.html`. Investigating is
+fine meanwhile: temporary logs and experiments on copies of a page, with the app put back as
+it was after. Once agreed, make the change and check it as below (snapshot, full suite), and
+bring back anything it changed that wasn't discussed.
+
 ## Style
 
 - Match the existing code: compact JavaScript, small arrow helpers.
