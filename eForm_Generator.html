@@ -4497,6 +4497,36 @@ else if (typeof exports === 'object')
     });
   }
 
+  // How tall a fill-in line's field is against its label's words (OCR's box, top of the tallest
+  // letter to the bottom of the lowest), as on the forms' own fields
+  const FIELD_PER_LABEL = 1.6;
+  // A one-line field shorter than its own label's text is made taller. Pass 1 sizes a fill-in line
+  // from the page's typical text, and marks that aren't text can throw that off ("Patient name:
+  // ________" on a page whose dot leaders outnumber its letters). It grows up from its line to
+  // FIELD_PER_LABEL times its label's height, only through blank page: it stops under any ink
+  // above it (the row above's words or rules) and under any field above it, so it never cuts
+  // into other text. Only a label beside it on its row counts, not one above it or in a box.
+  function fitFieldsToLabels(fields, inkMap, w, h, scale){
+    fields.forEach(f => {
+      if (f.type !== 'text' || f.box || f._split || !f._words || !f._words.length) return;
+      const ws = f._words, bottom = f.y + f.height;
+      const labelHeight = Math.max(...ws.map(wd => wd.y1 - wd.y0));
+      if (f.height >= labelHeight) return;
+      if (!ws.every(wd => wd.x1 <= f.x + 6 && Math.abs((wd.y0 + wd.y1)/2 - (f.y + f.height/2)) <= labelHeight)) return;
+      let top = bottom - labelHeight*FIELD_PER_LABEL;
+      // (not up into a field above it, over any part of it)
+      fields.forEach(g => { if (g !== f && g.x < f.x + f.width && g.x + g.width > f.x && g.y + g.height <= f.y + 1) top = Math.max(top, g.y + g.height + 1); });
+      // (nor into ink above it: the first row with any ink across the field's width)
+      const x1 = Math.max(0, Math.round(f.x*scale)), x2 = Math.min(w-1, Math.round((f.x + f.width)*scale));
+      for (let y = Math.round(f.y*scale) - 1; y >= Math.max(0, Math.round(top*scale)); y--){
+        let ink = false;
+        for (let x = x1; x <= x2 && !ink; x++) if (inkMap[y*w + x]) ink = true;
+        if (ink){ top = Math.max(top, (y + 2)/scale); break; }
+      }
+      if (top < f.y){ f.height = bottom - top; f.y = top; }
+    });
+  }
+
   // What the labels say about the fields themselves: everything pass 2 changes about which
   // fields there are (besides the fields after a colon, from colonFields). Returns the fields:
   //  - a field with several labels spread along it ("SURNAME OF PATIENT ... FIRST NAME") is one
@@ -5323,6 +5353,7 @@ else if (typeof exports === 'object')
         inkColons(read, inkMap, w, h, scale);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
         labelFields(found, read, ruleAcross);
+        fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);
         sectionFields(found, read);
       }

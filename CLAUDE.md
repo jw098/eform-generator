@@ -73,9 +73,10 @@ words, into pass 1.
 **Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and
 no tags).
-4. Fields after a colon (`colonFields`), each field's label (`labelFields`), the fields the
-   labels split or rule out (`fieldsFromLabels`), captions and section headings
-   (`sectionFields`).
+4. Fields after a colon (`colonFields`), each field's label (`labelFields`), a one-line field
+   shorter than its own label's text made taller, through blank page only
+   (`fitFieldsToLabels`), the fields the labels split or rule out (`fieldsFromLabels`),
+   captions and section headings (`sectionFields`).
 5. Names from the labels, then tags (`tagFields`: `fieldOwners` → `guessTag` / `askedFor` /
    `TAG_FOR` → `captionTag`), then date fields: a one-line field whose label names a date
    (`labelNamesADate`, not a birth date) becomes one, in the format printed with it

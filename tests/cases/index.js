@@ -463,9 +463,17 @@ window.TEST_CASE_LIST = [
     "session": "typed_form_session.json",
     "variations": true,
     "todo": {
-      "fields": "lines typed as underscore characters (\"Patient name: ________\") are found in the right place but half a text line high (14 px against 29), and short blanks typed as dots (\"Date of injury: ........\") aren't found",
-      "extraFields": "the same underscore lines, found half a text line high, don't match their fields, so each is also an extra"
+      "fields": "short blanks typed as dots (\"Date of injury: ........\", \"Number of visits requested: ......\") aren't found: a run of evenly spaced dots isn't taken for a line yet",
+      "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)"
     },
+    "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "extraFields",
+        "reason": "at 0.7× the dots of the \"Diagnosis / reason for referral\" lines are taken for two short fields under the heading: a run of evenly spaced dots isn't taken for a line yet"
+      }
+    ],
     "skip": [
       {
         "test": "extraFields",
