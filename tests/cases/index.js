@@ -412,5 +412,96 @@ window.TEST_CASE_LIST = [
         "reason": "address_3 (Address): the PDF makes this a field of its own, a second or third line of \"Address\"; Auto Detect tags it from the PDF's label, the same as the first line's, where the eForm gives only the first line the tag"
       }
     ]
+  },
+  {
+    "name": "Lab requisition (boxed cells, two people side by side)",
+    "folder": "lab-requisition",
+    "session": "lab_requisition_session.json",
+    "variations": true,
+    "todo": {
+      "tags": "COPY TO (NAME AND ADDRESS) gets clinic_addressLine: it is in the ORDERING PRACTITIONER column, so its ADDRESS is read as the practitioner's, but a copy goes to someone else, for whom OSCAR 12 has no tag. And \"Date: ____\" after the signature line on its row gets no today tag, where a plain \"Date:\" gets one"
+    },
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          240,
+          1020,
+          530,
+          60
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink and words as a fill-in line after a label (\"Practitioner signature: ____\"), so it is found as a text field"
+      }
+    ]
+  },
+  {
+    "name": "Mood questionnaire (a grid of tick boxes)",
+    "folder": "questionnaire",
+    "session": "questionnaire_session.json",
+    "variations": true,
+    "todo": {
+      "extraFields": "the heading row of the grid of tick boxes (the empty cell over the questions, and \"Not at all\", \"Several days\"... over the answer columns) is taken for cells to write in: a heading row over columns of tick boxes holds no blanks"
+    },
+    "skip": [
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [
+          55,
+          865,
+          1035,
+          50
+        ],
+        "reason": "the four answers to circle (\"Not difficult\" ... \"Extremely difficult\", \"(circle one)\"): Auto Detect makes no circle toggles, and words to circle are printed words like any others, with nothing drawn around them"
+      }
+    ]
+  },
+  {
+    "name": "Physiotherapy referral (lines typed as underscores and dots)",
+    "folder": "typed-form",
+    "session": "typed_form_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "lines typed as underscore characters (\"Patient name: ________\") are found in the right place but half a text line high (14 px against 29), and short blanks typed as dots (\"Date of injury: ........\") aren't found",
+      "extraFields": "the same underscore lines, found half a text line high, don't match their fields, so each is also an extra"
+    },
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          150,
+          725,
+          340,
+          45
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink and words as a fill-in line after a label (\"Signature: ____\"), so it is found as a text field"
+      }
+    ]
+  },
+  {
+    "name": "Special Authority request (boxes for each character, captions under lines)",
+    "folder": "character-boxes",
+    "session": "character_boxes_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "a row of boxes for one character each (the Personal Health Number, the date of birth, the postal code) isn't found, neither as tick boxes nor as fields: empty boxes side by side in a row are one field across them",
+      "tags": "captions printed under their lines (\"Patient surname\" under its line) aren't taken as the lines' labels: the top row gets no tags, and the row under it is tagged from the captions of the row above; \"Date (YYYY-MM-DD)\" under its line gives no today tag",
+      "dates": "the date line's caption, \"Date (YYYY-MM-DD)\", is printed under it, and captions under lines aren't taken as labels yet (see tags), so the line isn't made a date field"
+    },
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          50,
+          930,
+          560,
+          70
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink and words as a fill-in line after a label (\"Prescriber signature: ____\"), so it is found as a text field"
+      }
+    ]
   }
 ];

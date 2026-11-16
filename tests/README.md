@@ -97,8 +97,7 @@ real size, whatever made the eForm. Within an eForm:
 
 **Also test poorer copies** (a button in the panel, after a run) checks tick boxes and fields
 on variations: copies made in the browser of each page of the cases with `"variations": true`
-in `cases/index.js` (the referral form, the mammography requisition, St. Paul's RMH referral
-and CL489), as a clean PDF can come, since eForm templates are mostly clean PDFs: rendered at
+in `cases/index.js`, as a clean PDF can come, since eForm templates are mostly clean PDFs: rendered at
 0.7×, 1.5×, 2×, 2.5× or 3× the size, or printed faint. (Scans and faxes aren't among them.)
 The forms are blank, so a tick box is empty. On each, Auto Detect runs as on the page itself,
 reading the words too, and every tick box and field of the eForm must be found and nothing
@@ -199,7 +198,8 @@ reason, so it shows as "to do" rather than as a failure:
 }
 ```
 
-(None of the cases has a to-do of its own at the moment; some have one for a variation.)
+(The four cases that test Auto Detect's limits, the lab requisition, the questionnaire, the typed
+form and the character boxes, have to-dos of their own; some others have one for a variation.)
 
 The keys are `ticks` and `fields` (expected, but missing from the actual eForm), `extraTicks`
 and `extraFields` (in the actual eForm, but not expected), `tags`, and `dates`. Delete the to-do once
