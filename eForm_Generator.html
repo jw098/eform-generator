@@ -4835,7 +4835,7 @@ else if (typeof exports === 'object')
   // minLength long, as long as any rule: a few dots in a line of text ("...") are too short.
   // (A piece may be one dot or a few that touch: at some sizes the dots run together.) Canvas px.
   function drawDotLeaders(inkMap, w, h, lineHeight, minLength){
-    const maxDot = Math.max(2, Math.round(lineHeight/6)), seen = new Uint8Array(w*h), stack = [], pieces = [];
+    const maxDot = Math.max(2, Math.round(lineHeight/6)), seen = new Uint8Array(w*h), stack = [], pieces = [], drawn = [];
     for (let st=0; st<w*h; st++){
       if (!inkMap[st] || seen[st]) continue;
       seen[st] = 1; stack.length = 0; stack.push(st);
@@ -4876,23 +4876,95 @@ else if (typeof exports === 'object')
       }
       const ya = median(run.map(e => e.y1)), yb = median(run.map(e => e.y2));
       for (let y = ya; y <= yb; y++) for (let x = run[0].x1; x <= run[run.length-1].x2; x++) inkMap[y*w + x] = 1;
+      drawn.push({ x1: run[0].x1, x2: run[run.length-1].x2, y1: ya, y2: yb });
     });
+    return drawn;
   }
 
   // The thickest a rule can be on a canvas h px tall; a thicker band is a shaded bar (a grey
   // table heading reads as ink)
   const maxRuleThickness = (h) => Math.max(3, Math.round(h*0.012));
 
+  // Is a band of ink a printed rule, judged from the page's grey levels in it? Bold words run
+  // together ("Recommended", a heading in capitals) and white letters cut out of a dark bar
+  // ("Complete ALL SECTIONS") make bands as long as a rule; their letters leave gaps a rule
+  // hasn't. The band is split into ink and paper at its own level (Otsu's), then the rows of a
+  // rule's soft edges, or of the stubs of side rules crossing it, are trimmed off: if some trim
+  // of up to 2 rows from the top and up to 2 from the bottom, cropped tight to its ink, is at
+  // least 90% ink, it is a rule. A band of more than 4 rows (a table row's rule with the stubs of
+  // its cell walls above and below) is a rule too if, trimmed 2 rows each end, what is left is
+  // still at least 2 rows and its paper is all clean bars, each wider than twice its height
+  // (between the stubs), where between letters it isn't. (A single row can't be judged by its
+  // paper: every gap in one row is a clean bar.) minGap: paper smaller than this both ways
+  // (canvas px) doesn't count.
+  function solidRule(gray, w, b, minGap){
+    const W = b.x2 - b.x1 + 1, H = b.y2 - b.y1 + 1, n = W*H;
+    // (Otsu's level: the grey that best splits the band's pixels into two groups)
+    const hist = new Array(256).fill(0); let lo = 255, hi = 0;
+    for (let y = b.y1; y <= b.y2; y++) for (let x = b.x1; x <= b.x2; x++){ const v = gray[y*w + x]; hist[v]++; if (v < lo) lo = v; if (v > hi) hi = v; }
+    let level = hi;
+    if (hi - lo >= 30){
+      let sum = 0; for (let i = 0; i < 256; i++) sum += i*hist[i];
+      let wB = 0, sB = 0, best = -1;
+      for (let i = 0; i < 256; i++){
+        wB += hist[i]; if (!wB) continue;
+        const wF = n - wB; if (!wF) break;
+        sB += i*hist[i];
+        const between = wB*wF*(sB/wB - (sum - sB)/wF)**2;
+        if (between > best){ best = between; level = i; }
+      }
+    }
+    const ink = new Uint8Array(n);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) ink[y*W + x] = gray[(b.y1 + y)*w + b.x1 + x] <= level ? 1 : 0;
+    // (the box around the ink in rows ra to rb, and how much ink)
+    const tight = (ra, rb) => {
+      let x1 = W, x2 = -1, y1 = H, y2 = -1, count = 0;
+      for (let y = ra; y <= rb; y++) for (let x = 0; x < W; x++) if (ink[y*W + x]){
+        count++; if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+      }
+      return count ? { x1, x2, y1, y2, count } : null;
+    };
+    for (let top = 0; top <= 2; top++) for (let bottom = 0; bottom <= 2; bottom++){
+      if (top + bottom >= H) continue;
+      const t = tight(top, H - 1 - bottom);
+      if (t && t.count >= 0.9*(t.x2 - t.x1 + 1)*(t.y2 - t.y1 + 1)) return true;
+    }
+    if (H < 6) return false;
+    const t = tight(2, H - 3);
+    if (!t) return false;
+    // Each patch of paper in the crop (4-connected): a clean bar, wider than twice its height
+    const TW = t.x2 - t.x1 + 1, TH = t.y2 - t.y1 + 1, seen = new Uint8Array(TW*TH), stack = [];
+    const paper = (x, y) => !ink[(t.y1 + y)*W + t.x1 + x];
+    for (let y0 = 0; y0 < TH; y0++) for (let x0 = 0; x0 < TW; x0++){
+      if (seen[y0*TW + x0] || !paper(x0, y0)) continue;
+      seen[y0*TW + x0] = 1; stack.length = 0; stack.push(y0*TW + x0);
+      let area = 0, x1 = x0, x2 = x0, y1 = y0, y2 = y0;
+      while (stack.length){
+        const i = stack.pop(), y = (i/TW)|0, x = i - y*TW;
+        area++; if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+        for (const [nx, ny] of [[x+1, y], [x-1, y], [x, y+1], [x, y-1]]){
+          if (nx < 0 || ny < 0 || nx >= TW || ny >= TH || seen[ny*TW + nx] || !paper(nx, ny)) continue;
+          seen[ny*TW + nx] = 1; stack.push(ny*TW + nx);
+        }
+      }
+      const bw = x2 - x1 + 1, bh = y2 - y1 + 1;
+      if (bw < minGap && bh < minGap) continue;
+      if (area < 0.9*bw*bh || bw <= 2*bh) return false;
+    }
+    return true;
+  }
+
   // ===== Text fields from lines (added by FreeScribe) =====
-  // bands: the page's rules, top to bottom; lineHeight: one written line's height; ticks: the
+  // gray: the page's grey levels; bands: the page's rules, top to bottom; leaders: the dot
+  // leaders drawn in as rules (drawDotLeaders); lineHeight: one written line's height; ticks: the
   // tick boxes found on the page (all canvas px); scale: canvas px per page-image px.
-  function textFieldsFromLines(inkMap, w, h, scale, bands, lineHeight, page, ticks){
+  function textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, ticks){
     const maxThick = maxRuleThickness(h);
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
     const capHeight = textCapHeight(inkMap, w, h);
-    // Is this band really a line? Words drawn as one: an underline has letters standing just
-    // above it along most of its length, and the tops of a run of bold capitals merge into a
+    // Is this band a line, not an underline or words? Words drawn as one: an underline has
+    // letters standing just above it along most of its length, and the tops of a run of bold capitals merge into a
     // "line" with the letters hanging right under it. (The row touching the band is skipped: a
     // line's soft edge.) A box's edge or a table row's rule can have words as close, but has
     // sides running up or down from both its ends.
@@ -4912,14 +4984,18 @@ else if (typeof exports === 'object')
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a rule, so the row under a heading bar has a top
-    const lines = bands.map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
-                       .filter(isLine)
-                       .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
+    // A line that bounds a field: printed solid (solidRule), or a dot leader drawn in as one, or
+    // a shaded bar's bottom edge; and not an underline (isLine)
+    const isLeader = (b) => leaders.some(l => l.x1 <= b.x2 && l.x2 >= b.x1 && l.y1 <= b.y2 + 1 && l.y2 >= b.y1 - 1);
+    const minGap = Math.max(2, (capHeight || lineHeight/2.5)*0.25);
+    const isFieldLine = (b, bar) => (bar || isLeader(b) || solidRule(gray, w, b, minGap)) && isLine(b);
+    const candidates = bands.map(b => (b.y2-b.y1+1) <= maxThick ? { band: b, bar: false } : { band: { ...b, y1: b.y2 }, bar: true });
+    const verdicts = candidates.map(c => isFieldLine(c.band, c.bar));
+    const lines = candidates.filter((c, i) => verdicts[i]).map(c => c.band)
+                            .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     // (for tests/lines.js: each band and whether it was taken for a line, in page-image px)
-    if (window.eformMapperLineLog) window.eformMapperLineLog.push({ scale, bands: bands.map(b => {
-      const t = (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 };
-      return { x: b.x1/scale, y: t.y1/scale, width: (b.x2-b.x1+1)/scale, height: (t.y2-t.y1+1)/scale, line: isLine(t) };
-    }) });
+    if (window.eformMapperLineLog) window.eformMapperLineLog.push({ scale, bands: candidates.map(({ band: t }, i) =>
+      ({ x: t.x1/scale, y: t.y1/scale, width: (t.x2-t.x1+1)/scale, height: (t.y2-t.y1+1)/scale, line: verdicts[i] })) });
     const rowLine = capHeight ? Math.min(lineHeight, capHeight*1.6) : lineHeight;
     const isInk = (x,y) => inkMap[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
@@ -5446,7 +5522,7 @@ else if (typeof exports === 'object')
       }
 
       // Dot leaders and dashed rules are drawn in as the rules they stand for
-      drawDotLeaders(inkMap, w, h, p.naturalH*0.026*scale, Math.round(w*(lineMinPct/100)));
+      const leaders = drawDotLeaders(inkMap, w, h, p.naturalH*0.026*scale, Math.round(w*(lineMinPct/100)));
 
       await progress('Finding the lines and checkboxes…', 0.05);
       const newFields = [];
@@ -5578,7 +5654,7 @@ else if (typeof exports === 'object')
       // bottoms of bold words, table rules under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
       const tickRects = dedupCb.map(f => ({ x1: f.x*scale, y1: f.y*scale, x2: (f.x + f.width)*scale, y2: (f.y + f.height)*scale }));
-      textFieldsFromLines(inkMap, w, h, scale, bands, lineHeight, page, tickRects).forEach(f => newFields.push(f));
+      textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, tickRects).forEach(f => newFields.push(f));
       // Open writing areas under a heading, with no line or box around them, on the page or in a
       // table's cells
       areaFields(inkMap, w, h, scale, bands, lineHeight, page, newFields).forEach(f => newFields.push(f));

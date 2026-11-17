@@ -143,9 +143,9 @@ window.LINE_SUSPECTS = {
     [137, 1220, 757, 5, 1],
     [1153, 1220, 282, 5, 1],
     [184, 1337, 1247, 5, 1],
-    [252, 1342, 177, 1, 1],  // a line to write on, its captions under it
-    [432, 1342, 161, 1, 1],  // a line to write on, its captions under it
-    [695, 1342, 733, 1, 1],  // a line to write on, its captions under it
+    [252, 1342, 177, 1, 0],  // the rule over it: its soft lower edge, split off
+    [432, 1342, 161, 1, 0],  // the rule over it: its soft lower edge, split off
+    [695, 1342, 733, 1, 0],  // the rule over it: its soft lower edge, split off
     [321, 1454, 233, 5, 1],
     [642, 1454, 249, 5, 1],
     [1034, 1454, 396, 5, 1],
