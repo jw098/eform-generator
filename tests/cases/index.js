@@ -418,9 +418,6 @@ window.TEST_CASE_LIST = [
     "folder": "lab-requisition",
     "session": "lab_requisition_session.json",
     "variations": true,
-    "todo": {
-      "tags": "COPY TO (NAME AND ADDRESS) gets clinic_addressLine: it is in the ORDERING PRACTITIONER column, so its ADDRESS is read as the practitioner's, but a copy goes to someone else, for whom OSCAR 12 has no tag."
-    },
     "skip": [
       {
         "test": "extraFields",

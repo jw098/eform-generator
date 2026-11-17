@@ -1395,7 +1395,7 @@ else if (typeof exports === 'object')
     // (a billing number is a practitioner's, never the patient's: where nothing else says whose,
     // the referring clinician's, "Billing #: ____")
     if (kind === 'billing'){ kind = 'number'; if (who === 'patient') who = 'clinician'; }
-    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
+    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' || who === 'copy' ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
     return tag;
   }
   // The tag for what a field asks for, by whose it is. "any" is the same tag whoever's it is
@@ -1410,7 +1410,8 @@ else if (typeof exports === 'object')
                  number: 'current_user_ohip_no' },                       // (OSCAR 12 has no tag for their email)
     family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
     guardian:  {},                                               // (OSCAR 12 has no tags for their details)
-    office:    {}                                                // ("FOR OFFICE USE ONLY": the receiving office fills these in)
+    office:    {},                                               // ("FOR OFFICE USE ONLY": the receiving office fills these in)
+    copy:      {}                                                // ("Copy to", "cc": someone sent a copy; OSCAR 12 has no tags for them)
   };
   // What a field asks for, from the whole words of its label (lowercase, joined by "_").
   // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral");
@@ -1505,9 +1506,12 @@ else if (typeof exports === 'object')
   // its left can be another table's ("PATIENT | REFERRING MD" side by side).
   // The owner is the patient ("Participant information" too), the referring clinician
   // (current_user), the family doctor (doctor, the patient's MRP), someone else of the patient's
-  // ("Parent/guardian contact information", "Emergency contact") or the receiving office ("FOR
-  // OFFICE USE ONLY"); guessTag turns it into the tag (TAG_FOR).
+  // ("Parent/guardian contact information", "Emergency contact"), the receiving office ("FOR
+  // OFFICE USE ONLY") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
+  // "cc": not the column's or the box's owner, whoever's details are around it); guessTag turns
+  // it into the tag (TAG_FOR).
   const OWNER_CUES = [
+    ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk)\b/],
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
     ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
