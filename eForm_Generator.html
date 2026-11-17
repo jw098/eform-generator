@@ -1447,7 +1447,7 @@ else if (typeof exports === 'object')
     if (hasWord('first|given')) return 'firstName';
     if (hasWord('middle')) return '';
     // a name, or the person themselves ("Referring Physician: ____", "Family Doctor: ____")
-    if (hasWord('name|physician|doctor|md|dr|provider|practitioner|gp|mrp|referring')) return 'name';
+    if (hasWord('name|physician|doctor|md|dr|provider|practitioner|prescriber|prescribing|gp|mrp|referring')) return 'name';
     return '';
   }
 
@@ -1511,7 +1511,7 @@ else if (typeof exports === 'object')
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk)\b/],
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
     ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
-    ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|md|np|mw|dr|doctor|signature|clinic|office)\b/],
+    ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|office)\b/],
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
   ];
   // Whose details a text names ("Referring physician" -> clinician), from OWNER_CUES, or ''
