@@ -71,8 +71,8 @@ words, into pass 1.
 3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
    under a label (`areaFields`). A "label" here is ink, not words. A table's heading row (cells with
-   print, over at least two rows of empty cells right under them: blank, or a single tick box) has
-   no fields (`dropHeadingRows`).
+   print, over at least two rows of empty cells of their column right under them: blank, or a single
+   tick box, between the column's side rules) has no fields (`dropHeadingRows`).
 
 **Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and

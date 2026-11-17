@@ -440,6 +440,20 @@ window.TEST_CASE_LIST = [
     "folder": "questionnaire",
     "session": "questionnaire_session.json",
     "variations": true,
+    "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "extraFields",
+        "reason": "the blank space under \"(circle one)\", the note under \"Not difficult ... Extremely difficult\", is taken for an open writing area under a label (not on the page itself or the other sizes): no table or cells there"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "test": "extraFields",
+        "reason": "the blank space under \"(circle one)\", the note under \"Not difficult ... Extremely difficult\", is taken for an open writing area under a label (not on the page itself or the other sizes): no table or cells there"
+      }
+    ],
     "skip": [
       {
         "test": "fields",

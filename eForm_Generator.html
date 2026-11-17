@@ -4656,31 +4656,40 @@ else if (typeof exports === 'object')
   // "Several days" over a grid of tick boxes; "Drug | Dose | Frequency" over rows to fill in). A
   // cell with something printed in it heads its column when the cells right under it are empty
   // in at least two rows, one after the other: a blank box (nothing printed in it) or a single
-  // tick box (several are a cell's options, "☐ Left ☐ Right"). A blank cell over blank cells is
-  // a column to fill in ("Last Name | ____" down a table), and empty cells further down, past a
-  // gap, are another table's. A row whose cells are mostly such headings is a heading row, and
-  // none of its cells is a field, an empty corner over the rows' labels included. Pass 1's
-  // fields; page px.
-  function dropHeadingRows(fields){
+  // tick box (several are a cell's options, "☐ Left ☐ Right"). They must be cells: the column's
+  // side rules run down past them. Tick boxes in a list under it ("TESTS REQUESTED: ☐ CBC
+  // ☐ Ferritin", no rules between them) aren't a column of cells. A blank cell over blank cells
+  // is a column to fill in ("Last Name | ____" down a table). A row whose cells are mostly such
+  // headings is a heading row, and none of its cells is a field, an empty corner over the rows'
+  // labels included. Pass 1's fields (page px); the ink map (canvas px, w × h, scale canvas px
+  // per page px); lineHeight canvas px.
+  function dropHeadingRows(fields, inkMap, w, h, scale, lineHeight){
     const ticks = fields.filter(f => f.type === 'checkbox');
     const cells = fields.filter(f => f.box && (f.type === 'text' || f.type === 'textarea'));
     const centreIn = (g, f) => g.x + g.width/2 >= f.x && g.x + g.width/2 <= f.x + f.width;
     const bottomOf = (f) => f.y + f.height;
+    // (a side rule down from ya to yb, at x or a little outside it: a field sits a few pixels
+    // inside its cell)
+    const sideNear = (x, outward, ya, yb) => {
+      const cx = Math.round(x*scale), a = Math.round(ya*scale), b = Math.round(yb*scale);
+      for (let k = 0; k <= lineHeight*0.3; k += 3) if (sideRule(inkMap, w, h, cx + outward*k, a, b)) return true;
+      return false;
+    };
+    // (g is in a cell of f's column: its side rules run down past g)
+    const inColumn = (f, g) => sideNear(f.x, -1, g.y, bottomOf(g)) && sideNear(f.x + f.width, 1, g.y, bottomOf(g));
     // (how many rows down from cell f, in its column, one right after the other, hold an empty
     // cell, until one doesn't)
     const emptyRowsUnder = (f) => {
       const under = [...ticks, ...cells].filter(g => g !== f && g.y >= bottomOf(f) - 2 && centreIn(g, f)).sort((a, b) => a.y - b.y);
-      let rows = 0, above = bottomOf(f);
+      let rows = 0;
       for (let i = 0; i < under.length;){
         const first = under[i], mid = first.y + first.height/2;
-        if (first.y - above > f.height) break;
         const row = under.filter(g => g.y <= mid && bottomOf(g) >= mid);
         const rowTicks = row.filter(g => g.type === 'checkbox'), rowCells = row.filter(g => g.type !== 'checkbox');
-        const empty = (rowTicks.length === 1 && !rowCells.length) || (!rowTicks.length && rowCells.length === 1 && rowCells[0]._blank);
+        const empty = ((rowTicks.length === 1 && !rowCells.length) || (!rowTicks.length && rowCells.length === 1 && rowCells[0]._blank)) && inColumn(f, row[0]);
         if (!empty) break;
         rows++;
         const end = Math.max(...row.map(bottomOf));
-        above = end;
         while (i < under.length && under[i].y < end - 2) i++;
       }
       return rows;
@@ -5562,7 +5571,7 @@ else if (typeof exports === 'object')
 
       // The fields found (or a fillable PDF's own), then the page's words, read with the tick
       // boxes rubbed out (OCR reads a box's side as a letter)
-      let found = fromPdf || dropHeadingRows([...newFields, ...dedupCb]);
+      let found = fromPdf || dropHeadingRows([...newFields, ...dedupCb], inkMap, w, h, scale, lineHeight);
       const ticks = found.filter(f => f.type === 'checkbox');
       const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
                                  : `Found ${dedupCb.length} checkbox(es) and ${newFields.length} place(s) to write.`;
