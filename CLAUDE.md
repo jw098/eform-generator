@@ -209,6 +209,37 @@ fine meanwhile: temporary logs and experiments on copies of a page, with the app
 it was after. Once agreed, make the change and check it as below (snapshot, full suite), and
 bring back anything it changed that wasn't discussed.
 
+## Decisions
+
+Settled with the user; follow them unless the user changes them.
+
+**Working**
+- A test case's expected answer is what is right for the form, not what Auto Detect happens to
+  do. Change one (an eForm's field, a session's) only with the user's say-so, and never just to
+  make a test pass. Where Auto Detect is wrong, the rule changes, or it is a to-do or a skip.
+- A made-up test form (the limit forms) prints what real forms print. Where its wording is
+  artificial ("Today (oscarDB today)"), fix the form, not the rule.
+- Measure before choosing a number: log the values on every case (a temporary `console.log`, the
+  snapshot with `--log`), and say which numbers were measured and which were chosen.
+- Run the full suite in the background, so the user can keep talking meanwhile, and don't change
+  the app while a run is going: it reads the app once, at its start.
+- Until the tests pass, commit to the session's branch only; push to `main` once they pass. Don't
+  force-push.
+
+**What a correct eForm is**
+- A field to write in is blank page: it never covers printed text (`trimFieldsToBlank`).
+- A signature line isn't a text field, nor are words printed to circle: Auto Detect can't make
+  either, so where it takes one for a field, the case skips it.
+- A stamp's space holds what the stamp would: "Doctor stamp", "Physician stamp" `current_user`;
+  "Clinic stamp", "Office stamp" `clinic_label`. A stamp offered in brackets as another way to
+  fill a field ("NAME OF PHYSICIAN (or office stamp)") doesn't make it a stamp's.
+- A field whose tag fills several lines (`label`, `clinic_label`) is a text area.
+- On a form sent by the clinician, "referral", "referring" and "prescriber" mean the clinician
+  (the user): `current_user`, `clinic_phone`, `clinic_fax`. A date beside a signature is the date
+  of signing, `today`.
+- A birth date's tag is `dobc2` (year first). `chartno` isn't wanted: a chart number's field
+  needs no tag.
+
 ## Style
 
 - Match the existing code: compact JavaScript, small arrow helpers.
