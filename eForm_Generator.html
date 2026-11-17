@@ -4396,7 +4396,6 @@ else if (typeof exports === 'object')
   //                ends (textFieldsFromLines)
   //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
   //   _blank       a field whose cell or space has nothing printed in it (textFieldsFromLines)
-  //   _lineThickness the thickness of the line a field sits on, page px (textFieldsFromLines)
   //   toEnd        a writing area that runs down to the foot of the page or its footer (areaFields)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
@@ -4709,18 +4708,6 @@ else if (typeof exports === 'object')
     return fields.filter(f => !dropped.has(f));
   }
 
-  // The thickest a line can be, against the page's typical word height (OCR's), and still be a
-  // line: a bold word whose letters run together can read as a thick line ("Comments:", "management"
-  // at some sizes), and a field above it, as on a fill-in line, is none. Measured on the cases: real
-  // fields' lines are at most 0.66 of it (a mammography requisition's heavy lines), words read as
-  // lines 0.74 and more
-  const MAX_LINE_PER_WORD = 0.7;
-  // Drops the fields sitting on a "line" too thick to be one (MAX_LINE_PER_WORD): words run
-  // together, not a line. Only a line's own field (_lineThickness, from textFieldsFromLines) is
-  // judged; wordHeight in page px
-  function dropFieldsOnWords(fields, wordHeight){
-    return fields.filter(f => !(f._lineThickness && wordHeight && f._lineThickness > wordHeight*MAX_LINE_PER_WORD));
-  }
 
   // What the labels say about the fields themselves: everything pass 2 changes about which
   // fields there are (besides the fields after a colon, from colonFields). Returns the fields:
@@ -4885,6 +4872,51 @@ else if (typeof exports === 'object')
   // table heading reads as ink)
   const maxLineThickness = (h) => Math.max(3, Math.round(h*0.012));
 
+  // The bands that are parts of shaded bars, other than a bar's bottom one (by index into
+  // bands). The band finder splits a bar ("IMPORTANT NOTE: All fields must be completed",
+  // white letters on grey) into its solid top, slices through its letters and its solid bottom;
+  // the top alone can be thin enough to pass for a heavy line, with blank page above it to take
+  // for a field. Two bands are of one bar when they overlap along at least half the longer of
+  // the two (a long line passing over the end of a small black box isn't part of it) and no row
+  // between them is paper on the grey page: lighter than BAR_PAPER on average across their
+  // overlap, from the darkest row of one to the darkest row of the other. (On the ink map,
+  // widened strokes close the few pixels of paper between a fill-in line and a box's edge just
+  // under it.) Bands joined so, directly or through others, are a bar when together they are
+  // thicker than a line can be (maxThick); only its bottom band can still be a line.
+  const BAR_PAPER = 215;
+  function barBands(bands, gray, w, maxThick){
+    const owner = bands.map((b, i) => i);
+    const find = (i) => { while (owner[i] !== i){ owner[i] = owner[owner[i]]; i = owner[i]; } return i; };
+    const order = bands.map((b, i) => i).sort((i, j) => bands[i].y1 - bands[j].y1);
+    order.forEach((i, k) => {
+      const A = bands[i];
+      for (let m = k + 1; m < order.length; m++){
+        const j = order[m], B = bands[j];
+        if (B.y1 - A.y2 - 1 > maxThick*3) break;
+        if (B.y1 <= A.y2) continue;
+        const xa = Math.max(A.x1, B.x1), xb = Math.min(A.x2, B.x2);
+        if (xb - xa + 1 < 0.5*Math.max(A.x2 - A.x1 + 1, B.x2 - B.x1 + 1)) continue;
+        // (the mean grey of row y across the overlap)
+        const rowGrey = (y) => { let g = 0; for (let x = xa; x <= xb; x++) g += gray[y*w + x]; return g/(xb - xa + 1); };
+        const darkest = (b) => { let best = b.y1, bestGrey = Infinity; for (let y = b.y1; y <= b.y2; y++){ const g = rowGrey(y); if (g < bestGrey){ best = y; bestGrey = g; } } return best; };
+        const from = darkest(A), to = darkest(B);
+        let paper = false;
+        for (let y = from + 1; y < to && !paper; y++) if (rowGrey(y) >= BAR_PAPER) paper = true;
+        if (!paper) owner[find(i)] = find(j);
+      }
+    });
+    const stacks = new Map();
+    bands.forEach((b, i) => { const r = find(i); if (!stacks.has(r)) stacks.set(r, []); stacks.get(r).push(i); });
+    const inBar = new Set();
+    stacks.forEach(members => {
+      if (members.length < 2) return;
+      const top = Math.min(...members.map(i => bands[i].y1)), bottom = Math.max(...members.map(i => bands[i].y2));
+      if (bottom - top + 1 <= maxThick) return;
+      members.forEach(i => { if (bands[i].y2 < bottom - 2) inBar.add(i); });
+    });
+    return inBar;
+  }
+
   // Is a band of ink a printed line, judged from the page's grey levels in it? Bold words run
   // together ("Recommended", a heading in capitals) and white letters cut out of a dark bar
   // ("Complete ALL SECTIONS") make bands as long as a line; their letters leave gaps a line
@@ -4984,13 +5016,15 @@ else if (typeof exports === 'object')
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
     // still a line, so the row under a heading bar has a top
-    // A line that bounds a field: printed solid (solidLine), or a dot leader drawn in as one, or
-    // a shaded bar's bottom edge; and not an underline (isLine)
+    // A line that bounds a field: not inside a shaded bar (barBands), and printed solid
+    // (solidLine), or a dot leader drawn in as one, or a thick band's bottom edge; and not an
+    // underline (isLine)
     const isLeader = (b) => leaders.some(l => l.x1 <= b.x2 && l.x2 >= b.x1 && l.y1 <= b.y2 + 1 && l.y2 >= b.y1 - 1);
     const minGap = Math.max(2, (capHeight || lineHeight/2.5)*0.25);
     const isFieldLine = (b, bar) => (bar || isLeader(b) || solidLine(gray, w, b, minGap)) && isLine(b);
     const candidates = bands.map(b => (b.y2-b.y1+1) <= maxThick ? { band: b, bar: false } : { band: { ...b, y1: b.y2 }, bar: true });
-    const verdicts = candidates.map(c => isFieldLine(c.band, c.bar));
+    const inBar = barBands(bands, gray, w, maxThick);
+    const verdicts = candidates.map((c, i) => !inBar.has(i) && isFieldLine(c.band, c.bar));
     const lines = candidates.filter((c, i) => verdicts[i]).map(c => c.band)
                             .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     // (for tests/lines.js: each band and whether it was taken for a line, in page-image px)
@@ -5201,7 +5235,7 @@ else if (typeof exports === 'object')
         // box on a form). Two fill-in lines one above the other have no sides; there the words
         // above a field are the row above's, not its label.
         const box = bounded && downLine(x1 - 3, y1, y2) && downLine(x2 + 3, y1, y2);
-        cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box, lineRows: L.y2 - L.y1 + 1 });
+        cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box });
       }
       // In a table row whose cells have their label at the top and their field under it
       // ("DIAGNOSIS | ICD 9 CODE"), the cells share the space under their labels to write in. A
@@ -5222,8 +5256,7 @@ else if (typeof exports === 'object')
         if (f.x2 - f.x1 < lineHeight*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
         const tall = (f.y2 - f.y1) > lineHeight*1.8;
         fields.push({ page, x: f.x1/scale, y: f.y1/scale, width: (f.x2-f.x1)/scale, height: (f.y2-f.y1)/scale,
-                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone, _blank: !!f.blank,
-                      _lineThickness: c.lineRows/scale });
+                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone, _blank: !!f.blank });
       }));
     });
     return fields;
@@ -5703,7 +5736,6 @@ else if (typeof exports === 'object')
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its lines' furthest end)
         inkColons(read, inkMap, w, h, scale);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
-        found = dropFieldsOnWords(found, labelWordsOf(found, read).wordHeight);
         labelFields(found, read, lineAcross);
         fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);

@@ -2,7 +2,8 @@
 // possible line on the page (a run of ink across a row, as `bands` finds it), and whether it
 // is a line that bounds a field (1: a line to write on, a table row's or a box's edge, the
 // bottom edge of a shaded bar) or not (0: words, a heading's underline, white letters in a dark
-// bar, a barcode). Each is [x, y, width, height] in the page image's pixels, then the label.
+// bar or any other part of a bar but its bottom edge, a barcode). Each is [x, y, width,
+// height] in the page image's pixels, then the label.
 // A case's variations are tested against the same list, scaled to their size.
 // Pages are named "<case folder> p<page number>".
 window.LINE_SUSPECTS = {
@@ -313,7 +314,7 @@ window.LINE_SUSPECTS = {
   ],
   'sph-diabetes-health-centre p1': [
     [825, 471, 150, 10, 0],
-    [146, 473, 642, 16, 1],
+    [146, 473, 642, 16, 0],  // part of a shaded bar
     [1053, 485, 300, 1, 1],
     [146, 489, 642, 1, 0],
     [146, 490, 375, 2, 0],
@@ -346,9 +347,9 @@ window.LINE_SUSPECTS = {
     [1001, 945, 440, 4, 1],
     [503, 979, 938, 4, 1],
     [146, 989, 1310, 6, 1],
-    [146, 995, 181, 11, 1],
+    [146, 995, 181, 11, 0],  // part of a shaded bar
     [167, 1012, 115, 1, 0],
-    [146, 1019, 181, 8, 1],
+    [146, 1019, 181, 8, 0],  // part of a shaded bar
     [1077, 1023, 113, 2, 0],
     [146, 1028, 181, 16, 0],
     [662, 1037, 176, 4, 1],
@@ -669,10 +670,10 @@ window.LINE_SUSPECTS = {
     [398, 247, 115, 1, 0],
     [939, 250, 206, 2, 0],
     [955, 257, 140, 1, 0],
-    [0, 283, 1499, 18, 1],
+    [0, 283, 1499, 18, 0],  // part of a shaded bar
     [0, 297, 182, 2, 0],
     [171, 297, 125, 1, 0],
-    [255, 301, 1245, 1, 1],
+    [255, 301, 1245, 1, 0],  // part of a shaded bar
     [0, 302, 371, 1, 0],
     [375, 302, 119, 1, 0],
     [497, 302, 137, 1, 0],
@@ -761,7 +762,7 @@ window.LINE_SUSPECTS = {
     [398, 247, 115, 1, 0],
     [939, 250, 206, 4, 0],
     [954, 257, 165, 4, 0],
-    [0, 300, 1499, 1, 1],  // bottom edge of a shaded bar
+    [0, 300, 1499, 1, 0],  // part of a shaded bar
     [0, 301, 400, 2, 0],
     [428, 301, 140, 2, 0],
     [615, 301, 240, 2, 0],
@@ -785,8 +786,8 @@ window.LINE_SUSPECTS = {
     [1105, 312, 121, 1, 0],
     [1138, 312, 362, 2, 0],
     [386, 313, 748, 1, 0],
-    [0, 314, 1499, 18, 1],
-    [0, 329, 264, 1, 1],
+    [0, 314, 1499, 18, 0],  // part of a shaded bar
+    [0, 329, 264, 1, 0],  // part of a shaded bar
     [0, 332, 1499, 1, 0],
     [0, 334, 144, 2, 0],
     [222, 334, 167, 1, 0],

@@ -77,11 +77,13 @@ words, into pass 1.
    ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a check can't rely on every colon.
    Dotted and dashed lines ("Date of injury: ........") are drawn into the ink map as the
    solid lines they stand for (`drawDotLeaders`), before the bands are found.
-   A band is taken for a line that bounds a field only if its ink, split at its own grey level
-   (Otsu's), is a solid line once its soft edges are trimmed (`solidLine`), or it is a dot leader
-   or a shaded bar's bottom edge; and it isn't an underline, with letters standing on it
-   (`isLine`). Bold words run together and white letters in a dark bar make bands too; this is
-   what turns them away.
+   A band is taken for a line that bounds a field only if it isn't part of a bar other than its
+   bottom edge (`barBands`: bands overlapping along half the longer, with no row of paper between
+   them on the grey page, together thicker than a line can be), its ink, split at its own grey
+   level (Otsu's), is a solid line once its soft edges are trimmed (`solidLine`), or it is a dot
+   leader or a thick band's bottom edge; and it isn't an underline, with letters standing on it
+   (`isLine`). Bold words run together, a bar's solid top and the white letters in it make bands
+   too; this is what turns them away.
 2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
 3. Text fields from the lines (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
@@ -93,8 +95,7 @@ words, into pass 1.
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and
 no tags).
 4. Words OCR read from a line ("EEE" on an underscore line, `markLineWords`) are left out of
-   the page's typical word height, not out of the words. A field on a "line" thicker than 0.7 of that height
-   sits on words run together, not a line, and is dropped (`dropFieldsOnWords`). Then fields after a colon
+   the page's typical word height, not out of the words. Then fields after a colon
    (`colonFields`: blank page, or a line too short for pass 1 to find), each field's label (`labelFields`; the words just above a line come last, and never another
    line's caption), a one-line field
    shorter than its own label's text made taller, through blank page only
@@ -130,9 +131,9 @@ PW_CHANNEL= node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" -
 
 Every test must pass; to-dos (○) are allowed. CI runs the same on each push, then the line
 tests: whether each band of ink on the case pages is taken for a line, against the labels in
-`tests/cases/lines.js` (1: a line that bounds a field; 0: words, an underline, a bar's white
-letters, a line's split-off edge). Run them after any change to the ink map, `bands` or the line
-test (`solidLine`, `isLine`); they take about a minute:
+`tests/cases/lines.js` (1: a line that bounds a field; 0: words, an underline, any part of a
+bar but its bottom edge, a line's split-off edge). Run them after any change to the ink map, `bands` or the line
+test (`barBands`, `solidLine`, `isLine`); they take about a minute:
 
 ```
 PW_CHANNEL= node tests/lines.js "http://localhost:8000/eForm_Generator.html#test" --variations
