@@ -4396,6 +4396,7 @@ else if (typeof exports === 'object')
   //                ends (textFieldsFromLines)
   //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
   //   _blank       a field whose cell or space has nothing printed in it (textFieldsFromLines)
+  //   _lineThickness the thickness of the line a field sits on, page px (textFieldsFromLines)
   //   toEnd        a writing area that runs down to the foot of the page or its footer (areaFields)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
@@ -4706,6 +4707,19 @@ else if (typeof exports === 'object')
       if (row.filter(g => heads.has(g)).length >= Math.max(2, row.length/2)) row.forEach(g => dropped.add(g));
     });
     return fields.filter(f => !dropped.has(f));
+  }
+
+  // The thickest a line can be, against the page's typical word height (OCR's), and still be a
+  // rule: a bold word whose letters run together can read as a thick rule ("Comments:", "management"
+  // at some sizes), and a field above it, as on a fill-in line, is none. Measured on the cases: real
+  // fields' lines are at most 0.66 of it (a mammography requisition's heavy rules), words read as
+  // lines 0.74 and more
+  const MAX_LINE_PER_WORD = 0.7;
+  // Drops the fields sitting on a "line" too thick to be one (MAX_LINE_PER_WORD): words run
+  // together, not a rule. Only a line's own field (_lineThickness, from textFieldsFromLines) is
+  // judged; wordHeight in page px
+  function dropFieldsOnWords(fields, wordHeight){
+    return fields.filter(f => !(f._lineThickness && wordHeight && f._lineThickness > wordHeight*MAX_LINE_PER_WORD));
   }
 
   // What the labels say about the fields themselves: everything pass 2 changes about which
@@ -5106,7 +5120,7 @@ else if (typeof exports === 'object')
         // box on a form). Two fill-in lines one above the other have no sides; there the words
         // above a field are the row above's, not its label.
         const box = bounded && rule(x1 - 3, y1, y2) && rule(x2 + 3, y1, y2);
-        cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box });
+        cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box, lineRows: L.y2 - L.y1 + 1 });
       }
       // In a table row whose cells have their label at the top and their field under it
       // ("DIAGNOSIS | ICD 9 CODE"), the cells share the space under their labels to write in. A
@@ -5127,7 +5141,8 @@ else if (typeof exports === 'object')
         if (f.x2 - f.x1 < lineHeight*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
         const tall = (f.y2 - f.y1) > lineHeight*1.8;
         fields.push({ page, x: f.x1/scale, y: f.y1/scale, width: (f.x2-f.x1)/scale, height: (f.y2-f.y1)/scale,
-                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone, _blank: !!f.blank });
+                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone, _blank: !!f.blank,
+                      _lineThickness: c.lineRows/scale });
       }));
     });
     return fields;
@@ -5607,6 +5622,7 @@ else if (typeof exports === 'object')
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its rules' furthest end)
         inkColons(read, inkMap, w, h, scale);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
+        found = dropFieldsOnWords(found, labelWordsOf(found, read).wordHeight);
         labelFields(found, read, ruleAcross);
         fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);

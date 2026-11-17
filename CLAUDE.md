@@ -78,7 +78,8 @@ words, into pass 1.
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and
 no tags).
 4. Words OCR read from a rule ("EEE" on an underscore line, `markRuleWords`) are left out of
-   the page's typical word height, not out of the words. Then fields after a colon
+   the page's typical word height, not out of the words. A field on a "line" thicker than 0.7 of that height
+   sits on words run together, not a rule, and is dropped (`dropFieldsOnWords`). Then fields after a colon
    (`colonFields`: blank page, or a line too short for pass 1 to take as a rule), each field's label (`labelFields`; the words just above a line come last, and never another
    line's caption), a one-line field
    shorter than its own label's text made taller, through blank page only
