@@ -91,6 +91,10 @@ no tags).
    "Doctor stamp" `current_user`, "Clinic stamp" `clinic_label`). A fillable PDF's field the PDF formats as a date is one already, in
    its format (`pdfDateFormat`).
 
+Last, whichever pass found it, a field with printed text in it (more than a speck, not a rule or a
+tick box) is cut back to its larger blank part, however small (`trimFieldsToBlank`): a field to
+write in is blank page.
+
 The pass-2 steps pass what they learn on the fields themselves (`box`, `_words`, `_split`…);
 the list is in the comment at the head of "Pass 2". Shared tests: `sideRule` /
 `joinedBySides` (rules and boxes), `capsText` / `headingLabel` / `isSentence` (headings and
