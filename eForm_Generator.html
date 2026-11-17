@@ -4915,6 +4915,11 @@ else if (typeof exports === 'object')
     const lines = bands.map(b => (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 })
                        .filter(isLine)
                        .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
+    // (for tests/lines.js: each band and whether it was taken for a line, in page-image px)
+    if (window.eformMapperLineLog) window.eformMapperLineLog.push({ scale, bands: bands.map(b => {
+      const t = (b.y2-b.y1+1) <= maxThick ? b : { ...b, y1: b.y2 };
+      return { x: b.x1/scale, y: t.y1/scale, width: (b.x2-b.x1+1)/scale, height: (t.y2-t.y1+1)/scale, line: isLine(t) };
+    }) });
     const rowLine = capHeight ? Math.min(lineHeight, capHeight*1.6) : lineHeight;
     const isInk = (x,y) => inkMap[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
