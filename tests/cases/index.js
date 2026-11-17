@@ -491,8 +491,7 @@ window.TEST_CASE_LIST = [
     "variations": true,
     "todo": {
       "fields": "a row of boxes for one character each (the Personal Health Number, the date of birth, the postal code) isn't found, neither as tick boxes nor as fields: empty boxes side by side in a row are one field across them",
-      "tags": "captions printed under their lines (\"Patient surname\" under its line) aren't taken as the lines' labels: the top row gets no tags, and the row under it is tagged from the captions of the row above; \"Date (YYYY-MM-DD)\" under its line gives no today tag",
-      "dates": "the date line's caption, \"Date (YYYY-MM-DD)\", is printed under it, and captions under lines aren't taken as labels yet (see tags), so the line isn't made a date field"
+      "tags": "\"Prescriber name\" and \"Prescriber phone\", captions under their lines, are read as the lines' labels, but \"prescriber\" isn't one of the words that say a field is the clinician's (OWNER_CUES), so the name gets no tag and the phone the patient's"
     },
     "skip": [
       {

@@ -77,14 +77,18 @@ pass 1 found and is skipped when the words can't be read (fields then keep plain
 no tags).
 4. Words OCR read from a rule ("EEE" on an underscore line, `markRuleWords`) are left out of
    the page's typical word height, not out of the words. Then fields after a colon
-   (`colonFields`: blank page, or a line too short for pass 1 to take as a rule), each field's label (`labelFields`), a one-line field
+   (`colonFields`: blank page, or a line too short for pass 1 to take as a rule), each field's label (`labelFields`; the words just above a line come last, and never another
+   line's caption), a one-line field
    shorter than its own label's text made taller, through blank page only
    (`fitFieldsToLabels`), the fields the labels split or rule out (`fieldsFromLabels`),
-   captions and section headings (`sectionFields`).
+   captions and section headings (`sectionFields`: a one-line field with no other label takes its
+   caption, and several captions spaced along a line are a field each).
 5. Names from the labels, then tags (`tagFields`: `fieldOwners` → `guessTag` / `askedFor` /
    `TAG_FOR` → `captionTag`), then date fields: a one-line field whose label names a date
    (`labelNamesADate`, not a birth date) becomes one, in the format printed with it
-   (`printedDateFormat`). A fillable PDF's field the PDF formats as a date is one already, in
+   (`printedDateFormat`); and a field whose tag fills several lines (`label`, `clinic_label`)
+   is a text area (`fitMultilineFields`). A stamp's label gives its details (`guessTag`:
+   "Doctor stamp" `current_user`, "Clinic stamp" `clinic_label`). A fillable PDF's field the PDF formats as a date is one already, in
    its format (`pdfDateFormat`).
 
 The pass-2 steps pass what they learn on the fields themselves (`box`, `_words`, `_split`…);

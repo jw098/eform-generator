@@ -1377,6 +1377,11 @@ else if (typeof exports === 'object')
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
     if (/_/.test(label) && STANDARD_TAGS.has(label.trim())) return label.trim();
+    // (a stamp's details: "Doctor stamp", "Physician stamp" is the clinician's name; "Clinic stamp",
+    // "Office stamp" the clinic's name and address. Not a stamp offered in brackets as another way
+    // to fill the field, "NAME OF PHYSICIAN (or office stamp)")
+    const unbracketed = String(label || '').replace(/\([^)]*\)/g, ' ');
+    if (namesAStamp(unbracketed)) return /(^|[^a-z])(clinic|office)([^a-z]|$)/i.test(unbracketed) ? 'clinic_label' : 'current_user';
     // (text as lowercase words joined by _: "Patient's Name" -> "patients_name")
     const underscored = (v) => String(v || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? underscored(name).replace(/_\d+$/, '') : '';
@@ -1452,6 +1457,8 @@ else if (typeof exports === 'object')
   const DAY_FIRST_RE = /\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b|\bD{1,2}\s*[\/.\-]\s*M/;
   const YEAR_FIRST_RE = /\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b|\bY{2,4}\s*[\/.\-]\s*M/;
 
+  // Whether a field's label names a stamp ("Doctor stamp", "Clinic stamp")
+  const namesAStamp = (text) => /(^|[^a-z])stamps?([^a-z]|$)/i.test(String(text || ''));
   // Whether a field's label names a signature ("Signature", "Practitioner signature", "Signed by")
   const labelNamesASignature = (label) => /(^|[^a-z])(signature|sig|signed)([^a-z]|$)/i.test(String(label || ''));
   // Whether a field's label names one date, so the field is a date field: "Date", "Date signed",
@@ -4389,6 +4396,7 @@ else if (typeof exports === 'object')
   //   _ownColon    in a box, a label of its own on its row ending with a colon (labelFields)
   //   caption      small words printed under a fill-in line (sectionFields)
   //   section      the heading over its column, for its name (sectionFields)
+  //   _captionParts several captions spaced along a line: the line's parts (sectionFields)
   // and on OCR's words: onRule, a rule read as a word (markRuleWords)
   // addField keeps only the field's own properties, so these go no further than Auto Detect.
   // Shared by the steps below (positions in page-image pixels)
@@ -4430,6 +4438,13 @@ else if (typeof exports === 'object')
     return { boxes, words, wordHeight };
   }
 
+  // A fill-in line's caption: the words printed just under it, within its width ("Patient
+  // surname" under its line, "FIRST  MIDDLE  LAST" under a NAME line), out of `words` (page px)
+  const captionWords = (f, words, wordHeight) => {
+    const bottom = f.y + f.height;
+    return words.filter(w => w.y0 >= bottom - wordHeight*0.3 && w.y0 - bottom <= wordHeight*1.2 && (w.x0+w.x1)/2 >= f.x && (w.x0+w.x1)/2 <= f.x + f.width);
+  };
+
   // Each field's printed label, from the page's words.
   // A tick box's label is the words just right of it ("Yes, email"); those words are then
   // nobody else's. A text field's label is, in order of preference:
@@ -4440,7 +4455,10 @@ else if (typeof exports === 'object')
   //  - else the phrase just left of it on its row ("Patient Name Last:"). On a form of fill-in
   //    lines the words above a field are the row above's ("FIRST MIDDLE LAST" printed under the
   //    Name line), so they're not taken there;
-  //  - else, with nothing to its left, the line just above it (a heading over a writing area).
+  //  - else, with nothing to its left, the line just above it (a heading over a writing area),
+  //    but not another line's caption: on a form that prints what goes on a line under it
+  //    ("______" over "Patient surname"), the words just above a line are the line above's.
+  //    So these are decided last, once every other field has its label.
   // A heading word at the start of its row is part of its label ("APPOINTMENT: Date").
   // Sets f.label, and f._words, the label's words.
   // ruleAcross(x1, x2, y1, y2): is there a rule across x1..x2 somewhere between y1 and y2?
@@ -4464,6 +4482,7 @@ else if (typeof exports === 'object')
       if (got.length){ f.label = phraseText(got); f._words = got; got.forEach(w => taken.add(w)); }
     });
     const free = words.filter(w => !taken.has(w));
+    const aboveOnly = [];                                 // [field, the words just above it]
 
     fields.forEach(f => {
       if (f.type === 'checkbox') return;
@@ -4533,12 +4552,17 @@ else if (typeof exports === 'object')
         left = [...before.sort((a,b) => a.x0-b.x0), ...left];
         f.label = phraseText(left);
         f._words = left;
-      } else if (above.length){
-        // Nothing to its left either: the line just above (a heading over a writing area)
-        f.label = phraseText(above);
-        f._words = above;
-      }
+      } else if (above.length) aboveOnly.push([f, above]);
       if (ownColon) f._ownColon = true;
+    });
+    // Nothing to its left either: the line just above (a heading over a writing area), less any
+    // words that are another open line's caption (just under it, and no field's label)
+    const labelled = new Set(fields.flatMap(f => f._words || []));
+    const openLines = fields.filter(g => g.type === 'text' && !g.box);
+    const captions = new Set(openLines.flatMap(g => captionWords(g, free.filter(w => !labelled.has(w)), wordHeight)));
+    aboveOnly.forEach(([f, above]) => {
+      const own = above.filter(w => !captions.has(w));
+      if (own.length){ f.label = phraseText(own); f._words = own; }
     });
   }
 
@@ -4558,17 +4582,38 @@ else if (typeof exports === 'object')
       const labelHeight = Math.max(...ws.map(wd => wd.y1 - wd.y0));
       if (f.height >= labelHeight) return;
       if (!ws.every(wd => wd.x1 <= f.x + 6 && Math.abs((wd.y0 + wd.y1)/2 - (f.y + f.height/2)) <= labelHeight)) return;
-      let top = bottom - labelHeight*FIELD_PER_LABEL;
-      // (not up into a field above it, over any part of it)
-      fields.forEach(g => { if (g !== f && g.x < f.x + f.width && g.x + g.width > f.x && g.y + g.height <= f.y + 1) top = Math.max(top, g.y + g.height + 1); });
-      // (nor into ink above it: the first row with any ink across the field's width)
-      const x1 = Math.max(0, Math.round(f.x*scale)), x2 = Math.min(w-1, Math.round((f.x + f.width)*scale));
-      for (let y = Math.round(f.y*scale) - 1; y >= Math.max(0, Math.round(top*scale)); y--){
-        let ink = false;
-        for (let x = x1; x <= x2 && !ink; x++) if (inkMap[y*w + x]) ink = true;
-        if (ink){ top = Math.max(top, (y + 2)/scale); break; }
-      }
+      const top = blankTopAbove(f, bottom - labelHeight*FIELD_PER_LABEL, fields, inkMap, w, scale);
       if (top < f.y){ f.height = bottom - top; f.y = top; }
+    });
+  }
+  // How far up field f can grow, at most to `top`, through blank page only: not up into a field
+  // above it (over any part of it), nor into ink above it (the first row with any ink across its
+  // width). Page px; the ink map in canvas px (w wide, scale canvas px per page px).
+  function blankTopAbove(f, top, fields, inkMap, w, scale){
+    fields.forEach(g => { if (g !== f && g.x < f.x + f.width && g.x + g.width > f.x && g.y + g.height <= f.y + 1) top = Math.max(top, g.y + g.height + 1); });
+    const x1 = Math.max(0, Math.round(f.x*scale)), x2 = Math.min(w-1, Math.round((f.x + f.width)*scale));
+    for (let y = Math.round(f.y*scale) - 1; y >= Math.max(0, Math.round(top*scale)); y--){
+      let ink = false;
+      for (let x = x1; x <= x2 && !ink; x++) if (inkMap[y*w + x]) ink = true;
+      if (ink) return Math.max(top, (y + 2)/scale);
+    }
+    return top;
+  }
+
+  // The tags OSCAR fills with several lines: the patient's label and the clinic's ("Multiline name
+  // and address")
+  const MULTILINE_TAGS = new Set(['label', 'clinic_label']);
+  // A field whose tag fills several lines is a text area. Found as a one-line field ("Clinic
+  // stamp" under a line, with room above it for the stamp), it grows up from its line to four
+  // times its height, through blank page only (blankTopAbove), so the block fits
+  function fitMultilineFields(fields, inkMap, w, scale){
+    fields.forEach(f => {
+      if (!MULTILINE_TAGS.has(f.oscarTag) || (f.type !== 'text' && f.type !== 'textarea')) return;
+      if (f.type === 'text'){
+        const bottom = f.y + f.height, top = blankTopAbove(f, bottom - f.height*4, fields, inkMap, w, scale);
+        if (top < f.y){ f.height = bottom - top; f.y = top; }
+      }
+      f.type = 'textarea';
     });
   }
 
@@ -4595,7 +4640,9 @@ else if (typeof exports === 'object')
 
   // What's printed around the fields, for their names and tags:
   //  - a fill-in line's caption: the small words printed just under it, within its width
-  //    ("FIRST  MIDDLE  LAST" under a NAME line): they say what goes on it, and in what order;
+  //    ("FIRST  MIDDLE  LAST" under a NAME line): they say what goes on it, and in what order.
+  //    A one-line field with no other label takes its caption for its label ("Patient surname"
+  //    under its line);
   //  - a text field's section, for its name only: the nearest ALL-CAPS heading above it ("REFERRING
   //    MD"), over its own column, when it's in a box (a table's column), so two "Last Name"s get
   //    names of their own. A heading has no fields on its row and isn't any field's label (on a
@@ -4610,10 +4657,20 @@ else if (typeof exports === 'object')
     const labelWords = new Set(texts.flatMap(f => f._words || []));
     texts.forEach(f => {
       if (f.box || (f.type !== 'text' && f.type !== 'textarea')) return;
-      const bottom = f.y + f.height;
-      const under = free.filter(w => !labelWords.has(w) && w.y0 >= bottom - wordHeight*0.3 && w.y0 - bottom <= wordHeight*1.2 &&
-                                     (w.x0+w.x1)/2 >= f.x && (w.x0+w.x1)/2 <= f.x + f.width);
-      if (under.length) f.caption = phraseText(under.sort((a,b) => a.x0-b.x0));
+      const under = captionWords(f, free.filter(w => !labelWords.has(w)), wordHeight).sort((a,b) => a.x0-b.x0);
+      if (!under.length) return;
+      f.caption = phraseText(under);
+      // (a one-line field with nothing else to say what it is: its caption is its label, "Date
+      // (YYYY-MM-DD)" under the line; several captions spaced along it, "Doctor stamp ... Clinic
+      // stamp", are a field each, over its part of the line, f._captionParts)
+      if (!f.label && f.type === 'text'){
+        const groups = [];
+        under.forEach(w => { const g = groups[groups.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wordHeight*3) g.push(w); else groups.push([w]); });
+        const cuts = groups.map((g, j) => j ? g[0].x0 - 4 : f.x), end = (j) => j+1 < cuts.length ? cuts[j+1] : f.x + f.width;
+        if (groups.length > 1 && cuts.every((c, j) => end(j) - c >= wordHeight*3))
+          f._captionParts = groups.map((g, j) => ({ x: cuts[j], width: end(j) - cuts[j], label: phraseText(g), caption: phraseText(g), _words: g }));
+        else { f.label = f.caption; f._words = under; }
+      }
     });
     const isLabel = (l) => l.words.some(w => labelWords.has(w));
     const heads = read.lines.filter(l => capsText(l.text, 6) && !isLabel(l) &&
@@ -5463,6 +5520,7 @@ else if (typeof exports === 'object')
         fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);
         sectionFields(found, read);
+        found = found.flatMap(f => { const { _captionParts, ...g } = f; return _captionParts ? _captionParts.map(part => ({ ...g, ...part })) : [g]; });
       }
       // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
       // and below that span it, joined by sides down from both ends of the top one (page-image
@@ -5497,6 +5555,7 @@ else if (typeof exports === 'object')
         used.add(f.name);
       });
       if (read) tagFields(found, read, boxOf);
+      if (read) fitMultilineFields(found, inkMap, w, scale);
       // (a field already on the page at the same place and size isn't added again)
       found.forEach(f => {
         const dup = dataFields(state.fields).some(k =>
