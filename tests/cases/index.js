@@ -456,12 +456,18 @@ window.TEST_CASE_LIST = [
     "folder": "typed-form",
     "session": "typed_form_session.json",
     "variations": true,
-    "variationTodo": [
+    "variationSkip": [
       {
         "variation": "2.5× size",
         "page": 1,
         "test": "fields",
-        "reason": "at 2.5× OCR reads \"requested\" without its colon, so the blank after \"Number of visits requested: ......\" isn't taken for one (a short line is taken only after a colon)"
+        "region": [
+          575,
+          630,
+          70,
+          55
+        ],
+        "reason": "the blank after \"Number of visits requested: ......\": at 2.5× OCR reads \"requested\" without its colon, and the dots are shorter than a line pass 1 finds, so nothing makes a field of them (a short line is taken only after a colon: taking one after any word would take short lines and dots that are no blanks)"
       }
     ],
     "skip": [
