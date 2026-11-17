@@ -4609,9 +4609,11 @@ else if (typeof exports === 'object')
   const MAX_INK_IN_FIELD = 0.03;
   // A field to write in is blank page: one with printed text in it is cut back to its larger blank
   // part, above or below the text (rules and tick boxes don't count: a ruled writing area has its
-  // lines in it, a fill-in line's field sits on its line). Kept as it is if what's left would be
-  // smaller than any field Auto Detect takes. Canvas px: the ink map (w × h), the rules (bands);
-  // fields in page px (scale canvas px per page px); minHeight canvas px.
+  // lines in it, a fill-in line's field sits on its line). However small that part is: a cramped
+  // cell gets a cramped field, but never one over its print ("DEGREE/GRADE (WAD, SPRAIN, STRAIN)"
+  // with a few pixels under it). Kept as it is only where no blank is left (under minHeight).
+  // Canvas px: the ink map (w × h), the rules (bands); fields in page px (scale canvas px per page
+  // px); minHeight canvas px.
   function trimFieldsToBlank(fields, inkMap, w, h, scale, bands, minHeight){
     const ticks = fields.filter(f => f.type === 'checkbox').map(t => ({ x1: t.x*scale - 3, x2: (t.x + t.width)*scale + 3, y1: t.y*scale - 3, y2: (t.y + t.height)*scale + 3 }));
     const onRule = (x, y) => bands.some(b => y >= b.y1 - 1 && y <= b.y2 + 1 && x >= b.x1 - 1 && x <= b.x2 + 1);
@@ -5589,8 +5591,7 @@ else if (typeof exports === 'object')
       if (read) tagFields(found, read, boxOf);
       if (read) fitMultilineFields(found, inkMap, w, scale);
       // (whatever rule found a field: none covers printed text)
-      { const capHeight = textCapHeight(inkMap, w, h), rowLine = capHeight ? Math.min(lineHeight, capHeight*1.6) : lineHeight;
-        trimFieldsToBlank(found, inkMap, w, h, scale, bands, rowLine*0.4); }
+      trimFieldsToBlank(found, inkMap, w, h, scale, bands, 3);
       // (a field already on the page at the same place and size isn't added again)
       found.forEach(f => {
         const dup = dataFields(state.fields).some(k =>
