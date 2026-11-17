@@ -4226,9 +4226,10 @@ else if (typeof exports === 'object')
       return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
     };
     // A line printed from canvas column xs along rows ya..yb (a label's row): ink only in a thin
-    // band, its gaps no wider than a dot's; where it ends, or -1 where what starts at xs isn't a
-    // line. The band is under the height of the shortest letters ("a", "x": about 0.4 of OCR's
-    // box for a word, which reaches from the tallest letter to the lowest)
+    // band, its gaps no wider than a dot's; { end, top }: where it ends and its top row, or end -1
+    // where what starts at xs isn't a line. The band is under the height of the shortest letters
+    // ("a", "x": about 0.4 of OCR's box for a word, which reaches from the tallest letter to the
+    // lowest)
     const lineFrom = (xs, ya, yb, textHeight) => {
       const thin = Math.max(2, Math.round(textHeight*0.35*scale)), gapMax = Math.max(2, Math.round(textHeight*0.3*scale));
       let end = -1, gap = 0, top = Infinity, bottom = -1;
@@ -4239,7 +4240,7 @@ else if (typeof exports === 'object')
         if (Math.max(bottom, b) - Math.min(top, t) + 1 > thin) break;
         top = Math.min(top, t); bottom = Math.max(bottom, b); end = x; gap = 0;
       }
-      return end;
+      return { end, top };
     };
     const out = [];
     // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
@@ -4266,9 +4267,11 @@ else if (typeof exports === 'object')
         // injury: ........", "Visits: ____" (pass 1 takes no rule shorter than 7.5% of the page's
         // width). A line is ink only in a thin band across the label's row (no letter, not even
         // "x", is that flat), with gaps no wider than a dot's, at least two letters long
-        const end = lineFrom(xb + 1, ya, yb + Math.round(textHeight*0.2*scale), textHeight);
+        const { end, top } = lineFrom(xb + 1, ya, yb + Math.round(textHeight*0.2*scale), textHeight);
         if (end < 0 || end - (xb + 1) < textHeight*1.5*scale) return;
-        const line = { page, x: (xb + 1)/scale, y: word.y0 - textHeight*0.3, width: (end - xb)/scale, height: textHeight*1.6, type: 'text', name: 'text', oscarTag: '' };
+        // (on the line, as any fill-in line's field: from just above it up a text line and a half)
+        const lineTop = (top - 2)/scale;
+        const line = { page, x: (xb + 1)/scale, y: lineTop - textHeight*1.6, width: (end - xb)/scale, height: textHeight*1.6, type: 'text', name: 'text', oscarTag: '' };
         if (!found.concat(out).some(g => overlaps(line, g))) out.push(line);
         return;
       }
@@ -4598,6 +4601,35 @@ else if (typeof exports === 'object')
       if (ink) return Math.max(top, (y + 2)/scale);
     }
     return top;
+  }
+
+  // More printed ink than this, as a share of a field, is text in it ("(WAD, SPRAIN, STRAIN)" in a
+  // DEGREE/GRADE cell's space); less is an edge or a mark that belongs there (a stroke of the label
+  // beside it, the ticks dividing YYYY / MM / DD)
+  const MAX_INK_IN_FIELD = 0.03;
+  // A field to write in is blank page: one with printed text in it is cut back to its larger blank
+  // part, above or below the text (rules and tick boxes don't count: a ruled writing area has its
+  // lines in it, a fill-in line's field sits on its line). Kept as it is if what's left would be
+  // smaller than any field Auto Detect takes. Canvas px: the ink map (w × h), the rules (bands);
+  // fields in page px (scale canvas px per page px); minHeight canvas px.
+  function trimFieldsToBlank(fields, inkMap, w, h, scale, bands, minHeight){
+    const ticks = fields.filter(f => f.type === 'checkbox').map(t => ({ x1: t.x*scale - 3, x2: (t.x + t.width)*scale + 3, y1: t.y*scale - 3, y2: (t.y + t.height)*scale + 3 }));
+    const onRule = (x, y) => bands.some(b => y >= b.y1 - 1 && y <= b.y2 + 1 && x >= b.x1 - 1 && x <= b.x2 + 1);
+    const inTick = (x, y) => ticks.some(t => x >= t.x1 && x <= t.x2 && y >= t.y1 && y <= t.y2);
+    fields.forEach(f => {
+      if (f.type !== 'text' && f.type !== 'textarea' && f.type !== 'date') return;
+      const xa = Math.max(0, Math.round(f.x*scale)), xb = Math.min(w-1, Math.round((f.x + f.width)*scale));
+      const ya = Math.max(0, Math.round(f.y*scale)), yb = Math.min(h-1, Math.round((f.y + f.height)*scale));
+      let ink = 0, top = Infinity, bottom = -1;
+      for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++)
+        if (inkMap[y*w + x] && !onRule(x, y) && !inTick(x, y)){ ink++; if (y < top) top = y; if (y > bottom) bottom = y; }
+      if (ink <= (xb - xa + 1)*(yb - ya + 1)*MAX_INK_IN_FIELD) return;
+      // (the larger blank part: under the text, or over it)
+      const under = yb - (bottom + 2), over = (top - 2) - ya;
+      if (Math.max(under, over) < minHeight) return;
+      if (under >= over){ const y = (bottom + 2)/scale; f.height = f.y + f.height - y; f.y = y; }
+      else f.height = (top - 2)/scale - f.y;
+    });
   }
 
   // The tags OSCAR fills with several lines: the patient's label and the clinic's ("Multiline name
@@ -5556,6 +5588,9 @@ else if (typeof exports === 'object')
       });
       if (read) tagFields(found, read, boxOf);
       if (read) fitMultilineFields(found, inkMap, w, scale);
+      // (whatever rule found a field: none covers printed text)
+      { const capHeight = textCapHeight(inkMap, w, h), rowLine = capHeight ? Math.min(lineHeight, capHeight*1.6) : lineHeight;
+        trimFieldsToBlank(found, inkMap, w, h, scale, bands, rowLine*0.4); }
       // (a field already on the page at the same place and size isn't added again)
       found.forEach(f => {
         const dup = dataFields(state.fields).some(k =>
