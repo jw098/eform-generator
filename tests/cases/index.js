@@ -419,7 +419,7 @@ window.TEST_CASE_LIST = [
     "session": "lab_requisition_session.json",
     "variations": true,
     "todo": {
-      "tags": "COPY TO (NAME AND ADDRESS) gets clinic_addressLine: it is in the ORDERING PRACTITIONER column, so its ADDRESS is read as the practitioner's, but a copy goes to someone else, for whom OSCAR 12 has no tag. And \"Date: ____\" after the signature line on its row gets no today tag, where a plain \"Date:\" gets one"
+      "tags": "COPY TO (NAME AND ADDRESS) gets clinic_addressLine: it is in the ORDERING PRACTITIONER column, so its ADDRESS is read as the practitioner's, but a copy goes to someone else, for whom OSCAR 12 has no tag."
     },
     "skip": [
       {
@@ -462,9 +462,6 @@ window.TEST_CASE_LIST = [
     "folder": "typed-form",
     "session": "typed_form_session.json",
     "variations": true,
-    "todo": {
-      "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)"
-    },
     "variationTodo": [
       {
         "variation": "2.5× size",

@@ -1452,6 +1452,8 @@ else if (typeof exports === 'object')
   const DAY_FIRST_RE = /\bD{1,2}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*Y{1,4}\b|\bD{1,2}\s*[\/.\-]\s*M/;
   const YEAR_FIRST_RE = /\bY{1,4}\s*[\/.\-]?\s*M{1,4}\s*[\/.\-]?\s*D{1,2}\b|\bY{2,4}\s*[\/.\-]\s*M/;
 
+  // Whether a field's label names a signature ("Signature", "Practitioner signature", "Signed by")
+  const labelNamesASignature = (label) => /(^|[^a-z])(signature|sig|signed)([^a-z]|$)/i.test(String(label || ''));
   // Whether a field's label names one date, so the field is a date field: "Date", "Date signed",
   // "Date of injury", "LMP date", "Due date". Not a birth date (a calendar is no help for one), nor
   // dates ("Date(s)"), a date with something else ("Date and time", "Date and reason"), an age,
@@ -1589,7 +1591,8 @@ else if (typeof exports === 'object')
   // date or name order printed under the line or in the label (captionTag: "Date of birth
   // (dd/mm/yyyy)", "FIRST  MIDDLE  LAST"). Last, a bare "Date" beside a value on its row that
   // OSCAR doesn't fill is that value's date ("INR: ____  Date: ____"), not today's; beside the
-  // doctor's details ("Billing #: ____  Date: ____") it is the form's.
+  // doctor's details ("Billing #: ____  Date: ____") it is the form's, and beside a signature
+  // ("Signature: ____  Date: ____") it is the date of signing, the form's too.
   // boxOf(x0, f): the bordered box a field (with its label from x0) is in, if any.
   function tagFields(found, read, boxOf){
     const owners = fieldOwners(found, read, boxOf);
@@ -1604,7 +1607,7 @@ else if (typeof exports === 'object')
     writes.forEach(f => {
       if (f.oscarTag !== 'today' || nameKey(f.label || '') !== 'date') return;
       const prev = fieldLeftOf(f, writes);
-      if (prev && !prev.oscarTag) f.oscarTag = '';
+      if (prev && !prev.oscarTag && !labelNamesASignature(prev.label)) f.oscarTag = '';
     });
     // A one-line field whose label names a date is a date field, with OSCAR's calendar, in the
     // format printed with it ("(dd/mm/yyyy)"). A date field OSCAR fills ("today") takes OSCAR's
