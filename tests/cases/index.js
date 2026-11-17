@@ -463,17 +463,9 @@ window.TEST_CASE_LIST = [
     "session": "typed_form_session.json",
     "variations": true,
     "todo": {
-      "fields": "short blanks typed as dots (\"Date of injury: ........\", \"Number of visits requested: ......\") aren't found: a run of evenly spaced dots isn't taken for a line yet",
+      "fields": "short blanks (\"Date of injury: ........\", 89 canvas px; \"Number of visits requested: ......\", 35) are shorter than the shortest rule Auto Detect takes (7.5% of the page's width, 93 px here), so they aren't found, whether dotted or drawn solid",
       "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)"
     },
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "test": "extraFields",
-        "reason": "at 0.7× the dots of the \"Diagnosis / reason for referral\" lines are taken for two short fields under the heading: a run of evenly spaced dots isn't taken for a line yet"
-      }
-    ],
     "skip": [
       {
         "test": "extraFields",

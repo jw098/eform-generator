@@ -65,6 +65,8 @@ words, into pass 1.
    drops lone pixels: keep that, even for clean PDFs (a lone pixel on the Diabetes form's top
    edge becomes a writing area without it). It also drops a small colon's one-pixel dots
    ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a rule can't rely on every colon.
+   Dotted and dashed rules ("Date of injury: ........") are drawn into the ink map as the
+   solid rules they stand for (`drawDotLeaders`), before the rules are found.
 2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
 3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas

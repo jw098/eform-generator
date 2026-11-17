@@ -4618,6 +4618,60 @@ else if (typeof exports === 'object')
     return hs[hs.length >> 1];
   }
 
+  // The dot leaders on the page ("Date of injury: ..............."), and dashed rules, drawn into
+  // the ink map as the solid rules they stand for, from the first piece to the last, so they are
+  // found as any rule is. Left as dots, whether they join into a rule depends on how the page was
+  // rendered (gaps of two pixels are bridged, three aren't), and they outnumber the letters when
+  // the page's text height is measured (textCapHeight). A leader is a row of pieces of ink no
+  // taller than a dot (a sixth of a written line: a letter, even "x", is taller), of about the
+  // same height, their centres on one line, with gaps no wider than a dot between them, at least
+  // minLength long, as long as any rule: a few dots in a line of text ("...") are too short.
+  // (A piece may be one dot or a few that touch: at some sizes the dots run together.) Canvas px.
+  function drawDotLeaders(inkMap, w, h, lineHeight, minLength){
+    const maxDot = Math.max(2, Math.round(lineHeight/6)), seen = new Uint8Array(w*h), stack = [], pieces = [];
+    for (let st=0; st<w*h; st++){
+      if (!inkMap[st] || seen[st]) continue;
+      seen[st] = 1; stack.length = 0; stack.push(st);
+      let x1=w, x2=0, y1=h, y2=0;
+      while (stack.length){
+        const i = stack.pop(), y = (i/w)|0, x = i - y*w;
+        if (x<x1) x1=x; if (x>x2) x2=x; if (y<y1) y1=y; if (y>y2) y2=y;
+        if (x>0 && inkMap[i-1] && !seen[i-1]){ seen[i-1]=1; stack.push(i-1); }
+        if (x<w-1 && inkMap[i+1] && !seen[i+1]){ seen[i+1]=1; stack.push(i+1); }
+        if (y>0 && inkMap[i-w] && !seen[i-w]){ seen[i-w]=1; stack.push(i-w); }
+        if (y<h-1 && inkMap[i+w] && !seen[i+w]){ seen[i+w]=1; stack.push(i+w); }
+      }
+      if (y2-y1+1 <= maxDot) pieces.push({ x1, x2, y1, y2, cy: (y1+y2)/2, height: y2-y1+1 });
+    }
+    // (the pieces by row: their centre's row, rounded)
+    const byRow = new Map();
+    pieces.forEach(d => { const k = Math.round(d.cy); if (!byRow.has(k)) byRow.set(k, []); byRow.get(k).push(d); });
+    const used = new Set();
+    // (the next piece along from d: on its line, starting just after it, the nearest)
+    const nextAlong = (d) => {
+      let best = null;
+      for (let k = Math.round(d.cy) - 1; k <= Math.round(d.cy) + 1; k++)
+        for (const e of byRow.get(k) || []){
+          if (used.has(e) || e.x1 <= d.x2 || e.x1 - d.x2 > maxDot || Math.abs(e.cy - d.cy) > 1) continue;
+          if (!best || e.x1 < best.x1) best = e;
+        }
+      return best;
+    };
+    const median = (vs) => [...vs].sort((a, b) => a - b)[vs.length >> 1];
+    [...pieces].sort((a, b) => a.x1 - b.x1).forEach(d => {
+      if (used.has(d)) return;
+      used.add(d);
+      const run = [d];
+      for (let e = nextAlong(d); e; e = nextAlong(e)){ run.push(e); used.add(e); }
+      const height = median(run.map(e => e.height));
+      if (run.length < 4 || run[run.length-1].x2 - run[0].x1 + 1 < minLength || run.some(e => Math.abs(e.height - height) > Math.max(1, height*0.5))){
+        run.slice(1).forEach(e => used.delete(e)); return;
+      }
+      const ya = median(run.map(e => e.y1)), yb = median(run.map(e => e.y2));
+      for (let y = ya; y <= yb; y++) for (let x = run[0].x1; x <= run[run.length-1].x2; x++) inkMap[y*w + x] = 1;
+    });
+  }
+
   // ===== Text fields from lines (added by FreeScribe) =====
   // bands: the page's rules, top to bottom; lineHeight: one written line's height; ticks: the
   // tick boxes found on the page (all canvas px); scale: canvas px per page-image px.
@@ -5173,6 +5227,9 @@ else if (typeof exports === 'object')
           else if (!bin[idx] && n>=7) inkMap[idx]=1;
         }
       }
+
+      // Dot leaders and dashed rules are drawn in as the rules they stand for
+      drawDotLeaders(inkMap, w, h, p.naturalH*0.026*scale, Math.round(w*(lineMinPct/100)));
 
       await progress('Finding the lines and checkboxes…', 0.05);
       const newFields = [];
