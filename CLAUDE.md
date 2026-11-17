@@ -67,6 +67,11 @@ words, into pass 1.
    ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a rule can't rely on every colon.
    Dotted and dashed rules ("Date of injury: ........") are drawn into the ink map as the
    solid rules they stand for (`drawDotLeaders`), before the rules are found.
+   A band is taken for a line that bounds a field only if its ink, split at its own grey level
+   (Otsu's), is a solid rule once its soft edges are trimmed (`solidRule`), or it is a dot leader
+   or a shaded bar's bottom edge; and it isn't an underline, with letters standing on it
+   (`isLine`). Bold words run together and white letters in a dark bar make bands too; this is
+   what turns them away.
 2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
 3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
@@ -113,7 +118,15 @@ python3 -m http.server 8000 &
 PW_CHANNEL= node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" --variations
 ```
 
-Every test must pass; to-dos (○) are allowed. CI runs the same on each push.
+Every test must pass; to-dos (○) are allowed. CI runs the same on each push, then the line
+tests: whether each band of ink on the case pages is taken for a line, against the labels in
+`tests/cases/lines.js` (1: a line that bounds a field; 0: words, an underline, a bar's white
+letters, a rule's split-off edge). Run them after any change to the ink map, `bands` or the line
+test (`solidRule`, `isLine`); they take about a minute:
+
+```
+PW_CHANNEL= node tests/lines.js "http://localhost:8000/eForm_Generator.html#test" --variations
+```
 
 For a change meant not to change what Auto Detect finds (a refactor, a tidy-up), also compare
 exact snapshots before and after. They are deterministic, so any diff comes from the change:

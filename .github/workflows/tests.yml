@@ -1,7 +1,8 @@
 # Runs the Auto Detect tests (tests/README.md) in the Chrome that GitHub's Ubuntu runners come
 # with, so no browser is downloaded: only Playwright's small npm package, to drive it.
 # Each run also tests the poorer copies of the cases marked "variations" (--variations): tick
-# boxes and fields, as a clean PDF can come.
+# boxes and fields, as a clean PDF can come. Then the line tests (tests/lines.js): each band of
+# ink on the case pages and their copies, taken for a line or not, against tests/cases/lines.js.
 name: Auto Detect tests
 on:
   push:
@@ -25,3 +26,6 @@ jobs:
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8000/ && break; sleep 1; done
       - name: Run the tests
         run: node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" --variations
+      - name: Run the line tests
+        if: success() || failure()
+        run: node tests/lines.js "http://localhost:8000/eForm_Generator.html#test" --variations
