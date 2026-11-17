@@ -4215,6 +4215,22 @@ else if (typeof exports === 'object')
       const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
       return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
     };
+    // A line printed from canvas column xs along rows ya..yb (a label's row): ink only in a thin
+    // band, its gaps no wider than a dot's; where it ends, or -1 where what starts at xs isn't a
+    // line. The band is under the height of the shortest letters ("a", "x": about 0.4 of OCR's
+    // box for a word, which reaches from the tallest letter to the lowest)
+    const lineFrom = (xs, ya, yb, textHeight) => {
+      const thin = Math.max(2, Math.round(textHeight*0.35*scale)), gapMax = Math.max(2, Math.round(textHeight*0.3*scale));
+      let end = -1, gap = 0, top = Infinity, bottom = -1;
+      for (let x = xs; x < w; x++){
+        let t = -1, b = -1;
+        for (let y = ya; y <= yb; y++) if (isInk(x,y)){ if (t < 0) t = y; b = y; }
+        if (t < 0){ if (++gap > gapMax) break; continue; }
+        if (Math.max(bottom, b) - Math.min(top, t) + 1 > thin) break;
+        top = Math.min(top, t); bottom = Math.max(bottom, b); end = x; gap = 0;
+      }
+      return end;
+    };
     const out = [];
     // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
     read.words.filter(word => /:$/.test(word.text) && (/[A-Za-z]/.test(word.text) || /^#+:$/.test(word.text))).forEach(word => {
@@ -4235,7 +4251,17 @@ else if (typeof exports === 'object')
       let xb = xa;
       while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
       const x1 = xa/scale + textHeight*0.2, x2 = xb/scale - textHeight*0.4;
-      if (x2 - x1 < textHeight*4) return;
+      if (x2 - x1 < textHeight*4){
+        // A short line printed right after the colon is the blank, however short: "Date of
+        // injury: ........", "Visits: ____" (pass 1 takes no rule shorter than 7.5% of the page's
+        // width). A line is ink only in a thin band across the label's row (no letter, not even
+        // "x", is that flat), with gaps no wider than a dot's, at least two letters long
+        const end = lineFrom(xb + 1, ya, yb + Math.round(textHeight*0.2*scale), textHeight);
+        if (end < 0 || end - (xb + 1) < textHeight*1.5*scale) return;
+        const line = { page, x: (xb + 1)/scale, y: word.y0 - textHeight*0.3, width: (end - xb)/scale, height: textHeight*1.6, type: 'text', name: 'text', oscarTag: '' };
+        if (!found.concat(out).some(g => overlaps(line, g))) out.push(line);
+        return;
+      }
       let f = { page, x: x1, y: word.y0 - textHeight*0.3, width: x2 - x1, height: textHeight*1.6, type: 'text', name: 'text', oscarTag: '' };
       // room for more lines below it, under the label and beside it, down to the next ink
       const la = Math.round(word.x0*scale), lb = Math.round(x2*scale);

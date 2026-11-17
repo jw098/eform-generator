@@ -463,9 +463,17 @@ window.TEST_CASE_LIST = [
     "session": "typed_form_session.json",
     "variations": true,
     "todo": {
-      "fields": "short blanks (\"Date of injury: ........\", 89 canvas px; \"Number of visits requested: ......\", 35) are shorter than the shortest rule Auto Detect takes (7.5% of the page's width, 93 px here), so they aren't found, whether dotted or drawn solid",
-      "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)"
+      "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)",
+      "dates": "\"Date of injury: ........\" is found but labelled \"injury\" alone, so it isn't made a date field: OCR reads each underscore and dotted line as a word 2 px tall (68 of the page's 121 words), the median word height comes out at 2 px, and the words of a label are then too far apart to be taken together"
     },
+    "variationTodo": [
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "test": "fields",
+        "reason": "at 2.5× OCR reads \"requested\" without its colon, so the blank after \"Number of visits requested: ......\" isn't taken for one (a short line is taken only after a colon)"
+      }
+    ],
     "skip": [
       {
         "test": "extraFields",
