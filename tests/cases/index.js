@@ -483,9 +483,6 @@ window.TEST_CASE_LIST = [
     "folder": "character-boxes",
     "session": "character_boxes_session.json",
     "variations": true,
-    "todo": {
-      "fields": "a row of boxes for one character each (the Personal Health Number, the date of birth, the postal code) isn't found, neither as tick boxes nor as fields: empty boxes side by side in a row are one field across them"
-    },
     "skip": [
       {
         "test": "extraFields",

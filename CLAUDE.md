@@ -89,13 +89,18 @@ words, into pass 1.
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
    under a label (`areaFields`). A "label" here is ink, not words. A table's heading row (cells with
    print, over at least two rows of empty cells of their column right under them: blank, or a single
-   tick box, between the column's side lines) has no fields (`dropHeadingRows`).
+   tick box, between the column's side lines) has no fields (`dropHeadingRows`). Boxes for one
+   character each (a strip framed top and bottom, split by full-height dividers into even, empty,
+   letter-sized cells; strips less than a box apart on one row are one row) are a field per box,
+   marked with their row (`characterBoxes`).
 
 **Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and
 no tags).
 4. Words OCR read from a line ("EEE" on an underscore line, `markLineWords`) are left out of
-   the page's typical word height, not out of the words. Then fields after a colon
+   the page's typical word height, not out of the words. A row of character boxes is one field
+   across the row (its label beside or above it), unless words are printed over the boxes one by
+   one ("0 1 2 3"): then each box stays its own (`joinCharacterBoxes`). Then fields after a colon
    (`colonFields`: blank page, or a line too short for pass 1 to find), each field's label (`labelFields`; the words just above a line come last, and never another
    line's caption), a one-line field
    shorter than its own label's text made taller, through blank page only

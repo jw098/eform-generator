@@ -4397,6 +4397,7 @@ else if (typeof exports === 'object')
   //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
   //   _blank       a field whose cell or space has nothing printed in it (textFieldsFromLines)
   //   toEnd        a writing area that runs down to the foot of the page or its footer (areaFields)
+  //   _charRow     a box for one character, and which row of boxes it is in (characterBoxes)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
   //   _split       several labels spread along one field: the field's parts (labelFields)
@@ -4709,6 +4710,32 @@ else if (typeof exports === 'object')
   }
 
 
+  // A row of boxes for one character each (characterBoxes) is one field across the row, for one
+  // label: "Personal Health Number" or "PHN:" beside or above it, the value written a character
+  // to a box (a tag fills the whole field). Words printed over the boxes one by one ("Mon Tue
+  // Wed", "0 1 2 3") make each box its own answer: the boxes stay fields of their own. A word over
+  // a box is one no wider than two boxes, with its middle over the box, just above it.
+  function joinCharacterBoxes(fields, read){
+    const { wordHeight } = labelWordsOf(fields, read);
+    const rows = new Map();
+    fields.forEach(f => { if (f._charRow){ if (!rows.has(f._charRow)) rows.set(f._charRow, []); rows.get(f._charRow).push(f); } });
+    const joined = new Map();
+    rows.forEach((cells, id) => {
+      const over = (c) => read.words.some(w => !w.onLine && w.text.trim() && w.x1 - w.x0 <= c.width*2 &&
+        (w.x0 + w.x1)/2 >= c.x && (w.x0 + w.x1)/2 <= c.x + c.width && w.y1 <= c.y + 2 && c.y - w.y1 <= wordHeight*1.5);
+      if (cells.filter(over).length*2 >= cells.length) return;
+      cells.sort((a, b) => a.x - b.x);
+      const first = cells[0], last = cells[cells.length - 1];
+      joined.set(id, { ...first, width: last.x + last.width - first.x });
+    });
+    const out = [];
+    fields.forEach(f => {
+      if (!f._charRow || !joined.has(f._charRow)){ out.push(f); return; }
+      const j = joined.get(f._charRow); if (j){ out.push(j); joined.set(f._charRow, null); }
+    });
+    return out;
+  }
+
   // What the labels say about the fields themselves: everything pass 2 changes about which
   // fields there are (besides the fields after a colon, from colonFields). Returns the fields:
   //  - a field with several labels spread along it ("SURNAME OF PATIENT ... FIRST NAME") is one
@@ -4866,6 +4893,76 @@ else if (typeof exports === 'object')
       drawn.push({ x1: run[0].x1, x2: run[run.length-1].x2, y1: ya, y2: yb });
     });
     return drawn;
+  }
+
+  // Boxes for one character each ("Personal Health Number" over a strip of ten little boxes,
+  // "Postal code" over two strips of three): a strip of ink framed along its top and bottom, split
+  // by dividers running its full height into empty cells, evenly spaced, each about as wide as
+  // tall and about a letter's size (half to twice a written line's height). Too short for the
+  // band finder (a strip of three is narrower than a line must be), and each cell too narrow for a
+  // field of its own, so nothing else finds them. Strips side by side on one row (the same top and
+  // bottom, the same cells, less than a cell apart) are one row of boxes. Returns a field for each
+  // cell, marked with its row (_charRow): pass 2 decides from the words whether the row is one
+  // field (joinCharacterBoxes). Canvas px in, page px out.
+  function characterBoxes(inkMap, w, h, scale, lineHeight, page){
+    const seen = new Uint8Array(w*h), stack = [], strips = [];
+    for (let st = 0; st < w*h; st++){
+      if (!inkMap[st] || seen[st]) continue;
+      seen[st] = 1; stack.length = 0; stack.push(st);
+      let x1 = w, x2 = 0, y1 = h, y2 = 0;
+      while (stack.length){
+        const i = stack.pop(), y = (i/w)|0, x = i - y*w;
+        if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+        for (const j of [i-1, i+1, i-w, i+w]){
+          if (j < 0 || j >= w*h || seen[j] || !inkMap[j] || (j === i-1 && x === 0) || (j === i+1 && x === w-1)) continue;
+          seen[j] = 1; stack.push(j);
+        }
+      }
+      const W = x2 - x1 + 1, H = y2 - y1 + 1;
+      if (H < lineHeight*0.5 || H > lineHeight*2.2 || W < H*1.5) continue;
+      // (its frame: the rows at the top and bottom inked across nearly all of it)
+      const rowFull = (y) => { let n = 0; for (let x = x1; x <= x2; x++) n += inkMap[y*w + x]; return n >= W*0.85; };
+      let top = y1; while (top < y1 + 4 && rowFull(top + 1)) top++;
+      let bottom = y2; while (bottom > y2 - 4 && rowFull(bottom - 1)) bottom--;
+      if (!rowFull(top) || !rowFull(bottom) || bottom - top < lineHeight*0.4) continue;
+      // (its dividers: columns inked from the frame's top to its bottom, the ends included)
+      const divs = [];
+      for (let x = x1; x <= x2; x++){
+        let n = 0; for (let y = top; y <= bottom; y++) n += inkMap[y*w + x];
+        if (n < (bottom - top + 1)*0.85) continue;
+        const last = divs[divs.length - 1];
+        if (last && x - last.x2 <= 1) last.x2 = x; else divs.push({ x1: x, x2: x });
+      }
+      if (divs.length < 3 || divs[0].x1 > x1 + 3 || divs[divs.length - 1].x2 < x2 - 3) continue;
+      const cells = divs.slice(1).map((d, k) => ({ x1: divs[k].x2 + 1, x2: d.x1 - 1 }));
+      const widths = cells.map(c => c.x2 - c.x1 + 1).sort((a, b) => a - b), cellW = widths[widths.length >> 1];
+      const inH = bottom - top - 1;
+      if (cells.some(c => Math.abs(c.x2 - c.x1 + 1 - cellW) > Math.max(2, cellW*0.15))) continue;
+      if (cellW < inH*0.5 || cellW > inH*1.5) continue;
+      // (empty: no ink inside the cells, away from their edges)
+      let inked = 0, area = 0;
+      cells.forEach(c => { for (let y = top + 3; y <= bottom - 3; y++) for (let x = c.x1 + 2; x <= c.x2 - 2; x++){ area++; inked += inkMap[y*w + x]; } });
+      if (!area || inked > area*0.01) continue;
+      strips.push({ x1, x2, top, bottom, cellW, cells });
+    }
+    // Strips side by side on one row are one row of boxes
+    strips.sort((a, b) => a.top - b.top || a.x1 - b.x1);
+    const rows = [];
+    strips.forEach(st => {
+      const row = rows.find(r => { const last = r[r.length - 1];
+        return Math.abs(last.top - st.top) <= 3 && Math.abs(last.bottom - st.bottom) <= 3 &&
+               Math.abs(last.cellW - st.cellW) <= last.cellW*0.15 && st.x1 > last.x2 && st.x1 - last.x2 <= last.cellW; });
+      if (row) row.push(st); else rows.push([st]);
+    });
+    const fields = [];
+    rows.forEach((row, k) => {
+      const cells = row.flatMap(st => st.cells.map(c => ({ ...c, top: st.top, bottom: st.bottom })));
+      if (cells.length < 3) return;
+      const id = `${page}:${k}`;
+      cells.forEach(c => fields.push({ page, x: c.x1/scale, y: (c.top + 1)/scale, width: (c.x2 - c.x1 + 1)/scale, height: (c.bottom - c.top - 1)/scale,
+                                       type: 'text', name: 'text', oscarTag: '', _charRow: id }));
+    });
+    return fields;
   }
 
   // The thickest a line can be on a canvas h px tall; a thicker band is a shaded bar (a grey
@@ -5688,6 +5785,8 @@ else if (typeof exports === 'object')
       // gives one field per column, and the top edge of a box gives none of its own.
       const tickRects = dedupCb.map(f => ({ x1: f.x*scale, y1: f.y*scale, x2: (f.x + f.width)*scale, y2: (f.y + f.height)*scale }));
       textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, tickRects).forEach(f => newFields.push(f));
+      // Rows of boxes for one character each
+      characterBoxes(inkMap, w, h, scale, lineHeight, page).forEach(f => newFields.push(f));
       // Open writing areas under a heading, with no line or box around them, on the page or in a
       // table's cells
       areaFields(inkMap, w, h, scale, bands, lineHeight, page, newFields).forEach(f => newFields.push(f));
@@ -5735,6 +5834,7 @@ else if (typeof exports === 'object')
       else if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its lines' furthest end)
         inkColons(read, inkMap, w, h, scale);
+        found = joinCharacterBoxes(found, read);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
         labelFields(found, read, lineAcross);
         fitFieldsToLabels(found, inkMap, w, h, scale);
