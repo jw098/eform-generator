@@ -180,7 +180,7 @@ supported (its page images are given to Auto Detect as pictures).
 | `cases/<folder>/` | One test case: the eForm's `.html` and its page image(s), and the fillable PDF they were made from, for a case with one; or the session it was made in (`.json`). |
 | `auto-detect.js` | The machinery that runs the tests and shows the results. |
 | `ci.js` | Runs them in headless Chrome and prints the results, for GitHub (or a terminal). |
-| `cases/lines.js` | The line suspects on each case page: every band of ink the app may take for a rule, as a box in the page's pixels, labelled 1 (a line that bounds a field: a line to write on, a table row's or box's edge, a shaded bar's bottom edge) or 0 (words, an underline, white letters in a dark bar, a barcode, a rule's soft edge split off). |
+| `cases/lines.js` | The line suspects on each case page: every band of ink the app may take for a line, as a box in the page's pixels, labelled 1 (a line that bounds a field: a line to write on, a table row's or box's edge, a shaded bar's bottom edge) or 0 (words, an underline, white letters in a dark bar, a barcode, a line's soft edge split off). |
 | `lines.js` | Tests the line test alone: runs Auto Detect's first pass on each page in `cases/lines.js` (and, with `--variations`, its poorer copies) and checks each band it finds against the suspect nearest it: `node tests/lines.js <app url#test> [--variations] [--page "<folder> p<n>"]`. A new case's page can be added to `cases/lines.js` with its suspects; a change to the band finder can leave bands that match no suspect, which are counted, not tested. |
 | `snapshot.js` | Prints exactly what Auto Detect finds on each case's images (no margin), to compare before and after a change that shouldn't change it. |
 | `show.js` | Draws one case page with its expected and actual boxes, matched as the tests match them (skips in grey), and saves it as a PNG: `node tests/show.js <app url#test> tests/cases/<folder>/<image> [out.png]` (for a case given as a session, `page1`, `page2`… in place of `<image>`). With `--variation "0.7× size"`, it draws what Auto Detect finds on that poorer copy instead, on the page itself. |
@@ -239,7 +239,7 @@ The test's line in the panel then says what it left out, in grey, for example
 `16 tick boxes on page 2 in (0, 170) 1500×900 skipped: no printed tick boxes here, …`.
 
 A variation can skip tick boxes too, where it leaves too little of a box to find (at a small
-size, a box over a rule is the same in pixels as a letter on one). The skips are the case's
+size, a box over a line is the same in pixels as a letter on one). The skips are the case's
 `variationSkip` in `cases/index.js`: each names the variation (as the panel names it) and the
 boxes (by their names in the eForm), with the reason:
 

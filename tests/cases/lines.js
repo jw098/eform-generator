@@ -1,5 +1,5 @@
 // The line suspects on each case page, for tests/lines.js: every band of ink the app took for a
-// possible rule on the page (a run of ink across a row, as `bands` finds it), and whether it
+// possible line on the page (a run of ink across a row, as `bands` finds it), and whether it
 // is a line that bounds a field (1: a line to write on, a table row's or a box's edge, the
 // bottom edge of a shaded bar) or not (0: words, a heading's underline, white letters in a dark
 // bar, a barcode). Each is [x, y, width, height] in the page image's pixels, then the label.
@@ -136,16 +136,16 @@ window.LINE_SUSPECTS = {
     [57, 1719, 978, 5, 1],
     [120, 1726, 170, 1, 0],
     [120, 1736, 131, 1, 0],
-    [1028, 1792, 416, 1, 0],  // the ink map's padding over the box's bottom rule
+    [1028, 1792, 416, 1, 0],  // the ink map's padding over the box's bottom line
     [57, 1793, 1387, 5, 1],
   ],
   'reproductive-mental-health p1': [
     [137, 1220, 757, 5, 1],
     [1153, 1220, 282, 5, 1],
     [184, 1337, 1247, 5, 1],
-    [252, 1342, 177, 1, 0],  // the rule over it: its soft lower edge, split off
-    [432, 1342, 161, 1, 0],  // the rule over it: its soft lower edge, split off
-    [695, 1342, 733, 1, 0],  // the rule over it: its soft lower edge, split off
+    [252, 1342, 177, 1, 0],  // the line over it: its soft lower edge, split off
+    [432, 1342, 161, 1, 0],  // the line over it: its soft lower edge, split off
+    [695, 1342, 733, 1, 0],  // the line over it: its soft lower edge, split off
     [321, 1454, 233, 5, 1],
     [642, 1454, 249, 5, 1],
     [1034, 1454, 396, 5, 1],

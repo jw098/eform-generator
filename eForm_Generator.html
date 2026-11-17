@@ -3783,7 +3783,7 @@ else if (typeof exports === 'object')
 
   // Whether a square of ink is a printed tick box and not letters: four straight sides on the ink
   // map and on the grey image, ink at every corner, an empty middle, and not just a piece of a
-  // table's rules
+  // table's lines
   function isRealBox(inkMap,w,h,x1,y1,x2,y2,gray){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
     // (under 7 pixels a small letter such as e or o can't be told from a box)
@@ -3854,14 +3854,14 @@ else if (typeof exports === 'object')
       }
     }
     // Nothing joined on from outside (a P's stem below its bowl, the next letter of a word). A
-    // rule the box sits against, at its left or right, doesn't count: a straight line just
+    // line the box sits against, at its left or right, doesn't count: a straight line just
     // outside that side, running on well past both its ends (a table's side right beside
     // "☐ Yes"), when the side itself ends at the box's corners (not the corner of a table's cell,
-    // with letters under its rule taken for the rest of a box). Above or below, a line under a
+    // with letters under its line taken for the rest of a box). Above or below, a line under a
     // box is far more often a fill-in line under letters ("Carecard: ____"), so it counts unless
     // the grey image shows bare paper all along between the two and the box stands apart from
-    // letters (not the D of "Family MD" over its cell's rule): on a small scan the ink map's soft
-    // edges can meet over a gap of a pixel or two ("☐ Other:" just over a section's rule).
+    // letters (not the D of "Family MD" over its cell's line): on a small scan the ink map's soft
+    // edges can meet over a gap of a pixel or two ("☐ Other:" just over a section's line).
     const limit = Math.max(1, Math.round(sz*0.12));
     let t=0, b=0, l=0, r=0;
     for(let x=x1;x<=x2;x++){
@@ -3873,16 +3873,16 @@ else if (typeof exports === 'object')
       if(isInk(x2,y) && isInk(x2+1,y) && isInk(x2+2,y)) r++;
     }
     const reach = Math.max(2, Math.round(sz*0.6)), near = Math.max(3, Math.round(sz*0.4));
-    // (a vertical rule at x running past the box, above and below; a horizontal one at y, past it
+    // (a vertical line at x running past the box, above and below; a horizontal one at y, past it
     // on both sides; a row of the box that is paper on the grey image)
-    const colRule = (x) => x >= 1 && x < w-1 && sideRule(inkMap, w, h, x, y1 - reach, y2 + reach, 0.85, 0);
+    const colIsLine = (x) => x >= 1 && x < w-1 && sideLine(inkMap, w, h, x, y1 - reach, y2 + reach, 0.85, 0);
     // (a side at x, with the outside towards step: -1 left, 1 right)
-    const ruleBeside = (x, step) => {
-      for (let k=0; k<band; k++) if (colRule(x - step*k)) return false;            // (the side is a rule itself)
-      for (let k=1; k<=near; k++) if (colRule(x + step*k)) return true;
+    const lineBeside = (x, step) => {
+      for (let k=0; k<band; k++) if (colIsLine(x - step*k)) return false;            // (the side is a line itself)
+      for (let k=1; k<=near; k++) if (colIsLine(x + step*k)) return true;
       return false;
     };
-    const rowRule = (y) => {
+    const rowIsLine = (y) => {
       if (y < 1 || y >= h-1) return false;
       const a = Math.max(0, x1 - reach), z = Math.min(w-1, x2 + reach);
       let n = 0; for (let x=a; x<=z; x++) if (isInk(x,y-1) || isInk(x,y) || isInk(x,y+1)) n++;
@@ -3890,15 +3890,15 @@ else if (typeof exports === 'object')
     };
     const paperRow = (y) => { for (let x=x1; x<=x2; x++) if (gray[y*w+x] < hi - (hi - lo)*0.05) return false; return true; };
     // (a side at y, with the outside towards step: -1 above, 1 below)
-    const ruleOver = (y, step) => {
+    const lineOver = (y, step) => {
       if (hi - lo < GREY_RANGE || !standsApart(inkMap,w,h,x1,y1,x2,y2)) return false;
-      for (let k=0; k<band; k++) if (rowRule(y - step*k)) return false;              // (the side is a rule itself)
+      for (let k=0; k<band; k++) if (rowIsLine(y - step*k)) return false;              // (the side is a line itself)
       let gap = false;
-      for (let k=1; k<=near; k++){ if (paperRow(y + step*k)) gap = true; if (gap && rowRule(y + step*k)) return true; }
+      for (let k=1; k<=near; k++){ if (paperRow(y + step*k)) gap = true; if (gap && rowIsLine(y + step*k)) return true; }
       return false;
     };
-    return (t <= limit || ruleOver(y1, -1)) && (b <= limit || ruleOver(y2, 1)) &&
-           (l <= limit || ruleBeside(x1, -1)) && (r <= limit || ruleBeside(x2, 1));
+    return (t <= limit || lineOver(y1, -1)) && (b <= limit || lineOver(y2, 1)) &&
+           (l <= limit || lineBeside(x1, -1)) && (r <= limit || lineBeside(x2, 1));
   }
 
   // A round option button: a thin, unbroken ring with an empty middle and empty corners,
@@ -4071,10 +4071,10 @@ else if (typeof exports === 'object')
     return results;
   }
 
-  // A side rule at x (give or take `shift` pixels) from row ya to yb: ink within a pixel of it
+  // A side line at x (give or take `shift` pixels) from row ya to yb: ink within a pixel of it
   // in at least `share` of the rows (nearly every row). A box's sides, a table's dividers; with
-  // share 1 and no shift, a divider running unbroken from rule to rule.
-  function sideRule(inkMap, w, h, x, ya, yb, share = 0.85, shift = 2){
+  // share 1 and no shift, a divider running unbroken from line to line.
+  function sideLine(inkMap, w, h, x, ya, yb, share = 0.85, shift = 2){
     if (yb - ya < 4) return false;
     for (const xx of [x, x-1, x+1, x-2, x+2].slice(0, 1 + shift*2)){
       if (xx < 0 || xx >= w) continue;
@@ -4084,44 +4084,44 @@ else if (typeof exports === 'object')
     }
     return false;
   }
-  // Two rules, T over B, joined by side rules at xa and xb (a box, a table's row or cell): the
+  // Two lines, T over B, joined by side lines at xa and xb (a box, a table's row or cell): the
   // sides are looked for from `gap` pixels under T to `gap` pixels over B
   function joinedBySides(inkMap, w, h, T, B, xa, xb, gap){
-    return sideRule(inkMap, w, h, xa, T.y2 + gap, B.y1 - gap) && sideRule(inkMap, w, h, xb, T.y2 + gap, B.y1 - gap);
+    return sideLine(inkMap, w, h, xa, T.y2 + gap, B.y1 - gap) && sideLine(inkMap, w, h, xb, T.y2 + gap, B.y1 - gap);
   }
 
   // ===== Open writing areas =====
   // Blank page under a label, with nothing drawn to write on, in a container: a table's cell
-  // (two rules, one over the other, joined by sides), or the form itself (between its rules'
+  // (two lines, one over the other, joined by sides), or the form itself (between its lines'
   // ends; the page's margins don't count). A writing area is a run of rows blank from the
   // container's left across most of it (half a cell, all of the form), tall enough, right under
-  // a label: ink just above it in the container that isn't a rule ("PERTINENT HISTORY /
+  // a label: ink just above it in the container that isn't a line ("PERTINENT HISTORY /
   // MEDICATIONS:" over the rest of its cell, "EXAM(s) REQUESTED:" over a blank beside the
   // Priority list, "HISTORY AND CLINICAL FINDINGS:" over open page). Fields already found count
   // as ink. One that runs down to the foot of the page, or to its footer, is one only under a
   // label ending with a colon (checked once the words are read): the blank page where a form
   // ends ("Return To ... Fax 1-877-..." over half a page left empty) is no writing area.
-  // rules: the page's rules, top to bottom; lineHeight: one written line's height (canvas px);
+  // lines: the page's lines, top to bottom; lineHeight: one written line's height (canvas px);
   // scale: canvas px per page-image px; found: the fields found so far (page-image px).
-  function areaFields(inkMap, w, h, scale, rules, lineHeight, page, found){
-    if (!rules.length) return [];
+  function areaFields(inkMap, w, h, scale, lines, lineHeight, page, found){
+    if (!lines.length) return [];
     // Ink, or a field already found
     const taken = Uint8Array.from(inkMap);
     // (marks a field's place as taken, so no area runs into it)
     const markTaken = (f) => { for (let y=Math.max(0, Math.round(f.y*scale)); y<=Math.min(h-1, Math.round((f.y+f.height)*scale)); y++) taken.fill(1, y*w + Math.max(0, Math.round(f.x*scale)), y*w + Math.min(w, Math.round((f.x+f.width)*scale) + 1)); };
     found.forEach(markTaken);
     // The containers: the form, then each cell
-    const cx1 = Math.min(...rules.map(b => b.x1)), cx2 = Math.max(...rules.map(b => b.x2)), margin = Math.max(cx1, w - 1 - cx2);
+    const cx1 = Math.min(...lines.map(b => b.x1)), cx2 = Math.max(...lines.map(b => b.x2)), margin = Math.max(cx1, w - 1 - cx2);
     const boxes = [{ x1: cx1, x2: cx2, y1: 0, y2: h - 1 - margin, form: true }];
-    rules.forEach((A, i) => {
-      // the next rule below over the same stretch, at least a couple of lines down, and the sides
+    lines.forEach((A, i) => {
+      // the next line below over the same stretch, at least a couple of lines down, and the sides
       // joining them, left to right: each pair next to each other is a cell
-      for (let j=i+1; j<rules.length; j++){
-        const B = rules[j];
+      for (let j=i+1; j<lines.length; j++){
+        const B = lines[j];
         const x1 = Math.max(A.x1, B.x1), x2 = Math.min(A.x2, B.x2);
         if (B.y1 - A.y2 < lineHeight*1.5 || x2 - x1 < lineHeight*3) continue;
         const xs = [];
-        for (let x=x1; x<=x2; x++) if (sideRule(inkMap, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
+        for (let x=x1; x<=x2; x++) if (sideLine(inkMap, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
         for (let k=0; k+1<xs.length; k++){
           const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 };
           if (c.x2 - c.x1 >= lineHeight*3 && !boxes.some(o => o.x1 === c.x1 && o.x2 === c.x2 && o.y1 === c.y1)) boxes.push(c);
@@ -4137,7 +4137,7 @@ else if (typeof exports === 'object')
     while (last > 0 && !inkRow(last)) last--;
     for (let y=last; y > last - lineHeight; y--){
       const n = inkRow(y);
-      if (n > (cx2-cx1+1)*0.6){ top = -1; break; }                 // (a rule: no footer)
+      if (n > (cx2-cx1+1)*0.6){ top = -1; break; }                 // (a line: no footer)
       if (n) top = y; else if (top - y > lineHeight*0.3) break;
     }
     if (top > 0 && last - top <= lineHeight*0.8 && foot - last <= lineHeight*0.5) foot = top - 1;
@@ -4146,7 +4146,7 @@ else if (typeof exports === 'object')
       const cw = c.x2 - c.x1 + 1, wide = c.form ? cw : cw*0.5, tall = lineHeight*(c.form ? 2.5 : 1.1), pad = c.form ? Math.round(lineHeight*0.3) : 2;
       // (blank page from the left, in row y)
       const blank = (y) => { let x = c.x1; while (x <= c.x2 && !taken[y*w+x]) x++; return x - c.x1; };
-      // (a label just above: ink in the container, below any rule across it)
+      // (a label just above: ink in the container, below any line across it)
       const label = (y) => {
         for (let yy=y-1; yy>=Math.max(c.y1, y - Math.round(lineHeight*0.8)); yy--){
           let n = 0; for (let x=c.x1; x<=c.x2; x++) if (inkMap[yy*w+x]) n++;
@@ -4268,7 +4268,7 @@ else if (typeof exports === 'object')
       const x1 = xa/scale + textHeight*0.2, x2 = xb/scale - textHeight*0.4;
       if (x2 - x1 < textHeight*4){
         // A short line printed right after the colon is the blank, however short: "Date of
-        // injury: ........", "Visits: ____" (pass 1 takes no rule shorter than 7.5% of the page's
+        // injury: ........", "Visits: ____" (pass 1 takes no line shorter than 7.5% of the page's
         // width). A line is ink only in a thin band across the label's row (no letter, not even
         // "x", is that flat), with gaps no wider than a dot's, at least two letters long
         const { end, top } = lineFrom(xb + 1, ya, yb + Math.round(textHeight*0.2*scale), textHeight);
@@ -4350,9 +4350,9 @@ else if (typeof exports === 'object')
       const ctx = c.getContext('2d');
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
-      // Rub out the form's rules first: words in table cells touch them, and OCR reads a rule
+      // Rub out the form's lines first: words in table cells touch them, and OCR reads a line
       // beside a letter as part of it ("[" for DATE beside a cell's side). Letter strokes are far
-      // shorter than a rule: a rule is at least 3% of the page's width (on a small page, the
+      // shorter than a line: a line is at least 3% of the page's width (on a small page, the
       // sides of a one-line table row)
       const W = c.width, H = c.height, id = ctx.getImageData(0, 0, W, H), px = id.data;
       // (a page printed faint, its grey levels stretched first: stretchGrey)
@@ -4392,7 +4392,7 @@ else if (typeof exports === 'object')
   // ===== Pass 2: the page's words =====
   // The steps hand each other what they learn on the found fields themselves. Besides the
   // field's own properties (what addField keeps), they are:
-  //   box          a text field in a box of its own: rules above and below, sides down both
+  //   box          a text field in a box of its own: lines above and below, sides down both
   //                ends (textFieldsFromLines)
   //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
   //   _blank       a field whose cell or space has nothing printed in it (textFieldsFromLines)
@@ -4406,7 +4406,7 @@ else if (typeof exports === 'object')
   //   caption      small words printed under a fill-in line (sectionFields)
   //   section      the heading over its column, for its name (sectionFields)
   //   _captionParts several captions spaced along a line: the line's parts (sectionFields)
-  // and on OCR's words: onRule, a rule read as a word (markRuleWords)
+  // and on OCR's words: onLine, a line read as a word (markLineWords)
   // addField keeps only the field's own properties, so these go no further than Auto Detect.
   // Shared by the steps below (positions in page-image pixels)
   const hasLetters = (t) => /[A-Za-z]/.test(t);
@@ -4422,27 +4422,27 @@ else if (typeof exports === 'object')
   const phraseText = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
   // Whether a phrase ends with a colon
   const endsWithColon = (ws) => !!(ws && ws.length && /:\s*$/.test(ws[ws.length-1].text));
-  // Marks the words OCR read from a rule (w.onRule): a line typed as underscores can come back
+  // Marks the words OCR read from a line (w.onLine): a line typed as underscores can come back
   // as a "word" ("EEE", two pixels tall) lying on the line. Such a word fits inside one of the
-  // page's rules (bands, from pass 1, canvas px; only those thin enough to be rules: a shaded
+  // page's lines (bands, from pass 1, canvas px; only those thin enough to be lines: a shaded
   // bar, with a heading's words inside it, isn't one), across and from top to bottom, give or
-  // take a pixel; a word's letters reach above any rule they sit on. h: the canvas's height.
-  function markRuleWords(read, bands, scale, h){
-    const rules = bands.filter(b => b.y2 - b.y1 + 1 <= maxRuleThickness(h));
+  // take a pixel; a word's letters reach above any line they sit on. h: the canvas's height.
+  function markLineWords(read, bands, scale, h){
+    const lines = bands.filter(b => b.y2 - b.y1 + 1 <= maxLineThickness(h));
     read.words.forEach(w => {
       const x0 = w.x0*scale, x1 = w.x1*scale, y0 = w.y0*scale, y1 = w.y1*scale;
-      w.onRule = rules.some(b => x1 > b.x1 && x0 < b.x2 && y0 >= b.y1 - 1 && y1 <= b.y2 + 1);
+      w.onLine = lines.some(b => x1 > b.x1 && x0 < b.x2 && y0 >= b.y1 - 1 && y1 <= b.y2 + 1);
     });
   }
   // The page's words that could be labels (with letters, not inside a tick box), and their
-  // typical height: the median height of those words, leaving out the rules OCR read as words
-  // (onRule). A page of underscore lines would otherwise make it a line's two pixels, and a
+  // typical height: the median height of those words, leaving out the lines OCR read as words
+  // (onLine). A page of underscore lines would otherwise make it a line's two pixels, and a
   // label's words would then seem too far apart to go together ("Patient name:" read as "name").
   // Those words stay in the list: only the height leaves them out
   function labelWordsOf(fields, read){
     const boxes = fields.filter(f => f.type === 'checkbox');
     const inBox = (w) => boxes.some(b => { const cx = (w.x0+w.x1)/2, cy = (w.y0+w.y1)/2; return cx >= b.x-2 && cx <= b.x+b.width+2 && cy >= b.y-2 && cy <= b.y+b.height+2; });
-    const words = read.words.filter(w => hasLetters(w.text) && !inBox(w)), measured = words.filter(w => !w.onRule);
+    const words = read.words.filter(w => hasLetters(w.text) && !inBox(w)), measured = words.filter(w => !w.onLine);
     const wordHeight = measured.length ? measured.map(w => w.y1 - w.y0).sort((a,b) => a-b)[measured.length >> 1] : 20;
     return { boxes, words, wordHeight };
   }
@@ -4457,8 +4457,8 @@ else if (typeof exports === 'object')
   // Each field's printed label, from the page's words.
   // A tick box's label is the words just right of it ("Yes, email"); those words are then
   // nobody else's. A text field's label is, in order of preference:
-  //  - in a box of its own (f.box: rules above, below and down both sides), the words just above
-  //    it in the box, with no rule between ("PERSONAL HEALTH NUMBER" printed in the corner of
+  //  - in a box of its own (f.box: lines above, below and down both sides), the words just above
+  //    it in the box, with no line between ("PERSONAL HEALTH NUMBER" printed in the corner of
   //    its box), only those over the field itself. When they are several labels spread along it
   //    ("SURNAME OF PATIENT ... FIRST NAME"), each gets its part of the field (f._split);
   //  - else the phrase just left of it on its row ("Patient Name Last:"). On a form of fill-in
@@ -4470,8 +4470,8 @@ else if (typeof exports === 'object')
   //    So these are decided last, once every other field has its label.
   // A heading word at the start of its row is part of its label ("APPOINTMENT: Date").
   // Sets f.label, and f._words, the label's words.
-  // ruleAcross(x1, x2, y1, y2): is there a rule across x1..x2 somewhere between y1 and y2?
-  function labelFields(fields, read, ruleAcross){
+  // lineAcross(x1, x2, y1, y2): is there a line across x1..x2 somewhere between y1 and y2?
+  function labelFields(fields, read, lineAcross){
     const { boxes, words, wordHeight } = labelWordsOf(fields, read);
     const onRow = (f, w) => { const cy = (w.y0+w.y1)/2; return cy >= f.y - wordHeight*0.3 && cy <= f.y + f.height + wordHeight*0.4; };
 
@@ -4496,7 +4496,7 @@ else if (typeof exports === 'object')
     fields.forEach(f => {
       if (f.type === 'checkbox') return;
       const fy1 = f.y, fx2 = f.x + f.width;
-      // Just above, with no rule between
+      // Just above, with no line between
       let above = [];
       // (starting over the field: the end of a longer line to the left, "MENSTRUAL HISTORY", isn't its label;
       // mostly above its top: OCR's box can reach a little lower than the letters, "FIRST NAME")
@@ -4504,7 +4504,7 @@ else if (typeof exports === 'object')
       if (over.length){
         const bottom = Math.max(...over.map(w => w.y1));
         above = over.filter(w => bottom - w.y1 < wordHeight*0.6).sort((a,b) => a.x0-b.x0);
-        if (ruleAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
+        if (lineAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
       }
       // The phrase just left of it on its row: the nearest words, no further apart than a few
       // letters, the nearest no further from the field than about a dozen (a label set well apart
@@ -4582,7 +4582,7 @@ else if (typeof exports === 'object')
   // from the page's typical text, and marks that aren't text can throw that off ("Patient name:
   // ________" on a page whose dot leaders outnumber its letters). It grows up from its line to
   // FIELD_PER_LABEL times its label's height, only through blank page: it stops under any ink
-  // above it (the row above's words or rules) and under any field above it, so it never cuts
+  // above it (the row above's words or lines) and under any field above it, so it never cuts
   // into other text. Only a label beside it on its row counts, not one above it or in a box.
   function fitFieldsToLabels(fields, inkMap, w, h, scale){
     fields.forEach(f => {
@@ -4614,15 +4614,15 @@ else if (typeof exports === 'object')
   // beside it, the ticks dividing YYYY / MM / DD)
   const MAX_INK_IN_FIELD = 0.03;
   // A field to write in is blank page: one with printed text in it is cut back to its larger blank
-  // part, above or below the text (rules and tick boxes don't count: a ruled writing area has its
+  // part, above or below the text (lines and tick boxes don't count: a ruled writing area has its
   // lines in it, a fill-in line's field sits on its line). However small that part is: a cramped
   // cell gets a cramped field, but never one over its print ("DEGREE/GRADE (WAD, SPRAIN, STRAIN)"
   // with a few pixels under it). Kept as it is only where no blank is left (under minHeight).
-  // Canvas px: the ink map (w × h), the rules (bands); fields in page px (scale canvas px per page
+  // Canvas px: the ink map (w × h), the lines (bands); fields in page px (scale canvas px per page
   // px); minHeight canvas px.
   function trimFieldsToBlank(fields, inkMap, w, h, scale, bands, minHeight){
     const ticks = fields.filter(f => f.type === 'checkbox').map(t => ({ x1: t.x*scale - 3, x2: (t.x + t.width)*scale + 3, y1: t.y*scale - 3, y2: (t.y + t.height)*scale + 3 }));
-    const onRule = (x, y) => bands.some(b => y >= b.y1 - 1 && y <= b.y2 + 1 && x >= b.x1 - 1 && x <= b.x2 + 1);
+    const onLine = (x, y) => bands.some(b => y >= b.y1 - 1 && y <= b.y2 + 1 && x >= b.x1 - 1 && x <= b.x2 + 1);
     const inTick = (x, y) => ticks.some(t => x >= t.x1 && x <= t.x2 && y >= t.y1 && y <= t.y2);
     fields.forEach(f => {
       if (f.type !== 'text' && f.type !== 'textarea' && f.type !== 'date') return;
@@ -4630,7 +4630,7 @@ else if (typeof exports === 'object')
       const ya = Math.max(0, Math.round(f.y*scale)), yb = Math.min(h-1, Math.round((f.y + f.height)*scale));
       let ink = 0, top = Infinity, bottom = -1;
       for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++)
-        if (inkMap[y*w + x] && !onRule(x, y) && !inTick(x, y)){ ink++; if (y < top) top = y; if (y > bottom) bottom = y; }
+        if (inkMap[y*w + x] && !onLine(x, y) && !inTick(x, y)){ ink++; if (y < top) top = y; if (y > bottom) bottom = y; }
       if (ink <= (xb - xa + 1)*(yb - ya + 1)*MAX_INK_IN_FIELD) return;
       // (the larger blank part: under the text, or over it)
       const under = yb - (bottom + 2), over = (top - 2) - ya;
@@ -4662,8 +4662,8 @@ else if (typeof exports === 'object')
   // cell with something printed in it heads its column when the cells right under it are empty
   // in at least two rows, one after the other: a blank box (nothing printed in it) or a single
   // tick box (several are a cell's options, "☐ Left ☐ Right"). They must be cells: the column's
-  // side rules run down past them. Tick boxes in a list under it ("TESTS REQUESTED: ☐ CBC
-  // ☐ Ferritin", no rules between them) aren't a column of cells. A blank cell over blank cells
+  // side lines run down past them. Tick boxes in a list under it ("TESTS REQUESTED: ☐ CBC
+  // ☐ Ferritin", no lines between them) aren't a column of cells. A blank cell over blank cells
   // is a column to fill in ("Last Name | ____" down a table). A row whose cells are mostly such
   // headings is a heading row, and none of its cells is a field, an empty corner over the rows'
   // labels included. Pass 1's fields (page px); the ink map (canvas px, w × h, scale canvas px
@@ -4673,14 +4673,14 @@ else if (typeof exports === 'object')
     const cells = fields.filter(f => f.box && (f.type === 'text' || f.type === 'textarea'));
     const centreIn = (g, f) => g.x + g.width/2 >= f.x && g.x + g.width/2 <= f.x + f.width;
     const bottomOf = (f) => f.y + f.height;
-    // (a side rule down from ya to yb, at x or a little outside it: a field sits a few pixels
+    // (a side line down from ya to yb, at x or a little outside it: a field sits a few pixels
     // inside its cell)
     const sideNear = (x, outward, ya, yb) => {
       const cx = Math.round(x*scale), a = Math.round(ya*scale), b = Math.round(yb*scale);
-      for (let k = 0; k <= lineHeight*0.3; k += 3) if (sideRule(inkMap, w, h, cx + outward*k, a, b)) return true;
+      for (let k = 0; k <= lineHeight*0.3; k += 3) if (sideLine(inkMap, w, h, cx + outward*k, a, b)) return true;
       return false;
     };
-    // (g is in a cell of f's column: its side rules run down past g)
+    // (g is in a cell of f's column: its side lines run down past g)
     const inColumn = (f, g) => sideNear(f.x, -1, g.y, bottomOf(g)) && sideNear(f.x + f.width, 1, g.y, bottomOf(g));
     // (how many rows down from cell f, in its column, one right after the other, hold an empty
     // cell, until one doesn't)
@@ -4702,7 +4702,7 @@ else if (typeof exports === 'object')
     const heads = new Set(cells.filter(f => !f._blank && emptyRowsUnder(f) >= 2));
     const dropped = new Set();
     heads.forEach(h => {
-      // (its row: the cells ending on the same rule)
+      // (its row: the cells ending on the same line)
       const row = cells.filter(g => Math.abs(bottomOf(g) - bottomOf(h)) <= Math.max(3, h.height*0.2));
       if (row.filter(g => heads.has(g)).length >= Math.max(2, row.length/2)) row.forEach(g => dropped.add(g));
     });
@@ -4710,13 +4710,13 @@ else if (typeof exports === 'object')
   }
 
   // The thickest a line can be, against the page's typical word height (OCR's), and still be a
-  // rule: a bold word whose letters run together can read as a thick rule ("Comments:", "management"
+  // line: a bold word whose letters run together can read as a thick line ("Comments:", "management"
   // at some sizes), and a field above it, as on a fill-in line, is none. Measured on the cases: real
-  // fields' lines are at most 0.66 of it (a mammography requisition's heavy rules), words read as
+  // fields' lines are at most 0.66 of it (a mammography requisition's heavy lines), words read as
   // lines 0.74 and more
   const MAX_LINE_PER_WORD = 0.7;
   // Drops the fields sitting on a "line" too thick to be one (MAX_LINE_PER_WORD): words run
-  // together, not a rule. Only a line's own field (_lineThickness, from textFieldsFromLines) is
+  // together, not a line. Only a line's own field (_lineThickness, from textFieldsFromLines) is
   // judged; wordHeight in page px
   function dropFieldsOnWords(fields, wordHeight){
     return fields.filter(f => !(f._lineThickness && wordHeight && f._lineThickness > wordHeight*MAX_LINE_PER_WORD));
@@ -4825,14 +4825,14 @@ else if (typeof exports === 'object')
     return hs[hs.length >> 1];
   }
 
-  // The dot leaders on the page ("Date of injury: ..............."), and dashed rules, drawn into
-  // the ink map as the solid rules they stand for, from the first piece to the last, so they are
-  // found as any rule is. Left as dots, whether they join into a rule depends on how the page was
+  // The dot leaders on the page ("Date of injury: ..............."), and dashed lines, drawn into
+  // the ink map as the solid lines they stand for, from the first piece to the last, so they are
+  // found as any line is. Left as dots, whether they join into a line depends on how the page was
   // rendered (gaps of two pixels are bridged, three aren't), and they outnumber the letters when
   // the page's text height is measured (textCapHeight). A leader is a row of pieces of ink no
   // taller than a dot (a sixth of a written line: a letter, even "x", is taller), of about the
   // same height, their centres on one line, with gaps no wider than a dot between them, at least
-  // minLength long, as long as any rule: a few dots in a line of text ("...") are too short.
+  // minLength long, as long as any line: a few dots in a row of text ("...") are too short.
   // (A piece may be one dot or a few that touch: at some sizes the dots run together.) Canvas px.
   function drawDotLeaders(inkMap, w, h, lineHeight, minLength){
     const maxDot = Math.max(2, Math.round(lineHeight/6)), seen = new Uint8Array(w*h), stack = [], pieces = [], drawn = [];
@@ -4881,23 +4881,23 @@ else if (typeof exports === 'object')
     return drawn;
   }
 
-  // The thickest a rule can be on a canvas h px tall; a thicker band is a shaded bar (a grey
+  // The thickest a line can be on a canvas h px tall; a thicker band is a shaded bar (a grey
   // table heading reads as ink)
-  const maxRuleThickness = (h) => Math.max(3, Math.round(h*0.012));
+  const maxLineThickness = (h) => Math.max(3, Math.round(h*0.012));
 
-  // Is a band of ink a printed rule, judged from the page's grey levels in it? Bold words run
+  // Is a band of ink a printed line, judged from the page's grey levels in it? Bold words run
   // together ("Recommended", a heading in capitals) and white letters cut out of a dark bar
-  // ("Complete ALL SECTIONS") make bands as long as a rule; their letters leave gaps a rule
+  // ("Complete ALL SECTIONS") make bands as long as a line; their letters leave gaps a line
   // hasn't. The band is split into ink and paper at its own level (Otsu's), then the rows of a
-  // rule's soft edges, or of the stubs of side rules crossing it, are trimmed off: if some trim
+  // line's soft edges, or of the stubs of side lines crossing it, are trimmed off: if some trim
   // of up to 2 rows from the top and up to 2 from the bottom, cropped tight to its ink, is at
-  // least 90% ink, it is a rule. A band of more than 4 rows (a table row's rule with the stubs of
-  // its cell walls above and below) is a rule too if, trimmed 2 rows each end, what is left is
+  // least 90% ink, it is a line. A band of more than 4 rows (a table row's line with the stubs of
+  // its cell walls above and below) is a line too if, trimmed 2 rows each end, what is left is
   // still at least 2 rows and its paper is all clean bars, each wider than twice its height
   // (between the stubs), where between letters it isn't. (A single row can't be judged by its
   // paper: every gap in one row is a clean bar.) minGap: paper smaller than this both ways
   // (canvas px) doesn't count.
-  function solidRule(gray, w, b, minGap){
+  function solidLine(gray, w, b, minGap){
     const W = b.x2 - b.x1 + 1, H = b.y2 - b.y1 + 1, n = W*H;
     // (Otsu's level: the grey that best splits the band's pixels into two groups)
     const hist = new Array(256).fill(0); let lo = 255, hi = 0;
@@ -4955,18 +4955,18 @@ else if (typeof exports === 'object')
   }
 
   // ===== Text fields from lines (added by FreeScribe) =====
-  // gray: the page's grey levels; bands: the page's rules, top to bottom; leaders: the dot
-  // leaders drawn in as rules (drawDotLeaders); lineHeight: one written line's height; ticks: the
+  // gray: the page's grey levels; bands: the page's lines, top to bottom; leaders: the dot
+  // leaders drawn in as lines (drawDotLeaders); lineHeight: one written line's height; ticks: the
   // tick boxes found on the page (all canvas px); scale: canvas px per page-image px.
   function textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, ticks){
-    const maxThick = maxRuleThickness(h);
+    const maxThick = maxLineThickness(h);
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
     const capHeight = textCapHeight(inkMap, w, h);
     // Is this band a line, not an underline or words? Words drawn as one: an underline has
     // letters standing just above it along most of its length, and the tops of a run of bold capitals merge into a
     // "line" with the letters hanging right under it. (The row touching the band is skipped: a
-    // line's soft edge.) A box's edge or a table row's rule can have words as close, but has
+    // line's soft edge.) A box's edge or a table row's line can have words as close, but has
     // sides running up or down from both its ends.
     const isLine = (b) => {
       if (!capHeight) return true;
@@ -4978,17 +4978,17 @@ else if (typeof exports === 'object')
         return n >= (b.x2-b.x1+1)*0.5;
       };
       if (!crowded(b.y1 - Math.round(capHeight*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
-      const sideRuleAt = (x, ya, yb) => sideRule(inkMap, w, h, x, ya, yb, 0.85, 0);
+      const sideLineAt = (x, ya, yb) => sideLine(inkMap, w, h, x, ya, yb, 0.85, 0);
       const tall = Math.round(capHeight*1.1);
-      return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => sideRuleAt(b.x1+1, ya, yb) && sideRuleAt(b.x2-1, ya, yb));
+      return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => sideLineAt(b.x1+1, ya, yb) && sideLineAt(b.x2-1, ya, yb));
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
-    // still a rule, so the row under a heading bar has a top
-    // A line that bounds a field: printed solid (solidRule), or a dot leader drawn in as one, or
+    // still a line, so the row under a heading bar has a top
+    // A line that bounds a field: printed solid (solidLine), or a dot leader drawn in as one, or
     // a shaded bar's bottom edge; and not an underline (isLine)
     const isLeader = (b) => leaders.some(l => l.x1 <= b.x2 && l.x2 >= b.x1 && l.y1 <= b.y2 + 1 && l.y2 >= b.y1 - 1);
     const minGap = Math.max(2, (capHeight || lineHeight/2.5)*0.25);
-    const isFieldLine = (b, bar) => (bar || isLeader(b) || solidRule(gray, w, b, minGap)) && isLine(b);
+    const isFieldLine = (b, bar) => (bar || isLeader(b) || solidLine(gray, w, b, minGap)) && isLine(b);
     const candidates = bands.map(b => (b.y2-b.y1+1) <= maxThick ? { band: b, bar: false } : { band: { ...b, y1: b.y2 }, bar: true });
     const verdicts = candidates.map(c => isFieldLine(c.band, c.bar));
     const lines = candidates.filter((c, i) => verdicts[i]).map(c => c.band)
@@ -4999,14 +4999,14 @@ else if (typeof exports === 'object')
     const rowLine = capHeight ? Math.min(lineHeight, capHeight*1.6) : lineHeight;
     const isInk = (x,y) => inkMap[y*w+x] === 1;
     const overlap = (a,b) => Math.max(0, Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1) + 1);
-    // A vertical rule at x between rows ya..yb (dark in nearly every row, allowing a pixel either side)
-    const rule = (x, ya, yb) => sideRule(inkMap, w, h, x, ya, yb);
-    // Does a rule run down (or up) from x on this line, for at least a text line? A side rule
-    // is thin, with blank page beside it; ink on both sides is something solid (more rules
+    // A vertical line at x between rows ya..yb (dark in nearly every row, allowing a pixel either side)
+    const downLine = (x, ya, yb) => sideLine(inkMap, w, h, x, ya, yb);
+    // Does a side line run down (or up) from x on this line, for at least a row of text? A side line
+    // is thin, with blank page beside it; ink on both sides is something solid (more lines
     // stacked under a fill-in line, a shaded bar), not a side.
-    const side = (x, ya, yb) => rule(x, ya, yb) && !(rule(Math.max(1, x-5), ya, yb) && rule(Math.min(w-2, x+5), ya, yb));
-    const ruleDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(lineHeight*0.7)));
-    const ruleUp = (x, y) => side(x, Math.max(0, y-Math.round(lineHeight*0.7)), y-2);
+    const side = (x, ya, yb) => downLine(x, ya, yb) && !(downLine(Math.max(1, x-5), ya, yb) && downLine(Math.min(w-2, x+5), ya, yb));
+    const lineDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(lineHeight*0.7)));
+    const lineUp = (x, y) => side(x, Math.max(0, y-Math.round(lineHeight*0.7)), y-2);
     const fields = [];
     // A writing area ruled with blank lines ("CURRENT MEDICATIONS" over three lines, or two
     // columns of them) is one text area. Taken one at a time, each of its lines would close a
@@ -5017,7 +5017,7 @@ else if (typeof exports === 'object')
     const ruled = new Set();
     {
       const near = (a, b) => Math.abs(a - b) <= lineHeight*0.5;
-      const sideless = (L) => ![L.x1+1, L.x2-1].some(x => ruleUp(x, L.y1));
+      const sideless = (L) => ![L.x1+1, L.x2-1].some(x => lineUp(x, L.y1));
       const blank = (xa, xb, ya, yb) => { for (let y=ya; y<=yb; y++) for (let x=xa; x<=xb; x++) if (isInk(x,y)) return false; return true; };
       // (no label: hardly any columns of ink before the line, on its row, however far to its left:
       // a box's side is one or two. "Last name    ____" with the labels in a column of their own
@@ -5055,9 +5055,9 @@ else if (typeof exports === 'object')
         fields.push({ page, x: a.x1/scale, y: a.y1/scale, width: (a.x2-a.x1)/scale, height: (a.y2-a.y1)/scale, type: 'textarea', name: 'text', oscarTag: '', box: false });
       });
     }
-    // The form's margins: where its rules start and end. A rule running from one to the other is
-    // a page-wide rule (a table drawn without sides, "Dr: ____ Billing #: ____" between two such
-    // rules); a fill-in line starts after its label, in from the margin.
+    // The form's margins: where its lines start and end. A line running from one to the other is
+    // a page-wide line (a table drawn without sides, "Dr: ____ Billing #: ____" between two such
+    // lines); a fill-in line starts after its label, in from the margin.
     const marginL = Math.min(...lines.map(L => L.x1)), marginR = Math.max(...lines.map(L => L.x2));
     const pageWide = (L) => L.x1 - marginL <= lineHeight*1.5 && marginR - L.x2 <= lineHeight*1.5;
     lines.forEach((L, i) => {
@@ -5071,9 +5071,9 @@ else if (typeof exports === 'object')
       }
       // Only the top edge of a box or table (its sides start here and go down, not up)
       const ends = [L.x1+1, L.x2-1];
-      const topEdge = ends.every(x => ruleDown(x, L.y1)) && !ends.some(x => ruleUp(x, L.y1));
+      const topEdge = ends.every(x => lineDown(x, L.y1)) && !ends.some(x => lineUp(x, L.y1));
       // A row (a table's, a box) is the space between two lines joined by sides at both ends of
-      // what they share, or between two page-wide rules a row apart, the lower not a table's top
+      // what they share, or between two page-wide lines a row apart, the lower not a table's top
       // edge (the space between two tables, with a table's title in it: "Diagnosis" over its
       // table). Any other line is a fill-in line: two lines one over the other without sides
       // ("Name: ____" over "Address: ____", a line over a box's edge) are no row.
@@ -5096,11 +5096,11 @@ else if (typeof exports === 'object')
       const floor = L.y1 - 2;
       // (any field is at least most of a table row's height: "PHN ____" just under a box's top edge)
       if (floor - ceil < rowLine*0.45) return;
-      // Columns: split at vertical rules inside a bounded row
+      // Columns: split at vertical lines inside a bounded row
       const cuts = [L.x1];
       if (bounded){
-        // A divider runs unbroken from rule to rule; a letter's stem in a short row leaves a gap
-        const divider = (x) => sideRule(inkMap, w, h, x, top.y2, L.y1, 1, 0);
+        // A divider runs unbroken from line to line; a letter's stem in a short row leaves a gap
+        const divider = (x) => sideLine(inkMap, w, h, x, top.y2, L.y1, 1, 0);
         for (let x=L.x1+3; x<L.x2-3; x++){
           if (divider(x)){ cuts.push(x); x += 3; }
         }
@@ -5110,8 +5110,8 @@ else if (typeof exports === 'object')
       for (let k=0; k<cuts.length-1; k++){
         const x1 = cuts[k] + 3, x2 = cuts[k+1] - 3;
         if (x2 - x1 < lineHeight*1.2) continue;
-        // A cell the row's top rule doesn't reach over is a taller box beside the row (a "Name of
-        // physician" box beside several rows of a table): its own top is the first rule above
+        // A cell the row's top line doesn't reach over is a taller box beside the row (a "Name of
+        // physician" box beside several rows of a table): its own top is the first line above
         // that spans it, when its sides run up to it
         let cellCeil = ceil;
         if (bounded && overlap(top, { x1, x2 }) < (x2-x1+1)*0.5){
@@ -5197,10 +5197,10 @@ else if (typeof exports === 'object')
             if (end - g.x2 >= lineHeight*2.5) fs.push({ x1: g.x2 + Math.round(lineHeight*0.3), y1: ya, x2: end, y2, lone: labels.length === 1 });
           });
         }
-        // In a box of its own: a rule above and below, and rules down both sides (a table cell, a
+        // In a box of its own: a line above and below, and lines down both sides (a table cell, a
         // box on a form). Two fill-in lines one above the other have no sides; there the words
         // above a field are the row above's, not its label.
-        const box = bounded && rule(x1 - 3, y1, y2) && rule(x2 + 3, y1, y2);
+        const box = bounded && downLine(x1 - 3, y1, y2) && downLine(x2 + 3, y1, y2);
         cells.push({ x1, x2, y2, cellW, highInk, lowInk, rightInk, below, fs, trim, box, lineRows: L.y2 - L.y1 + 1 });
       }
       // In a table row whose cells have their label at the top and their field under it
@@ -5259,7 +5259,7 @@ else if (typeof exports === 'object')
   // position, kind and name. They are read when the page is loaded onto the canvas, and kept on
   // the page (`pdfFields`), so a page has its own PDF's fields whichever PDF is open in the
   // converter later, and pages from different PDFs each have theirs. Auto Detect uses them for
-  // that page instead of the fields it would find in the picture (whose rules and words it still
+  // that page instead of the fields it would find in the picture (whose lines and words it still
   // reads, to tag them). Pages from scans, faxes, images or flat PDFs are detected from the
   // picture, and so is every page when "Detect from" is set to "Visual detection" (state.detectMode).
   // A PDF given in base64, opened with pdf.js
@@ -5386,7 +5386,7 @@ else if (typeof exports === 'object')
 
   // The tilt of a scanned page, in radians (0 when it is straight or can't be told). The page's
   // dark pixels are projected onto rows at small trial angles; the angle at which the rows are
-  // sharpest (rules and text lines fall into single rows) is the tilt. (Added by FreeScribe.)
+  // sharpest (printed lines and rows of text fall into single rows) is the tilt. (Added by FreeScribe.)
   function estimateSkew(img){
     const W = 900, sc = Math.min(1, W / img.width);
     const w = Math.max(1, Math.round(img.width*sc)), h = Math.max(1, Math.round(img.height*sc));
@@ -5425,7 +5425,7 @@ else if (typeof exports === 'object')
     const page = state.currentPage, p = state.pages[page];
     if (!p.imgData || !p.naturalW) { msg('Upload page image first.', 'warn'); return; }
     // A fillable PDF's own fields are taken as they are (exact positions and names), unless "Detect
-    // from" says "Visual detection": the picture is still read, for the page's rules and words, so
+    // from" says "Visual detection": the picture is still read, for the page's lines and words, so
     // pass 2 can tell whose each field is and tag it
     const fromPdf = state.detectMode === 'visual' ? null : await pdfFormFields(page);
     const minCb = Number($('minCb').value) || 8;
@@ -5456,7 +5456,7 @@ else if (typeof exports === 'object')
       ctx.fillStyle = '#fff';
       ctx.fillRect(0,0,w,h);
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-      // Straighten a tilted scan first (added by FreeScribe): rules that run slightly downhill
+      // Straighten a tilted scan first (added by FreeScribe): lines that run slightly downhill
       // break into pieces and tables fall apart. Fields are turned back onto the page at the end.
       const skew = estimateSkew(img);
       if (skew){
@@ -5521,12 +5521,12 @@ else if (typeof exports === 'object')
         }
       }
 
-      // Dot leaders and dashed rules are drawn in as the rules they stand for
+      // Dot leaders and dashed lines are drawn in as the lines they stand for
       const leaders = drawDotLeaders(inkMap, w, h, p.naturalH*0.026*scale, Math.round(w*(lineMinPct/100)));
 
       await progress('Finding the lines and checkboxes…', 0.05);
       const newFields = [];
-      // The rules: rows of ink at least lineMinPct% of the page's width long (gaps of up to two
+      // The lines: rows of ink at least lineMinPct% of the page's width long (gaps of up to two
       // pixels bridged)
       const minSeg = Math.round(w*(lineMinPct/100));
       const segs = [];
@@ -5545,7 +5545,7 @@ else if (typeof exports === 'object')
         }
       }
       segs.sort((a,b)=>a.y-b.y);
-      // The page's rules, top to bottom (each at least minSeg long), and the height of one
+      // The page's lines, top to bottom (each at least minSeg long), and the height of one
       // written line, in canvas px
       const bands = [], lineHeight = p.naturalH*0.026*scale;
       segs.forEach(sg=>{
@@ -5649,9 +5649,9 @@ else if (typeof exports === 'object')
 
       await progress(`Found ${dedupCb.length} checkbox(es). Finding the places to write…`, 0.1);
       // Text fields from the lines (added by FreeScribe). A field is the blank space you
-      // write in: above a fill-in line, or between two rules (a table row or a box), beside or
+      // write in: above a fill-in line, or between two lines (a table row or a box), beside or
       // under its printed label. Lines with words sitting on them (underlined headings, the
-      // bottoms of bold words, table rules under column headings) give no field, a table row
+      // bottoms of bold words, table lines under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
       const tickRects = dedupCb.map(f => ({ x1: f.x*scale, y1: f.y*scale, x2: (f.x + f.width)*scale, y2: (f.y + f.height)*scale }));
       textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, tickRects).forEach(f => newFields.push(f));
@@ -5684,8 +5684,8 @@ else if (typeof exports === 'object')
           : showDetectProgress(`${foundSoFar} Starting the word reader (the first time only)…`, 0.15));
         await progress('Naming the fields and suggesting tags…', 0.9);
       }
-      // Is there a rule across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
-      const ruleAcross = (x1, x2, y1, y2) => {
+      // Is there a line across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
+      const lineAcross = (x1, x2, y1, y2) => {
         const a = Math.max(0, Math.round(x1*scale)), z = Math.min(w-1, Math.round(x2*scale));
         for (let y=Math.max(0, Math.round(y1*scale)); y<=Math.min(h-1, Math.round(y2*scale)); y++){
           let n = 0; for (let x=a; x<=z; x++) if (inkMap[y*w+x]) n++;
@@ -5697,20 +5697,20 @@ else if (typeof exports === 'object')
       // each field's label; the fields the labels split or rule out; then what's printed around
       // the fields, for their names and tags. A fillable PDF's fields are the PDF's, labels too
       // (its author's, which OCR can only do worse): only what's printed around them.
-      if (read) markRuleWords(read, bands, scale, h);
+      if (read) markLineWords(read, bands, scale, h);
       if (read && fromPdf) sectionFields(found, read);
       else if (read){
-        const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its rules' furthest end)
+        const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its lines' furthest end)
         inkColons(read, inkMap, w, h, scale);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
         found = dropFieldsOnWords(found, labelWordsOf(found, read).wordHeight);
-        labelFields(found, read, ruleAcross);
+        labelFields(found, read, lineAcross);
         fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);
         sectionFields(found, read);
         found = found.flatMap(f => { const { _captionParts, ...g } = f; return _captionParts ? _captionParts.map(part => ({ ...g, ...part })) : [g]; });
       }
-      // The bordered box a field (with its label from x0) is in, if any: the nearest rule above
+      // The bordered box a field (with its label from x0) is in, if any: the nearest line above
       // and below that span it, joined by sides down from both ends of the top one (page-image
       // pixels). A fill-in line above or below has no sides, so it isn't a box's edge.
       const boxOf = (x0, f) => {
@@ -5744,7 +5744,7 @@ else if (typeof exports === 'object')
       });
       if (read) tagFields(found, read, boxOf);
       if (read) fitMultilineFields(found, inkMap, w, scale);
-      // (whatever rule found a field: none covers printed text)
+      // (whatever check found a field: none covers printed text)
       trimFieldsToBlank(found, inkMap, w, h, scale, bands, 3);
       // (a field already on the page at the same place and size isn't added again)
       found.forEach(f => {
@@ -6055,7 +6055,7 @@ function inputMarkup(f, inlinePosStyle=''){
   if (f.type === 'circle') {
     // (a read-only text box with a round border, clear until a click, Space or Enter writes "O" in
     // it and draws the border (".circleToggle[value='O']"); the value attribute is set too, as
-    // OSCAR sets it when a saved form is opened, so the same rule shows it then; other keys as a
+    // OSCAR sets it when a saved form is opened, so the same CSS rule shows it then; other keys as a
     // tick box's)
     const toggle = "this.value=(this.value==='O'?'':'O'); this.setAttribute('value',this.value); setDirtyFlag&&setDirtyFlag();";
     const style = `${inlinePosStyle} border:2px solid transparent; border-radius:50%; box-sizing:border-box; outline:0; box-shadow:none; background:transparent; color:transparent; caret-color:transparent; padding:0; margin:0; cursor:pointer;`;
@@ -7597,9 +7597,9 @@ function checkEform(){
       state.selected.clear();
       renderAll();
       const boxes = found.filter(f => f.type === 'checkbox').length;
-      const byRules = found.filter(f => f.oscarTag && f.source !== 'ai').length;
+      const byChecks = found.filter(f => f.oscarTag && f.source !== 'ai').length;
       const byAI = found.filter(f => f.oscarTag && f.source === 'ai').length;
-      const tagNote = `${byRules} tagged from their labels` + (byAI ? `, ${byAI} tag(s) suggested by the AI (check those)` : '') + '.';
+      const tagNote = `${byChecks} tagged from their labels` + (byAI ? `, ${byAI} tag(s) suggested by the AI (check those)` : '') + '.';
       const where = pages.length === 1 ? `page ${pages[0]}` : `${pages.length} pages`;
       const replaced = replace && before ? ` Replaced the ${before} field(s) that were there (Undo brings them back).` : '';
       const scannedPages = (response.summary && response.summary.pagesReadWithOcr) || 0;

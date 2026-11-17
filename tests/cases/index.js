@@ -66,7 +66,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [50, 1656, 980, 74],
-        "reason": "the ruled row left of SIGNATURE OF REQUESTING PHYSICIAN, between the box above and the TELEPHONE REQUISITION TIME row: an empty row with no words in it or beside it, which the eForm leaves out. Its ink is a table row's with nothing printed in it, as a box left blank to write in is (a big box with its label printed outside it), so no rule can take it out without taking those"
+        "reason": "the ruled row left of SIGNATURE OF REQUESTING PHYSICIAN, between the box above and the TELEPHONE REQUISITION TIME row: an empty row with no words in it or beside it, which the eForm leaves out. Its ink is a table row's with nothing printed in it, as a box left blank to write in is (a big box with its label printed outside it), so no check can take it out without taking those"
       }
     ]
   },
@@ -162,7 +162,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [1140, 820, 320, 60],
-        "reason": "the lower half of the MSP No box, beside Fax number: under MSP No's fill-in line and over the box's bottom rule, joined by the box's sides, so a row in ink; the eForm leaves it empty"
+        "reason": "the lower half of the MSP No box, beside Fax number: under MSP No's fill-in line and over the box's bottom line, joined by the box's sides, so a row in ink; the eForm leaves it empty"
       },
       {
         "test": "extraFields",
@@ -261,7 +261,7 @@ window.TEST_CASE_LIST = [
           "Hours_SchoolFull",
           "Hours_SchoolModified"
         ],
-        "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's rule with its label right beside it (\"☐Full time\", \"☐Yes ☐No\" in the work status table): in those pixels the same as a letter on a rule (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
+        "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's line with its label right beside it (\"☐Full time\", \"☐Yes ☐No\" in the work status table): in those pixels the same as a letter on a line (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
       },
       {
         "variation": "0.7× size",
@@ -269,7 +269,7 @@ window.TEST_CASE_LIST = [
           "Orientation2_Left",
           "Orientation4_Left"
         ],
-        "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's rule with its label right beside it (\"☐Left\" under ORIENTATION): in those pixels the same as a letter on a rule (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
+        "reason": "at 0.7× the page is about 70 dpi, below a PDF render (about 176), and each of these boxes sits a pixel or two over its row's line with its label right beside it (\"☐Left\" under ORIENTATION): in those pixels the same as a letter on a line (the D of \"Family MD\" on the referral form), so finding them would bring letters back"
       },
       {
         "variation": "0.7× size",
@@ -304,7 +304,7 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 1,
         "region": [536, 398, 280, 26],
-        "reason": "the PRACTITIONER INFORMATION heading row, right of the MSP/PRACTITIONER NUMBER column: the hairline under the row is light grey (about 150 of 255), which faint print takes to about 224, and only its part from that column's divider on still reads as a rule, so that part makes a row of its own, with no label in it, under the table's top rule"
+        "reason": "the PRACTITIONER INFORMATION heading row, right of the MSP/PRACTITIONER NUMBER column: the hairline under the row is light grey (about 150 of 255), which faint print takes to about 224, and only its part from that column's divider on still reads as a line, so that part makes a row of its own, with no label in it, under the table's top rule"
       },
       {
         "variation": "0.7× size",

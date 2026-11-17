@@ -18,12 +18,22 @@ package). **Auto Detect** finds the tick boxes and the places to write, and sugg
 - `CodingAgentContext/standard-eform-tags.csv`: OSCAR's standard eForm tags, with the OSCAR
   version each came in (see "Tags" below).
 
+## Words
+
+- **line**: a straight line printed on the page: a fill-in line, a table's or a box's edge, the
+  line under a heading. Never a row of printed words: that is a **row of text**.
+- **check**: a step of Auto Detect that decides something ("the line check": `solidLine` and
+  `isLine`). Not "rule", which this project used for both.
+- **band**: a run of ink across a row that the band finder (`bands`) returns, before any check:
+  a line, or words or a bar that look like one.
+- **bar**: a shaded bar, a block of grey or black ink, often with white letters in it.
+
 ## Tags
 
 Only the **OSCAR version 12** tags count: the rows of `standard-eform-tags.csv` whose
 `Oscar Version` is `12` and whose tag isn't empty (102 tags). Tags from later versions (`15`, `15b803`, `19`…) and tags
 not in the file don't exist for this project: Auto Detect must never suggest one, and a new
-rule or list of tags must use only version 12's. (The rows with no version are the source
+check or list of tags must use only version 12's. (The rows with no version are the source
 page's section headings, not tags.) To list them:
 
 ```
@@ -40,20 +50,20 @@ A tick box (`checkbox`), a circle toggle, a free draw area and a signature never
 (`takesNoTag`): Auto Detect, "Auto-tag untagged" and "Guess" (`guessTag`) give them none, and
 a tag one is given (by a user, an imported eForm, a saved session) is dropped. A tick box can
 still be ticked by a custom fill (for a sex).
-A test case's expected tags follow the same rule. (OSCAR measurement references such as
+A test case's expected tags follow it too. (OSCAR measurement references such as
 `m$EDC#value` aren't standard tags, and Auto Detect doesn't suggest them.)
 
 ## Auto Detect, in order (`detectCurrentPage`)
 
 The forms are blank templates, mostly clean PDFs rendered at some size, sometimes a scan or a
-fax. A rule may rely on that: a tick box is empty (`isRealBox` turns away ink in a box's
+fax. A check may rely on that: a tick box is empty (`isRealBox` turns away ink in a box's
 middle, which is how a letter such as the B in "Bilat." is told from a box), and nothing is
-filled in or ticked by hand. Don't loosen a rule for filled-in forms.
+filled in or ticked by hand. Don't loosen a check for filled-in forms.
 
 Auto Detect works from the picture, in two passes. When the page came from a fillable PDF,
 the PDF's own form fields are taken as they are (`pdfFormFields`: positions, names and labels)
 in place of the fields pass 1 finds, unless "Detect from" is set to "Visual detection"
-(`state.detectMode`; it offers "PDF form fields" only for a fillable PDF, `refreshDetectMode`); pass 1 still reads the page's rules, and pass 2 only what's
+(`state.detectMode`; it offers "PDF form fields" only for a fillable PDF, `refreshDetectMode`); pass 1 still reads the page's lines, and pass 2 only what's
 printed around them (`sectionFields`) and their tags (`tagFields`).
 
 **Pass 1: the picture only, no OCR.** It must not rely on OCR: it finds the fields from the
@@ -61,31 +71,31 @@ ink alone, so it works where the words can't be read (no WebAssembly SIMD, no wo
 `readWords: false` runs it so). Never move a call to `readPageWords`, or anything using its
 words, into pass 1.
 1. Straighten (`estimateSkew`), stretch a faint page's grey levels (`stretchGrey`, also on
-   the copy OCR reads), make an ink map (`inkMap`) and find the rules (`bands`). The ink map
+   the copy OCR reads), make an ink map (`inkMap`) and find its bands (`bands`), the candidate lines. The ink map
    drops lone pixels: keep that, even for clean PDFs (a lone pixel on the Diabetes form's top
    edge becomes a writing area without it). It also drops a small colon's one-pixel dots
-   ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a rule can't rely on every colon.
-   Dotted and dashed rules ("Date of injury: ........") are drawn into the ink map as the
-   solid rules they stand for (`drawDotLeaders`), before the rules are found.
+   ("MENOPAUSE (AGE):" at 1500 px), which OCR misses too, so a check can't rely on every colon.
+   Dotted and dashed lines ("Date of injury: ........") are drawn into the ink map as the
+   solid lines they stand for (`drawDotLeaders`), before the bands are found.
    A band is taken for a line that bounds a field only if its ink, split at its own grey level
-   (Otsu's), is a solid rule once its soft edges are trimmed (`solidRule`), or it is a dot leader
+   (Otsu's), is a solid line once its soft edges are trimmed (`solidLine`), or it is a dot leader
    or a shaded bar's bottom edge; and it isn't an underline, with letters standing on it
    (`isLine`). Bold words run together and white letters in a dark bar make bands too; this is
    what turns them away.
 2. Tick boxes: connected blobs and `rectScan`, both judged by `isRealBox` / `isRealCircle`.
-3. Text fields from the rules (`textFieldsFromLines`: fill-in lines, table rows and cells,
+3. Text fields from the lines (`textFieldsFromLines`: fill-in lines, table rows and cells,
    ruled writing areas; it is given the tick boxes, a cell's options), then open writing areas
    under a label (`areaFields`). A "label" here is ink, not words. A table's heading row (cells with
    print, over at least two rows of empty cells of their column right under them: blank, or a single
-   tick box, between the column's side rules) has no fields (`dropHeadingRows`).
+   tick box, between the column's side lines) has no fields (`dropHeadingRows`).
 
 **Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and
 no tags).
-4. Words OCR read from a rule ("EEE" on an underscore line, `markRuleWords`) are left out of
+4. Words OCR read from a line ("EEE" on an underscore line, `markLineWords`) are left out of
    the page's typical word height, not out of the words. A field on a "line" thicker than 0.7 of that height
-   sits on words run together, not a rule, and is dropped (`dropFieldsOnWords`). Then fields after a colon
-   (`colonFields`: blank page, or a line too short for pass 1 to take as a rule), each field's label (`labelFields`; the words just above a line come last, and never another
+   sits on words run together, not a line, and is dropped (`dropFieldsOnWords`). Then fields after a colon
+   (`colonFields`: blank page, or a line too short for pass 1 to find), each field's label (`labelFields`; the words just above a line come last, and never another
    line's caption), a one-line field
    shorter than its own label's text made taller, through blank page only
    (`fitFieldsToLabels`), the fields the labels split or rule out (`fieldsFromLabels`),
@@ -99,13 +109,13 @@ no tags).
    "Doctor stamp" `current_user`, "Clinic stamp" `clinic_label`). A fillable PDF's field the PDF formats as a date is one already, in
    its format (`pdfDateFormat`).
 
-Last, whichever pass found it, a field with printed text in it (more than a speck, not a rule or a
+Last, whichever pass found it, a field with printed text in it (more than a speck, not a line or a
 tick box) is cut back to its larger blank part, however small (`trimFieldsToBlank`): a field to
 write in is blank page.
 
 The pass-2 steps pass what they learn on the fields themselves (`box`, `_words`, `_split`…);
-the list is in the comment at the head of "Pass 2". Shared tests: `sideRule` /
-`joinedBySides` (rules and boxes), `capsText` / `headingLabel` / `isSentence` (headings and
+the list is in the comment at the head of "Pass 2". Shared tests: `sideLine` /
+`joinedBySides` (lines and boxes), `capsText` / `headingLabel` / `isSentence` (headings and
 sentences), `fieldLeftOf`.
 
 ## Testing
@@ -121,8 +131,8 @@ PW_CHANNEL= node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" -
 Every test must pass; to-dos (○) are allowed. CI runs the same on each push, then the line
 tests: whether each band of ink on the case pages is taken for a line, against the labels in
 `tests/cases/lines.js` (1: a line that bounds a field; 0: words, an underline, a bar's white
-letters, a rule's split-off edge). Run them after any change to the ink map, `bands` or the line
-test (`solidRule`, `isLine`); they take about a minute:
+letters, a line's split-off edge). Run them after any change to the ink map, `bands` or the line
+test (`solidLine`, `isLine`); they take about a minute:
 
 ```
 PW_CHANNEL= node tests/lines.js "http://localhost:8000/eForm_Generator.html#test" --variations
@@ -139,7 +149,7 @@ diff before.txt after.txt
 
 The snapshot covers the case pages only, not the variations: a change it shows none for still
 needs the full run with `--variations`. (A snapshot takes about a minute, the full run about
-four.) To see why a rule does what it does, add `--log` after the URL: whatever the app logs
+four.) To see why a check does what it does, add `--log` after the URL: whatever the app logs
 to the console while it reads each image is printed after that image's fields, each line
 starting "> ". Put a `console.log` in the app for the values you want, and take it out after.
 
@@ -165,29 +175,29 @@ the case's entry in `tests/cases/index.js` (see `tests/README.md`), and pick the
   a tick box), and a general fix is believed to exist. It stays until fixed; take it off once
   it passes.
 - **Skip**: the eForm made a choice the page can't show, or Auto Detect's answer is as good as
-  the page allows; either way a rule to match it would cost real fields on other forms. For
+  the page allows; either way a check to match it would cost real fields on other forms. For
   example: a blank after a row of options that the eForm leaves out (when the same layout gets
   a field elsewhere), rows or cells the eForm joins into one field, a field its script fills, a
   reference that isn't a standard tag (`e$last#…`, `m$…`), a box a poorer copy has left the
   same in pixels as a letter. Skip only what can't apply: one test, one small region on one
   page, with a reason that names the evidence.
 
-**When a general fix isn't there.** Detection must stay general and robust: a rule has to hold
-across forms, not rescue one case. Try for a general fact first, and check every attempt
+**When a general fix isn't there.** Detection must stay general and robust: a check has to hold
+across forms, not rescue one case. Try for a general fact first, and test every attempt
 against every case and variation (the snapshot and the full suite). If the only fixes found
 need exceptions, special cases, or thresholds fitted to the one case, or any fix costs real
 fields elsewhere (a false box, a lost field), don't add it: accept the miss. Skip it, with a
 reason that says what was tried and why it can't be told apart ("at 70 dpi this box over a
-rule is the same in pixels as a letter on a rule"). Keep a to-do only while you believe a
+line is the same in pixels as a letter on a line"). Keep a to-do only while you believe a
 general fix exists; once you've tried and know why there isn't one, it's a skip. A few honest
 skips are better than a detector tuned to its tests.
 
-When a rule takes out the right fields but costs real ones on other forms, look at what the
-lost fields share before giving up, and say that in the rule: a blank after a cell's only label
+When a check takes out the right fields but costs real ones on other forms, look at what the
+lost fields share before giving up, and say that in the check: a blank after a cell's only label
 is a heading row's, where several labels spaced along a row are each a blank's.
 
 Write skips by hand, one region each, so every one is visible in the panel with its reason.
-Don't add rules to the tests or the app that skip things automatically: they would hide
+Don't add checks to the tests or the app that skip things automatically: they would hide
 regressions in those places. If the same kind of skip turns up across several forms, that is
 the time to consider one in `tests/auto-detect.js`, for the extra-fields test only, never for
 missed fields or tags.
@@ -202,8 +212,8 @@ PDF behind them). Each variation is tested for both tick boxes and fields,
 with words read, as the page itself is; the case's own skips and to-dos for fields hold on its
 variations too. A variation Auto Detect should do better on is a to-do, in the case's
 `variationTodo` (`ticks`, `extraTicks`, `fields` or `extraFields`). One can skip tick boxes it
-has left too little of to find (a box over a rule that a small size leaves the same in pixels
-as a letter), once a general rule has been tried and couldn't find them without taking letters
+has left too little of to find (a box over a line that a small size leaves the same in pixels
+as a letter), once a general check has been tried and couldn't find them without taking letters
 too: the case's `variationSkip` in `tests/cases/index.js`. Name each box and say what the
 variation did to it; take a box off once it's found. The same goes for something a variation
 takes for a tick box that its pixels can't tell from one (a bold letter that is a perfect
@@ -212,15 +222,15 @@ taking or missing is a skip of one small region too (with its `test`), once a ge
 been tried; a variation is where a threshold fitted to one rendering shows, so try first to
 size it against the page.
 
-## Changing a rule
+## Changing a check
 
 Discuss before fixing. When Auto Detect gets something wrong, first find the cause and say
 what it is, with the evidence (the printed text, the values a temporary `console.log` showed,
-a picture), and propose the fix: what the rule would say, why it is general, and what it may
+a picture), and propose the fix: what the check would say, why it is general, and what it may
 cost on other forms (with options where there is more than one way). Then wait for the user to
-agree before changing any detection or tagging rule in `eForm_Generator.html`. Investigating is
+agree before changing any detection or tagging check in `eForm_Generator.html`. Investigating is
 fine meanwhile: temporary logs and experiments on copies of a page, with the app put back as
-it was after. Once agreed, make the change and check it as below (snapshot, full suite), and
+it was after. Once agreed, make the change and test it as below (snapshot, full suite), and
 bring back anything it changed that wasn't discussed.
 
 ## Decisions
@@ -230,9 +240,9 @@ Settled with the user; follow them unless the user changes them.
 **Working**
 - A test case's expected answer is what is right for the form, not what Auto Detect happens to
   do. Change one (an eForm's field, a session's) only with the user's say-so, and never just to
-  make a test pass. Where Auto Detect is wrong, the rule changes, or it is a to-do or a skip.
+  make a test pass. Where Auto Detect is wrong, the check changes, or it is a to-do or a skip.
 - A made-up test form (the limit forms) prints what real forms print. Where its wording is
-  artificial ("Today (oscarDB today)"), fix the form, not the rule.
+  artificial ("Today (oscarDB today)"), fix the form, not the check.
 - Measure before choosing a number: log the values on every case (a temporary `console.log`, the
   snapshot with `--log`), and say which numbers were measured and which were chosen.
 - Run the full suite in the background, so the user can keep talking meanwhile, and don't change
@@ -262,21 +272,21 @@ Settled with the user; follow them unless the user changes them.
 - Every function has a brief comment above it describing its purpose. The exception is a
   one-line helper inside a function whose name says what it does
   (`const rowHas = (y, xa, xb) => …`).
-- Comments are plain English that say what a rule is for, with the printed text that shows it
+- Comments are plain English that say what a check is for, with the printed text that shows it
   in quotes ("Referring Physician: ____", "☐ OTHER, SPECIFY: ____"). Keep them up to date when
-  a rule changes.
-- Field detection and tagging rules must be general: a rule says something true of forms in
+  a check changes.
+- Field detection and tagging checks must be general: a check says something true of forms in
   general (how a table row is laid out, what a heading looks like), not of the one form in
-  front of you. Don't add a rule that names a form's words, a special case for one layout, or
+  front of you. Don't add a check that names a form's words, a special case for one layout, or
   a stack of exceptions to make one case pass. If a fix needs exceptions to stop it breaking
-  other forms, the rule is probably the wrong one: look for the general fact instead.
+  other forms, the check is probably the wrong one: look for the general fact instead.
 - Prefer one shared test over another copy with its own thresholds, and size thresholds
-  against the page (its rules, its printed text), not fixed pixel counts. Know which pixels a
+  against the page (its lines, its printed text), not fixed pixel counts. Know which pixels a
   threshold counts: the canvas Auto Detect works on (`inkMap`, `bands`, `lineHeight`, `capHeight`) is the
   page resized to about 1600 px on its long side (twice the size for a page under 800 px), so
   it is already sized to the page; page-image pixels (OCR's words, the fields) are not (the
   cases are 850 to 1500 px wide, the variations 0.7× to 3× that).
-- Check every rule change against every case: an exact snapshot before and after
+- Test every change to a check against every case: an exact snapshot before and after
   (`tests/snapshot.js`), and every difference explained. Where a form can't be handled yet,
   leave a to-do in its test case rather than an exception in the code, or, if a general fix
   isn't possible, a skip (see "To-do or skip").

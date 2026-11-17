@@ -9,7 +9,7 @@
 //   node tests/snapshot.js <app url ending in #test> [image paths...] > after.txt
 //   diff before.txt after.txt
 //
-// To see why a rule does what it does, add --log: everything the app logs to the console while
+// To see why a check does what it does, add --log: everything the app logs to the console while
 // it reads each image is printed after that image's fields, each line starting "> ". Put a
 // console.log in the app for the values you want (and take it out after).
 //
