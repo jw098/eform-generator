@@ -463,8 +463,7 @@ window.TEST_CASE_LIST = [
     "session": "typed_form_session.json",
     "variations": true,
     "todo": {
-      "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)",
-      "dates": "\"Date of injury: ........\" is found but labelled \"injury\" alone, so it isn't made a date field: OCR reads each underscore and dotted line as a word 2 px tall (68 of the page's 121 words), the median word height comes out at 2 px, and the words of a label are then too far apart to be taken together"
+      "tags": "\"Date: ____\" after \"Signature: ____\" on its row gets no today tag, where a plain \"Date:\" gets one (as on the lab requisition)"
     },
     "variationTodo": [
       {

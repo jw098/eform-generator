@@ -75,8 +75,9 @@ words, into pass 1.
 **Pass 2: the words OCR reads (`readPageWords`).** Only pass 2 uses OCR. It refines what
 pass 1 found and is skipped when the words can't be read (fields then keep plain names and
 no tags).
-4. Fields after a colon (`colonFields`: blank page, or a line too short for pass 1 to take as
-   a rule), each field's label (`labelFields`), a one-line field
+4. Words OCR read from a rule ("EEE" on an underscore line, `markRuleWords`) are left out of
+   the page's typical word height, not out of the words. Then fields after a colon
+   (`colonFields`: blank page, or a line too short for pass 1 to take as a rule), each field's label (`labelFields`), a one-line field
    shorter than its own label's text made taller, through blank page only
    (`fitFieldsToLabels`), the fields the labels split or rule out (`fieldsFromLabels`),
    captions and section headings (`sectionFields`).

@@ -4386,6 +4386,7 @@ else if (typeof exports === 'object')
   //   _ownColon    in a box, a label of its own on its row ending with a colon (labelFields)
   //   caption      small words printed under a fill-in line (sectionFields)
   //   section      the heading over its column, for its name (sectionFields)
+  // and on OCR's words: onRule, a rule read as a word (markRuleWords)
   // addField keeps only the field's own properties, so these go no further than Auto Detect.
   // Shared by the steps below (positions in page-image pixels)
   const hasLetters = (t) => /[A-Za-z]/.test(t);
@@ -4401,13 +4402,28 @@ else if (typeof exports === 'object')
   const phraseText = (ws) => ws.map(w => w.text).join(' ').replace(/[\s:;.,*#]+$/, '').replace(/^[^A-Za-z0-9]+/, '').trim();
   // Whether a phrase ends with a colon
   const endsWithColon = (ws) => !!(ws && ws.length && /:\s*$/.test(ws[ws.length-1].text));
+  // Marks the words OCR read from a rule (w.onRule): a line typed as underscores can come back
+  // as a "word" ("EEE", two pixels tall) lying on the line. Such a word fits inside one of the
+  // page's rules (bands, from pass 1, canvas px; only those thin enough to be rules: a shaded
+  // bar, with a heading's words inside it, isn't one), across and from top to bottom, give or
+  // take a pixel; a word's letters reach above any rule they sit on. h: the canvas's height.
+  function markRuleWords(read, bands, scale, h){
+    const rules = bands.filter(b => b.y2 - b.y1 + 1 <= maxRuleThickness(h));
+    read.words.forEach(w => {
+      const x0 = w.x0*scale, x1 = w.x1*scale, y0 = w.y0*scale, y1 = w.y1*scale;
+      w.onRule = rules.some(b => x1 > b.x1 && x0 < b.x2 && y0 >= b.y1 - 1 && y1 <= b.y2 + 1);
+    });
+  }
   // The page's words that could be labels (with letters, not inside a tick box), and their
-  // typical height
+  // typical height: the median height of those words, leaving out the rules OCR read as words
+  // (onRule). A page of underscore lines would otherwise make it a line's two pixels, and a
+  // label's words would then seem too far apart to go together ("Patient name:" read as "name").
+  // Those words stay in the list: only the height leaves them out
   function labelWordsOf(fields, read){
     const boxes = fields.filter(f => f.type === 'checkbox');
     const inBox = (w) => boxes.some(b => { const cx = (w.x0+w.x1)/2, cy = (w.y0+w.y1)/2; return cx >= b.x-2 && cx <= b.x+b.width+2 && cy >= b.y-2 && cy <= b.y+b.height+2; });
-    const words = read.words.filter(w => hasLetters(w.text) && !inBox(w));
-    const wordHeight = words.length ? words.map(w => w.y1 - w.y0).sort((a,b) => a-b)[words.length >> 1] : 20;
+    const words = read.words.filter(w => hasLetters(w.text) && !inBox(w)), measured = words.filter(w => !w.onRule);
+    const wordHeight = measured.length ? measured.map(w => w.y1 - w.y0).sort((a,b) => a-b)[measured.length >> 1] : 20;
     return { boxes, words, wordHeight };
   }
 
@@ -4698,11 +4714,15 @@ else if (typeof exports === 'object')
     });
   }
 
+  // The thickest a rule can be on a canvas h px tall; a thicker band is a shaded bar (a grey
+  // table heading reads as ink)
+  const maxRuleThickness = (h) => Math.max(3, Math.round(h*0.012));
+
   // ===== Text fields from lines (added by FreeScribe) =====
   // bands: the page's rules, top to bottom; lineHeight: one written line's height; ticks: the
   // tick boxes found on the page (all canvas px); scale: canvas px per page-image px.
   function textFieldsFromLines(inkMap, w, h, scale, bands, lineHeight, page, ticks){
-    const maxThick = Math.max(3, Math.round(h*0.012));
+    const maxThick = maxRuleThickness(h);
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
     const capHeight = textCapHeight(inkMap, w, h);
@@ -5430,6 +5450,7 @@ else if (typeof exports === 'object')
       // each field's label; the fields the labels split or rule out; then what's printed around
       // the fields, for their names and tags. A fillable PDF's fields are the PDF's, labels too
       // (its author's, which OCR can only do worse): only what's printed around them.
+      if (read) markRuleWords(read, bands, scale, h);
       if (read && fromPdf) sectionFields(found, read);
       else if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its rules' furthest end)
