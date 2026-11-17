@@ -4391,6 +4391,7 @@ else if (typeof exports === 'object')
   //   box          a text field in a box of its own: rules above and below, sides down both
   //                ends (textFieldsFromLines)
   //   _lone        a blank in a table cell after the only label on its row (textFieldsFromLines)
+  //   _blank       a field whose cell or space has nothing printed in it (textFieldsFromLines)
   //   toEnd        a writing area that runs down to the foot of the page or its footer (areaFields)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
@@ -4649,6 +4650,49 @@ else if (typeof exports === 'object')
       }
       f.type = 'textarea';
     });
+  }
+
+  // A table's heading row has no blanks: its cells name the columns under them ("Not at all",
+  // "Several days" over a grid of tick boxes; "Drug | Dose | Frequency" over rows to fill in). A
+  // cell with something printed in it heads its column when the cells right under it are empty
+  // in at least two rows, one after the other: a blank box (nothing printed in it) or a single
+  // tick box (several are a cell's options, "☐ Left ☐ Right"). A blank cell over blank cells is
+  // a column to fill in ("Last Name | ____" down a table), and empty cells further down, past a
+  // gap, are another table's. A row whose cells are mostly such headings is a heading row, and
+  // none of its cells is a field, an empty corner over the rows' labels included. Pass 1's
+  // fields; page px.
+  function dropHeadingRows(fields){
+    const ticks = fields.filter(f => f.type === 'checkbox');
+    const cells = fields.filter(f => f.box && (f.type === 'text' || f.type === 'textarea'));
+    const centreIn = (g, f) => g.x + g.width/2 >= f.x && g.x + g.width/2 <= f.x + f.width;
+    const bottomOf = (f) => f.y + f.height;
+    // (how many rows down from cell f, in its column, one right after the other, hold an empty
+    // cell, until one doesn't)
+    const emptyRowsUnder = (f) => {
+      const under = [...ticks, ...cells].filter(g => g !== f && g.y >= bottomOf(f) - 2 && centreIn(g, f)).sort((a, b) => a.y - b.y);
+      let rows = 0, above = bottomOf(f);
+      for (let i = 0; i < under.length;){
+        const first = under[i], mid = first.y + first.height/2;
+        if (first.y - above > f.height) break;
+        const row = under.filter(g => g.y <= mid && bottomOf(g) >= mid);
+        const rowTicks = row.filter(g => g.type === 'checkbox'), rowCells = row.filter(g => g.type !== 'checkbox');
+        const empty = (rowTicks.length === 1 && !rowCells.length) || (!rowTicks.length && rowCells.length === 1 && rowCells[0]._blank);
+        if (!empty) break;
+        rows++;
+        const end = Math.max(...row.map(bottomOf));
+        above = end;
+        while (i < under.length && under[i].y < end - 2) i++;
+      }
+      return rows;
+    };
+    const heads = new Set(cells.filter(f => !f._blank && emptyRowsUnder(f) >= 2));
+    const dropped = new Set();
+    heads.forEach(h => {
+      // (its row: the cells ending on the same rule)
+      const row = cells.filter(g => Math.abs(bottomOf(g) - bottomOf(h)) <= Math.max(3, h.height*0.2));
+      if (row.filter(g => heads.has(g)).length >= Math.max(2, row.length/2)) row.forEach(g => dropped.add(g));
+    });
+    return fields.filter(f => !dropped.has(f));
   }
 
   // What the labels say about the fields themselves: everything pass 2 changes about which
@@ -5006,7 +5050,7 @@ else if (typeof exports === 'object')
         };
         if (lowInk < 0){
           const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : lineHeight));
-          fs.push({ x1, y1: ya, x2: trim(ya), y2 });
+          fs.push({ x1, y1: ya, x2: trim(ya), y2, blank: true });
         }
         else if (y2 - lowInk >= lineHeight*0.6){
           // (below any ink right under the label: its descenders, "stamp)")
@@ -5070,7 +5114,7 @@ else if (typeof exports === 'object')
         if (f.x2 - f.x1 < lineHeight*1.2 || f.y2 - f.y1 < rowLine*0.4) return;
         const tall = (f.y2 - f.y1) > lineHeight*1.8;
         fields.push({ page, x: f.x1/scale, y: f.y1/scale, width: (f.x2-f.x1)/scale, height: (f.y2-f.y1)/scale,
-                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone });
+                      type: tall ? 'textarea' : 'text', name: 'text', oscarTag: '', box: c.box, _lone: !!f.lone, _blank: !!f.blank });
       }));
     });
     return fields;
@@ -5518,7 +5562,7 @@ else if (typeof exports === 'object')
 
       // The fields found (or a fillable PDF's own), then the page's words, read with the tick
       // boxes rubbed out (OCR reads a box's side as a letter)
-      let found = fromPdf || [...newFields, ...dedupCb];
+      let found = fromPdf || dropHeadingRows([...newFields, ...dedupCb]);
       const ticks = found.filter(f => f.type === 'checkbox');
       const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
                                  : `Found ${dedupCb.length} checkbox(es) and ${newFields.length} place(s) to write.`;

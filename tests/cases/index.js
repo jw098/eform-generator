@@ -440,9 +440,6 @@ window.TEST_CASE_LIST = [
     "folder": "questionnaire",
     "session": "questionnaire_session.json",
     "variations": true,
-    "todo": {
-      "extraFields": "the heading row of the grid of tick boxes (the empty cell over the questions, and \"Not at all\", \"Several days\"... over the answer columns) is taken for cells to write in: a heading row over columns of tick boxes holds no blanks"
-    },
     "skip": [
       {
         "test": "fields",
