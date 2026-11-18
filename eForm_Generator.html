@@ -4865,6 +4865,47 @@ else if (typeof exports === 'object')
     return hs[hs.length >> 1];
   }
 
+  // Shaded cells to write in ("Last name [a light shaded cell]", with no border), drawn into the
+  // page (the ink map and the grey levels) as the boxes they stand for: the inside cleared to
+  // paper, the edge drawn as a box's sides, so the box and label checks find them as any box,
+  // and a field there is blank page. Left as they are, a light shade reads as ink (the ink level
+  // is set high to keep faint grey sides), a solid block like a dark heading bar. A shaded cell
+  // is light (closer to the paper than to black: dark bars with white letters are not), even and
+  // empty (nothing printed in it beyond a speck: a shaded heading bar has its words in it, a
+  // shaded section its lines), fills its rectangle, and is at least two written lines wide and
+  // half a written line tall (a thin coloured line is not a cell). Found from the grey levels,
+  // not the ink map, so a cell is found however light it is. Canvas px.
+  function drawShadedCells(inkMap, gray, w, h, lineHeight){
+    const hist = new Uint32Array(256); for (let i=0; i<gray.length; i++) hist[gray[i]]++;
+    let paper = 255, n = 0; while (paper > 0 && (n += hist[paper]) < gray.length*0.5) paper--;
+    // (a shade: darker than the paper by more than its noise, lighter than halfway to black)
+    const shadeStep = 8, isShade = (v) => v <= paper - shadeStep && v > paper/2;
+    const seen = new Uint8Array(w*h), stack = [];
+    for (let st=0; st<w*h; st++){
+      if (seen[st] || !isShade(gray[st])) continue;
+      seen[st] = 1; stack.length = 0; stack.push(st);
+      let x1=w, x2=0, y1=h, y2=0, count=0;
+      while (stack.length){
+        const i = stack.pop(), y = (i/w)|0, x = i - y*w; count++;
+        if (x<x1) x1=x; if (x>x2) x2=x; if (y<y1) y1=y; if (y>y2) y2=y;
+        for (const j of [x>0 ? i-1 : -1, x<w-1 ? i+1 : -1, y>0 ? i-w : -1, y<h-1 ? i+w : -1])
+          if (j >= 0 && !seen[j] && isShade(gray[j])){ seen[j] = 1; stack.push(j); }
+      }
+      const bw = x2-x1+1, bh = y2-y1+1;
+      if (bw < lineHeight*2 || bh < lineHeight*0.5 || count < bw*bh*0.95) continue;
+      // (even and empty: inside its soft edge, hardly a pixel away from the shade's own level)
+      const levels = [];
+      for (let y=y1+2; y<=y2-2; y++) for (let x=x1+2; x<=x2-2; x++) levels.push(gray[y*w+x]);
+      if (!levels.length) continue;
+      const shade = [...levels].sort((a, b) => a - b)[levels.length >> 1], off = Math.max(4, (paper - shade)/2);
+      if (levels.filter(v => Math.abs(v - shade) > off).length > levels.length*0.005) continue;
+      for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){
+        const edge = y === y1 || y === y2 || x === x1 || x === x2, i = y*w + x;
+        inkMap[i] = edge ? 1 : 0; gray[i] = edge ? 0 : paper;
+      }
+    }
+  }
+
   // The dot leaders on the page ("Date of injury: ..............."), and dashed lines, drawn into
   // the ink map as the solid lines they stand for, from the first piece to the last, so they are
   // found as any line is. Left as dots, whether they join into a line depends on how the page was
@@ -5677,6 +5718,8 @@ else if (typeof exports === 'object')
         }
       }
 
+      // Shaded cells to write in are drawn in as the boxes they stand for
+      drawShadedCells(inkMap, gray, w, h, p.naturalH*0.026*scale);
       // Dot leaders and dashed lines are drawn in as the lines they stand for
       const leaders = drawDotLeaders(inkMap, w, h, p.naturalH*0.026*scale, Math.round(w*(lineMinPct/100)));
 

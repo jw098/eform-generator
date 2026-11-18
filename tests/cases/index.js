@@ -520,7 +520,7 @@ window.TEST_CASE_LIST = [
     "session": "home_care_session.json",
     "variations": true,
     "todo": {
-      "fields": "the places to write are shaded cells with no border (\"Last name [shaded cell]\"), which aren't found; nor is the box drawn with a dashed border (\"Safety concerns in the home\")",
+      "fields": "the box drawn with a dashed border (\"Safety concerns in the home\") isn't found",
       "extraFields": "a blank after the heading \"Safety concerns in the home (pets, smoking, access)\", and a line inside the dashed box, are taken for fields"
     }
   },
