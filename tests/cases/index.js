@@ -519,47 +519,8 @@ window.TEST_CASE_LIST = [
     "folder": "home-care",
     "session": "home_care_session.json",
     "variations": true,
-    "variationTodo": [
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the round radio buttons (\"○ Yes ○ No\") aren't found, as on the page itself"
-      },
-      {
-        "variation": "1.5× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the round radio buttons (\"○ Yes ○ No\") aren't found, as on the page itself"
-      },
-      {
-        "variation": "2× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the round radio buttons (\"○ Yes ○ No\") aren't found, as on the page itself"
-      },
-      {
-        "variation": "2.5× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the round radio buttons (\"○ Yes ○ No\") aren't found, as on the page itself"
-      },
-      {
-        "variation": "3× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the round radio buttons (\"○ Yes ○ No\") aren't found, as on the page itself"
-      },
-      {
-        "variation": "faint print",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the round radio buttons (\"○ Yes ○ No\") aren't found, as on the page itself"
-      }
-    ],
     "todo": {
       "fields": "the places to write are shaded cells with no border (\"Last name [shaded cell]\"), which aren't found; nor is the box drawn with a dashed border (\"Safety concerns in the home\")",
-      "ticks": "the round radio buttons (\"○ Yes ○ No\") aren't found",
       "extraFields": "a blank after the heading \"Safety concerns in the home (pets, smoking, access)\", and a line inside the dashed box, are taken for fields"
     }
   },

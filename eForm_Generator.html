@@ -3901,8 +3901,8 @@ else if (typeof exports === 'object')
            (l <= limit || lineBeside(x1, -1)) && (r <= limit || lineBeside(x2, 1));
   }
 
-  // A round option button: a thin, unbroken ring with an empty middle and empty corners,
-  // standing apart from other letters (an O inside a word has letters right beside it).
+  // A round option button: a thin, unbroken ring with an empty middle and empty corners, a word
+  // space from the ink beside it (an O inside a word has a letter right beside it: wordSpaceBeside).
   // (Added by FreeScribe.)
   function isRealCircle(inkMap,w,h,x1,y1,x2,y2){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
@@ -3933,7 +3933,33 @@ else if (typeof exports === 'object')
     const cs = Math.max(1, Math.round(sz*0.12));
     if (countOnInRect(inkMap,w,h,x1,y1,x1+cs-1,y1+cs-1) + countOnInRect(inkMap,w,h,x2-cs+1,y1,x2,y1+cs-1) +
         countOnInRect(inkMap,w,h,x1,y2-cs+1,x1+cs-1,y2) + countOnInRect(inkMap,w,h,x2-cs+1,y2-cs+1,x2,y2) > 2) return false;
-    return standsApart(inkMap,w,h,x1,y1,x2,y2);
+    return wordSpaceBeside(inkMap,w,h,x1,y1,x2,y2);
+  }
+  // A round button's label is a word space away ("○ Yes"), where an O in a word has the next
+  // letter a letter gap away on at least one side ("OCD", "Other"): on each side, either no ink
+  // within the ring's width, or the nearest ink at least a fifth of its own height away (its
+  // tallest letter's top to its baseline). Sized against the letters beside it, it holds for
+  // small print and headings alike (measured: letters 0.05 to 0.12 of their neighbours' height,
+  // drawn and typed buttons 0.34 and up)
+  function wordSpaceBeside(inkMap,w,h,x1,y1,x2,y2){
+    const bw = x2-x1+1, bh = y2-y1+1;
+    const ya = Math.max(0, Math.round(y1 - bh*0.5)), yb = Math.min(h-1, Math.round(y2 + bh*0.3));
+    const columnInk = (x) => { let top = -1, bottom = -1;
+      if (x >= 0 && x < w) for (let y=ya; y<=yb; y++) if (inkMap[y*w+x] === 1){ if (top < 0) top = y; bottom = y; }
+      return { top, bottom }; };
+    const sideClear = (edge, step) => {
+      let gap = 0;
+      for (let d=1; d<=bw && !gap; d++) if (columnInk(edge + step*d).top >= 0) gap = d;
+      if (!gap) return true;
+      // (the neighbours' height over a stretch of the word as long as the ring and a half; the
+      // baseline is the middle of their bottoms, so a letter's tail below it doesn't count)
+      let top = Infinity; const bottoms = [];
+      for (let d=gap; d<gap + bw*1.5; d++){ const c = columnInk(edge + step*d); if (c.top >= 0){ top = Math.min(top, c.top); bottoms.push(c.bottom); } }
+      bottoms.sort((a, b) => a - b);
+      const height = bottoms[bottoms.length >> 1] - top + 1;
+      return gap >= height*0.2;
+    };
+    return sideClear(x1, -1) && sideClear(x2, 1);
   }
   // Stands apart from letters: nothing within a third of its size on either side, across the
   // middle of its height (a letter in a word has the next letter right beside it)
