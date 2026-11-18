@@ -1414,7 +1414,8 @@ else if (typeof exports === 'object')
     copy:      {}                                                // ("Copy to", "cc": someone sent a copy; OSCAR 12 has no tags for them)
   };
   // What a field asks for, from the whole words of its label (lowercase, joined by "_").
-  // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral");
+  // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral", "Date sent":
+  // the day the clinician fills in, signs and sends it);
   // any other is the date of something else ("Date of loss", "LMP (date)", "Date seen"), and an
   // age is the patient's only when it is just "Age" ("Age at diagnosis", "Menopause (age)").
   function askedFor(words){
@@ -1439,7 +1440,7 @@ else if (typeof exports === 'object')
     if (hasWord('address|street')) return 'address';
     if (hasWord('sex|gender')) return 'sex';
     if (hasWord('clinic')) return 'clinic';
-    if (/^(date|today|todays_date|current_date|form_date)$/.test(words) || (hasWord('date') && hasWord('signed|referral|referred|request|requested|today|todays'))) return 'today';
+    if (/^(date|today|todays_date|current_date|form_date)$/.test(words) || (hasWord('date') && hasWord('signed|referral|referred|request|requested|today|todays|sent|faxed|completed'))) return 'today';
     if (/^(patient_)?age$/.test(words)) return 'age';
     if (hasWord('date|age')) return '';
     if (/medical_history/.test(words)) return 'history';

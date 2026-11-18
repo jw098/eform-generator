@@ -525,9 +525,6 @@ window.TEST_CASE_LIST = [
     "folder": "fax-referral",
     "session": "fax_referral_session.json",
     "variations": true,
-    "todo": {
-      "tags": "\"Date sent:\" gets no today: the date a form is sent by the clinician is the form's date"
-    },
     "skip": [
       {
         "test": "extraFields",
