@@ -699,9 +699,6 @@ window.TEST_CASE_LIST = [
     "folder": "return-to-work",
     "session": "return_to_work_session.json",
     "variations": true,
-    "todo": {
-      "tags": "\"EMPLOYER ADDRESS\" is tagged addressline (the patient's): an employer's address has no tag"
-    },
     "skip": [
       {
         "test": "dates",
