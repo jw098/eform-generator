@@ -775,5 +775,11 @@ window.TEST_CASE_LIST = [
         "reason": "the \"Date given\" column's cells get no label: the column heading is white letters in the dark heading bar, which OCR doesn't read (it reads dark print on paper), so nothing says the cells hold dates"
       }
     ]
+  },
+  {
+    "name": "PHC & VCH cardiology referral (a fillable PDF's page as a picture: tick boxes against table lines, light placeholder text)",
+    "folder": "cardiology-referral",
+    "session": "cardiology_referral_session.json",
+    "variations": true
   }
 ];

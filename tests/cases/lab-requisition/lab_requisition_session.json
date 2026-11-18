@@ -132,7 +132,11 @@
       "type": "checkbox",
       "name": "sex_m",
       "oscarTag": "",
-      "label": ""
+      "label": "",
+      "fill": {
+        "on": true,
+        "action": "sex_male"
+      }
     },
     {
       "id": 11,
@@ -144,7 +148,11 @@
       "type": "checkbox",
       "name": "sex_f",
       "oscarTag": "",
-      "label": ""
+      "label": "",
+      "fill": {
+        "on": true,
+        "action": "sex_female"
+      }
     },
     {
       "id": 12,

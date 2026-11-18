@@ -106,7 +106,8 @@
         const tick = type === 'checkbox' || type === 'radio' || /(^|\s)(xbox|xmarkonly)(\s|$)/i.test(el.className || '');
         const date = type === 'date' || el.classList.contains('dateField') || calendarFields.has(el.id) || calendarFields.has(el.getAttribute('name'));
         pg.boxes.push({ kind: tick ? 'tick' : 'write', x: (r.left - b.left)*k, y: (r.top - b.top)*k, width: r.width*k, height: r.height*k,
-                        tag: el.getAttribute('oscardb') || '', id: el.getAttribute('name') || el.id || '', date });
+                        tag: el.getAttribute('oscardb') || (el.getAttribute('data-tick-if-sex') ? 'sex ' + el.getAttribute('data-tick-if-sex') : ''),
+                        id: el.getAttribute('name') || el.id || '', date });
       });
       pages.forEach(p => delete p.bg);
       return pages;
@@ -132,8 +133,11 @@
     await T.detectCurrentPage(opts);
     onShow.set(n, keep ? T.state.fields.slice() : []);
     // (a textarea's font size buttons are the app's own, not a field Auto Detect found)
-    return T.state.fields.filter(f => f.type !== 'fontbuttons').map(f => ({ kind: kindOf(f.type), x: f.x, y: f.y, width: f.width, height: f.height, tag: f.oscarTag || '', id: f.name || '' }));
+    return T.state.fields.filter(f => f.type !== 'fontbuttons').map(f => ({ kind: kindOf(f.type), x: f.x, y: f.y, width: f.width, height: f.height, tag: f.oscarTag || sexFill(f), id: f.name || '' }));
   }
+  // (a tick box ticked for a sex by its custom fill, as the tags test compares it: "sex M"; the
+  // eForm marks it data-tick-if-sex)
+  const sexFill = (f) => f.type === 'checkbox' && f.fill && f.fill.on !== false && /^sex_(male|female)$/.test(f.fill.action || '') ? (f.fill.action === 'sex_male' ? 'sex M' : 'sex F') : '';
   const showAll = () => { T.state.fields = [...onShow.values()].flat(); T.setCurrentPage(1); };
 
   // The eForm the app exports from what Auto Detect found on `count` pages

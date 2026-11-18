@@ -1607,10 +1607,19 @@ else if (typeof exports === 'object')
   // (dd/mm/yyyy)", "FIRST  MIDDLE  LAST"). Last, a bare "Date" beside a value on its row that
   // OSCAR doesn't fill is that value's date ("INR: ____  Date: ____"), not today's; beside the
   // doctor's details ("Billing #: ____  Date: ____") it is the form's, and beside a signature
-  // ("Signature: ____  Date: ____") it is the date of signing, the form's too.
+  // ("Signature: ____  Date: ____") it is the date of signing, the form's too. A tick box for a
+  // sex is filled by its custom action ("Check this box if gender is Male"), which ticks it for the
+  // patient's sex: its label is "Male" or "Female", or "M" or "F" on a row that names a sex or
+  // gender ("Sex: ☐ M ☐ F"; a lone "F" can be anything else)
   // boxOf(x0, f): the bordered box a field (with its label from x0) is in, if any.
   function tagFields(found, read, boxOf){
     const owners = fieldOwners(found, read, boxOf);
+    found.filter(f => f.type === 'checkbox' && f.label && !f.fill).forEach(f => {
+      const label = nameKey(f.label), row = (read.lines.find(l => (f._words || []).some(w => l.words.includes(w))) || { text: '' }).text;
+      const namesSex = /\b(sex|gender)\b/i.test(row);
+      const sex = label === 'male' || (label === 'm' && namesSex) ? 'sex_male' : label === 'female' || (label === 'f' && namesSex) ? 'sex_female' : '';
+      if (sex) f.fill = { on: true, action: sex };
+    });
     // (a fillable PDF's field can be a date field already: its own date format says so)
     const writes = found.filter(f => f.type === 'text' || f.type === 'textarea' || f.type === 'date');
     writes.forEach(f => {
