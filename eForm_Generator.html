@@ -4918,7 +4918,7 @@ else if (typeof exports === 'object')
     let paper = 255, n = 0; while (paper > 0 && (n += hist[paper]) < gray.length*0.5) paper--;
     // (a shade: darker than the paper by more than its noise, lighter than halfway to black)
     const shadeStep = 8, isShade = (v) => v <= paper - shadeStep && v > paper/2;
-    const seen = new Uint8Array(w*h), stack = [];
+    const seen = new Uint8Array(w*h), stack = [], cells = [];
     for (let st=0; st<w*h; st++){
       if (seen[st] || !isShade(gray[st])) continue;
       const level = gray[st], sy = (st/w)|0, sx = st - sy*w;
@@ -4940,11 +4940,20 @@ else if (typeof exports === 'object')
       if (!levels.length) continue;
       const shade = [...levels].sort((a, b) => a - b)[levels.length >> 1], off = Math.max(4, (paper - shade)/2);
       if (levels.filter(v => Math.abs(v - shade) > off).length > levels.length*0.005) continue;
+      cells.push({ x1, x2, y1, y2 });
+    }
+    // Cells side by side in one row (tops and bottoms within 2 px) are drawn with the same top and
+    // bottom: a resized page leaves their fills a pixel apart, and the row line in pieces
+    cells.sort((a, b) => a.x1 - b.x1).forEach(c => {
+      const row = cells.filter(d => Math.abs(d.y1 - c.y1) <= 2 && Math.abs(d.y2 - c.y2) <= 2);
+      c.top = Math.min(...row.map(d => d.y1)); c.bottom = Math.max(...row.map(d => d.y2));
+    });
+    cells.forEach(({ x1, x2, top: y1, bottom: y2 }) => {
       for (let y=y1; y<=y2; y++) for (let x=x1; x<=x2; x++){
         const edge = y === y1 || y === y2 || x === x1 || x === x2, i = y*w + x;
         inkMap[i] = edge ? 1 : 0; gray[i] = edge ? 0 : paper;
       }
-    }
+    });
   }
 
   // The dot leaders on the page ("Date of injury: ..............."), and dashed lines, drawn into
