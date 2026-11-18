@@ -576,7 +576,7 @@ window.TEST_CASE_LIST = [
           1210,
           55
         ],
-        "reason": "the \"Date\" row's six cells: a grid cell's label is its row heading, printed at the far left across other cells, so the cells have none and nothing says they hold dates; a date field would need labels taken by row, and only adds a calendar"
+        "reason": "the \"Date\" row's six cells get no label, so nothing says they hold dates: the row heading is far to their left, and while labels are given, the blank rest of the heading's own cell (dropped later as a heading's cell) stands between it and the first cell; the others have the first cell between. Taking row headings across a row would be a feature of its own, and a date field only adds a calendar"
       }
     ]
   }
