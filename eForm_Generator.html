@@ -4909,7 +4909,10 @@ else if (typeof exports === 'object')
   // empty (nothing printed in it beyond a speck: a shaded heading bar has its words in it, a
   // shaded section its lines), fills its rectangle, and is at least two written lines wide and
   // half a written line tall (a thin coloured line is not a cell). Found from the grey levels,
-  // not the ink map, so a cell is found however light it is. Canvas px.
+  // not the ink map, so a cell is found however light it is. A cell is started from inside its
+  // fill (a pixel the same grey as its four neighbours) and grows over pixels close to that grey:
+  // started from a soft edge (the row under a dark heading bar, a thin divider's edge once the page
+  // is resized), it would take the edges with it and run down a column of shaded rows. Canvas px.
   function drawShadedCells(inkMap, gray, w, h, lineHeight){
     const hist = new Uint32Array(256); for (let i=0; i<gray.length; i++) hist[gray[i]]++;
     let paper = 255, n = 0; while (paper > 0 && (n += hist[paper]) < gray.length*0.5) paper--;
@@ -4918,13 +4921,16 @@ else if (typeof exports === 'object')
     const seen = new Uint8Array(w*h), stack = [];
     for (let st=0; st<w*h; st++){
       if (seen[st] || !isShade(gray[st])) continue;
+      const level = gray[st], sy = (st/w)|0, sx = st - sy*w;
+      if (sx < 1 || sy < 1 || sx >= w-1 || sy >= h-1 || [st-1, st+1, st-w, st+w].some(j => Math.abs(gray[j] - level) > 2)) continue;
+      const near = Math.max(3, (paper - level)/4), likeIt = (v) => isShade(v) && Math.abs(v - level) <= near;
       seen[st] = 1; stack.length = 0; stack.push(st);
       let x1=w, x2=0, y1=h, y2=0, count=0;
       while (stack.length){
         const i = stack.pop(), y = (i/w)|0, x = i - y*w; count++;
         if (x<x1) x1=x; if (x>x2) x2=x; if (y<y1) y1=y; if (y>y2) y2=y;
         for (const j of [x>0 ? i-1 : -1, x<w-1 ? i+1 : -1, y>0 ? i-w : -1, y<h-1 ? i+w : -1])
-          if (j >= 0 && !seen[j] && isShade(gray[j])){ seen[j] = 1; stack.push(j); }
+          if (j >= 0 && !seen[j] && likeIt(gray[j])){ seen[j] = 1; stack.push(j); }
       }
       const bw = x2-x1+1, bh = y2-y1+1;
       if (bw < lineHeight*2 || bh < lineHeight*0.5 || count < bw*bh*0.95) continue;
