@@ -4914,9 +4914,15 @@ else if (typeof exports === 'object')
   // taller than a dot (a sixth of a written line: a letter, even "x", is taller), of about the
   // same height, their centres on one line, with gaps no wider than a dot between them, at least
   // minLength long, as long as any line: a few dots in a row of text ("...") are too short.
-  // (A piece may be one dot or a few that touch: at some sizes the dots run together.) Canvas px.
+  // (A piece may be one dot or a few that touch: at some sizes the dots run together.)
+  // A dashed box's sides are the same turned on end: a column of pieces no wider than a dot, at
+  // least a written line long (a box's side holds a row of writing; nothing in a row of text or
+  // a table makes a column of dashes that long). Each line drawn in is carried on over the piece
+  // of ink just past each end, on its own row or column, no longer than its own pieces: the
+  // corner of a dashed box, a dash bent round, which is too big to be a dash itself, so the sides
+  // meet as a box's do. Returns the leaders across the page. Canvas px.
   function drawDotLeaders(inkMap, w, h, lineHeight, minLength){
-    const maxDot = Math.max(2, Math.round(lineHeight/6)), seen = new Uint8Array(w*h), stack = [], pieces = [], drawn = [];
+    const maxDot = Math.max(2, Math.round(lineHeight/6)), seen = new Uint8Array(w*h), stack = [], blobs = [], drawn = [];
     for (let st=0; st<w*h; st++){
       if (!inkMap[st] || seen[st]) continue;
       seen[st] = 1; stack.length = 0; stack.push(st);
@@ -4929,35 +4935,64 @@ else if (typeof exports === 'object')
         if (y>0 && inkMap[i-w] && !seen[i-w]){ seen[i-w]=1; stack.push(i-w); }
         if (y<h-1 && inkMap[i+w] && !seen[i+w]){ seen[i+w]=1; stack.push(i+w); }
       }
-      if (y2-y1+1 <= maxDot) pieces.push({ x1, x2, y1, y2, cy: (y1+y2)/2, height: y2-y1+1 });
+      blobs.push({ x1, x2, y1, y2 });
     }
-    // (the pieces by row: their centre's row, rounded)
-    const byRow = new Map();
-    pieces.forEach(d => { const k = Math.round(d.cy); if (!byRow.has(k)) byRow.set(k, []); byRow.get(k).push(d); });
-    const used = new Set();
-    // (the next piece along from d: on its line, starting just after it, the nearest)
-    const nextAlong = (d) => {
-      let best = null;
-      for (let k = Math.round(d.cy) - 1; k <= Math.round(d.cy) + 1; k++)
-        for (const e of byRow.get(k) || []){
-          if (used.has(e) || e.x1 <= d.x2 || e.x1 - d.x2 > maxDot || Math.abs(e.cy - d.cy) > 1) continue;
-          if (!best || e.x1 < best.x1) best = e;
-        }
-      return best;
-    };
     const median = (vs) => [...vs].sort((a, b) => a - b)[vs.length >> 1];
-    [...pieces].sort((a, b) => a.x1 - b.x1).forEach(d => {
-      if (used.has(d)) return;
-      used.add(d);
-      const run = [d];
-      for (let e = nextAlong(d); e; e = nextAlong(e)){ run.push(e); used.add(e); }
-      const height = median(run.map(e => e.height));
-      if (run.length < 4 || run[run.length-1].x2 - run[0].x1 + 1 < minLength || run.some(e => Math.abs(e.height - height) > Math.max(1, height*0.5))){
-        run.slice(1).forEach(e => used.delete(e)); return;
+    // Runs of pieces along one direction: `along` and `across` name a piece's extent each way
+    // (['x1','x2'] and ['y1','y2'] for a line across the page); returns each run's pieces
+    const runsOf = (along, across, minRun) => {
+      const [a1, a2] = along, [c1, c2] = across;
+      const pieces = blobs.filter(d => d[c2] - d[c1] + 1 <= maxDot).map(d => ({ ...d, c: (d[c1] + d[c2])/2, thick: d[c2] - d[c1] + 1 }));
+      // (the pieces by line: their centre's row or column, rounded)
+      const byLine = new Map();
+      pieces.forEach(d => { const k = Math.round(d.c); if (!byLine.has(k)) byLine.set(k, []); byLine.get(k).push(d); });
+      const used = new Set(), runs = [];
+      // (the next piece along from d: on its line, starting just after it, the nearest)
+      const nextAlong = (d) => {
+        let best = null;
+        for (let k = Math.round(d.c) - 1; k <= Math.round(d.c) + 1; k++)
+          for (const e of byLine.get(k) || []){
+            if (used.has(e) || e[a1] <= d[a2] || e[a1] - d[a2] > maxDot || Math.abs(e.c - d.c) > 1) continue;
+            if (!best || e[a1] < best[a1]) best = e;
+          }
+        return best;
+      };
+      [...pieces].sort((a, b) => a[a1] - b[a1]).forEach(d => {
+        if (used.has(d)) return;
+        used.add(d);
+        const run = [d];
+        for (let e = nextAlong(d); e; e = nextAlong(e)){ run.push(e); used.add(e); }
+        const thick = median(run.map(e => e.thick));
+        if (run.length < 4 || run[run.length-1][a2] - run[0][a1] + 1 < minRun || run.some(e => Math.abs(e.thick - thick) > Math.max(1, thick*0.5))){
+          run.slice(1).forEach(e => used.delete(e)); return;
+        }
+        runs.push(run);
+      });
+      return runs;
+    };
+    // (carries a line on from `from`, a step at a time, over the next piece of ink on its rows or
+    // columns ca..cb: across a gap of at most a dot, then along that piece, at most `reach`)
+    const carryOn = (from, step, ca, cb, inkAt, limit, reach) => {
+      let at = from, gap = 0, piece = 0;
+      for (let k = from + step; k >= 0 && k < limit; k += step){
+        let ink = false; for (let c = ca; c <= cb && !ink; c++) if (inkAt(k, c)) ink = true;
+        if (ink){ if (++piece > reach) break; at = k; gap = 0; }
+        else if (piece) break;
+        else if (++gap > maxDot) break;
       }
-      const ya = median(run.map(e => e.y1)), yb = median(run.map(e => e.y2));
-      for (let y = ya; y <= yb; y++) for (let x = run[0].x1; x <= run[run.length-1].x2; x++) inkMap[y*w + x] = 1;
-      drawn.push({ x1: run[0].x1, x2: run[run.length-1].x2, y1: ya, y2: yb });
+      return at;
+    };
+    const inkXY = (x, y) => inkMap[y*w + x] === 1;
+    runsOf(['x1','x2'], ['y1','y2'], minLength).forEach(run => {
+      const ya = median(run.map(e => e.y1)), yb = median(run.map(e => e.y2)), reach = Math.max(...run.map(e => e.x2 - e.x1 + 1));
+      const xa = carryOn(run[0].x1, -1, ya, yb, (x, y) => inkXY(x, y), w, reach), xb = carryOn(run[run.length-1].x2, 1, ya, yb, (x, y) => inkXY(x, y), w, reach);
+      for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) inkMap[y*w + x] = 1;
+      drawn.push({ x1: xa, x2: xb, y1: ya, y2: yb });
+    });
+    runsOf(['y1','y2'], ['x1','x2'], lineHeight).forEach(run => {
+      const xa = median(run.map(e => e.x1)), xb = median(run.map(e => e.x2)), reach = Math.max(...run.map(e => e.y2 - e.y1 + 1));
+      const ya = carryOn(run[0].y1, -1, xa, xb, (y, x) => inkXY(x, y), h, reach), yb = carryOn(run[run.length-1].y2, 1, xa, xb, (y, x) => inkXY(x, y), h, reach);
+      for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) inkMap[y*w + x] = 1;
     });
     return drawn;
   }

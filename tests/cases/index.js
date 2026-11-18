@@ -518,11 +518,7 @@ window.TEST_CASE_LIST = [
     "name": "Home care referral (colour, shaded cells to write in, white headings on dark bars, radio buttons, a dashed box)",
     "folder": "home-care",
     "session": "home_care_session.json",
-    "variations": true,
-    "todo": {
-      "fields": "the box drawn with a dashed border (\"Safety concerns in the home\") isn't found",
-      "extraFields": "a blank after the heading \"Safety concerns in the home (pets, smoking, access)\", and a line inside the dashed box, are taken for fields"
-    }
+    "variations": true
   },
   {
     "name": "Fax referral at 100 dpi (the same labels to and from, tick boxes after their words, small print)",
