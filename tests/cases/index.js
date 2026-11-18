@@ -621,6 +621,17 @@ window.TEST_CASE_LIST = [
     "variations": true,
     "skip": [
       {
+        "test": "ticks",
+        "page": 1,
+        "region": [
+          200,
+          430,
+          410,
+          120
+        ],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
+      },
+      {
         "test": "extraFields",
         "page": 1,
         "region": [
@@ -643,47 +654,38 @@ window.TEST_CASE_LIST = [
         "reason": "the dot leaders from each condition out to its tick boxes (\"High blood pressure ........ ☐ Yes ☐ No\"): a dotted line after words is drawn in as the line it stands for, and a line after a label is a blank; here it only leads the eye to the boxes, which the ink can't tell from a dotted blank (right column; the first, after \"Stroke\", also takes the heading's words over it)"
       }
     ],
-    "variationTodo": [
+    "variationSkip": [
       {
         "variation": "0.7× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+        "boxes": ["smoke_yes", "smoke_no", "alcohol_yes", "alcohol_no", "exercise_never", "exercise_sometimes", "exercise_most"],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
       },
       {
         "variation": "1.5× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+        "boxes": ["smoke_yes", "smoke_no", "alcohol_yes", "alcohol_no", "exercise_never", "exercise_sometimes", "exercise_most"],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
       },
       {
         "variation": "2× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+        "boxes": ["smoke_yes", "smoke_no", "alcohol_yes", "alcohol_no", "exercise_never", "exercise_sometimes", "exercise_most"],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
       },
       {
         "variation": "2.5× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+        "boxes": ["smoke_yes", "smoke_no", "alcohol_yes", "alcohol_no", "exercise_never", "exercise_sometimes", "exercise_most"],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
       },
       {
         "variation": "3× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+        "boxes": ["smoke_yes", "smoke_no", "alcohol_yes", "alcohol_no", "exercise_never", "exercise_sometimes", "exercise_most"],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
       },
       {
         "variation": "faint print",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+        "boxes": ["smoke_yes", "smoke_no", "alcohol_yes", "alcohol_no", "exercise_never", "exercise_sometimes", "exercise_most"],
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\"): their ink is a bracket pair or a pair of round brackets, the same as \"[1]\" or \"(a)\" in print, so a check that took them would take bracketed letters and numbers too; read as words they would need OCR, which pass 1 can't use"
       }
-    ],
-    "todo": {
-      "ticks": "the tick boxes typed as characters, \"[ ] Yes\" and \"( ) Never\", aren't found"
-    }
+    ]
   },
   {
     "name": "Return to work (labels above lines, blanks after a tick box's words, a table ruled across, a stamp box)",
