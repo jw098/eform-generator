@@ -566,8 +566,18 @@ window.TEST_CASE_LIST = [
     "folder": "wound-flowsheet",
     "session": "wound_flowsheet_session.json",
     "variations": true,
-    "todo": {
-      "dates": "the cells of the \"Date\" row are text fields, not date fields: a date is found from a field's own label, and a grid cell's label is its row's, printed at the far left"
-    }
+    "skip": [
+      {
+        "test": "dates",
+        "page": 1,
+        "region": [
+          390,
+          205,
+          1210,
+          55
+        ],
+        "reason": "the \"Date\" row's six cells: a grid cell's label is its row heading, printed at the far left across other cells, so the cells have none and nothing says they hold dates; a date field would need labels taken by row, and only adds a calendar"
+      }
+    ]
   }
 ];
