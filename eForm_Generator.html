@@ -1615,8 +1615,13 @@ else if (typeof exports === 'object')
   function tagFields(found, read, boxOf){
     const owners = fieldOwners(found, read, boxOf);
     found.filter(f => f.type === 'checkbox' && f.label && !f.fill).forEach(f => {
-      const label = nameKey(f.label), row = (read.lines.find(l => (f._words || []).some(w => l.words.includes(w))) || { text: '' }).text;
-      const namesSex = /\b(sex|gender)\b/i.test(row);
+      // (the words before it on its row, back to ten boxes' width, "Sex: ☐ M ☐ F", or just over it,
+      // a cell's heading over its options, "SEX" over "☐ M ☐ F"; OCR's lines don't help, as it reads
+      // a lone "M" as a line of its own)
+      const cy = f.y + f.height/2, near = read.words.filter(w =>
+        (w.y0 <= cy && w.y1 >= cy && w.x1 <= f.x && w.x1 >= f.x - f.width*10) ||
+        (w.y1 <= f.y && f.y - w.y1 <= f.height*2 && w.x1 >= f.x - f.width*8 && w.x0 <= f.x + f.width*2));
+      const label = nameKey(f.label), namesSex = near.some(w => /^(sex|gender)\b/i.test(w.text));
       const sex = label === 'male' || (label === 'm' && namesSex) ? 'sex_male' : label === 'female' || (label === 'f' && namesSex) ? 'sex_female' : '';
       if (sex) f.fill = { on: true, action: sex };
     });
