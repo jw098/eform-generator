@@ -579,5 +579,123 @@ window.TEST_CASE_LIST = [
         "reason": "the \"Date\" row's six cells get no label, so nothing says they hold dates: the row heading is far to their left, and while labels are given, the blank rest of the heading's own cell (dropped later as a heading's cell) stands between it and the first cell; the others have the first cell between. Taking row headings across a row would be a feature of its own, and a date field only adds a calendar"
       }
     ]
+  },
+  {
+    "name": "Consent to release information (blanks inside sentences, captions under them)",
+    "folder": "consent-release",
+    "session": "consent_release_session.json",
+    "variations": true,
+    "todo": {
+      "tags": "\"born ____ (yyyy-mm-dd)\" gets no dobc2 (\"born\" alone doesn't name a birth date), and the \"Date\" printed under its line gets no today",
+      "dates": "\"This consent expires on ____\" and the \"Date\" printed under its line aren't date fields: a date is found from a label naming one"
+    },
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          55,
+          870,
+          570,
+          65
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink as a fill-in line with its caption under it (\"Signature of patient\"), so it is found as a text field"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          55,
+          980,
+          570,
+          65
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink as a fill-in line with its caption under it (\"Signature of witness\"), so it is found as a text field"
+      }
+    ]
+  },
+  {
+    "name": "New-patient health history (dot leaders to tick boxes, typed [ ] and ( ), a table ruled across)",
+    "folder": "health-history",
+    "session": "health_history_session.json",
+    "variations": true,
+    "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+      },
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes typed as characters (\"[ ] Yes\", \"( ) Never\") aren't found, as on the page itself"
+      }
+    ],
+    "todo": {
+      "ticks": "the tick boxes typed as characters, \"[ ] Yes\" and \"( ) Never\", aren't found",
+      "fields": "the family history table, ruled across with no lines down (\"Relative  Condition  Age at diagnosis\" over ruled rows), isn't split into cells",
+      "extraFields": "the family history table is taken for one writing area; the dot leaders after each condition (\"High blood pressure ........ ☐ Yes ☐ No\") are taken for blanks; and a blank after the heading \"…any of the following?\""
+    }
+  },
+  {
+    "name": "Return to work (labels above lines, blanks after a tick box's words, a table ruled across, a stamp box)",
+    "folder": "return-to-work",
+    "session": "return_to_work_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "the restrictions table, ruled across with no lines down (\"Restriction  Limit  For how long\" over ruled rows), isn't split into cells",
+      "extraFields": "the restrictions table is taken for one writing area",
+      "tags": "\"EMPLOYER ADDRESS\" is tagged addressline (the patient's), and \"DATE OF ASSESSMENT\" gets no today",
+      "dates": "the blanks after \"Fit for full duties as of\", \"from\", \"to\" and \"Unfit for work until\" aren't date fields: a date is found from a label naming one"
+    },
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          55,
+          1035,
+          590,
+          65
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink as a fill-in line with its caption under it (\"Physician signature\"), so it is found as a text field"
+      }
+    ]
+  },
+  {
+    "name": "Immunization record (rows shown by alternate shading, lines down only)",
+    "folder": "immunization-record",
+    "session": "immunization_record_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "the table's cells aren't found: its rows are shown only by grey shading every other row, with lines down between the columns and none across",
+      "tags": "\"DOB: ____\" gets no dobc2"
+    }
   }
 ];
