@@ -1404,7 +1404,7 @@ else if (typeof exports === 'object')
     any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name' },
     patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
                  workPhone: 'phone2', email: 'email', address: 'addressline', city: 'city', province: 'province', postal: 'postal',
-                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin' },   // (the patient's MSP or OHIP number is their health number)
+                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin', allergies: 'allergies_des' },   // (the patient's MSP or OHIP number is their health number)
     clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no' },                       // (OSCAR 12 has no tag for their email)
@@ -1445,6 +1445,7 @@ else if (typeof exports === 'object')
     if (hasWord('date|age')) return '';
     if (/medical_history/.test(words)) return 'history';
     if (hasWord('medications|meds|medication_list')) return /allerg/.test(words) ? '' : 'meds';   // (with allergies, not the drug list)
+    if (hasWord('allergies|allergy|drug_allergies')) return 'allergies';                                // ("Allergies: ____"; with medications, neither)
     if (hasWord('last|surname')) return 'lastName';
     if (hasWord('first|given')) return 'firstName';
     if (hasWord('middle')) return '';

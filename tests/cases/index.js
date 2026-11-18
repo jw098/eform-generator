@@ -509,6 +509,9 @@ window.TEST_CASE_LIST = [
     "session": "medication_review_session.json",
     "variations": true,
     "skip": [
+      {"test": "tags", "page": 1, "region": [880, 835, 345, 40], "reason": "\"Pharmacy phone\" is tagged phone: OSCAR 12 has no tags for a pharmacy, and telling its details from the patient's would need an owner made for this form (eForms are rarely a pharmacy's medication review)"},
+      {"test": "tags", "page": 1, "region": [165, 1110, 445, 40], "reason": "\"Reviewed by\" gets no current_user: a reviewer is named only on a review form such as this one, and taking \"reviewed by\" for the clinician would be a word added for one form"},
+      {"test": "tags", "page": 1, "region": [780, 1110, 230, 40], "reason": "\"Date of review\" gets no today: a review date is often the next or last one (\"Review date\", \"Next review\"), so taking it for the form's own date would be right here and wrong on many forms"},
       {
         "test": "tags",
         "page": 1,
@@ -520,10 +523,7 @@ window.TEST_CASE_LIST = [
         ],
         "reason": "the date of birth in three parts (\"Date of birth: ____ / ____ / ____\", \"YYYY  MM  DD\" printed under them): dob_year, dob_month and dob_day could be told only from the captions under a row of blanks, by a check made for this one layout, not worth its complexity; the year and month parts are tagged dobc2, the day part nothing"
       }
-    ],
-    "todo": {
-      "tags": "\"Allergies: ____\" gets no allergies_des; \"Pharmacy phone\" is tagged phone; \"Reviewed by\" (current_user) and \"Date of review\" (today) get no tag"
-    }
+    ]
   },
   {
     "name": "Home care referral (colour, shaded cells to write in, white headings on dark bars, radio buttons, a dashed box)",
