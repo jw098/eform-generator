@@ -502,5 +502,58 @@ window.TEST_CASE_LIST = [
         "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink and words as a fill-in line after a label (\"Prescriber signature: ____\"), so it is found as a text field"
       }
     ]
+  },
+  {
+    "name": "Medication review (units after lines, a date in three parts, a table with a tick box column)",
+    "folder": "medication-review",
+    "session": "medication_review_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "the month and day of \"Date of birth: ____ / ____ / ____\" (\"YYYY MM DD\" under them) and the second blank of \"BP: ____ / ____ mmHg\" aren't found: short lines after a slash, with no label of their own",
+      "extraFields": "the blank page under \"Reviewed by: ____  Date of review: ____\" is taken for an open writing area",
+      "tags": "the year of a date of birth in three parts is tagged dobc2, not dob_year; \"Allergies: ____\" gets no allergies_des; \"Pharmacy phone\" is tagged phone; \"Reviewed by\" (current_user) and \"Date of review\" (today) get no tag"
+    }
+  },
+  {
+    "name": "Home care referral (colour, shaded cells to write in, white headings on dark bars, radio buttons, a dashed box)",
+    "folder": "home-care",
+    "session": "home_care_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "the places to write are shaded cells with no border (\"Last name [shaded cell]\"), which aren't found; nor is the box drawn with a dashed border (\"Safety concerns in the home\")",
+      "ticks": "the round radio buttons (\"○ Yes ○ No\") aren't found",
+      "extraFields": "a blank after the heading \"Safety concerns in the home (pets, smoking, access)\", and a line inside the dashed box, are taken for fields"
+    }
+  },
+  {
+    "name": "Fax referral at 100 dpi (the same labels to and from, tick boxes after their words, small print)",
+    "folder": "fax-referral",
+    "session": "fax_referral_session.json",
+    "variations": true,
+    "todo": {
+      "tags": "the consultant's side (\"TO (consultant)\": \"Dr.\", \"Phone:\", \"Fax:\", \"Address:\") is tagged as the clinic's, the same as the referring practitioner's side; \"Date sent:\" gets no today; \"Relevant history and medications\" is tagged druglist_line"
+    },
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          100,
+          760,
+          330,
+          40
+        ],
+        "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink and words as a fill-in line after a label (\"Signature: ____\"), so it is found as a text field"
+      }
+    ]
+  },
+  {
+    "name": "Wound flow sheet (landscape, a grid with a column for each visit)",
+    "folder": "wound-flowsheet",
+    "session": "wound_flowsheet_session.json",
+    "variations": true,
+    "todo": {
+      "fields": "the two blanks of \"Page ____ of ____\" aren't found: short lines after a word with no colon"
+    }
   }
 ];
