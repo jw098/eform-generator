@@ -1430,7 +1430,8 @@ else if (typeof exports === 'object')
     if (hasWord('version_code')) return 'hinVersion';
     if (hasWord('billing')) return 'billing';
     if (hasWord('msp|ohip')) return 'number';
-    if (hasWord('dob|date_of_birth|birth_date|birthdate')) return 'dob';
+    // ("born ____" is the birth date too, but not "Place born" or "Country born")
+    if (hasWord('dob|date_of_birth|birth_date|birthdate') || (hasWord('born') && !hasWord('place|country|city|town|province|where'))) return 'dob';
     if (hasWord('cell|mobile')) return 'cell';
     if (hasWord('work_phone|business_phone')) return 'workPhone';
     if (hasWord('phone|telephone|tel')) return 'phone';
@@ -1472,7 +1473,7 @@ else if (typeof exports === 'object')
     if (/\?\s*$/.test(label || '')) return false;
     const words = String(label || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     const hasWord = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(words);
-    return hasWord('date') && !hasWord('dates|s|dob|birth|birthdate|time|hours|age|and|or');
+    return hasWord('date') && !hasWord('dates|s|dob|birth|birthdate|born|time|hours|age|and|or');
   }
   // The format a date field's calendar should fill in, from the date's order and separator as
   // printed with it ("(dd/mm/yyyy)" is D/M/Y, "YYYY-MM-DD" is Y-M-D), year first with dashes where
@@ -1518,7 +1519,7 @@ else if (typeof exports === 'object')
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
     ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
     ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|office)\b/],
-    ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|sex|gender|maiden|home|cell|mobile)\b/]
+    ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
   ];
   // Whose details a text names ("Referring physician" -> clinician), from OWNER_CUES, or ''
   const ownerCue = (text) => { const t = String(text || '').toLowerCase(); for (const [o, re] of OWNER_CUES) if (re.test(t)) return o; return ''; };

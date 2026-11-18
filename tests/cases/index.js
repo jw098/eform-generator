@@ -586,7 +586,7 @@ window.TEST_CASE_LIST = [
     "session": "consent_release_session.json",
     "variations": true,
     "todo": {
-      "tags": "\"born ____ (yyyy-mm-dd)\" gets no dobc2 (\"born\" alone doesn't name a birth date), and the \"Date\" printed under its line gets no today",
+      "tags": "the \"Date\" printed under its line gets no today",
       "dates": "\"This consent expires on ____\" and the \"Date\" printed under its line aren't date fields: a date is found from a label naming one"
     },
     "skip": [
