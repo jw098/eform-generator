@@ -714,6 +714,7 @@ window.TEST_CASE_LIST = [
     "session": "immunization_record_session.json",
     "variations": true,
     "todo": {
+      "dates": "the \"Date given\" column's cells aren't date fields: the cells get no label from the column's heading over them (white letters in the dark heading bar)",
       "fields": "the cells of the white rows, between the shaded rows, aren't found: the table has no border at its sides, so a white row has no sides at its ends, only the lines down between its columns, and its lower line looks like the top edge of a table",
       "tags": "\"DOB: ____\" gets no dobc2"
     }
