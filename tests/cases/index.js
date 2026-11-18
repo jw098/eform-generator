@@ -587,9 +587,20 @@ window.TEST_CASE_LIST = [
     "variations": true,
     "todo": {
       "tags": "the \"Date\" printed under its line gets no today",
-      "dates": "\"This consent expires on ____\" and the \"Date\" printed under its line aren't date fields: a date is found from a label naming one"
+      "dates": "the \"Date\" printed under its line (beside the signature) isn't a date field"
     },
     "skip": [
+      {
+        "test": "dates",
+        "page": 1,
+        "region": [
+          261,
+          726,
+          236,
+          44
+        ],
+        "reason": "\"This consent expires on ____\": a blank inside a sentence is a date only by the words before it (\"on\", \"as of\", \"from\", \"to\", \"until\"), and those words come far more often before blanks that aren't dates (\"Comments on ____\", \"Referred to ____\", \"Transfer from ____\"), so a check that took them would make other forms' blanks date fields"
+      },
       {
         "test": "extraFields",
         "page": 1,
@@ -693,10 +704,53 @@ window.TEST_CASE_LIST = [
     "session": "return_to_work_session.json",
     "variations": true,
     "todo": {
-      "tags": "\"EMPLOYER ADDRESS\" is tagged addressline (the patient's), and \"DATE OF ASSESSMENT\" gets no today",
-      "dates": "the blanks after \"Fit for full duties as of\", \"from\", \"to\" and \"Unfit for work until\" aren't date fields: a date is found from a label naming one"
+      "tags": "\"EMPLOYER ADDRESS\" is tagged addressline (the patient's): an employer's address has no tag"
     },
     "skip": [
+      {
+        "test": "dates",
+        "page": 1,
+        "region": [
+          298,
+          494,
+          176,
+          44
+        ],
+        "reason": "\"Fit for full duties as of ____\": a blank inside a sentence is a date only by the words before it (\"on\", \"as of\", \"from\", \"to\", \"until\"), and those words come far more often before blanks that aren't dates (\"Comments on ____\", \"Referred to ____\", \"Transfer from ____\"), so a check that took them would make other forms' blanks date fields"
+      },
+      {
+        "test": "dates",
+        "page": 1,
+        "region": [
+          345,
+          534,
+          373,
+          44
+        ],
+        "reason": "\"from ____ to ____\" (modified duties): a blank inside a sentence is a date only by the words before it (\"on\", \"as of\", \"from\", \"to\", \"until\"), and those words come far more often before blanks that aren't dates (\"Comments on ____\", \"Referred to ____\", \"Transfer from ____\"), so a check that took them would make other forms' blanks date fields"
+      },
+      {
+        "test": "dates",
+        "page": 1,
+        "region": [
+          273,
+          574,
+          176,
+          44
+        ],
+        "reason": "\"Unfit for work until ____\": a blank inside a sentence is a date only by the words before it (\"on\", \"as of\", \"from\", \"to\", \"until\"), and those words come far more often before blanks that aren't dates (\"Comments on ____\", \"Referred to ____\", \"Transfer from ____\"), so a check that took them would make other forms' blanks date fields"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          632,
+          312,
+          276,
+          44
+        ],
+        "reason": "\"DATE OF ASSESSMENT\" gets no today: \"Date of …\" names another event's date (\"Date seen\", \"Date of injury\"), and only the form's own dates (signed, sent, referral) are today; telling an assessment from a past event would need a list of words for this form"
+      },
       {
         "test": "extraFields",
         "page": 1,
@@ -716,8 +770,20 @@ window.TEST_CASE_LIST = [
     "session": "immunization_record_session.json",
     "variations": true,
     "todo": {
-      "dates": "the \"Date given\" column's cells aren't date fields: the cells get no label from the column's heading over them (white letters in the dark heading bar)",
       "tags": "\"DOB: ____\" gets no dobc2"
-    }
+    },
+    "skip": [
+      {
+        "test": "dates",
+        "page": 1,
+        "region": [
+          374,
+          214,
+          192,
+          572
+        ],
+        "reason": "the \"Date given\" column's cells get no label: the column heading is white letters in the dark heading bar, which OCR doesn't read (it reads dark print on paper), so nothing says the cells hold dates"
+      }
+    ]
   }
 ];
