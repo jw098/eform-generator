@@ -780,6 +780,79 @@ window.TEST_CASE_LIST = [
     "name": "PHC & VCH cardiology referral (a fillable PDF's page as a picture: tick boxes against table lines, light placeholder text)",
     "folder": "cardiology-referral",
     "session": "cardiology_referral_session.json",
-    "variations": true
+    "variations": true,  
+    "todo": {
+      "fields": "missed: the open writing area under \"REASON FOR REFERRAL:\"; \"Urgent (Less than 4 weeks) Reason: ____\" (its line split, part of it joined to a field over the \"Emergent\" row); \"within the next ____ (days or weeks)\"; \"…for this patient: ____\" and the full-width line under it",
+      "extraFields": "the line under the header taken for two fill-in lines (beside \"Cardiology Referral\"); blanks after the headings \"PATIENT INFORMATION:\", \"URGENCY:\" and \"PREVIOUS INVESTIGATIONS:\"; a field after \"…investigations and lab results.\"; a tall field over the end of \"Please notify your patient…\"; on the 0.7× and 1.5× copies, a field over \"Is this a Re-referral? No Yes\"",
+      "tags": "the referring provider's \"Date:\" gets no today; \"Specialty Clinic (specify)\", under \"REFER TO:\" (the clinic referred to), gets clinic_name",
+      "dates": "the \"Date\" column's cells in the investigations table aren't date fields: the cells get no label from the column's heading over them"
+    },
+    "skip": [
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          222,
+          1036,
+          408,
+          54
+        ],
+        "reason": "\"Has this patient been seen by a Cardiologist before? Name: ____\" gets patient_name: the label is only \"Name:\", the patient's on most forms; that it is the cardiologist's is said only by the question on the row above, which a check would have to read as a sentence about whose details follow"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          726,
+          1036,
+          242,
+          54
+        ],
+        "reason": "the \"Date: ____\" after the cardiologist's name (\"Has this patient been seen by a Cardiologist before?\") gets today: a bare \"Date:\" beside a name OSCAR fills is the form's date on most forms; that this one is an earlier visit's is said only by the question on the row above"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          1090,
+          584,
+          334,
+          54
+        ],
+        "reason": "\"Alternate phone number\" gets phone (home): OSCAR 12 has home, work and cell phones, and \"alternate\" names none of them, so no check can tell which it is, or that it isn't the home phone"
+      }
+    ],
+    "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+      },
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "test": "ticks",
+        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+      }
+    ]
   }
 ];
