@@ -4365,7 +4365,9 @@ else if (typeof exports === 'object')
     return ocrWorkerReady;
   }
   // The page's printed words and lines, or null when they can't be read
-  // boxes: tick boxes found on the page, rubbed out too (OCR reads a box's edge as a letter: "Jves")
+  // boxes: tick boxes found on the page, rubbed out too (OCR reads a box's edge as a letter: "Jves"),
+  //   and its empty shaded cells (a large area of even grey throws OCR's layout step: it found no
+  //   text in "DOB:" printed above a table of shaded rows, and read the rows as junk)
   // onProgress: told how far the reading has got ({ status, progress } from Tesseract), if given
   async function readPageWords(imgData, boxes = [], onProgress = null){
     ocrProgress = onProgress;
@@ -4921,7 +4923,8 @@ else if (typeof exports === 'object')
   // not the ink map, so a cell is found however light it is. A cell is started from inside its
   // fill (a pixel the same grey as its four neighbours) and grows over pixels close to that grey:
   // started from a soft edge (the row under a dark heading bar, a thin divider's edge once the page
-  // is resized), it would take the edges with it and run down a column of shaded rows. Canvas px.
+  // is resized), it would take the edges with it and run down a column of shaded rows. Returns the
+  // cells ({ x1, x2, top, bottom }), for the copy of the page OCR reads. Canvas px.
   function drawShadedCells(inkMap, gray, w, h, lineHeight){
     const hist = new Uint32Array(256); for (let i=0; i<gray.length; i++) hist[gray[i]]++;
     let paper = 255, n = 0; while (paper > 0 && (n += hist[paper]) < gray.length*0.5) paper--;
@@ -4963,6 +4966,7 @@ else if (typeof exports === 'object')
         inkMap[i] = edge ? 1 : 0; gray[i] = edge ? 0 : paper;
       }
     });
+    return cells;
   }
 
   // The dot leaders on the page ("Date of injury: ..............."), and dashed lines, drawn into
@@ -5830,8 +5834,10 @@ else if (typeof exports === 'object')
         }
       }
 
-      // Shaded cells to write in are drawn in as the boxes they stand for
-      drawShadedCells(inkMap, gray, w, h, p.naturalH*0.026*scale);
+      // Shaded cells to write in are drawn in as the boxes they stand for (and kept, in page px,
+      // to be rubbed out of the copy OCR reads)
+      const shadedCells = drawShadedCells(inkMap, gray, w, h, p.naturalH*0.026*scale)
+        .map(c => ({ x: c.x1/scale, y: c.top/scale, width: (c.x2 - c.x1 + 1)/scale, height: (c.bottom - c.top + 1)/scale }));
       // Dot leaders and dashed lines are drawn in as the lines they stand for
       const leaders = drawDotLeaders(inkMap, w, h, p.naturalH*0.026*scale, Math.round(w*(lineMinPct/100)));
 
@@ -5981,7 +5987,7 @@ else if (typeof exports === 'object')
       if (skew){
         // Back onto the tilted page: turn each field's centre by the page's tilt
         const W = w/scale, H = h/scale, cs = Math.cos(skew), sn = Math.sin(skew);
-        [...newFields, ...dedupCb].forEach(f => {
+        [...newFields, ...dedupCb, ...shadedCells].forEach(f => {
           const cx = f.x + f.width/2 - W/2, cy = f.y + f.height/2 - H/2;
           f.x = cx*cs - cy*sn + W/2 - f.width/2;
           f.y = cx*sn + cy*cs + H/2 - f.height/2;
@@ -5989,7 +5995,8 @@ else if (typeof exports === 'object')
       }
 
       // The fields found (or a fillable PDF's own), then the page's words, read with the tick
-      // boxes rubbed out (OCR reads a box's side as a letter)
+      // boxes rubbed out (OCR reads a box's side as a letter), and the shaded cells (a table of
+      // shaded rows throws OCR's layout: it misses "DOB:" printed above one)
       let found = fromPdf || dropHeadingRows([...newFields, ...dedupCb], inkMap, w, h, scale, lineHeight);
       const ticks = found.filter(f => f.type === 'checkbox');
       const foundSoFar = fromPdf ? `Took ${found.length} field(s) from the PDF's own form fields.`
@@ -5998,7 +6005,7 @@ else if (typeof exports === 'object')
       if (opts.readWords !== false){
         await progress(`${foundSoFar} Reading the page's words to name them…`, 0.15);
         // (the word reader starts once, the first time: Tesseract reports its loading steps first)
-        read = await readPageWords(p.imgData, ticks, ({ status, progress: done }) => status === 'recognizing text'
+        read = await readPageWords(p.imgData, [...ticks, ...shadedCells], ({ status, progress: done }) => status === 'recognizing text'
           ? showDetectProgress(`${foundSoFar} Reading the page's words to name them… ${Math.round(done*100)}%`, 0.15 + 0.75*done)
           : showDetectProgress(`${foundSoFar} Starting the word reader (the first time only)…`, 0.15));
         await progress('Naming the fields and suggesting tags…', 0.9);

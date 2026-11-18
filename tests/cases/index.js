@@ -765,9 +765,6 @@ window.TEST_CASE_LIST = [
     "folder": "immunization-record",
     "session": "immunization_record_session.json",
     "variations": true,
-    "todo": {
-      "tags": "\"DOB: ____\" gets no dobc2"
-    },
     "skip": [
       {
         "test": "dates",
