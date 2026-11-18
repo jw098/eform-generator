@@ -659,8 +659,7 @@ window.TEST_CASE_LIST = [
     ],
     "todo": {
       "ticks": "the tick boxes typed as characters, \"[ ] Yes\" and \"( ) Never\", aren't found",
-      "fields": "the family history table, ruled across with no lines down (\"Relative  Condition  Age at diagnosis\" over ruled rows), isn't split into cells",
-      "extraFields": "the family history table is taken for one writing area; the dot leaders after each condition (\"High blood pressure ........ ☐ Yes ☐ No\") are taken for blanks; and a blank after the heading \"…any of the following?\""
+      "extraFields": "the dot leaders after each condition (\"High blood pressure ........ ☐ Yes ☐ No\") are taken for blanks; and a blank after the heading \"…any of the following?\""
     }
   },
   {
@@ -669,8 +668,6 @@ window.TEST_CASE_LIST = [
     "session": "return_to_work_session.json",
     "variations": true,
     "todo": {
-      "fields": "the restrictions table, ruled across with no lines down (\"Restriction  Limit  For how long\" over ruled rows), isn't split into cells",
-      "extraFields": "the restrictions table is taken for one writing area",
       "tags": "\"EMPLOYER ADDRESS\" is tagged addressline (the patient's), and \"DATE OF ASSESSMENT\" gets no today",
       "dates": "the blanks after \"Fit for full duties as of\", \"from\", \"to\" and \"Unfit for work until\" aren't date fields: a date is found from a label naming one"
     },

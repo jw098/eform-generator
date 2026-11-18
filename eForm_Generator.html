@@ -4426,9 +4426,11 @@ else if (typeof exports === 'object')
   //   _blank       a field whose cell or space has nothing printed in it (textFieldsFromLines)
   //   toEnd        a writing area that runs down to the foot of the page or its footer (areaFields)
   //   _charRow     a box for one character, and which row of boxes it is in (characterBoxes)
+  //   _ruled       a writing area ruled with blank lines: its lines' rows (textFieldsFromLines)
   //   label        its printed label (labelFields; addField keeps it)
   //   _words       the label's words, the page's word objects themselves (labelFields)
-  //   _split       several labels spread along one field: the field's parts (labelFields)
+  //   _split       several labels spread along one field, or a table ruled across: the field's
+  //                parts (labelFields)
   //   _afterOption the label is only a tick box's own (labelFields)
   //   _ownColon    in a box, a label of its own on its row ending with a colon (labelFields)
   //   caption      small words printed under a fill-in line (sectionFields)
@@ -4497,6 +4499,11 @@ else if (typeof exports === 'object')
   //    ("______" over "Patient surname"), the words just above a line are the line above's.
   //    So these are decided last, once every other field has its label.
   // A heading word at the start of its row is part of its label ("APPOINTMENT: Date").
+  // A writing area ruled with blank lines (_ruled) whose first row, above its first line, holds
+  // several headings spaced apart along it is a table ruled across with no lines down
+  // ("Relative   Condition   Age at diagnosis" over ruled rows): the first row is its heading
+  // row, and each row under it is a cell per heading (f._split), labelled with it. A ruled area for
+  // writing has its one heading above it or beside it ("Current medications:"), its first row blank.
   // Sets f.label, and f._words, the label's words.
   // lineAcross(x1, x2, y1, y2): is there a line across x1..x2 somewhere between y1 and y2?
   function labelFields(fields, read, lineAcross){
@@ -4600,6 +4607,24 @@ else if (typeof exports === 'object')
     aboveOnly.forEach(([f, above]) => {
       const own = above.filter(w => !captions.has(w));
       if (own.length){ f.label = phraseText(own); f._words = own; }
+    });
+    // Tables ruled across: the headings in a ruled area's first row, words more than a few letters
+    // apart starting a new one; each column from its heading's start to the next one's
+    fields.forEach(f => {
+      if (!f._ruled || f._ruled.length < 2) return;
+      const first = f._ruled[0];
+      const head = words.filter(w => (w.y0 + w.y1)/2 > f.y && w.y1 <= first + 2 && w.x0 >= f.x - 2 && w.x1 <= f.x + f.width + 2).sort((a,b) => a.x0-b.x0);
+      const heads = [];
+      head.forEach(w => { const g = heads[heads.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wordHeight*3) g.push(w); else heads.push([w]); });
+      if (heads.length < 2) return;
+      const cuts = heads.map((g, j) => j ? g[0].x0 - wordHeight*0.5 : f.x), end = (j) => j+1 < cuts.length ? cuts[j+1] : f.x + f.width;
+      if (!cuts.every((c, j) => end(j) - c >= wordHeight*3)) return;
+      const cells = [];
+      for (let k = 1; k < f._ruled.length; k++){
+        const top = f._ruled[k-1], bottom = f._ruled[k];
+        heads.forEach((g, j) => cells.push({ x: cuts[j] + 2, y: top + 2, width: end(j) - cuts[j] - 4, height: bottom - top - 4, type: 'text', label: phraseText(g), _words: g }));
+      }
+      f._split = cells;
     });
   }
 
@@ -5268,7 +5293,8 @@ else if (typeof exports === 'object')
     // "row" with the line above (two lines without sides), a field per line. So first find
     // them together: lines of the same length, evenly spaced one under the other, with no
     // sides, blank between them and no label beside them; stacks side by side on the same
-    // lines are one area.
+    // lines are one area. The area keeps its lines (_ruled, page px): a table ruled across with no
+    // lines down looks the same in ink, and only its column headings tell it apart (labelFields).
     const ruled = new Set();
     {
       const near = (a, b) => Math.abs(a - b) <= lineHeight*0.5;
@@ -5307,7 +5333,8 @@ else if (typeof exports === 'object')
       });
       areas.forEach(a => {
         a.st.forEach(M => ruled.add(M));
-        fields.push({ page, x: a.x1/scale, y: a.y1/scale, width: (a.x2-a.x1)/scale, height: (a.y2-a.y1)/scale, type: 'textarea', name: 'text', oscarTag: '', box: false });
+        fields.push({ page, x: a.x1/scale, y: a.y1/scale, width: (a.x2-a.x1)/scale, height: (a.y2-a.y1)/scale, type: 'textarea', name: 'text', oscarTag: '', box: false,
+                      _ruled: [...new Set(a.st.map(M => Math.round(M.y1/scale)))].sort((p, q) => p - q) });
       });
     }
     // The form's margins: where its lines start and end. A line running from one to the other is
