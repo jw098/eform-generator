@@ -5363,13 +5363,17 @@ else if (typeof exports === 'object')
       // A row (a table's, a box) is the space between two lines joined by sides at both ends of
       // what they share, or between two page-wide lines a row apart, the lower not a table's top
       // edge (the space between two tables, with a table's title in it: "Diagnosis" over its
-      // table). Any other line is a fill-in line: two lines one over the other without sides
+      // table), or between two lines joined by two or more dividers running from one to the other:
+      // a table drawn with lines down between its columns and none at its sides (a white row
+      // between shaded ones), its first and last cells open at their ends. Any other line is a fill-in line: two lines one over the other without sides
       // ("Name: ____" over "Address: ____", a line over a box's edge) are no row.
       let bounded = false;
       if (top && (L.y1 - top.y2) <= lineHeight*8){
         const xa = Math.max(L.x1, top.x1) + 1, xb = Math.min(L.x2, top.x2) - 1;
+        // (dividers inside the shared stretch, each unbroken from line to line, up to two)
+        const dividers = () => { let n = 0; for (let x=xa+3; x<xb-3 && n < 2; x++) if (sideLine(inkMap, w, h, x, top.y2, L.y1, 1, 0)){ n++; x += 3; } return n; };
         bounded = joinedBySides(inkMap, w, h, top, L, xa, xb, 2) ||
-                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= lineHeight*2.2 && !topEdge);
+                  (pageWide(L) && pageWide(top) && (L.y1 - top.y2) <= lineHeight*2.2 && !topEdge) || dividers() >= 2;
       }
       // (no field above a table's top edge)
       if (!bounded && topEdge) return;
