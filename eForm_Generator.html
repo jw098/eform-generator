@@ -3908,11 +3908,15 @@ else if (typeof exports === 'object')
   }
 
   // A round option button: a thin, unbroken ring with an empty middle and empty corners, a word
-  // space from the ink beside it (an O inside a word has a letter right beside it: wordSpaceBeside).
-  // (Added by FreeScribe.)
-  function isRealCircle(inkMap,w,h,x1,y1,x2,y2){
+  // space from the ink beside it (an O inside a word has a letter right beside it: wordSpaceBeside),
+  // and at least 0.7 of the page's letter height (letterHeight, textCapHeight; when it can be told):
+  // a small letter, o, e or a, is about half a capital tall, and in small light print its gaps to
+  // the letters beside it can look like a word space ("Place Patient Form Label Here"). Measured:
+  // those letters 0.47, the cases' buttons and boxes 0.91 and up. (Added by FreeScribe.)
+  function isRealCircle(inkMap,w,h,x1,y1,x2,y2,letterHeight){
     const bw = x2-x1+1, bh = y2-y1+1, sz = Math.min(bw,bh);
     if (sz < 7 || x1 < 3 || y1 < 3 || x2 >= w-3 || y2 >= h-3) return false;
+    if (letterHeight && bh < letterHeight*0.7) return false;
     if (bw/bh < 0.85 || bw/bh > 1.18) return false;
     const isInk = (x,y) => inkMap[y*w+x] === 1;
     const cx = (x1+x2)/2, cy = (y1+y2)/2, r = (bw+bh)/4;
@@ -5931,7 +5935,7 @@ else if (typeof exports === 'object')
           if(aspect < 0.82 || aspect > 1.22) continue;
 
           // Round option buttons (○) are real fields too; anything else must pass isRealBox
-          const round = isRealCircle(inkMap,w,h,minx,miny,maxx,maxy);
+          const round = isRealCircle(inkMap,w,h,minx,miny,maxx,maxy,letterHeight);
           if(!round && !isRealBox(inkMap,w,h,minx,miny,maxx,maxy,gray)) continue;
 
           const type = 'checkbox';
