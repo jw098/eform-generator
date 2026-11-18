@@ -4165,18 +4165,23 @@ else if (typeof exports === 'object')
     const boxes = [{ x1: cx1, x2: cx2, y1: 0, y2: h - 1 - margin, form: true }];
     lines.forEach((A, i) => {
       // the next line below over the same stretch, at least a couple of lines down, and the sides
-      // joining them, left to right: each pair next to each other is a cell
+      // joining them, left to right: each pair next to each other is a cell. A line below that no
+      // sides join to it is passed over for the next: a table that starts inside a box ("PREVIOUS
+      // INVESTIGATIONS" in the box of "REASON FOR REFERRAL:") has its top line over part of the box
       for (let j=i+1; j<lines.length; j++){
         const B = lines[j];
         const x1 = Math.max(A.x1, B.x1), x2 = Math.min(A.x2, B.x2);
         if (B.y1 - A.y2 < lineHeight*1.5 || x2 - x1 < lineHeight*3) continue;
         const xs = [];
         for (let x=x1; x<=x2; x++) if (sideLine(inkMap, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
+        let cells = 0;
         for (let k=0; k+1<xs.length; k++){
           const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 };
-          if (c.x2 - c.x1 >= lineHeight*3 && !boxes.some(o => o.x1 === c.x1 && o.x2 === c.x2 && o.y1 === c.y1)) boxes.push(c);
+          if (c.x2 - c.x1 < lineHeight*3) continue;
+          cells++;
+          if (!boxes.some(o => o.x1 === c.x1 && o.x2 === c.x2 && o.y1 === c.y1)) boxes.push(c);
         }
-        break;
+        if (cells) break;
       }
     });
     // The foot of the form: above its last line of print when that is a footer ("CL489 (042019)
@@ -4208,7 +4213,10 @@ else if (typeof exports === 'object')
       let run = null;
       for (let y=c.y1; y<=c.y2 + 1; y++){
         const r = y <= c.y2 ? blank(y) : 0;
-        if (r >= wide - 1){ if (run) { run.y2 = y; run.r = Math.min(run.r, r); } else run = { y1: y, y2: y, r }; continue; }
+        if (r >= wide - 1){ if (run) { run.y2 = y; run.rs.push(r); } else run = { y1: y, y2: y, rs: [r] }; continue; }
+        // (rows at its foot much narrower than the rest, beside the next row's print, are left out:
+        // the blank beside "☐ Consult Notes" under the reason for referral's area)
+        if (run){ const widest = Math.max(...run.rs); while (run.rs.length > 1 && run.rs[run.rs.length-1] < widest*0.9){ run.rs.pop(); run.y2--; } run.r = Math.min(...run.rs); }
         if (run && run.y2 - run.y1 + 1 >= tall && label(run.y1)){
           const toEnd = c.form && run.y2 >= Math.min(c.y2, foot - Math.round(lineHeight*0.5));
           const y1 = run.y1 + pad, y2 = run.y2 - (c.form && run.y2 >= c.y2 ? 0 : pad), x1 = c.x1 + (c.form ? 0 : pad), x2 = c.x1 + run.r - 1 - (c.form ? 0 : pad);
