@@ -505,7 +505,7 @@
               <label title="In pixels on a page 1500 px across; scaled with the page">Tolerance ± px<input id="tolCb" type="number" value="8" min="1" max="30"/></label>
             </div>
             <div class="grid3" style="margin-top:8px">
-              <label>Line min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
+              <label title="A line shorter than this needs blank page above it to be taken for a line to write on">Line with words over it, min % width<input id="lineMinPct" type="number" value="7.5" min="2" max="40" step="0.5"/></label>
               <label>Dark threshold bias<input id="darkBias" type="number" value="8" min="-40" max="60" step="1"/></label>
               <label>Gradient multiplier<input id="gradMult" type="number" value="0.9" min="0.1" max="3" step="0.1"/></label>
             </div>
@@ -5189,8 +5189,9 @@ else if (typeof exports === 'object')
   // ===== Text fields from lines (added by FreeScribe) =====
   // gray: the page's grey levels; bands: the page's lines, top to bottom; leaders: the dot
   // leaders drawn in as lines (drawDotLeaders); lineHeight: one written line's height; ticks: the
-  // tick boxes found on the page (all canvas px); scale: canvas px per page-image px.
-  function textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, ticks){
+  // tick boxes found on the page (all canvas px); scale: canvas px per page-image px; longLine: the
+  // length from which a line may have words right over it (lineMinPct% of the page's width).
+  function textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, ticks, longLine){
     const maxThick = maxLineThickness(h);
     // A single-line table row can be shorter than the guessed written line: measure it against
     // the page's own printed text instead
@@ -5224,7 +5225,17 @@ else if (typeof exports === 'object')
     const isFieldLine = (b, bar) => (bar || isLeader(b) || solidLine(gray, w, b, minGap)) && isLine(b);
     const candidates = bands.map(b => (b.y2-b.y1+1) <= maxThick ? { band: b, bar: false } : { band: { ...b, y1: b.y2 }, bar: true });
     const inBar = barBands(bands, gray, w, maxThick);
-    const verdicts = candidates.map((c, i) => !inBar.has(i) && isFieldLine(c.band, c.bar));
+    // A short line is a blank only with room to write on it: blank page above it for most of a
+    // letter's height, along at least four fifths of it ("Age: ____ years", "____ / ____"). A
+    // longer line can be a box's or a table's edge with words right over it; a short band with ink
+    // over it is the top of a shaded tick box's bevel, a letter's stroke, or a box's edge under its
+    // label (measured: blanks 0.00 of their length with ink over them, a 3-D tick box's top 0.95)
+    const roomAbove = (b) => {
+      const ya = Math.max(0, b.y1 - Math.round((capHeight || lineHeight/2.5)*0.8)), yb = b.y1 - 2;
+      let n = 0; for (let x=b.x1; x<=b.x2; x++) for (let y=ya; y<=yb; y++) if (inkMap[y*w+x]) { n++; break; }
+      return n <= (b.x2-b.x1+1)*0.2;
+    };
+    const verdicts = candidates.map((c, i) => !inBar.has(i) && isFieldLine(c.band, c.bar) && (c.band.x2 - c.band.x1 + 1 >= longLine || roomAbove(c.band)));
     const lines = candidates.filter((c, i) => verdicts[i]).map(c => c.band)
                             .sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     // (for tests/lines.js: each band and whether it was taken for a line, in page-image px)
@@ -5761,9 +5772,14 @@ else if (typeof exports === 'object')
 
       await progress('Finding the lines and checkboxes…', 0.05);
       const newFields = [];
-      // The lines: rows of ink at least lineMinPct% of the page's width long (gaps of up to two
-      // pixels bridged)
-      const minSeg = Math.round(w*(lineMinPct/100));
+      // The lines: rows of ink at least two and a half letters long (gaps of up to two pixels
+      // bridged), sized against the page's own capital letters: no stroke of a letter or run of
+      // them is that long (measured: at most 2.45 capital heights; the tops of a tick box are no
+      // more than two), and a blank to write in holds a few letters (the shortest measured: 3.4,
+      // "Date of birth: ____ / __ / __"). A line shorter than lineMinPct% of the page's width is
+      // taken only with room to write on it (textFieldsFromLines)
+      const minSeg = Math.max(3, Math.round((textCapHeight(inkMap, w, h) || p.naturalH*0.026*scale/2.5)*2.5));
+      const longLine = Math.round(w*(lineMinPct/100));
       const segs = [];
       for(let y=0;y<h;y++){
         let x=0;
@@ -5889,7 +5905,7 @@ else if (typeof exports === 'object')
       // bottoms of bold words, table lines under column headings) give no field, a table row
       // gives one field per column, and the top edge of a box gives none of its own.
       const tickRects = dedupCb.map(f => ({ x1: f.x*scale, y1: f.y*scale, x2: (f.x + f.width)*scale, y2: (f.y + f.height)*scale }));
-      textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, tickRects).forEach(f => newFields.push(f));
+      textFieldsFromLines(inkMap, gray, w, h, scale, bands, leaders, lineHeight, page, tickRects, longLine).forEach(f => newFields.push(f));
       // Rows of boxes for one character each
       characterBoxes(inkMap, w, h, scale, lineHeight, page).forEach(f => newFields.push(f));
       // Open writing areas under a heading, with no line or box around them, on the page or in a

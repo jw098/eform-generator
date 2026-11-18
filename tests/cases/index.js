@@ -509,7 +509,6 @@ window.TEST_CASE_LIST = [
     "session": "medication_review_session.json",
     "variations": true,
     "todo": {
-      "fields": "the month and day of \"Date of birth: ____ / ____ / ____\" (\"YYYY MM DD\" under them) and the second blank of \"BP: ____ / ____ mmHg\" aren't found: short lines after a slash, with no label of their own",
       "extraFields": "the blank page under \"Reviewed by: ____  Date of review: ____\" is taken for an open writing area",
       "tags": "the year of a date of birth in three parts is tagged dobc2, not dob_year; \"Allergies: ____\" gets no allergies_des; \"Pharmacy phone\" is tagged phone; \"Reviewed by\" (current_user) and \"Date of review\" (today) get no tag"
     }
@@ -556,8 +555,7 @@ window.TEST_CASE_LIST = [
     "session": "wound_flowsheet_session.json",
     "variations": true,
     "todo": {
-      "dates": "the cells of the \"Date\" row are text fields, not date fields: a date is found from a field's own label, and a grid cell's label is its row's, printed at the far left",
-      "fields": "the two blanks of \"Page ____ of ____\" aren't found: short lines after a word with no colon"
+      "dates": "the cells of the \"Date\" row are text fields, not date fields: a date is found from a field's own label, and a grid cell's label is its row's, printed at the far left"
     }
   }
 ];
