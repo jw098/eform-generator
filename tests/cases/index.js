@@ -509,7 +509,6 @@ window.TEST_CASE_LIST = [
     "session": "medication_review_session.json",
     "variations": true,
     "todo": {
-      "extraFields": "the blank page under \"Reviewed by: ____  Date of review: ____\" is taken for an open writing area",
       "tags": "the year of a date of birth in three parts is tagged dobc2, not dob_year; \"Allergies: ____\" gets no allergies_des; \"Pharmacy phone\" is tagged phone; \"Reviewed by\" (current_user) and \"Date of review\" (today) get no tag"
     }
   },

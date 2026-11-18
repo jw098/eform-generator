@@ -4774,12 +4774,18 @@ else if (typeof exports === 'object')
   //    label ends with a colon ("Diagnosis: ____"): a heading's row, the rest of it empty ("WORK
   //    STATUS" at the top of its table, "PHYSICAL EXAM"). Several labels spaced along a row are
   //    each a blank's ("LMP (DATE): ____ MENOPAUSE (AGE): ____"), with or without a colon OCR reads;
-  //  - a writing area down to the foot of the page is one only under a label ending with a colon.
+  //  - a writing area down to the foot of the page is one only under a label of its own ending with
+  //    a colon ("CURRENT MEDICATIONS:" over the rest of the page): words that are already another
+  //    field's label ask for that field, so the blank page under a row of blanks ("Reviewed by:
+  //    ____  Date of review: ____") is where the form ends, not a place to write.
   function fieldsFromLabels(fields){
+    // (whether f's label words are also another field's label)
+    const labelShared = (f) => (f._words || []).some(w => fields.some(g => g !== f && (g._words || []).includes(w)));
     return fields.flatMap(f => {
       const { _split, _afterOption, _lone, toEnd, ...g } = f;
       if (_split) return _split.map(part => ({ ...g, ...part }));
       if ((_afterOption && f.box || _lone && f.box || toEnd) && !endsWithColon(f._words)) return [];
+      if (toEnd && labelShared(f)) return [];
       return [g];
     });
   }
