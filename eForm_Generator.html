@@ -3896,7 +3896,9 @@ else if (typeof exports === 'object')
     // (a side at y, with the outside towards step: -1 above, 1 below)
     const lineOver = (y, step) => {
       if (hi - lo < GREY_RANGE || !standsApart(inkMap,w,h,x1,y1,x2,y2)) return false;
-      for (let k=0; k<band; k++) if (rowIsLine(y - step*k)) return false;              // (the side is a line itself)
+      // (the side is a line itself: judged from the side's own rows inward, not the row outside
+      // it, which on a resized page can be the line's soft edge, over a gap of a pixel or two)
+      for (let k=1; k<=band; k++) if (rowIsLine(y - step*k)) return false;
       let gap = false;
       for (let k=1; k<=near; k++){ if (paperRow(y + step*k)) gap = true; if (gap && rowIsLine(y + step*k)) return true; }
       return false;
