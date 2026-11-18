@@ -521,12 +521,12 @@ window.TEST_CASE_LIST = [
     "variations": true
   },
   {
-    "name": "Fax referral at 100 dpi (the same labels to and from, tick boxes after their words, small print)",
+    "name": "Fax referral at 100 dpi (a specialist's own form: the referring practitioner's details in a box, tick boxes after their words, small print)",
     "folder": "fax-referral",
     "session": "fax_referral_session.json",
     "variations": true,
     "todo": {
-      "tags": "the consultant's side (\"TO (consultant)\": \"Dr.\", \"Phone:\", \"Fax:\", \"Address:\") is tagged as the clinic's, the same as the referring practitioner's side; \"Date sent:\" gets no today; \"Relevant history and medications\" is tagged druglist_line"
+      "tags": "\"Date sent:\" gets no today: the date a form is sent by the clinician is the form's date"
     },
     "skip": [
       {
@@ -534,11 +534,22 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "region": [
           100,
-          760,
+          700,
           330,
-          40
+          50
         ],
         "reason": "a signature line: Auto Detect makes no signatures, and its line is the same in ink and words as a fill-in line after a label (\"Signature: ____\"), so it is found as a text field"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          40,
+          560,
+          770,
+          100
+        ],
+        "reason": "\"Relevant history and medications\" is tagged druglist_line: the field asks for the patient's medications as well as their history, and the drug list is as good an answer as none"
       }
     ]
   },
