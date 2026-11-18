@@ -4842,8 +4842,10 @@ else if (typeof exports === 'object')
   }
 
   // Typical height of the page's printed capitals, in canvas px (0 when it can't be told):
-  // the median height of letter-sized blobs of ink.
-  function textCapHeight(inkMap, w, h){
+  // the median height of letter-sized blobs of ink, or the height at `share` of the way up from the
+  // shortest (0.75: the taller letters, capitals and letters with a stem, which holds steady across
+  // a page's sizes where the median moves with how many small letters stand alone).
+  function textCapHeight(inkMap, w, h, share = 0.5){
     const seen = new Uint8Array(w*h), stack = [], hs = [];
     for (let st=0; st<w*h; st++){
       if (!inkMap[st] || seen[st]) continue;
@@ -4863,7 +4865,7 @@ else if (typeof exports === 'object')
     // (a page whose letters mostly run together into words still has a few on their own)
     if (hs.length < 15) return 0;
     hs.sort((a,b) => a-b);
-    return hs[hs.length >> 1];
+    return hs[Math.min(hs.length - 1, Math.floor(hs.length*share))];
   }
 
   // Shaded cells to write in ("Last name [a light shaded cell]", with no border), drawn into the
@@ -5200,7 +5202,8 @@ else if (typeof exports === 'object')
     // letters standing just above it along most of its length, and the tops of a run of bold capitals merge into a
     // "line" with the letters hanging right under it. (The row touching the band is skipped: a
     // line's soft edge.) A box's edge or a table row's line can have words as close, but has
-    // sides running up or down from both its ends.
+    // sides running up or down from both its ends, at least a row of text tall (a letter's stems
+    // are only a letter tall: the tops of "Training/Apprenticeship" aren't a box).
     const isLine = (b) => {
       if (!capHeight) return true;
       // (letters run along at least half the line between rows ya and yb)
@@ -5212,7 +5215,7 @@ else if (typeof exports === 'object')
       };
       if (!crowded(b.y1 - Math.round(capHeight*0.8), b.y1-2) && !crowded(b.y2+2, b.y2+3)) return true;
       const sideLineAt = (x, ya, yb) => sideLine(inkMap, w, h, x, ya, yb, 0.85, 0);
-      const tall = Math.round(capHeight*1.1);
+      const tall = Math.round(capHeight*1.6);
       return [[b.y2+1, b.y2+tall], [b.y1-tall, b.y1-1]].some(([ya, yb]) => sideLineAt(b.x1+1, ya, yb) && sideLineAt(b.x2-1, ya, yb));
     };
     // A thick band is a shaded bar (a grey table heading reads as ink): its bottom edge is
@@ -5773,13 +5776,14 @@ else if (typeof exports === 'object')
       await progress('Finding the lines and checkboxes…', 0.05);
       const newFields = [];
       // The lines: rows of ink at least two and a half letters long (gaps of up to two pixels
-      // bridged), sized against the page's own capital letters: no stroke of a letter or run of
+      // bridged), sized against the page's own taller letters: no stroke of a letter or run of
       // them is that long (measured: at most 2.45 capital heights; the tops of a tick box are no
       // more than two), and a blank to write in holds a few letters (the shortest measured: 3.4,
-      // "Date of birth: ____ / __ / __"). A line shorter than lineMinPct% of the page's width is
-      // taken only with room to write on it (textFieldsFromLines)
-      const minSeg = Math.max(3, Math.round((textCapHeight(inkMap, w, h) || p.naturalH*0.026*scale/2.5)*2.5));
-      const longLine = Math.round(w*(lineMinPct/100));
+      // "Date of birth: ____ / __ / __"). Where the letters' height can't be told (too few stand
+      // alone), at least lineMinPct% of the page's width. A line shorter than that is taken only
+      // with room to write on it (textFieldsFromLines)
+      const longLine = Math.round(w*(lineMinPct/100)), letterHeight = textCapHeight(inkMap, w, h, 0.75);
+      const minSeg = letterHeight ? Math.max(3, Math.round(letterHeight*2.5)) : longLine;
       const segs = [];
       for(let y=0;y<h;y++){
         let x=0;
