@@ -1422,8 +1422,9 @@ else if (typeof exports === 'object')
     // (whether one of the words matches `re`, a whole word or words)
     const hasWord = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(words);
     // (not in the chart, or not the patient's own: an appointment, a maiden name, a doctor or
-    // date the patient was seen by before, the facility, who initials or signs)
-    if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|time|hours')) return '';
+    // date the patient was seen by before, the facility, who initials, signs or witnesses: "Name of
+    // witness (print)")
+    if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|witness|time|hours')) return '';
     if (hasWord('email|e_mail')) return 'email';
     if (hasWord('fax')) return 'fax';
     if (hasWord('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return hasWord('version') ? 'hinVersion' : 'hin';

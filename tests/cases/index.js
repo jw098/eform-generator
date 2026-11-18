@@ -585,10 +585,6 @@ window.TEST_CASE_LIST = [
     "folder": "consent-release",
     "session": "consent_release_session.json",
     "variations": true,
-    "todo": {
-      "tags": "the \"Date\" printed under its line gets no today",
-      "dates": "the \"Date\" printed under its line (beside the signature) isn't a date field"
-    },
     "skip": [
       {
         "test": "dates",
