@@ -241,6 +241,16 @@ fine meanwhile: temporary logs and experiments on copies of a page, with the app
 it was after. Once agreed, make the change and test it as below (snapshot, full suite), and
 bring back anything it changed that wasn't discussed.
 
+**Working on your own, when asked.** When the user asks for work to go ahead without checking
+in ("keep fixing the to-dos without my intervention"), don't wait for agreement: investigate,
+make the change, test it and push it, for as long as that request holds. Everything else here
+still applies: the cause found with evidence first, a fix only if it is general (no exceptions
+or thresholds fitted to one case), tried on a copy with the snapshot diff explained, then the
+full suite before pushing to `main`. Where a fix costs real fields elsewhere or needs special
+cases, make it a skip with a reason saying what was tried, as "To-do or skip" says. Afterwards,
+report what changed: each check changed and why, what each changed on other forms, and each
+skip or to-do added. A test case's expected answer still changes only with the user's say-so.
+
 ## Decisions
 
 Settled with the user; follow them unless the user changes them.
