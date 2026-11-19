@@ -4138,6 +4138,31 @@ else if (typeof exports === 'object')
     }
     return false;
   }
+  // sideLine for many questions about one ink map that doesn't change meanwhile: the same answers,
+  // from a count down each column of the rows with ink within a pixel of it, made once, so each
+  // question takes a few lookups instead of a walk down every row (areaFields asks it at every
+  // column between each pair of lines)
+  function sideLineTable(inkMap, w, h){
+    const runs = new Int32Array(w*(h+1));               // (column x: rows 0..y-1 with ink near it, at x*(h+1)+y)
+    for (let x=0; x<w; x++){
+      let n = 0;
+      for (let y=0; y<h; y++){
+        runs[x*(h+1)+y] = n;
+        if (inkMap[y*w+x] || (x > 0 && inkMap[y*w+x-1]) || (x < w-1 && inkMap[y*w+x+1])) n++;
+      }
+      runs[x*(h+1)+h] = n;
+    }
+    return (x, ya, yb, share = 0.85, shift = 2) => {
+      if (yb - ya < 4) return false;
+      const a = Math.max(0, ya), b = Math.min(h-1, yb);
+      for (const xx of [x, x-1, x+1, x-2, x+2].slice(0, 1 + shift*2)){
+        if (xx < 0 || xx >= w) continue;
+        const n = b >= a ? runs[xx*(h+1)+b+1] - runs[xx*(h+1)+a] : 0;
+        if (n >= (yb-ya+1)*share) return true;
+      }
+      return false;
+    };
+  }
   // Two lines, T over B, joined by side lines at xa and xb (a box, a table's row or cell): the
   // sides are looked for from `gap` pixels under T to `gap` pixels over B
   function joinedBySides(inkMap, w, h, T, B, xa, xb, gap){
@@ -4167,6 +4192,7 @@ else if (typeof exports === 'object')
     // The containers: the form, then each cell
     const cx1 = Math.min(...lines.map(b => b.x1)), cx2 = Math.max(...lines.map(b => b.x2)), margin = Math.max(cx1, w - 1 - cx2);
     const boxes = [{ x1: cx1, x2: cx2, y1: 0, y2: h - 1 - margin, form: true }];
+    const sideAt = sideLineTable(inkMap, w, h);
     lines.forEach((A, i) => {
       // the next line below over the same stretch, at least a couple of lines down, and the sides
       // joining them, left to right: each pair next to each other is a cell. A line below that no
@@ -4177,7 +4203,7 @@ else if (typeof exports === 'object')
         const x1 = Math.max(A.x1, B.x1), x2 = Math.min(A.x2, B.x2);
         if (B.y1 - A.y2 < lineHeight*1.5 || x2 - x1 < lineHeight*3) continue;
         const xs = [];
-        for (let x=x1; x<=x2; x++) if (sideLine(inkMap, w, h, x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
+        for (let x=x1; x<=x2; x++) if (sideAt(x, A.y2+1, B.y1-1)){ xs.push(x); x += 4; }
         let cells = 0;
         for (let k=0; k+1<xs.length; k++){
           const c = { x1: xs[k] + 3, x2: xs[k+1] - 3, y1: A.y2 + 2, y2: B.y1 - 2 };

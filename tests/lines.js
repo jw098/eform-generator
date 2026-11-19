@@ -14,26 +14,27 @@
 // no suspect is counted (the band finder found something new), not tested. The app must be
 // served over http, as for ci.js. Uses the Chrome installed on the machine (PW_CHANNEL=chrome,
 // the default); set PW_CHANNEL= to use Playwright's own Chromium instead.
+//
+// The cases are split into --jobs N shards (the default: one per processor, up to 4), each run in
+// a browser of its own at the same time; the results are printed in the cases' order.
 const { chromium } = require('playwright');
+const os = require('os');
 
-(async () => {
-  const args = process.argv.slice(2), url = args[0], variations = args.includes('--variations');
-  const pi = args.indexOf('--page'), onlyPage = pi >= 0 ? args[pi + 1] : null;
-  if (!url) { console.error('usage: node tests/lines.js <app url ending in #test> [--variations] [--page "<case folder> p<n>"]'); process.exit(2); }
-  const channel = process.env.PW_CHANNEL ?? 'chrome';
+// One shard's runs: each of its case pages and their copies, with the bands found on them
+async function runShard(url, channel, variations, onlyPage, index, of){
   const browser = await chromium.launch(channel ? { channel } : {});
-  let failed = true;
   try {
     const page = await browser.newPage();
     page.on('pageerror', err => console.error('page error:', err.message));
     await page.addInitScript(() => { window.eformMapperTestNoRun = true; });
     await page.goto(url);
     await page.waitForFunction(() => window.eformMapperTest && window.eformMapperTest.harness, null, { timeout: 60000 });
-    const runs = await page.evaluate(async ({ variations, onlyPage }) => {
+    return await page.evaluate(async ({ variations, onlyPage, index, of }) => {
       const H = window.eformMapperTest.harness;
       await H.loadScript('tests/cases/index.js'); await H.loadScript('tests/cases/lines.js');
-      const lists = window.LINE_SUSPECTS, out = [];
-      for (const entry of window.TEST_CASE_LIST){
+      const lists = window.LINE_SUSPECTS, out = [], owner = H.shardOf(window.TEST_CASE_LIST, of);
+      for (const [ei, entry] of window.TEST_CASE_LIST.entries()){
+        if (owner[ei] !== index) continue;
         const c = await H.loadCase(entry, H.fromServer());
         for (const pg of await H.eformPages(c.html, c.images)){
           const name = `${entry.folder} p${pg.n}`;
@@ -48,13 +49,30 @@ const { chromium } = require('playwright');
             // (a fillable PDF's page, detected from its form fields, has no line pass)
             if (!log.length) continue;
             const k = cp.scale, { scale } = log[log.length - 1];
-            out.push({ page: name, copy: cp.name, px: 1/(scale*k), suspects: lists[name],
+            out.push({ order: ei, page: name, copy: cp.name, px: 1/(scale*k), suspects: lists[name],
                        bands: log[log.length - 1].bands.map(b => ({ ...b, x: b.x/k, y: b.y/k, width: b.width/k, height: b.height/k })) });
           }
         }
       }
       return out;
-    }, { variations, onlyPage });
+    }, { variations, onlyPage, index, of });
+  } finally {
+    await browser.close();
+  }
+}
+
+(async () => {
+  const args = process.argv.slice(2), url = args[0], variations = args.includes('--variations');
+  const pi = args.indexOf('--page'), onlyPage = pi >= 0 ? args[pi + 1] : null;
+  const ji = args.indexOf('--jobs'), jobsAsked = ji >= 0 ? Number(args[ji + 1]) : Math.min(4, os.cpus().length);
+  const jobs = Number.isInteger(jobsAsked) && jobsAsked >= 1 ? jobsAsked : 1;
+  if (!url) { console.error('usage: node tests/lines.js <app url ending in #test> [--variations] [--page "<case folder> p<n>"] [--jobs N]'); process.exit(2); }
+  const channel = process.env.PW_CHANNEL ?? 'chrome';
+  let failed = true;
+  try {
+    // (each shard's runs, back in the cases' order: a case's runs are all in one shard, in order)
+    const runs = (await Promise.all([...Array(jobs).keys()].map(k => runShard(url, channel, variations, onlyPage, k, jobs))))
+      .flat().sort((a, b) => a.order - b.order);
 
     let bad = 0, checked = 0, unmatched = 0;
     for (const r of runs){
@@ -89,8 +107,6 @@ const { chromium } = require('playwright');
     failed = bad > 0 || !runs.length;
   } catch (err) {
     console.error('Could not run the line tests:', err.message || err);
-  } finally {
-    await browser.close();
   }
   process.exit(failed ? 1 : 0);
 })();

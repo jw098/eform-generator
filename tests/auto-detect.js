@@ -835,7 +835,19 @@
   }
   // The machinery, for tests/show.js (which draws a case's expected and actual boxes). With
   // window.eformMapperTestNoRun set before this file loads, it stops here: no tests, no panel.
-  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare, pdfPage, VARIATIONS };
+  // The cases split into `of` shards of about the same work, for runs in parallel (tests/ci.js
+  // --jobs, tests/lines.js): each case's shard, the longest first into the least loaded. A case
+  // with variations is its page and six copies of it, so it weighs seven
+  function shardOf(list, of){
+    const weight = (e) => (e.images ? e.images.length : 1) * (e.variations ? 1 + VARIATIONS.length : 1);
+    const load = new Array(of).fill(0), out = new Array(list.length);
+    list.map((e, i) => i).sort((a, b) => weight(list[b]) - weight(list[a]) || a - b).forEach(i => {
+      const k = load.indexOf(Math.min(...load));
+      out[i] = k; load[k] += weight(list[i]);
+    });
+    return out;
+  }
+  T.harness = { loadScript, loadCase, fromServer, eformPages, detectOn, draftOf, compare, pdfPage, VARIATIONS, shardOf };
   if (window.eformMapperTestNoRun) return;
   render();
   document.body.appendChild(panel);
@@ -843,6 +855,14 @@
   // ----- Start -----
   try { await loadScript('tests/cases/index.js'); } catch (err) { /* no cases yet */ }
   entries = window.TEST_CASE_LIST || [];
+  // (one shard of a run in parallel, window.eformMapperTestShard = { index, of }, set by
+  // tests/ci.js: its cases, and the tests of the app as a whole in the first shard only)
+  const shard = window.eformMapperTestShard;
+  if (shard && shard.of > 1){
+    const owner = shardOf(entries, shard.of);
+    entries = entries.filter((e, i) => owner[i] === shard.index);
+    if (shard.index > 0) tests = [];
+  }
   if (!entries.length || location.protocol !== 'file:'){ await runAll(fromServer()); return; }
   // From disk: ask for the folder
   const ask = document.createElement('div');

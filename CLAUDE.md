@@ -138,7 +138,7 @@ Every test must pass; to-dos (○) are allowed. CI runs the same on each push, t
 tests: whether each band of ink on the case pages is taken for a line, against the labels in
 `tests/cases/lines.js` (1: a line that bounds a field; 0: words, an underline, any part of a
 bar but its bottom edge, a line's split-off edge). Run them after any change to the ink map, `bands` or the line
-test (`barBands`, `solidLine`, `isLine`); they take about a minute:
+test (`barBands`, `solidLine`, `isLine`); they take about a minute here:
 
 ```
 PW_CHANNEL= node tests/lines.js "http://localhost:8000/eForm_Generator.html#test" --variations
@@ -154,8 +154,10 @@ diff before.txt after.txt
 ```
 
 The snapshot covers the case pages only, not the variations: a change it shows none for still
-needs the full run with `--variations`. (A snapshot takes about a minute, the full run about
-four.) To see why a check does what it does, add `--log` after the URL: whatever the app logs
+needs the full run with `--variations`. (Here, a snapshot takes about a minute and a half, the
+full run several minutes. All three scripts run several browsers at once, each doing its share of
+the cases: `--jobs N` sets how many, `--jobs 1` one; their output is the same whatever the jobs.)
+To see why a check does what it does, add `--log` after the URL: whatever the app logs
 to the console while it reads each image is printed after that image's fields, each line
 starting "> ". Put a `console.log` in the app for the values you want, and take it out after.
 

@@ -20,14 +20,19 @@
 // the app is served from. The app must be served over http, as for ci.js. Uses the Chrome
 // installed on the machine (PW_CHANNEL=chrome, the default); set PW_CHANNEL= to use
 // Playwright's own Chromium instead.
+//
+// The pages are read by several browsers at once, each taking the next page to read (--jobs N;
+// the default: one per two processors, up to 4, as each keeps two busy, the page's and OCR's).
+// The output is in the same order whatever the jobs.
 const { chromium } = require('playwright');
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), os = require('os');
 
 (async () => {
   const url = process.argv[2];
-  if (!url) { console.error('usage: node tests/snapshot.js <app url ending in #test> [--log] [image paths...]'); process.exit(2); }
-  const log = process.argv.includes('--log');
-  let images = process.argv.slice(3).filter(a => a !== '--log');
+  if (!url) { console.error('usage: node tests/snapshot.js <app url ending in #test> [--log] [--jobs N] [image paths...]'); process.exit(2); }
+  const args = process.argv.slice(3), log = args.includes('--log');
+  const ji = args.indexOf('--jobs'), jobsAsked = ji >= 0 ? Number(args[ji + 1]) : Math.max(1, Math.min(4, Math.floor(os.cpus().length/2)));
+  let images = args.filter((a, i) => a !== '--log' && a !== '--jobs' && !(ji >= 0 && i === ji + 1));
   // (each page to read: { label, src } for an image file, { label, data } for a session's page)
   let pages = images.map(img => ({ label: img, src: img }));
   if (!images.length){
@@ -42,44 +47,53 @@ const fs = require('fs'), path = require('path');
           .map(n => ({ label: `${rel} page ${n}`, data: session.pages[n].imgData }));
       }));
   }
+  const jobs = Math.max(1, Math.min(pages.length, Number.isInteger(jobsAsked) && jobsAsked >= 1 ? jobsAsked : 1));
   const channel = process.env.PW_CHANNEL ?? 'chrome';
-  const browser = await chromium.launch(channel ? { channel } : {});
-  let failed = false;
-  try {
-    const page = await browser.newPage();
-    const logged = [];
-    if (log) page.on('console', m => logged.push(m.text()));
-    page.on('pageerror', err => { console.error('page error:', err.message); failed = true; });
-    // (the app with #test loads tests/auto-detect.js: answer with nothing, so the tests don't run)
-    await page.route('**/tests/auto-detect.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.__snapshotReady = true;' }));
-    await page.goto(url);
-    await page.waitForFunction(() => window.__snapshotReady && window.eformMapperTest);
-    const base = new URL('.', url).href;
-    for (const pg of pages){
-      // Each image on page 1 of the app, from no fields at all, as the tests do
-      const lines = await page.evaluate(async ({ src, given, label }) => {
-        const T = window.eformMapperTest;
-        const data = given || await (async () => {
-          const blob = await fetch(src).then(r => { if (!r.ok) throw new Error('Could not read ' + src); return r.blob(); });
-          return new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
-        })();
-        const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = data; });
-        T.createPageDOM(1);
-        T.state.pages[1] = { imgData: data, naturalW: im.width, naturalH: im.height, fileName: label };
-        T.state.fields = [];
-        T.setCurrentPage(1);
-        await T.detectCurrentPage();
-        return T.state.fields.filter(f => f.type !== 'fontbuttons').map(f => [f.type, f.name, f.oscarTag || '', f.x.toFixed(2), f.y.toFixed(2), f.width.toFixed(2), f.height.toFixed(2)].join(' | '));
-      }, { src: pg.src && base + pg.src, given: pg.data || null, label: pg.src ? base + pg.src : pg.label });
-      console.log(`### ${pg.label} (${lines.length})`);
-      lines.forEach(l => console.log(l));
-      logged.splice(0).forEach(l => console.log('> ' + l));
+  const base = new URL('.', url).href;
+  const outputs = new Array(pages.length);              // (each page's lines, printed in order at the end)
+  let next = 0, failed = false;
+  // One browser reading pages, the next one not yet taken each time, until none are left
+  async function worker(){
+    const browser = await chromium.launch(channel ? { channel } : {});
+    try {
+      const page = await browser.newPage();
+      const logged = [];
+      if (log) page.on('console', m => logged.push(m.text()));
+      page.on('pageerror', err => { console.error('page error:', err.message); failed = true; });
+      // (the app with #test loads tests/auto-detect.js: answer with nothing, so the tests don't run)
+      await page.route('**/tests/auto-detect.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.__snapshotReady = true;' }));
+      await page.goto(url);
+      await page.waitForFunction(() => window.__snapshotReady && window.eformMapperTest);
+      while (next < pages.length){
+        const i = next++, pg = pages[i];
+        logged.length = 0;
+        // Each image on page 1 of the app, from no fields at all, as the tests do
+        const lines = await page.evaluate(async ({ src, given, label }) => {
+          const T = window.eformMapperTest;
+          const data = given || await (async () => {
+            const blob = await fetch(src).then(r => { if (!r.ok) throw new Error('Could not read ' + src); return r.blob(); });
+            return new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+          })();
+          const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = data; });
+          T.createPageDOM(1);
+          T.state.pages[1] = { imgData: data, naturalW: im.width, naturalH: im.height, fileName: label };
+          T.state.fields = [];
+          T.setCurrentPage(1);
+          await T.detectCurrentPage();
+          return T.state.fields.filter(f => f.type !== 'fontbuttons').map(f => [f.type, f.name, f.oscarTag || '', f.x.toFixed(2), f.y.toFixed(2), f.width.toFixed(2), f.height.toFixed(2)].join(' | '));
+        }, { src: pg.src && base + pg.src, given: pg.data || null, label: pg.src ? base + pg.src : pg.label });
+        outputs[i] = [`### ${pg.label} (${lines.length})`, ...lines, ...logged.map(l => '> ' + l)];
+      }
+    } finally {
+      await browser.close();
     }
+  }
+  try {
+    await Promise.all([...Array(jobs)].map(worker));
+    outputs.forEach(o => o.forEach(l => console.log(l)));
   } catch (err) {
     console.error('Could not take the snapshot:', err.message || err);
     failed = true;
-  } finally {
-    await browser.close();
   }
   process.exit(failed ? 1 : 0);
 })();

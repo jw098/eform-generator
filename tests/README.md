@@ -53,7 +53,12 @@ python -m http.server 8000
 node tests/ci.js "http://localhost:8000/eForm_Generator.html#test" --variations
 ```
 
-(Leave out `--variations` to skip the poorer copies.)
+(Leave out `--variations` to skip the poorer copies.) The cases are split into shards of about the
+same work, each run in a browser of its own at the same time: one per two processors by default,
+up to 4, as each keeps two busy (the page's own and OCR's). `--jobs N` sets how many; `--jobs 1`
+runs everything in one browser, one case after another. The results are the same either way.
+`snapshot.js` and `lines.js` take `--jobs N` too (`lines.js`, reading no words, one per processor
+by default).
 
 ## What is compared
 
@@ -103,8 +108,8 @@ The forms are blank, so a tick box is empty. On each, Auto Detect runs as on the
 reading the words too, and every tick box and field of the eForm must be found and nothing
 else taken for one, but those the case skips (below). Fields are matched as the case's own
 tests match them, and the case's own skips and to-dos for fields hold on every copy. It takes
-about two and a half minutes more, so it only runs when asked: use it when changing how tick
-boxes or fields are found.
+several minutes more, so it only runs when asked: use it when changing how tick boxes or
+fields are found.
 
 ## Reading the results
 
