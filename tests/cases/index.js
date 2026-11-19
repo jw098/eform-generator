@@ -849,48 +849,55 @@ window.TEST_CASE_LIST = [
         "reason": "the blank after the heading \"PREVIOUS INVESTIGATIONS:\" in the table's heading row: a caps label ending in a colon, as \"PATIENT'S NAME:\" is on other forms, and no bolder by its strokes (measured)"
       }
     ],
-    "variationTodo": [
+    "variationSkip": [
       {
         "variation": "0.7× size",
-        "page": 1,
         "test": "extraFields",
-        "reason": "a field over \"Is this a Re-referral? No Yes\""
+        "page": 1,
+        "region": [
+          1284,
+          1036,
+          146,
+          62
+        ],
+        "reason": "the blank after \"Is this a Re-referral? ☐ No ☐ Yes\", up to the box's right side: a blank after a row of options, which the eForm leaves out; it is about two and a half written lines wide, right at the width a labelled row's blank needs to be a field, so a resized copy can tip it over (the page itself doesn't)"
       },
       {
         "variation": "1.5× size",
-        "page": 1,
         "test": "extraFields",
-        "reason": "a field over \"Is this a Re-referral? No Yes\""
+        "page": 1,
+        "region": [
+          1284,
+          1036,
+          146,
+          62
+        ],
+        "reason": "the blank after \"Is this a Re-referral? ☐ No ☐ Yes\", up to the box's right side: a blank after a row of options, which the eForm leaves out; it is about two and a half written lines wide, right at the width a labelled row's blank needs to be a field, so a resized copy can tip it over (the page itself doesn't)"
       },
       {
         "variation": "0.7× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+        "boxes": ["not_done_exercise_tolerance_test", "done_mibi", "attached_mibi", "not_done_mibi"],
+        "reason": "the box sits right under its row's line, a pixel of paper between them on the page itself (where it is found); resizing the page blurs that gap away, so the box's top is part of the line, as a letter hanging under a line is (the D of \"Family MD\" over its cell's line), and on the larger copies the blur widens a side so the box is no longer square on the ink map. isRealBox's check for a line over a box needs a row of paper between the two: without one it can't tell this box from letters under a line"
       },
       {
         "variation": "1.5× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+        "boxes": ["done_exercise_tolerance_test", "attached_exercise_tolerance_test", "done_mibi", "attached_mibi"],
+        "reason": "the box sits right under its row's line, a pixel of paper between them on the page itself (where it is found); resizing the page blurs that gap away, so the box's top is part of the line, as a letter hanging under a line is (the D of \"Family MD\" over its cell's line), and on the larger copies the blur widens a side so the box is no longer square on the ink map. isRealBox's check for a line over a box needs a row of paper between the two: without one it can't tell this box from letters under a line"
       },
       {
         "variation": "2× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+        "boxes": ["done_exercise_tolerance_test", "attached_exercise_tolerance_test", "done_mibi", "attached_mibi"],
+        "reason": "the box sits right under its row's line, a pixel of paper between them on the page itself (where it is found); resizing the page blurs that gap away, so the box's top is part of the line, as a letter hanging under a line is (the D of \"Family MD\" over its cell's line), and on the larger copies the blur widens a side so the box is no longer square on the ink map. isRealBox's check for a line over a box needs a row of paper between the two: without one it can't tell this box from letters under a line"
       },
       {
         "variation": "2.5× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+        "boxes": ["done_exercise_tolerance_test", "attached_exercise_tolerance_test", "done_mibi", "attached_mibi"],
+        "reason": "the box sits right under its row's line, a pixel of paper between them on the page itself (where it is found); resizing the page blurs that gap away, so the box's top is part of the line, as a letter hanging under a line is (the D of \"Family MD\" over its cell's line), and on the larger copies the blur widens a side so the box is no longer square on the ink map. isRealBox's check for a line over a box needs a row of paper between the two: without one it can't tell this box from letters under a line"
       },
       {
         "variation": "3× size",
-        "page": 1,
-        "test": "ticks",
-        "reason": "the tick boxes of the \"Exercise Tolerance Test\" and \"MIBI\" rows, against the row line above them, are missed at this size (found on the page itself)"
+        "boxes": ["done_exercise_tolerance_test", "attached_exercise_tolerance_test", "done_mibi", "attached_mibi"],
+        "reason": "the box sits right under its row's line, a pixel of paper between them on the page itself (where it is found); resizing the page blurs that gap away, so the box's top is part of the line, as a letter hanging under a line is (the D of \"Family MD\" over its cell's line), and on the larger copies the blur widens a side so the box is no longer square on the ink map. isRealBox's check for a line over a box needs a row of paper between the two: without one it can't tell this box from letters under a line"
       }
     ]
   }
