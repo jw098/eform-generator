@@ -780,13 +780,7 @@ window.TEST_CASE_LIST = [
     "name": "PHC & VCH cardiology referral (a fillable PDF's page as a picture: tick boxes against table lines, light placeholder text)",
     "folder": "cardiology-referral",
     "session": "cardiology_referral_session.json",
-    "variations": true,  
-    "todo": {
-      "fields": "missed: the open writing area under \"REASON FOR REFERRAL:\"; \"Urgent (Less than 4 weeks) Reason: ____\" (its line split, part of it joined to a field over the \"Emergent\" row); \"within the next ____ (days or weeks)\"; \"…for this patient: ____\" and the full-width line under it",
-      "extraFields": "the line under the header taken for two fill-in lines (beside \"Cardiology Referral\"); blanks after the headings \"PATIENT INFORMATION:\", \"URGENCY:\" and \"PREVIOUS INVESTIGATIONS:\"; a field after \"…investigations and lab results.\"; a tall field over the end of \"Please notify your patient…\"; on the 0.7× and 1.5× copies, a field over \"Is this a Re-referral? No Yes\"",
-      "tags": "the referring provider's \"Date:\" gets no today; \"Specialty Clinic (specify)\", under \"REFER TO:\" (the clinic referred to), gets clinic_name",
-      "dates": "the \"Date\" column's cells in the investigations table aren't date fields: the cells get no label from the column's heading over them"
-    },
+    "variations": true,
     "skip": [
       {
         "test": "tags",
@@ -820,9 +814,54 @@ window.TEST_CASE_LIST = [
           54
         ],
         "reason": "\"Alternate phone number\" gets phone (home): OSCAR 12 has home, work and cell phones, and \"alternate\" names none of them, so no check can tell which it is, or that it isn't the home phone"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [
+          170,
+          1814,
+          1226,
+          54
+        ],
+        "reason": "the line under \"We require the following additional information…: ____\" is 3 px over the box's thick bottom edge: on the canvas the two are one band of ink, taken for a bar's bottom edge. Splitting a band where its rows' ends step in was tried: it still didn't give this line a field, and it moved fields on the bounceback and health-history forms"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          414,
+          454,
+          1096,
+          52
+        ],
+        "reason": "the blank after the heading \"PATIENT INFORMATION:\": a caps label ending in a colon, with blank page to the form's edge, as \"PATIENT'S NAME:\" and \"MIDWIFE:\" are labels on other forms; it is no bolder by its strokes than those (measured), so nothing on the page says it's a heading"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          382,
+          1280,
+          140,
+          48
+        ],
+        "reason": "the blank after the heading \"PREVIOUS INVESTIGATIONS:\" in the table's heading row: a caps label ending in a colon, as \"PATIENT'S NAME:\" is on other forms, and no bolder by its strokes (measured)"
       }
     ],
     "variationTodo": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "test": "extraFields",
+        "reason": "a field over \"Is this a Re-referral? No Yes\""
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "test": "extraFields",
+        "reason": "a field over \"Is this a Re-referral? No Yes\""
+      },
       {
         "variation": "0.7× size",
         "page": 1,

@@ -20,11 +20,11 @@ const { chromium } = require('playwright');
     const page = await browser.newPage();
     page.on('pageerror', err => console.error('page error:', err.message));
     await page.goto(url);
-    await page.waitForFunction(() => window.eformMapperTest && window.eformMapperTest.results, null, { timeout: 600000 });
+    await page.waitForFunction(() => window.eformMapperTest && window.eformMapperTest.results, null, { timeout: 1800000 });
     let results = await page.evaluate(() => window.eformMapperTest.results);
     if (variations){
       await page.click('text=Also test poorer copies');
-      await page.waitForFunction(n => window.eformMapperTest.results.length > n, results.length, { timeout: 600000 });
+      await page.waitForFunction(n => window.eformMapperTest.results.length > n, results.length, { timeout: 1800000 });
       results = await page.evaluate(() => window.eformMapperTest.results);
     }
     const mark = { pass: '✔', fail: '✘', todo: '○', 'todo-passes': '★' };

@@ -1423,8 +1423,9 @@ else if (typeof exports === 'object')
     const hasWord = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(words);
     // (not in the chart, or not the patient's own: an appointment, a maiden name, a doctor or
     // date the patient was seen by before, the facility, who initials, signs or witnesses: "Name of
-    // witness (print)", the patient's employer: "EMPLOYER ADDRESS")
-    if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|witness|employer|employers|time|hours')) return '';
+    // witness (print)", the patient's employer: "EMPLOYER ADDRESS", a choice the writer names:
+    // "☐ Specialty Clinic (specify): ____")
+    if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|witness|employer|employers|time|hours|specify')) return '';
     if (hasWord('email|e_mail')) return 'email';
     if (hasWord('fax')) return 'fax';
     if (hasWord('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return hasWord('version') ? 'hinVersion' : 'hin';
@@ -1607,8 +1608,9 @@ else if (typeof exports === 'object')
   // (dd/mm/yyyy)", "FIRST  MIDDLE  LAST"). Last, a bare "Date" beside a value on its row that
   // OSCAR doesn't fill is that value's date ("INR: ____  Date: ____"), not today's; beside the
   // doctor's details ("Billing #: ____  Date: ____") it is the form's, and beside a signature
-  // ("Signature: ____  Date: ____") it is the date of signing, the form's too. A tick box for a
-  // sex is filled by its custom action ("Check this box if gender is Male"), which ticks it for the
+  // ("Signature: ____  Date: ____") it is the date of signing, the form's too, as it is beside a
+  // tick box option's write-in ("☐ Specialist (specify): ____  Date: ____"). A tick box for a sex
+  // is filled by its custom action ("Check this box if gender is Male"), which ticks it for the
   // patient's sex: its label is "Male" or "Female", or "M" or "F" on a row that names a sex or
   // gender ("Sex: ☐ M ☐ F"; a lone "F" can be anything else)
   // boxOf(x0, f): the bordered box a field (with its label from x0) is in, if any.
@@ -1628,15 +1630,17 @@ else if (typeof exports === 'object')
     // (a fillable PDF's field can be a date field already: its own date format says so)
     const writes = found.filter(f => f.type === 'text' || f.type === 'textarea' || f.type === 'date');
     writes.forEach(f => {
-      if (!f.label || f.oscarTag) return;
+      if (!f.label || f.oscarTag || f._column) return;
       f.oscarTag = guessTag('', f.type, f.label, owners.get(f));
       if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
       f.oscarTag = captionTag(f.oscarTag, f.label);
     });
+    // (an option's write-in isn't a value with a date: "☐ Specialist (specify): ____  Date: ____")
+    const optionWords = new Set(found.filter(f => f.type === 'checkbox').flatMap(f => f._words || []));
     writes.forEach(f => {
       if (f.oscarTag !== 'today' || nameKey(f.label || '') !== 'date') return;
       const prev = fieldLeftOf(f, writes);
-      if (prev && !prev.oscarTag && !labelNamesASignature(prev.label)) f.oscarTag = '';
+      if (prev && !prev.oscarTag && !labelNamesASignature(prev.label) && !(prev._words || []).some(w => optionWords.has(w))) f.oscarTag = '';
     });
     // A one-line field whose label names a date is a date field, with OSCAR's calendar, in the
     // format printed with it ("(dd/mm/yyyy)"). A date field OSCAR fills ("today") takes OSCAR's
@@ -4264,8 +4268,9 @@ else if (typeof exports === 'object')
   // up to the next ink, when it is at least a few letters wide. When the blank also goes on
   // down, under the label and beside it, for more than a line ("Address:" over room for two
   // lines), the field takes that too. Not where a field was found already, nor after a sentence
-  // or a heading in capitals, nor after a label over a row of tick boxes or over a writing area
-  // found just below it ("EXAM(s) REQUESTED:"). right: the form's right edge (page-image px).
+  // or a heading in capitals, nor where the blank ends at a tick box on its row ("URGENCY:
+  // ☐ Emergent"), nor after a label over a row of tick boxes or over a writing area found just
+  // below it ("EXAM(s) REQUESTED:"). right: the form's right edge (page-image px).
   function colonFields(read, inkMap, w, h, scale, page, found, right){
     const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
     const ticks = found.filter(g => g.type === 'checkbox');
@@ -4323,6 +4328,10 @@ else if (typeof exports === 'object')
       const xa = Math.round((word.x1 + textHeight*0.3)*scale), xr = Math.min(w - 1, Math.round(Math.min(right, ...ahead)*scale));
       let xb = xa;
       while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
+      // (a label before options: the blank ends at a tick box on its row, "URGENCY: ☐ Emergent",
+      // "Best ways to contact participant: ☐ SMS")
+      if (ticks.some(b => Math.min(b.y + b.height, word.y1) - Math.max(b.y, word.y0) >= Math.min(b.height, textHeight)*0.5 &&
+                          b.x >= word.x1 && Math.abs(b.x*scale - (xb + 1)) <= textHeight*0.5*scale)) return;
       const x1 = xa/scale + textHeight*0.2, x2 = xb/scale - textHeight*0.4;
       if (x2 - x1 < textHeight*4){
         // A short line printed right after the colon is the blank, however short: "Date of
@@ -4464,6 +4473,7 @@ else if (typeof exports === 'object')
   //   _split       several labels spread along one field, or a table ruled across: the field's
   //                parts (labelFields)
   //   _afterOption the label is only a tick box's own (labelFields)
+  //   _column      a table column's cell, labelled with the column's heading: no tag (labelFields)
   //   _ownColon    in a box, a label of its own on its row ending with a colon (labelFields)
   //   caption      small words printed under a fill-in line (sectionFields)
   //   section      the heading over its column, for its name (sectionFields)
@@ -4543,6 +4553,7 @@ else if (typeof exports === 'object')
   // ("Relative   Condition   Age at diagnosis" over ruled rows): the first row is its heading
   // row, and each row under it is a cell per heading (f._split), labelled with it. A ruled area for
   // writing has its one heading above it or beside it ("Current medications:"), its first row blank.
+  // A bordered table's column of empty cells takes the heading over its top cell ("Date").
   // Sets f.label, and f._words, the label's words.
   // lineAcross(x1, x2, y1, y2): is there a line across x1..x2 somewhere between y1 and y2?
   function labelFields(fields, read, lineAcross){
@@ -4647,6 +4658,31 @@ else if (typeof exports === 'object')
       const own = above.filter(w => !captions.has(w));
       if (own.length){ f.label = phraseText(own); f._words = own; }
     });
+    // A table's column of empty cells, two or more one under the other with the same sides, each
+    // with a cell or tick box beside it on its row, takes the heading over its top cell ("Date"
+    // over the investigations table's dates): the words just above it, over the column. Only
+    // cells with no label of their own take it: none, or the row's heading read across a tick
+    // box between ("ECG" ☐ ____). Its cells are many rows' details, so they take no tag (_column)
+    {
+      const ticksOf = fields.filter(f => f.type === 'checkbox');
+      const rowOf = (a, b) => Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) >= Math.min(a.height, b.height)*0.5;
+      const unlabelled = (f) => !f._words || !f._words.length ||
+        ticksOf.some(b => rowOf(b, f) && b.x >= Math.max(...f._words.map(w => w.x1)) && b.x + b.width <= f.x + 2);
+      const cells = fields.filter(f => f.type !== 'checkbox' && f.box && unlabelled(f) &&
+                                       fields.some(g => g !== f && rowOf(g, f) && (g.x >= f.x + f.width - 2 || g.x + g.width <= f.x + 2)));
+      const same = (a, b) => Math.abs(a.x - b.x) < wordHeight && Math.abs(a.width - b.width) < wordHeight;
+      const under = (a, b) => b.y > a.y + a.height - 2 && b.y - (a.y + a.height) < Math.max(a.height, b.height);
+      cells.forEach(f => {
+        if (cells.some(g => g !== f && same(g, f) && under(g, f))) return;            // (not the column's top cell)
+        const col = [f];
+        for (let c = f, next; (next = cells.find(g => !col.includes(g) && same(g, c) && under(c, g))); c = next) col.push(next);
+        if (col.length < 2) return;
+        const head = free.filter(w => (w.x0 + w.x1)/2 >= f.x && (w.x0 + w.x1)/2 <= f.x + f.width && w.y1 <= f.y + 2 && f.y - w.y1 <= Math.max(f.height, wordHeight*1.5));
+        if (!head.length) return;
+        const bottom = Math.max(...head.map(w => w.y1)), got = head.filter(w => bottom - w.y1 < wordHeight*0.6).sort((a,b) => a.x0-b.x0);
+        col.forEach(g => { g.label = phraseText(got); g._words = got; g._column = true; });
+      });
+    }
     // Tables ruled across: the headings in a ruled area's first row, words more than a few letters
     // apart starting a new one; each column from its heading's start to the next one's
     fields.forEach(f => {
@@ -5427,6 +5463,9 @@ else if (typeof exports === 'object')
       }
       // (no field above a table's top edge)
       if (!bounded && topEdge) return;
+      // (nor above an open line that runs to the paper's edge: a fill-in line is printed inside the
+      // margins, and one from edge to edge is a rule under the header, beside "Cardiology Referral")
+      if (!bounded && (L.x1 <= 2 || L.x2 >= w - 3)) return;
       // (an open fill-in line's space stops under the nearest line above it, over any part of it:
       // that line is the row above's, "Age at diagnosis: ____" over "Other: ____", and its words
       // aren't this line's label; and under the tick boxes above it, over any part of it: they are
@@ -5490,6 +5529,14 @@ else if (typeof exports === 'object')
           for (let x=x1; x<=x2 && first < 0; x++) for (let y=ya; y<=y2; y++) if (isInk(x,y)){ first = x; break; }
           return first > x1 + cellW*0.5 ? first - Math.round(lineHeight*0.3) : x2;
         };
+        // (print over an open line that runs on past its left end, on the same rows, is the row
+        // above's, "Emergent (Immediate to 24 hours) Call Cardiology" over "Urgent ... Reason: ____":
+        // a label printed on a line starts on it, "Other: ____")
+        const runsIn = () => {
+          if (bounded || lowInk < 0) return false;
+          for (let y=highInk; y<=lowInk; y++) for (let x=Math.max(0, L.x1 - Math.round((capHeight || lineHeight*0.4)*1.5)); x<L.x1-2; x++) if (isInk(x,y)) return true;
+          return false;
+        };
         const fs = [];
         let below = null;                                  // (the top of a field under its label)
         // A fill-in line with its label printed on it ("Other: ____") is only as tall as that text
@@ -5502,7 +5549,7 @@ else if (typeof exports === 'object')
           const ya = bounded ? y1 : Math.max(y1, floor - Math.round(labelled() ? rowLine : lineHeight));
           fs.push({ x1, y1: ya, x2: trim(ya), y2, blank: true });
         }
-        else if (y2 - lowInk >= lineHeight*0.6){
+        else if (y2 - lowInk >= lineHeight*0.6 || runsIn()){
           // (below any ink right under the label: its descenders, "stamp)")
           let ya = lowInk + 3;
           const inkAt = (y) => { for (let x=x1; x<=x2; x++) if (isInk(x,y)) return true; return false; };
