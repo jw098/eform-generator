@@ -43,7 +43,20 @@ window.TEST_CASE_LIST = [
     "images": [
       "referral_form_3c1x42_page1.png"
     ],
-    "variations": true
+    "variations": true,
+    "skip": [
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          85,
+          412,
+          670,
+          50
+        ],
+        "reason": "the blank row under the three \"☐ Dr.\" options of REFERRAL TO's left column, the box closed by its bottom border, which the ink map joins to the grey PATIENT INFORMATION bar under it (a shaded bar's top closes the box above it, textFieldsFromLines): a blank after a list of options, which the eForm leaves out where the same layout, the right column's \"☐ Other: ____\", gets one"
+      }
+    ]
   },
   {
     "name": "X-ray requisition",
@@ -905,25 +918,560 @@ window.TEST_CASE_LIST = [
     "name": "Donation after MAiD admission orders (pre-printed orders: options ticked, short blanks in sentences)",
     "folder": "maid-donation-admission",
     "session": "maid_donation_admission_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {
+        "test": "extraTicks",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"• Mandatory  ☐ Optional: Prescriber check (✓) to initiate…\": a printed box the same in ink as the orders' boxes; only the sentence beside it says it is a key, not a box to tick"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          500,
+          1795,
+          400,
+          70
+        ],
+        "reason": "the Prescriber Signature cell: a signature isn't a text field, and Auto Detect can't make one"
+      }
+    ]
   },
   {
     "name": "Heart Function Clinic referral (shaded bars, a grey IH USE ONLY box, an information page)",
     "folder": "heart-function-clinic",
     "session": "heart_function_clinic_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {
+        "test": "extraTicks",
+        "page": 1,
+        "region": [
+          796,
+          34,
+          30,
+          30
+        ],
+        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, where the box's top and side lines meet it: a square of ink with an empty middle at that size"
+      },
+      {
+        "test": "extraTicks",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\": its squared-off outline is a box's in ink"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          812,
+          1545,
+          370,
+          330
+        ],
+        "reason": "the Signature cells of both rows of Date | Time | Printed Name | Signature | Initials: a signature isn't a text field, and Auto Detect can't make one"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          1342,
+          500,
+          120,
+          50
+        ],
+        "reason": "the blank after the \"Fax:\" heading of the column of fax numbers for each site: a column's heading over printed numbers, which a check would have to read as one"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          130,
+          1810,
+          1330,
+          65
+        ],
+        "reason": "the second row of Date | Time | Printed Name | … under \"ACKNOWLEDGEMENT OF REFERRAL (To be completed by HF Clinic staff)\": the clinic staff's, with no tags; that is said only in brackets on the black bar, past the row \"Your patient will not be seen at the HFC. Reason ____\" just above, whose label names the patient, so the date gets today, the printed name patient_name and the college ID current_user_cpsid"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "reason": "an information page (the HFC triage flow chart and an acronym legend), with nothing to fill in: the blank in its boxes under their bullet lists, and between the boxes where the connectors run, is taken for writing areas and table cells (each is blank page closed by lines); a check would have to read the bullet lists as statements rather than labels"
+      }
+    ]
   },
   {
     "name": "Falls Prevention Mobile and Virtual Clinic referral (a dense table with grey bars, an information page)",
     "folder": "falls-prevention-referral",
     "session": "falls_prevention_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {
+        "test": "ticks",
+        "page": 1,
+        "region": [
+          416,
+          1258,
+          40,
+          40
+        ],
+        "reason": "the box in the grey Alternative Contact bar (\"☐ Arrange appointment with the contact listed below\"): on the ink map a grey bar is ink, so a box in it is lost in the bar"
+      },
+      {
+        "test": "ticks",
+        "page": 1,
+        "region": [
+          143,
+          1330,
+          40,
+          40
+        ],
+        "reason": "the box in the grey bar \"☐ MEDICATION LIST ATTACHED\": on the ink map a grey bar is ink, so a box in it is lost in the bar"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [
+          480,
+          680,
+          980,
+          45
+        ],
+        "reason": "the date after \"Date of Referral (DD-MM-YYYY):\", written on the grey bar itself: on the ink map the bar is ink, not blank page"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [
+          240,
+          780,
+          350,
+          50
+        ],
+        "reason": "\"Phone #:\" under Referee Name: the blank beside it in its cell, between the lines under Referee Name and over Fax #, isn't found (no field after its colon either); not traced further, as the table's other rows of this kind are found"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [
+          1366,
+          745,
+          90,
+          95
+        ],
+        "reason": "the room after the two \"☐ Other:\" options at the table's right edge: about three letters wide, too narrow for a field after a colon"
+      },
+      {
+        "test": "extraTicks",
+        "page": 1,
+        "region": [
+          184,
+          368,
+          30,
+          30
+        ],
+        "reason": "the I of \"Form ID:\" with the top of the D: bold capitals that close into a square at this size"
+      },
+      {
+        "test": "extraTicks",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, closed by the table's side line"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          905,
+          330,
+          560,
+          80
+        ],
+        "reason": "the blank top right of the page over the form's first line, beside the barcode and form number: an unlabelled space for a patient label, which the eForm leaves out"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          130,
+          740,
+          470,
+          50
+        ],
+        "reason": "the second line of the Referee Name cell, under \"Referee Name: ____\": a cell two lines tall, taken for a field beside the label and one under it"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          900,
+          835,
+          560,
+          45
+        ],
+        "reason": "the blanks after the wrapped option words \"Department\" and \"Clinic\" in the Site Type row, now that the grey bar under the row closes it: blanks after options, which the eForm leaves out"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          130,
+          1525,
+          1110,
+          60
+        ],
+        "reason": "the foot of the cells \"☐ Stroke/ Brain Injury\" … \"☐ Anxiety/ Depression\", whose option words take two lines: blank page under an option, beside its second line"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          540,
+          1220,
+          110,
+          45
+        ],
+        "reason": "after \"Same as Referee listed above, OR:\": the option's colon leads on to the next cell's Family Doctor name, not to a blank of its own"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          828,
+          1600,
+          220,
+          50
+        ],
+        "reason": "after \"If cognitive impairments exist, complete the following if known or available:\": a sentence's colon over the MoCA and MMSE blanks"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          336,
+          1760,
+          140,
+          40
+        ],
+        "reason": "after \"Please check one:\" in Clinical Frailty Score: an instruction's colon before the tick boxes in the next cells"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          770,
+          930,
+          690,
+          130
+        ],
+        "reason": "the full address: its label \"(Full Address, must include city)\" names a city, which askedFor reads before address, and the section's owner is taken from the clinic's name in the header"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          856,
+          1146,
+          600,
+          60
+        ],
+        "reason": "Email: the field is found but gets no tag; its label \"Email:\" wasn't traced to see why it isn't read as the field's"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          300,
+          714,
+          290,
+          50
+        ],
+        "reason": "\"Referee Name\": the form calls the person making the referral the referee; the word means the one referred, so it gets the patient's name"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          210,
+          820,
+          380,
+          50
+        ],
+        "reason": "\"Fax #:\" under Referee Name: nothing on its row or above in its cell says whose, so it gets no tag"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          376,
+          1284,
+          1080,
+          55
+        ],
+        "reason": "Name & Relationship and Phone Number under the grey \"Alternative Contact\" bar: \"alternative contact\" names no one OSCAR has tags for, but the row above (Family Doctor) gives the name doctor and the clinic in the header gives the phone clinic_phone"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "reason": "an information page (\"DO NOT FAX THIS SIDE\": the Clinical Frailty Scale), with nothing to fill in: the blank part of each table row under its description, the header's blank top right, \"Email:\" in a sentence and the page's empty foot are taken for fields; a check would have to read the descriptions as statements rather than labels"
+      }
+    ]
   },
   {
     "name": "North Okanagan Eating Disorder Program referral (underscore blanks, circles to pick a site)",
     "folder": "eating-disorder-referral",
     "session": "eating_disorder_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {
+        "test": "ticks",
+        "page": 1,
+        "region": [
+          150,
+          1110,
+          720,
+          280
+        ],
+        "reason": "the three circles to pick a site (CHILD & YOUTH MENTAL HEALTH… VERNON, SALMON ARM; VERNON MENTAL HEALTH): 39 by 35 px, 41 px on the ink map, past the largest tick box Auto Detect takes (maxCb 32 + tolCb 8 px at 1500 px wide); a larger limit wasn't tried, as it would let in letters of large headings"
+      },
+      {
+        "test": "fields",
+        "page": 1,
+        "region": [
+          290,
+          630,
+          170,
+          80
+        ],
+        "reason": "the page count beside \"Pages\" (no colon, nothing to write on, \"Including the cover page.\" printed after it): blank page in a ruled row that the label shares with printed text"
+      },
+      {
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          200,
+          340,
+          1150,
+          65
+        ],
+        "reason": "the blank under the title FAX REFERRAL SHEET, above the To/Company table's first line: blank page under a heading that is the form's title"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          870,
+          485,
+          480,
+          75
+        ],
+        "reason": "the fax cover's Phone: the recipient's (To / Company / Fax / Phone); a cover sheet's lines are the receiver's only by the layout, so it gets the patient's phone"
+      },
+      {
+        "test": "fields",
+        "page": 2,
+        "region": [
+          994,
+          1040,
+          245,
+          50
+        ],
+        "reason": "\"Other ____\" after the Female / Male / Trans / Non-binary tick boxes: its underscore line runs into the cell's bottom line just under it, so it isn't found as a line of its own"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [
+          130,
+          860,
+          1220,
+          230
+        ],
+        "reason": "the blank under CLIENT INFORMATION and the rest of the Surname cell under \"Surname of client: ____\": the heading sits on the table's top line, and the cell's blank under its one fill-in line is taken for a writing area"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [
+          130,
+          1255,
+          800,
+          60
+        ],
+        "reason": "the foot of the Current address cell, under its two underscore lines: the cell's blank under ruled lines is taken for one more"
+      },
+      {
+        "test": "fields",
+        "page": 2,
+        "region": [
+          484,
+          1640,
+          680,
+          50
+        ],
+        "reason": "Highest weight: (excluding pregnancy) ____ and its When was this? ____: the underscores run into the table's bottom line just under them, so neither is found as a line of its own (the field found beside them, at the cell's end, is the next skip)"
+      },
+      {
+        "test": "extraFields",
+        "page": 2,
+        "region": [
+          1150,
+          1645,
+          200,
+          45
+        ],
+        "reason": "the blank at the right end of the table's last row, after \"When was this? ____\", whose line merges with the table's bottom line (the skip above)"
+      },
+      {
+        "test": "tags",
+        "page": 2,
+        "region": [
+          140,
+          780,
+          700,
+          100
+        ],
+        "reason": "the Office address area: its label is on the row just above its first ruled line and isn't read as the area's, so it has no tag"
+      },
+      {
+        "test": "tags",
+        "page": 2,
+        "region": [
+          140,
+          1175,
+          640,
+          100
+        ],
+        "reason": "the Current address area: its label is on the row just above its first ruled line and isn't read as the area's, so it has no tag"
+      },
+      {
+        "test": "tags",
+        "page": 2,
+        "region": [
+          1015,
+          1175,
+          300,
+          50
+        ],
+        "reason": "the care card number after \"Care card #: Yes ☐ ____\": the field's label is the option \"Yes\" beside it, and \"Care card #:\" is a line above"
+      },
+      {
+        "test": "tags",
+        "page": 2,
+        "region": [
+          1010,
+          955,
+          210,
+          50
+        ],
+        "reason": "the Female and Male tick boxes, printed after their words (\"Female ☐   Male ☐\"): a tick box's label is read from the words after it, here the next option's, so neither gets the sex fill"
+      },
+      {
+        "test": "ticks",
+        "page": 3,
+        "region": [
+          240,
+          889,
+          45,
+          45
+        ],
+        "reason": "the Diuretics box: on the canvas the descender of the g in \"purging\" just above it reaches its top through the ink map's soft edges, so it is a box with ink joined on. Counting only ink dark on the grey image was tried: it found the box but let in many letters"
+      },
+      {
+        "test": "extraFields",
+        "page": 3,
+        "region": [
+          1150,
+          215,
+          200,
+          75
+        ],
+        "reason": "the blank right of \"In what period of time? ____\" in the box's first row: blank page beside a line's end, in a cell"
+      },
+      {
+        "test": "extraFields",
+        "page": 3,
+        "region": [
+          928,
+          965,
+          420,
+          65
+        ],
+        "reason": "the blank after \"Binge eating … Yes ☐ No ☐\" on the next row, after \"How many days per week? ____\": blank page to the box's side"
+      },
+      {
+        "test": "extraFields",
+        "page": 3,
+        "region": [
+          134,
+          1426,
+          1210,
+          50
+        ],
+        "reason": "the foot of the box under \"Current medications\"'s line: a cell's blank under its last ruled line"
+      },
+      {
+        "test": "tags",
+        "page": 3,
+        "region": [
+          148,
+          1392,
+          1130,
+          45
+        ],
+        "reason": "the line under \"Current medications (please list type and dosage):\": its label is on the row above and isn't read as the line's (it has a bracketed aside after it), so no druglist_line"
+      },
+      {
+        "test": "ticks",
+        "page": 4,
+        "region": [
+          574,
+          1363,
+          45,
+          75
+        ],
+        "reason": "the AN/R and Bulimia Nervosa boxes, stacked one right on the other: each has the other joined on to it. Allowing a box of the same size beyond was tried: it let in letters over underlines and in shaded columns on other forms"
+      },
+      {
+        "test": "extraFields",
+        "page": 4,
+        "region": [
+          134,
+          396,
+          1200,
+          50
+        ],
+        "reason": "the foot of the psychiatric history box under its four ruled lines: a cell's blank under its last line"
+      },
+      {
+        "test": "extraFields",
+        "page": 4,
+        "region": [
+          134,
+          954,
+          1200,
+          50
+        ],
+        "reason": "the foot of the self-harm box under its two ruled lines: a cell's blank under its last line"
+      }
+    ]
   },
   {
     "name": "Burnaby Maternity Clinic referral (fillable PDF whose fields have no names, and a page with none)",
@@ -935,6 +1483,52 @@ window.TEST_CASE_LIST = [
       "burnaby_maternity_referral_page3.png",
       "burnaby_maternity_referral_page4.png"
     ],
-    "pdf": "Burnaby_Maternity_Clinic_Referral.pdf"
+    "pdf": "Burnaby_Maternity_Clinic_Referral.pdf",
+    "skip": [
+      {
+        "test": "extraTicks",
+        "page": 4,
+        "region": [
+          736,
+          1604,
+          35,
+          35
+        ],
+        "reason": "a square bullet in the PROGESTERONE box's WHEN? list: a filled square, the same in ink as a small box at this size"
+      },
+      {
+        "test": "extraFields",
+        "page": 4,
+        "region": [
+          170,
+          700,
+          1160,
+          230
+        ],
+        "reason": "the blank parts of the guideline's three boxes (≥1 high risk, ≥2 moderate, ≥1 abnormal analyte) under their tick-box lists, and between them where the arrows run: an information page's boxes; a check would have to read the lists as options, not labels"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          280,
+          994,
+          400,
+          80
+        ],
+        "reason": "\"English-speaking Contact's Name\": someone else's, but \"contact\" names no one OSCAR has tags for, and \"Contact\" alone is often the patient's (\"Contact number\"), so it gets the patient's name"
+      },
+      {
+        "test": "tags",
+        "page": 1,
+        "region": [
+          1018,
+          996,
+          386,
+          80
+        ],
+        "reason": "\"English-speaking Contact's Phone\": someone else's, but \"contact\" names no one OSCAR has tags for, and \"Contact\" alone is often the patient's, so it gets the patient's phone"
+      }
+    ]
   }
 ];

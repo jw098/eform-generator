@@ -1396,7 +1396,8 @@ else if (typeof exports === 'object')
     // (a billing number is a practitioner's, never the patient's: where nothing else says whose,
     // the referring clinician's, "Billing #: ____")
     if (kind === 'billing'){ kind = 'number'; if (who === 'patient') who = 'clinician'; }
-    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' || who === 'copy' ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
+    // (the family doctor's clinic isn't the clinician's: "PCP's Clinic Name")
+    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' || who === 'copy' || (who === 'family' && kind === 'clinic') ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
     return tag;
   }
   // The tag for what a field asks for, by whose it is. "any" is the same tag whoever's it is
@@ -1513,7 +1514,7 @@ else if (typeof exports === 'object')
   // is headed so). A table cell looks up first: its column's header says whose, and the cell to
   // its left can be another table's ("PATIENT | REFERRING MD" side by side).
   // The owner is the patient ("Participant information" too), the referring clinician
-  // (current_user), the family doctor (doctor, the patient's MRP), someone else of the patient's
+  // (current_user), the family doctor (doctor, the patient's MRP or PCP), someone else of the patient's
   // ("Parent/guardian contact information", "Emergency contact"), the receiving office ("FOR
   // OFFICE USE ONLY") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
   // "cc": not the column's or the box's owner, whoever's details are around it); guessTag turns
@@ -1521,7 +1522,7 @@ else if (typeof exports === 'object')
   const OWNER_CUES = [
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
-    ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
+    ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp|pcp)\b/],
     ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
     ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|office)\b/],
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
