@@ -174,8 +174,14 @@ entry as `session`, in place of `eform` and `images`:
 The tests build the case's eForm from it with the app's own export, then compare as for any
 other case; skips, to-dos and variations work the same. It is easier to change than an eForm
 (open the session, fix the box, save it again), but it is tested through the export as it is
-now: a change to the export changes what the case expects. A session from a fillable PDF isn't
-supported (its page images are given to Auto Detect as pictures).
+now: a change to the export changes what the case expects. A session from a fillable PDF names
+the PDF as `pdf` too, as an eForm's case does (its pages are the PDF's, in order; no variations):
+
+```js
+{ "name": "PWD medical report", "folder": "pwd-medical-report", "session": "pwd_medical_report_session.json", "pdf": "HR2883_PWD_Medical_Report.pdf" }
+```
+
+A new case is a session, from a fillable PDF or not: it is easier to read and change.
 
 ## The files
 

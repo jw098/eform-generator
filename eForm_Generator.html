@@ -1447,14 +1447,16 @@ else if (typeof exports === 'object')
     if (hasWord('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return hasWord('version') ? 'hinVersion' : 'hin';
     if (hasWord('version_code')) return 'hinVersion';
     if (hasWord('billing')) return 'billing';
-    if (hasWord('msp|ohip')) return 'number';
+    // (a clinician's MSP number by its name in BC: "Medical Practitioner Number", "Provider No.")
+    if (hasWord('msp|ohip|practitioner_number|practitioner_no|provider_number|provider_no')) return 'number';
     if (hasWord('sin|social_insurance_number|social_insurance_no|social_insurance')) return 'sin';
     // (a clinician's licence with their college: "College ID #", "CPSID"; not a word in a name, "Name of college")
     if (hasWord('college_id|college_no|college_number|college_registration|cpsid|cpso|cpsbc') || /^college$/.test(words)) return 'college';
     // ("born ____" is the birth date too, but not "Place born" or "Country born")
     if (hasWord('dob|date_of_birth|birth_date|birthdate') || (hasWord('born') && !hasWord('place|country|city|town|province|where'))) return 'dob';
-    if (hasWord('cell|mobile')) return 'cell';
-    if (hasWord('work_phone|business_phone')) return 'workPhone';
+    // (a phone's kind in a letter: "Phone (c)", "Tel (W)")
+    if (hasWord('cell|mobile') || (hasWord('phone|telephone|tel') && hasWord('c'))) return 'cell';
+    if (hasWord('work_phone|business_phone') || (hasWord('phone|telephone|tel') && hasWord('w'))) return 'workPhone';
     if (hasWord('phone|telephone|tel')) return 'phone';
     // (an address that names its city or postal code with it is the whole address: "Mailing address
     // (No., Street, Apt.), City/Town, Province/Territory, Postal code")
@@ -1463,7 +1465,7 @@ else if (typeof exports === 'object')
     if (hasWord('city|town')) return 'city';
     if (hasWord('province')) return 'province';
     if (hasWord('address|street')) return 'address';
-    if (hasWord('sex|gender')) return 'sex';
+    if (hasWord('sex|gender|m_f|f_m')) return 'sex';                    // ("M/F")
     if (hasWord('clinic')) return 'clinic';
     if (/^(date|today|todays_date|current_date|form_date)$/.test(words) || (hasWord('date') && hasWord('signed|referral|referred|request|requested|today|todays|sent|faxed|completed'))) return 'today';
     if (/^(patient_)?age$/.test(words)) return 'age';
@@ -1532,17 +1534,19 @@ else if (typeof exports === 'object')
   // is headed so). A table cell looks up first: its column's header says whose, and the cell to
   // its left can be another table's ("PATIENT | REFERRING MD" side by side).
   // The owner is the patient ("Participant information" too), the referring clinician
-  // (current_user), the family doctor (doctor, the patient's MRP or PCP), someone else of the patient's
-  // ("Parent/guardian contact information", "Person to contact in case of emergency"; a witness's
+  // (current_user), the family doctor (doctor, the patient's MRP or PCP: "Primary care provider"),
+  // someone else of the patient's ("Parent/guardian contact information", "Person to contact in
+  // case of emergency", "☐ Representative  Name: ____", "name of director or person authorized by the
+  // director"; a witness's
   // details are no more the chart's: "First name of witness"), the receiving office ("FOR
-  // OFFICE USE ONLY") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
+  // OFFICE USE ONLY", "For HOP use only") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
   // "cc": not the column's or the box's owner, whoever's details are around it); guessTag turns
   // it into the tag (TAG_FOR).
   const OWNER_CUES = [
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
-    ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
-    ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
-    ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|in case of emergency|substitute decision maker|witness(es)?)\b/],
+    ['office', /\b(office use|for office|for( [\w-]+){1,2} use only|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
+    ['family', /\b(family|primary care) (doctor|physician|md|dr|practitioner|provider)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
+    ['guardian', /\b(parents?|guardians?|next of kin|(legal )?representatives?|directors?|emergency contact|in case of emergency|substitute decision maker|witness(es)?)\b/],
     ['clinician', /\b(referring|referred by|referral source|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|(?<!post )office)\b/],   // (not an address's "Post Office Box")
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
   ];
@@ -5893,8 +5897,9 @@ else if (typeof exports === 'object')
         // (a name the PDF's authoring tool made up says nothing of what the field asks for, so it is no label)
         // (a radio button's or tick box's own value, "Male" of the group "Gender", is part of its label)
         // (its tooltip, whole: a tooltip's full stops end its sentences, "orders (if required).
-        // Attach…", where a name's join its parts, "form1.page2.name")
-        let label = String(a.alternativeText || '').replace(/\s+/g, ' ').trim() || fieldNamePart(a.fieldName);
+        // Attach…", where a name's join its parts, "form1.page2.name"; a number joined to a word's end
+        // numbers the field's copies, "Date1", "Patient Name2", and isn't part of what it asks for)
+        let label = (String(a.alternativeText || '').replace(/\s+/g, ' ').trim() || fieldNamePart(a.fieldName)).replace(/([a-z])\d+\b/gi, '$1');
         const option = type === 'checkbox' ? String(a.buttonValue || a.exportValue || '').trim() : '';
         if (option && !/^(on|yes|off|\d+)$/i.test(option) && !nameKey(label).endsWith(nameKey(option))) label = `${label} ${option}`;
         out.push({ fx: Math.min(x1, x2) / vp.width, fy: Math.min(y1, y2) / vp.width, fw: Math.abs(x2 - x1) / vp.width, fh: Math.abs(y2 - y1) / vp.width,

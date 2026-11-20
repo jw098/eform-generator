@@ -2271,5 +2271,179 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 10, "region": [764, 1104, 648, 240], "reason": "\"Address and telephone number (Please print or use a stamp)\": the clinician's stamp's details (clinic_label); a field for an address and a phone holds neither tag alone, and a stamp offered in brackets doesn't make it a stamp's"},
       {"test": "tags", "page": 10, "region": [92, 1280, 668, 72], "reason": "the declaration's \"Date (YYYY-MM-DD)\": today, but the PDF's tooltip is more than \"Date\" and its printed label isn't read for it"}
     ]
+  },
+  {
+    "name": "Northern Health MOST order (one page: tick boxes beside bold options, a table of levels to initial, a physician's block)",
+    "folder": "northern-health-most",
+    "session": "northern_health_most_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [888, 136, 576, 196], "reason": "the patient label's box (label): only \"PATIENT LABEL\" under it, beside the header, with a single line at its left and no line under it; nothing bounds it as a writing area"},
+      {"test": "extraFields", "page": 1, "region": [378, 1830, 204, 42], "reason": "a signature line (\"Physician signature:\"): a signature, which the eForm leaves to the signature"},
+      {"test": "tags", "page": 1, "region": [734, 1448, 338, 86], "reason": "the representative's and the substitute decision maker's \"Name:\" (no tag): whose they are is said only by the tick-box options at the left of their rows (\"☐ Representative\", \"☐ Temporary substitute decision maker (SDM)\"), which the owner search passes over, as it must for a row's options"},
+      {"test": "tags", "page": 1, "region": [934, 1766, 292, 42], "reason": "\"Contact #\" in the physician's block (clinic_phone): its row names no one (\"Renewal date ... Contact #\"), and the block's heading is the row above's \"Print name:\", not a heading"}
+    ]
+  },
+  {
+    "name": "Home Oxygen Program application (Fraser Health, one page: cells with a label beside the blank, a row of test results, faxed-to tick boxes)",
+    "folder": "home-oxygen-application",
+    "session": "home_oxygen_application_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [636, 1618, 810, 32], "reason": "the signature date's field, put right of its line (see the date's missed field)"},
+      {"test": "ticks", "page": 1, "region": [434, 1080, 741, 33], "reason": "the oximetry studies' boxes (\"☐6 Minute Resting Room Air Study Attached\"): each printed a pixel or two from the first letter of its label: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
+      {"test": "extraTicks", "page": 1, "region": [262, 572, 25, 25], "reason": "the D of \"2. CLIENT DATA\" on its shaded bar: a bold capital, square at this size, with its bowl the bar's grey"},
+      {"test": "extraTicks", "page": 1, "region": [604, 1526, 25, 25], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold capital, square at this size, with its bowl the bar's grey"},
+      {"test": "fields", "page": 1, "region": [434, 856, 1018, 84], "reason": "\"Most Responsible Diagnosis\" and \"Precautions (i e MRSA, VRE, TB etc.)\": a label with no colon and blank page after it to its cell's side, which is how a row's heading is laid out too"},
+      {"test": "fields", "page": 1, "region": [436, 1238, 352, 42], "reason": "\"Referring Physician or NP\": a label with no colon and blank page after it in its cell"},
+      {"test": "fields", "page": 1, "region": [320, 1612, 1130, 40], "reason": "the signature's \"Date: (DD/MM/YYYY) ____\": the field is put right of its line instead, on the blank after it to the form's side, under the signature's line (cause not traced further)"},
+      {"test": "extraFields", "page": 1, "region": [914, 338, 550, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
+      {"test": "extraFields", "page": 1, "region": [692, 532, 514, 38], "reason": "the blank between the two dates' captions (\"DD/MM/YYYY\" under each line): blank page over the rule under the row"},
+      {"test": "extraFields", "page": 1, "region": [1086, 828, 360, 36], "reason": "the blank on the shaded bar after \"Note: Palliative clients must present with hypoxemia\": the bar's bottom edge taken for a line"},
+      {"test": "extraFields", "page": 1, "region": [776, 1588, 656, 38], "reason": "a signature line (\"PHYSICIAN / NURSE PRACTITIONER SIGNATURE: (MANDATORY)\"): a signature, which the eForm leaves to the signature"},
+      {"test": "extraFields", "page": 1, "region": [136, 1794, 1314, 76], "reason": "the HOP use only box's cells (\"Equipment Approved:\", \"HOP Physician Signature:\", \"Tracking Number:\"): the room under each label, beside the field after its colon, and the HOP physician's signature"},
+      {"test": "tags", "page": 1, "region": [234, 636, 282, 34], "reason": "\"D. 0. B.\": OCR reads the O as a zero, so the label isn't a birth date's"},
+      {"test": "tags", "page": 1, "region": [406, 728, 628, 56], "reason": "the client's \"Primary Contact Number\" and \"Secondary Contact Number\" (phone, phone2): \"contact\" names someone else of the patient's (\"Emergency contact\"), and \"contact number\" alone can't be told from it"},
+      {"test": "tags", "page": 1, "region": [350, 1440, 436, 42], "reason": "\"Hospital Ward Fax:\" (no tag): a fax in the referring physician's box, which is the clinician's"},
+      {"test": "tags", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP subsidy review's \"Date:\" (no tag): its section heading \"7. HOP SUBSIDY REVIEW - For HOP use only\", on a shaded bar, doesn't make it the office's (the owner cue for \"For ... use only\" is there; why the heading isn't taken was not traced)"},
+      {"test": "dates", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP review's \"Date:\": a box taller than a line, made a text area"}
+    ]
+  },
+  {
+    "name": "Seamless Perinatal Care referral (Fraser Health, one page: cells with a label over the blank, rows of small tick boxes under shaded headings)",
+    "folder": "seamless-perinatal-referral",
+    "session": "seamless_perinatal_referral_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [772, 888, 24, 24], "reason": "the \"Yes\" box of the refugee question (\"☐Yes\"), printed a pixel or two from the Y of \"Yes\": at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
+      {"test": "ticks", "page": 1, "region": [1214, 984, 24, 24], "reason": "the consent's \"Yes\" box (\"☐Yes\"), printed a pixel or two from the Y of \"Yes\": at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
+      {"test": "ticks", "page": 1, "region": [1160, 1064, 24, 24], "reason": "the \"Midwife\" box (\"☐Midwife\"), printed a pixel or two from the M of \"Midwife\": at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
+      {"test": "ticks", "page": 1, "region": [70, 1348, 1070, 355], "reason": "the reason for referral's boxes (\"☐ Single Parent\", \"☐ Financial\"... to \"☐ Parenting capacity/difficulties\"): each box is in its cell's top-left corner, a pixel or two under the row's line and beside the cell's side: at the 0.82x working copy the ink map joins the box's top to the line and its left side to the cell's side, so the side reads as part of the cell's line (letting a line beside the box excuse the line over it changed nothing)"},
+      {"test": "fields", "page": 1, "region": [76, 684, 1380, 40], "reason": "the row of \"Date of Birth (dd/mm/yyyy)\", \"Age\", \"Care Card #\": a label over a blank in each cell, the blank under it only about half a written line tall (22 px), where a writing area in a cell is taken from a line's height up and a table row's blank from a row as tall as the Last Name row's"},
+      {"test": "fields", "page": 1, "region": [76, 1086, 1380, 136], "reason": "the referring and primary care providers' rows (\"Name of Referring Care Provider\", \"Address\", \"Phone\", \"Fax\", \"Primary Care Provider (if different)\"): a label over a blank in each cell, the blank only about half a written line tall, as in the Date of Birth row"},
+      {"test": "extraFields", "page": 1, "region": [314, 338, 148, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
+      {"test": "extraFields", "page": 1, "region": [660, 338, 128, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
+      {"test": "extraFields", "page": 1, "region": [914, 338, 550, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
+      {"test": "extraFields", "page": 1, "region": [74, 1438, 1386, 48], "reason": "the room under \"☐ Late prenatal care\" and \"☐ Limited transportation\", whose row is taller than the others: blank page under a tick box's label in its cell, as a cell to write in under its label is"},
+      {"test": "extraFields", "page": 1, "region": [752, 602, 438, 40], "reason": "a second first-name field beside \"First Name(s):\" in its cell's label row, over the one under it: the label's row has blank page after the colon, as \"Name: ____\" does"},
+      {"test": "tags", "page": 1, "region": [1190, 624, 270, 42], "reason": "\"Due Date (dd/mm/yyyy)\" (bcEDD): a due date is the patient's own only when she is the one pregnant; on the IDP intake the \"Expected Due Date\" is the child's, so the label can't say whose"}
+    ]
+  },
+  {
+    "name": "Foundry Kelowna psychiatric assessment referral (a scan, three pages: a fax cover, [ ] options, a symptoms table)",
+    "folder": "foundry-psychiatric-referral",
+    "session": "foundry_psychiatric_referral_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 2, "region": [768, 702, 372, 150], "reason": "the referral source box's part found, left of a speck (see its missed field)"},
+      {"test": "extraFields", "page": 2, "region": [104, 1308, 1334, 142], "reason": "the clinical question box's part found (see its missed field)"},
+      {"test": "extraFields", "page": 3, "region": [388, 232, 1042, 72], "reason": "the interventions box's part found (see its missed field)"},
+      {"test": "extraFields", "page": 3, "region": [376, 1640, 1066, 48], "reason": "the \"Other\" row's cells, found only in their lower half (see their missed fields)"},
+      {"test": "ticks", "page": 2, "region": [770, 838, 190, 80], "reason": "the referral source's \"[ ] GP [ ] NP [ ] Paediatrician\" and \"[ ] Other\": printed \"[ ]\" brackets, not a box: OCR reads them as print"},
+      {"test": "ticks", "page": 2, "region": [106, 980, 40, 122], "reason": "the reason's \"[ ] Diagnostic clarification\", \"[ ] Medication review/start\", \"[ ] Other\": printed \"[ ]\" brackets, not a box: OCR reads them as print"},
+      {"test": "ticks", "page": 3, "region": [424, 602, 866, 50], "reason": "\"Alternative Funding Source: [ ] EAP [ ] Victim Assistance ...\": printed \"[ ]\" brackets, not a box: OCR reads them as print"},
+      {"test": "ticks", "page": 3, "region": [88, 700, 382, 42], "reason": "\"[ ] CYMH [ ] ARC [ ] MHSU [ ] Other\": printed \"[ ]\" brackets, not a box: OCR reads them as print"},
+      {"test": "ticks", "page": 3, "region": [88, 792, 872, 50], "reason": "\"[ ] Psychiatry [ ] IHCAN [ ] Okanagan Abilities Assessment [ ] Hospital [ ] Other\": printed \"[ ]\" brackets, not a box: OCR reads them as print"},
+      {"test": "fields", "page": 1, "region": [250, 432, 516, 236], "reason": "the fax cover's \"To:\", \"From:\", \"Re:\", \"Cc:\": each a label with a colon and blank page after it, to the \"Attn:\", \"Fax:\" column; on this scan the blank's length to the next label on its row is read short of the few letters a field needs"},
+      {"test": "fields", "page": 2, "region": [772, 708, 664, 144], "reason": "the referral source's box under \"Referral Source Information (Name/Contact/MSP #)\": found only to a speck of the scan in it"},
+      {"test": "fields", "page": 2, "region": [104, 1208, 1338, 296], "reason": "the clinical question's box: the scan's specks in it (\". .\" at the left) cut it to its lower part"},
+      {"test": "fields", "page": 3, "region": [96, 126, 1336, 182], "reason": "the interventions' box: a speck of the scan in it cuts it to its lower right"},
+      {"test": "fields", "page": 3, "region": [376, 1272, 1062, 116], "reason": "the Hallucinations and Delusions rows of the symptoms table: the rows above and below them are found, these two are not; the scan is tilted about a degree (cause not traced further)"},
+      {"test": "fields", "page": 3, "region": [378, 1494, 1062, 116], "reason": "the Impulsivity and Substance Use rows of the symptoms table: missed as the Hallucinations and Delusions rows are, on the same tilted scan (cause not traced further)"},
+      {"test": "fields", "page": 3, "region": [374, 1604, 1068, 82], "reason": "the \"Other (specify in comments)\" row's cells: found only in their lower half, under the row's two-line label (\"Other (specify in comments)\")"},
+      {"test": "extraTicks", "page": 1, "region": [558, 1246, 23, 23], "reason": "the D of \"ADHD\" in the cover's text, square at this size on the scan"},
+      {"test": "extraFields", "page": 1, "region": [656, 136, 836, 88], "reason": "the blank right of the \"FOUNDRY\" logo: blank page over the cover's top rule"},
+      {"test": "extraFields", "page": 2, "region": [100, 1438, 1346, 62], "reason": "the clinical question box's lower part, split from the rest by a speck (see its field's skip)"},
+      {"test": "extraFields", "page": 2, "region": [108, 1732, 1332, 82], "reason": "the history box's lower part, split from the rest by a speck of the scan"},
+      {"test": "extraFields", "page": 3, "region": [842, 1698, 308, 46], "reason": "a signature line (\"Signature:\"): a signature, which the eForm leaves to the signature"},
+      {"test": "tags", "page": 3, "region": [92, 434, 1340, 98], "reason": "\"Medications:\" and \"Allergies:\" (druglist_line, allergies_des): the labels are printed at the top of their cells, over the field, and on the scan aren't read as its label (the field has none)"}
+    ]
+  },
+  {
+    "name": "Colposcopy booking form (Fraser Health, one page: capitalised labels over or beside blanks in a ruled table)",
+    "folder": "colposcopy-booking",
+    "session": "colposcopy_booking_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [792, 558, 218, 54], "reason": "\"OTHER NAMES\", the third label over the name row's blank: the first name's blank runs on under it; the cell has no side between them"},
+      {"test": "fields", "page": 1, "region": [224, 610, 1222, 46], "reason": "\"PHN\" with blank page after it on its row, a short cell between two lines with no colon"},
+      {"test": "fields", "page": 1, "region": [156, 682, 1292, 60], "reason": "the ADDRESS and PHONE cells' first rows (\"ADDRESS\" over a blank; \"PHONE Res ____ Cell ____\"): the blank between a label and the next row's labels (\"CITY PROVINCE POSTAL CODE\", \"Bus Ext\") in one tall cell, with no line under it"},
+      {"test": "fields", "page": 1, "region": [268, 876, 572, 48], "reason": "the referring physician's \"PHONE#\" at the foot of the cell, under the name's blank: a label with no colon, its blank in the same cell as the name's"},
+      {"test": "fields", "page": 1, "region": [198, 954, 424, 114], "reason": "the consulting surgeon's \"Dr ____\" and \"PHONE#\" in one cell: labels with no colon and no line"},
+      {"test": "fields", "page": 1, "region": [320, 1350, 1125, 46], "reason": "\"CYTOLOGY#:\", \"LAST SMEAR DONE:\", \"POSITIVE PAP DATE:\": labels in capitals on one row, each with a colon and blank page after it, over the \"PREVIOUS COLPOSCOPY\" row's \"DATE & LOCATION:\" line; a heading in capitals gets no field after its colon"},
+      {"test": "extraFields", "page": 1, "region": [632, 338, 150, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
+      {"test": "extraFields", "page": 1, "region": [914, 338, 550, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
+      {"test": "extraFields", "page": 1, "region": [458, 1186, 988, 46], "reason": "the blanks after the priorities' captions (\"Suspect Malignancy\", \"High Grade Dysplasia\"): the last row of a caption under a tick box, with blank page after it to its cell's side"},
+      {"test": "extraFields", "page": 1, "region": [1266, 1756, 178, 54], "reason": "the blank right of the language's line, to the box's side: blank page after a line's end"},
+      {"test": "extraFields", "page": 1, "region": [276, 402, 358, 36], "reason": "\"Instructions:\" with blank page after its colon, a heading over a numbered list"},
+      {"test": "tags", "page": 1, "region": [834, 750, 384, 48], "reason": "\"Bus\" (phone2): the business phone in one word, under \"PHONE\" with \"Res\" and \"Cell\"; \"bus\" alone can't be read as a phone's kind"},
+      {"test": "tags", "page": 1, "region": [612, 948, 270, 90], "reason": "\"DATE REFERRAL REC'D (d/m/yyyy)\": its label over the cell is read with the referring physician's \"PHONE#\" left of it, so the field is taken for a phone; the receiving office's date"},
+      {"test": "dates", "page": 1, "region": [612, 948, 270, 90], "reason": "\"DATE REFERRAL REC'D\" (see its tag's skip): the label isn't read as this field's"}
+    ]
+  },
+  {
+    "name": "VCH mental health and substance use central intake referral (a scan, one page: fill-in lines, C/P tick boxes against their letters)",
+    "folder": "vch-central-intake",
+    "session": "vch_central_intake_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [1084, 738, 310, 66], "reason": "the relationship's field found taller (see the contact row's missed fields)"},
+      {"test": "extraFields", "page": 1, "region": [98, 1392, 1296, 38], "reason": "the second meds line in three parts (see its missed field)"},
+      {"test": "ticks", "page": 1, "region": [318, 1438, 1050, 108], "reason": "the substance use's \"C☐ P☐\" boxes: each printed a pixel or two from its letter, C or P: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
+      {"test": "fields", "page": 1, "region": [420, 766, 980, 46], "reason": "\"Contact person (if relevant): ____ Phone: ____ Relationship: ____\": the relationship's field is found taller, over the row above (\"Leave message\"), and the contact person's and phone's lines are missed (cause not traced on this fax)"},
+      {"test": "fields", "page": 1, "region": [98, 1390, 1296, 40], "reason": "the second line of \"Current Meds:\", split where the substances' labels below begin (\"Alcohol:\", \"Nicotine:\") into three fields"},
+      {"test": "tags", "page": 1, "region": [96, 574, 940, 98], "reason": "\"PHN\" and the address's second line: the PHN's field is named from \"(m/d/y)\" above it and the address's second line is labelled \"Address PHN\", so the hin goes to the address line (OCR on the fax)"},
+      {"test": "tags", "page": 1, "region": [1012, 658, 380, 50], "reason": "\"Work\" (phone2): a phone's kind alone after \"Phone: Home ... Cell ...\"; \"work\" alone can't be read as a phone"},
+      {"test": "tags", "page": 1, "region": [242, 818, 394, 38], "reason": "\"Referred by:\" (current_user): the field is named \"referred_by\" but gets no clinician's tag; why was not traced on this fax"}
+    ]
+  },
+  {
+    "name": "Centre for Pelvic Floor Competence referral (one page: a label box, cells with labels beside and over the blank, two physicians' blocks)",
+    "folder": "pelvic-floor-referral",
+    "session": "pelvic_floor_referral_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [1114, 846, 102, 39], "reason": "\"Interpreter Required: ☐No ☐Yes\": each box printed a pixel or two from its word: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
+      {"test": "ticks", "page": 1, "region": [140, 1320, 38, 70], "reason": "\"☐ Regular\" and \"☐ Urgent\" on the referral details' shaded bar: the box's grey inside is ink on the ink map, so it isn't empty"},
+      {"test": "fields", "page": 1, "region": [792, 32, 656, 294], "reason": "the patient label's box (label): \"Place Patient Label Here\" printed faint at its top, beside the header; the box's only lines are its left side and the header's rule"},
+      {"test": "fields", "page": 1, "region": [342, 1356, 1094, 34], "reason": "the urgent reason's line (\"☐ Urgent (Reason)____\") on the shaded bar: a line inside a bar isn't a line that bounds a field"},
+      {"test": "extraFields", "page": 1, "region": [132, 258, 656, 62], "reason": "the blank under the title, over the header's rule: blank page over a long line, as a fill-in line is"},
+      {"test": "extraFields", "page": 1, "region": [290, 782, 1150, 108], "reason": "the blank beside each patient label in its cell (\"Patient address: ____\"), over the blank under it: a cell with its label on its first row and room under it takes one field, and the label's row has blank page after its colon, as \"Name: ____\" does"},
+      {"test": "tags", "page": 1, "region": [286, 1120, 1160, 168], "reason": "the primary care provider's billing number and office address, phone and fax (doctor_ohip_no; no tags): the rows under \"Patient Primary Care Provider:\" name no one, and the cells' own labels (\"Office phone:\") are the clinician's, as the same rows under \"Referring Provider\" are"}
+    ]
+  },
+  {
+    "name": "Chest Pain Clinic referral (a fax, one page: fill-in lines, a name line with captions under it, rows of tick boxes)",
+    "folder": "chest-pain-referral",
+    "session": "chest_pain_referral_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [312, 686, 1130, 48], "reason": "the whole name line, which the eForm splits by its captions (see the missed name fields)"},
+      {"test": "extraFields", "page": 1, "region": [302, 752, 196, 56], "reason": "the birth date's field, found short of its line (see its missed field)"},
+      {"test": "fields", "page": 1, "region": [310, 684, 1134, 50], "reason": "\"Patient Name:\" with \"Last Name   First Name   Middle Name\" under its line: captions spaced along a line split it only when nothing else labels it (see the IDP intake's Last Name)"},
+      {"test": "fields", "page": 1, "region": [302, 752, 334, 56], "reason": "\"Date of Birth:\" over \"DD/MM/YYYY\": found only to the first third of its line, where \"DD/MM/YYYY\" is printed under it"},
+      {"test": "extraFields", "page": 1, "region": [130, 578, 1332, 38], "reason": "the blank under \"If clinically safe, have patient HOLD BETA BLOCKERS...\" over the box's bottom side: blank page over a long line"},
+      {"test": "extraFields", "page": 1, "region": [128, 1136, 1318, 32], "reason": "the blank between the two rules under \"G.P/Family doctor:\" and \"Copies to:\": a double rule taken for a fill-in line"},
+      {"test": "extraFields", "page": 1, "region": [522, 1604, 116, 74], "reason": "the blank between \"Ca Channel Blocker\" and the appointment box: blank page over the box's top side"},
+      {"test": "tags", "page": 1, "region": [372, 1090, 446, 48], "reason": "\"G.P/Family doctor:\" (doctor): the field is named \"g_p_family\": its label read without \"doctor\" (the next field takes \"G.P/Family doctor\")"},
+      {"test": "tags", "page": 1, "region": [692, 1674, 264, 46], "reason": "the LMH Cardiology appointment's \"Date:\" (no tag): the receiving clinic's appointment, in a box at the foot headed \"LMH Cardiology Appointment:\" on the same row, not above it"}
+    ]
+  },
+  {
+    "name": "Mental Health Act Form 5 consent for treatment (fillable PDF: blanks along sentences, captions under them)",
+    "folder": "mha-form5-consent",
+    "session": "mha_form5_consent_session.json",
+    "pdf": "HLTH3505_Form5_Consent_for_Treatment.pdf",
+    "skip": []
+  },
+  {
+    "name": "PWD designation application, Section 2 medical report (fillable PDF, five pages: a diagnoses table, rows of tick boxes, a certification)",
+    "folder": "pwd-medical-report",
+    "session": "pwd_medical_report_session.json",
+    "pdf": "HR2883_PWD_Medical_Report.pdf",
+    "skip": [
+      {"test": "extraFields", "page": 5, "region": [56, 1564, 934, 56], "reason": "the PDF's text field for \"Signature\": a signature"},
+      {"test": "tags", "page": 5, "region": [54, 1636, 1402, 250], "reason": "the certification's \"Telephone Number\", \"Fax Number\", \"Email Address\", \"Print/Stamp Address\" (clinic_phone, clinic_fax, no tag, clinic_label): the PDF's tooltips name no one, and the section's heading (\"I – Certification\") is a shaded bar's"}
+    ]
   }
 ];

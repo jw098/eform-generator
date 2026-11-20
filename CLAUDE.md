@@ -11,10 +11,11 @@ package). **Auto Detect** finds the tick boxes and the places to write, and sugg
   data, an Emscripten module): lines ~500–870 are minified or base64 vendor code, some lines
   megabytes long. Don't edit them, and keep searches off them (a search that hits them prints
   megabytes). The app's own code starts around line 900.
-- `tests/`: the Auto Detect tests (see `tests/README.md`). Each case in `tests/cases/` is a
-  finished eForm and its page image(s), and for a fillable PDF the PDF itself (its `pdf`); or
-  the session it was made in (its `session`, Save Session's `.json`), which the tests export as
-  the app does.
+- `tests/`: the Auto Detect tests (see `tests/README.md`). Each case in `tests/cases/` is the
+  session it was made in (its `session`, Save Session's `.json`), which the tests export as the
+  app does; or, for older cases, a finished eForm and its page image(s). Either names the
+  fillable PDF it was made from, if any (its `pdf`). A new case is a session, a fillable PDF's
+  too: it is easier to read and to change than an eForm's HTML and images.
 - `CodingAgentContext/standard-eform-tags.csv`: OSCAR's standard eForm tags, with the OSCAR
   version each came in (see "Tags" below).
 

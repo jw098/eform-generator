@@ -530,19 +530,20 @@
     return f;
   };
   // A case read from its files: { name, html, images, pdf }. A case given as a session is the
-  // eForm the export builds from it (eformOfSession)
+  // eForm the export builds from it (eformOfSession); either can name the fillable PDF it was
+  // made from (its pages are the PDF's, in order)
   async function loadCase(entry, getFile){
+    // (a fillable PDF's bytes in base64, as the app keeps them)
+    const pdf = entry.pdf ? (await asDataUrl(await getFile(`${entry.folder}/${entry.pdf}`))).split(',')[1] : null;
     if (entry.session){
       let session;
       try { session = JSON.parse(await (await getFile(`${entry.folder}/${entry.session}`)).text()); }
       catch (err){ throw new Error(`tests/cases/${entry.folder}/${entry.session} can't be read as a session: ${err.message || err}`); }
-      return { name: entry.name || session.exportTitle || entry.folder, ...eformOfSession(session), pdf: null };
+      return { name: entry.name || session.exportTitle || entry.folder, ...eformOfSession(session), pdf };
     }
     const html = await (await getFile(`${entry.folder}/${entry.eform}`)).text();
     const images = {};
     for (const name of entry.images || []) images[name] = await asDataUrl(await getFile(`${entry.folder}/${name}`));
-    // (a fillable PDF's bytes in base64, as the app keeps them)
-    const pdf = entry.pdf ? (await asDataUrl(await getFile(`${entry.folder}/${entry.pdf}`))).split(',')[1] : null;
     return { name: entry.name || entry.folder, html, images, pdf };
   }
   // A case's page n as a page of its fillable PDF ({ data, page }, for detectOn), or null: the
