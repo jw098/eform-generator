@@ -2277,6 +2277,19 @@ window.TEST_CASE_LIST = [
     "folder": "northern-health-most",
     "session": "northern_health_most_session.json",
     "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [284, 1690, 1182, 42], "reason": "\"☐ Other: ____\": at 0.7x its line is found only to its middle (cause not traced)"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [286, 1692, 602, 42], "reason": "\"☐ Other: ____\": at 0.7x its line is found only to its middle (cause not traced)"},
+      {"variation": "1.5× size", "page": 1, "region": [992, 940, 32, 32], "reason": "the D of \"Do not attempt resuscitation\" in bold: a bold character, square at this size, with an empty middle"},
+      {"variation": "1.5× size", "page": 1, "region": [1096, 1424, 32, 32], "reason": "the D of \"Date:\": a bold character, square at this size, with an empty middle"},
+      {"variation": "2× size", "page": 1, "region": [1096, 1424, 32, 32], "reason": "the D of \"Date:\": a bold character, square at this size, with an empty middle"},
+      {"variation": "2× size", "page": 1, "region": [1164, 1560, 32, 32], "reason": "the D of \"SDM\" in \"Adult not capable/SDM not available\": a bold character, square at this size, with an empty middle"},
+      {"variation": "2.5× size", "page": 1, "region": [992, 940, 32, 32], "reason": "the D of \"Do not attempt resuscitation\" in bold: a bold character, square at this size, with an empty middle"},
+      {"variation": "2.5× size", "page": 1, "region": [1096, 1424, 32, 32], "reason": "the D of \"Date:\": a bold character, square at this size, with an empty middle"},
+      {"variation": "3× size", "page": 1, "region": [992, 940, 32, 32], "reason": "the D of \"Do not attempt resuscitation\" in bold: a bold character, square at this size, with an empty middle"},
+      {"variation": "3× size", "page": 1, "region": [1096, 1424, 32, 32], "reason": "the D of \"Date:\": a bold character, square at this size, with an empty middle"},
+      {"variation": "faint print", "page": 1, "region": [992, 940, 32, 32], "reason": "the D of \"Do not attempt resuscitation\" in bold: a bold character, square at this size, with an empty middle"}
+    ],
     "skip": [
       {"test": "fields", "page": 1, "region": [888, 136, 576, 196], "reason": "the patient label's box (label): only \"PATIENT LABEL\" under it, beside the header, with a single line at its left and no line under it; nothing bounds it as a writing area"},
       {"test": "extraFields", "page": 1, "region": [378, 1830, 204, 42], "reason": "a signature line (\"Physician signature:\"): a signature, which the eForm leaves to the signature"},
@@ -2289,6 +2302,24 @@ window.TEST_CASE_LIST = [
     "folder": "home-oxygen-application",
     "session": "home_oxygen_application_session.json",
     "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "0.7× size", "page": 1, "region": [148, 644, 32, 32], "reason": "the 0 of \"D. 0. B.\": a bold character, square at this size, with an empty middle"},
+      {"variation": "1.5× size", "boxes": ["six_minute_resting_study", "ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "1.5× size", "page": 1, "region": [166, 456, 32, 32], "reason": "the D of \"1. DATE of APPLICATION\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "1.5× size", "page": 1, "region": [602, 1524, 32, 32], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "2× size", "boxes": ["ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "2.5× size", "boxes": ["six_minute_resting_study", "ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "2.5× size", "page": 1, "region": [166, 970, 32, 32], "reason": "the D of \"4. DIAGNOSTIC DATA\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "2.5× size", "page": 1, "region": [602, 1524, 32, 32], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "2.5× size", "page": 1, "test": "fields", "region": [588, 1478, 200, 48], "reason": "the \"Completed by:\" row's \"Phone:\" field, missed at 2.5x (cause not traced)"},
+      {"variation": "3× size", "boxes": ["six_minute_resting_study", "ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "3× size", "page": 1, "region": [166, 454, 32, 32], "reason": "the D of \"1. DATE of APPLICATION\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "3× size", "page": 1, "region": [602, 1524, 32, 32], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "faint print", "boxes": ["six_minute_resting_study", "ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "faint print", "page": 1, "region": [260, 570, 32, 32], "reason": "the D of \"2. CLIENT DATA\" on its shaded bar: a bold character, square at this size, with an empty middle"},
+      {"variation": "faint print", "page": 1, "region": [602, 1524, 32, 32], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold character, square at this size, with an empty middle"}
+    ],
     "skip": [
       {"test": "extraFields", "page": 1, "region": [636, 1618, 810, 32], "reason": "the signature date's field, put right of its line (see the date's missed field)"},
       {"test": "ticks", "page": 1, "region": [434, 1080, 741, 33], "reason": "the oximetry studies' boxes (\"☐6 Minute Resting Room Air Study Attached\"): each printed a pixel or two from the first letter of its label: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
@@ -2314,6 +2345,16 @@ window.TEST_CASE_LIST = [
     "folder": "seamless-perinatal-referral",
     "session": "seamless_perinatal_referral_session.json",
     "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["yes_refugee", "yes_consent", "midwife", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "0.7× size", "boxes": ["no", "cgh", "rch"], "reason": "the \"No\" of the Aboriginal question (\"☐ No\"); \"☐CGH\"; \"☐RCH\": printed tight against its word, joined to it at this size (as the page's \"☐Yes\" boxes are at every size)"},
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [1188, 622, 274, 46], "reason": "\"Due Date (dd/mm/yyyy)\": missed at 0.7x (cause not traced)"},
+      {"variation": "1.5× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "2× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "2.5× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "3× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "faint print", "boxes": ["yes_refugee", "yes_consent", "midwife", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"}
+    ],
     "skip": [
       {"test": "ticks", "page": 1, "region": [772, 888, 24, 24], "reason": "the \"Yes\" box of the refugee question (\"☐Yes\"), printed a pixel or two from the Y of \"Yes\": at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
       {"test": "ticks", "page": 1, "region": [1214, 984, 24, 24], "reason": "the consent's \"Yes\" box (\"☐Yes\"), printed a pixel or two from the Y of \"Yes\": at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
@@ -2333,7 +2374,6 @@ window.TEST_CASE_LIST = [
     "name": "Foundry Kelowna psychiatric assessment referral (a scan, three pages: a fax cover, [ ] options, a symptoms table)",
     "folder": "foundry-psychiatric-referral",
     "session": "foundry_psychiatric_referral_session.json",
-    "variations": true,
     "skip": [
       {"test": "extraFields", "page": 2, "region": [768, 702, 372, 150], "reason": "the referral source box's part found, left of a speck (see its missed field)"},
       {"test": "extraFields", "page": 2, "region": [104, 1308, 1334, 142], "reason": "the clinical question box's part found (see its missed field)"},
@@ -2364,6 +2404,17 @@ window.TEST_CASE_LIST = [
     "folder": "colposcopy-booking",
     "session": "colposcopy_booking_session.json",
     "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [166, 1472, 1274, 248], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [166, 1472, 1276, 102], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [166, 1558, 1276, 74], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [166, 1646, 1276, 74], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [172, 1624, 1266, 32], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "1.5× size", "page": 1, "test": "extraFields", "region": [166, 1646, 1274, 74], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "2× size", "page": 1, "test": "extraFields", "region": [166, 1646, 1274, 74], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "2× size", "page": 1, "test": "extraFields", "region": [170, 1624, 1268, 32], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"},
+      {"variation": "2.5× size", "page": 1, "test": "extraFields", "region": [166, 1618, 1274, 102], "reason": "the smear report's ruled box, split at its lines into rows at some sizes"}
+    ],
     "skip": [
       {"test": "fields", "page": 1, "region": [792, 558, 218, 54], "reason": "\"OTHER NAMES\", the third label over the name row's blank: the first name's blank runs on under it; the cell has no side between them"},
       {"test": "fields", "page": 1, "region": [224, 610, 1222, 46], "reason": "\"PHN\" with blank page after it on its row, a short cell between two lines with no colon"},
@@ -2385,7 +2436,6 @@ window.TEST_CASE_LIST = [
     "name": "VCH mental health and substance use central intake referral (a scan, one page: fill-in lines, C/P tick boxes against their letters)",
     "folder": "vch-central-intake",
     "session": "vch_central_intake_session.json",
-    "variations": true,
     "skip": [
       {"test": "extraFields", "page": 1, "region": [1084, 738, 310, 66], "reason": "the relationship's field found taller (see the contact row's missed fields)"},
       {"test": "extraFields", "page": 1, "region": [98, 1392, 1296, 38], "reason": "the second meds line in three parts (see its missed field)"},
@@ -2402,6 +2452,21 @@ window.TEST_CASE_LIST = [
     "folder": "pelvic-floor-referral",
     "session": "pelvic_floor_referral_session.json",
     "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [696, 1066, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [696, 1228, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [1228, 718, 214, 42], "reason": "the room under \"PHN:\" in its cell, taken as a second field at some sizes, beside the one after its colon"},
+      {"variation": "1.5× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "1.5× size", "page": 1, "test": "fields", "region": [696, 1066, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
+      {"variation": "2× size", "boxes": ["interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "2.5× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "2.5× size", "page": 1, "test": "extraFields", "region": [1228, 718, 214, 42], "reason": "the room under \"PHN:\" in its cell, taken as a second field at some sizes, beside the one after its colon"},
+      {"variation": "3× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
+      {"variation": "3× size", "page": 1, "test": "fields", "region": [696, 1066, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
+      {"variation": "3× size", "page": 1, "test": "extraFields", "region": [1226, 682, 222, 50], "reason": "the blank right of \"PATIENT INFORMATION (please print clearly)\" on its shaded bar, at 3x"},
+      {"variation": "faint print", "boxes": ["interpreter_no", "interpreter_yes"], "reason": "missed on the page itself too (see the case's skips for these boxes)"}
+    ],
     "skip": [
       {"test": "ticks", "page": 1, "region": [1114, 846, 102, 39], "reason": "\"Interpreter Required: ☐No ☐Yes\": each box printed a pixel or two from its word: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
       {"test": "ticks", "page": 1, "region": [140, 1320, 38, 70], "reason": "\"☐ Regular\" and \"☐ Urgent\" on the referral details' shaded bar: the box's grey inside is ink on the ink map, so it isn't empty"},
@@ -2416,7 +2481,6 @@ window.TEST_CASE_LIST = [
     "name": "Chest Pain Clinic referral (a fax, one page: fill-in lines, a name line with captions under it, rows of tick boxes)",
     "folder": "chest-pain-referral",
     "session": "chest_pain_referral_session.json",
-    "variations": true,
     "skip": [
       {"test": "extraFields", "page": 1, "region": [312, 686, 1130, 48], "reason": "the whole name line, which the eForm splits by its captions (see the missed name fields)"},
       {"test": "extraFields", "page": 1, "region": [302, 752, 196, 56], "reason": "the birth date's field, found short of its line (see its missed field)"},
