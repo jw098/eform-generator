@@ -900,5 +900,41 @@ window.TEST_CASE_LIST = [
         "reason": "the box sits right under its row's line, a pixel of paper between them on the page itself (where it is found); resizing the page blurs that gap away, so the box's top is part of the line, as a letter hanging under a line is (the D of \"Family MD\" over its cell's line), and on the larger copies the blur widens a side so the box is no longer square on the ink map. isRealBox's check for a line over a box needs a row of paper between the two: without one it can't tell this box from letters under a line"
       }
     ]
+  },
+  {
+    "name": "Donation after MAiD admission orders (pre-printed orders: options ticked, short blanks in sentences)",
+    "folder": "maid-donation-admission",
+    "session": "maid_donation_admission_session.json",
+    "variations": true
+  },
+  {
+    "name": "Heart Function Clinic referral (shaded bars, a grey IH USE ONLY box, an information page)",
+    "folder": "heart-function-clinic",
+    "session": "heart_function_clinic_session.json",
+    "variations": true
+  },
+  {
+    "name": "Falls Prevention Mobile and Virtual Clinic referral (a dense table with grey bars, an information page)",
+    "folder": "falls-prevention-referral",
+    "session": "falls_prevention_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "North Okanagan Eating Disorder Program referral (underscore blanks, circles to pick a site)",
+    "folder": "eating-disorder-referral",
+    "session": "eating_disorder_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "Burnaby Maternity Clinic referral (fillable PDF whose fields have no names, and a page with none)",
+    "folder": "burnaby-maternity-referral",
+    "eform": "burnaby_maternity_referral.html",
+    "images": [
+      "burnaby_maternity_referral_page1.png",
+      "burnaby_maternity_referral_page2.png",
+      "burnaby_maternity_referral_page3.png",
+      "burnaby_maternity_referral_page4.png"
+    ],
+    "pdf": "Burnaby_Maternity_Clinic_Referral.pdf"
   }
 ];

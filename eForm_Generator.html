@@ -1386,7 +1386,8 @@ else if (typeof exports === 'object')
     const underscored = (v) => String(v || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     const fromName = name && !/^(text|checkbox)_\d+$/.test(name) ? underscored(name).replace(/_\d+$/, '') : '';
     // (a date's printed format says how to write it, not what it is: "Date (dd/mm/yyyy)" is "Date")
-    const withoutFormat = (t) => String(t || '').replace(new RegExp(DAY_FIRST_RE.source + '|' + YEAR_FIRST_RE.source, 'gi'), ' ');
+    // (and the rest of a format OCR misread after its start: "(dd/mml/yyyy)")
+    const withoutFormat = (t) => String(t || '').replace(/\bd{1,2}\s*[\/.\-]\s*m[^\s)]*/gi, ' ').replace(new RegExp(DAY_FIRST_RE.source + '|' + YEAR_FIRST_RE.source, 'gi'), ' ');
     const words = fromName || underscored(withoutFormat(label));
     if (!words) return '';
     let kind = askedFor(words);
@@ -1407,8 +1408,8 @@ else if (typeof exports === 'object')
                  hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin', allergies: 'allergies_des' },   // (the patient's MSP or OHIP number is their health number)
     clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
-                 number: 'current_user_ohip_no' },                       // (OSCAR 12 has no tag for their email)
-    family:    { name: 'doctor', number: 'doctor_ohip_no' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
+                 number: 'current_user_ohip_no', college: 'current_user_cpsid' },                       // (OSCAR 12 has no tag for their email)
+    family:    { name: 'doctor', number: 'doctor_ohip_no', college: 'doctor_cpsid' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
     guardian:  {},                                               // (OSCAR 12 has no tags for their details)
     office:    {},                                               // ("FOR OFFICE USE ONLY": the receiving office fills these in)
     copy:      {}                                                // ("Copy to", "cc": someone sent a copy; OSCAR 12 has no tags for them)
@@ -1432,6 +1433,8 @@ else if (typeof exports === 'object')
     if (hasWord('version_code')) return 'hinVersion';
     if (hasWord('billing')) return 'billing';
     if (hasWord('msp|ohip')) return 'number';
+    // (a clinician's licence with their college: "College ID #", "CPSID"; not a word in a name, "Name of college")
+    if (hasWord('college_id|college_no|college_number|college_registration|cpsid|cpso|cpsbc') || /^college$/.test(words)) return 'college';
     // ("born ____" is the birth date too, but not "Place born" or "Country born")
     if (hasWord('dob|date_of_birth|birth_date|birthdate') || (hasWord('born') && !hasWord('place|country|city|town|province|where'))) return 'dob';
     if (hasWord('cell|mobile')) return 'cell';
@@ -1517,7 +1520,7 @@ else if (typeof exports === 'object')
   // it into the tag (TAG_FOR).
   const OWNER_CUES = [
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
-    ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk)\b/],
+    ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp)\b/],
     ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
     ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|office)\b/],
@@ -4335,6 +4338,28 @@ else if (typeof exports === 'object')
       }
       return { end, top };
     };
+    // Is the row just under a label starting at x0 (its bottom y1, its text's height th, OCR's box
+    // for capitals; page px) a bulleted list's item: its first ink, from a little left of the
+    // label's start, a dot (under 0.7 th each way: measured 0.5 to 0.55 for "•") with a gap of over
+    // half th after it, wider than between letters, then more ink?
+    const bulletUnder = (x0, y1, th) => {
+      const xa = Math.max(0, Math.round((x0 - th*1.5)*scale)), xz = Math.min(w - 1, Math.round((x0 + th*4)*scale)), T = th*scale;
+      // (from the first row of paper under the label's own ink, its descenders: "yes please")
+      const rowInk = (y) => { for (let x = xa; x <= xz; x++) if (isInk(x, y)) return true; return false; };
+      let ya = Math.round(y1*scale); const yEnd = Math.min(h - 1, Math.round((y1 + th*0.6)*scale));
+      while (ya <= yEnd && rowInk(ya)) ya++;
+      if (ya > yEnd) return false;
+      const yb = Math.min(h - 1, Math.round((y1 + th*1.6)*scale));
+      const colInk = (x) => { for (let y = ya; y <= yb; y++) if (isInk(x, y)) return true; return false; };
+      let x = xa; while (x <= xz && !colInk(x)) x++;
+      if (x > xz) return false;
+      const bx = x; let top = Infinity, bottom = -1;
+      for (; x <= xz && colInk(x); x++) for (let y = ya; y <= yb; y++) if (isInk(x, y)){ top = Math.min(top, y); bottom = Math.max(bottom, y); }
+      const bw = x - bx, bh = bottom - top + 1;
+      if (bw > T*0.7 || bh > T*0.7 || bw < T*0.1) return false;
+      const gx = x; while (x <= xz + T*2 && x < w && !colInk(x)) x++;
+      return x - gx > T*0.5 && x < w && colInk(x);
+    };
     const out = [];
     // (a word ending with a colon, or a "#:" ending a label: "Preferred phone #:")
     read.words.filter(word => /:$/.test(word.text) && (/[A-Za-z]/.test(word.text) || /^#+:$/.test(word.text))).forEach(word => {
@@ -4355,9 +4380,21 @@ else if (typeof exports === 'object')
       let xb = xa;
       while (xb < xr && !inkCol(xb + 1, ya, yb)) xb++;
       // (a label before options: the blank ends at a tick box on its row, "URGENCY: ☐ Emergent",
-      // "Best ways to contact participant: ☐ SMS")
-      if (ticks.some(b => Math.min(b.y + b.height, word.y1) - Math.max(b.y, word.y0) >= Math.min(b.height, textHeight)*0.5 &&
-                          b.x >= word.x1 && Math.abs(b.x*scale - (xb + 1)) <= textHeight*0.5*scale)) return;
+      // "Best ways to contact participant: ☐ SMS", or, a word space or two on, at an option's word
+      // with its tick box right after it, "Suicidal ideation: Yes ☐ No ☐")
+      const onRow = (g) => Math.min(g.y + g.height, word.y1) - Math.max(g.y, word.y0) >= Math.min(g.height, textHeight)*0.5;
+      const tickAt = (x) => ticks.some(b => onRow(b) && b.x >= word.x1 && Math.abs(b.x*scale - x) <= textHeight*0.5*scale);
+      if (tickAt(xb + 1)) return;
+      // (a word space or two before the option, measured 3.2 and 3.9 text heights; not a long
+      // blank before it, "Date of Birth: ______  M ☐  F ☐", 20)
+      const option = xb - xa < textHeight*8*scale && read.words.find(u => u !== word && Math.abs(u.x0*scale - (xb + 1)) <= textHeight*0.5*scale && onRow({ y: u.y0, height: u.y1 - u.y0 }));
+      if (option && ticks.some(b => onRow(b) && b.x >= option.x1 - 2 && b.x - option.x1 <= textHeight*1.5)) return;
+      // (nor a label over the bulleted list it introduces: "CODE STATUS:" over "• Do not attempt
+      // Cardiopulmonary Resuscitation", "Referrals triaged with highest priority:" over "• Symptomatic
+      // NYHA II-IV HF". OCR reads a bullet as anything, "." or "[J", so it is found in the ink: the
+      // next row's first ink, near the label's start, is a dot, with a gap after it before the
+      // row's words)
+      if (bulletUnder(ph[0].x0, word.y1, textHeight)) return;
       const x1 = xa/scale + textHeight*0.2, x2 = xb/scale - textHeight*0.4;
       if (x2 - x1 < textHeight*4){
         // A short line printed right after the colon is the blank, however short: "Date of
@@ -5260,10 +5297,11 @@ else if (typeof exports === 'object')
     const stacks = new Map();
     bands.forEach((b, i) => { const r = find(i); if (!stacks.has(r)) stacks.set(r, []); stacks.get(r).push(i); });
     const inBar = new Set();
+    inBar.bars = [];                                     // (each bar's extent, its bands together)
     stacks.forEach(members => {
-      if (members.length < 2) return;
       const top = Math.min(...members.map(i => bands[i].y1)), bottom = Math.max(...members.map(i => bands[i].y2));
       if (bottom - top + 1 <= maxThick) return;
+      inBar.bars.push({ x1: Math.min(...members.map(i => bands[i].x1)), x2: Math.max(...members.map(i => bands[i].x2)), y1: top, y2: bottom });
       members.forEach(i => { if (bands[i].y2 < bottom - 2) inBar.add(i); });
     });
     return inBar;
@@ -5405,6 +5443,14 @@ else if (typeof exports === 'object')
     const side = (x, ya, yb) => downLine(x, ya, yb) && !(downLine(Math.max(1, x-5), ya, yb) && downLine(Math.min(w-2, x+5), ya, yb));
     const lineDown = (x, y) => side(x, y+2, Math.min(h-1, y+Math.round(lineHeight*0.7)));
     const lineUp = (x, y) => side(x, Math.max(0, y-Math.round(lineHeight*0.7)), y-2);
+    // A shaded bar's top edge closes the box or table row above it where side lines run up from
+    // both its ends: a blank box under "REASON FOR REFERRAL" that ends at the next bar, a row of
+    // "Date | Time | Printed Name | Signature" cells over the "ACKNOWLEDGEMENT" bar. Over open
+    // page a bar's top is no line: the blank above a section's heading bar isn't a field.
+    inBar.bars.forEach(b => {
+      if (lineUp(b.x1 + 1, b.y1) && lineUp(b.x2 - 1, b.y1)) lines.push({ x1: b.x1, x2: b.x2, y1: b.y1, y2: b.y1, barTop: true });
+    });
+    lines.sort((a,b) => a.y1-b.y1 || a.x1-b.x1);
     const fields = [];
     // A writing area ruled with blank lines ("CURRENT MEDICATIONS" over three lines, or two
     // columns of them) is one text area. Taken one at a time, each of its lines would close a
@@ -5726,6 +5772,9 @@ else if (typeof exports === 'object')
   // fractions of the page's width (fx, fy, fw, fh: it fits the page's image at any size), its kind, its
   // name (made unique when Auto Detect takes it), its label and its date format; [] for a page
   // with none, or one that can't be read
+  // A field name a PDF's authoring tool gives a field its author didn't name: the kind of field and a
+  // number ("Text1", "Check Box36", "Date40_af_date", "Dropdown2", "Radio Button3", "fill_12")
+  const GENERIC_PDF_NAME_RE = /^(text|text ?field|check ?box|date|time|radio|radio ?button|group|dropdown|combo ?box|list ?box|button|field|fill|untitled|undefined|toggle|choice)[ _-]*\d+(_af_(date|time))?$/i;
   async function readPdfPageFields(doc, pdfPageNo){
     try {
       if (!doc || !(pdfPageNo >= 1) || pdfPageNo > doc.numPages) return [];
@@ -5754,8 +5803,10 @@ else if (typeof exports === 'object')
           const opt = tidy(a.buttonValue || a.exportValue);
           if (opt && !/^(on|yes|off|\d+)$/.test(opt) && !name.endsWith(opt)) name = `${name}_${opt}`;
         }
+        // (a name the PDF's authoring tool made up says nothing of what the field asks for, so it is no label)
+        const label = fieldNamePart(a.alternativeText || a.fieldName);
         out.push({ fx: Math.min(x1, x2) / vp.width, fy: Math.min(y1, y2) / vp.width, fw: Math.abs(x2 - x1) / vp.width, fh: Math.abs(y2 - y1) / vp.width,
-                   type, name, label: fieldNamePart(a.alternativeText || a.fieldName), ...(keptDateFormat(dateFormat) ? { dateFormat } : {}) });
+                   type, name, label: GENERIC_PDF_NAME_RE.test(label) ? '' : label, ...(keptDateFormat(dateFormat) ? { dateFormat } : {}) });
       });
       return out;
     } catch (err) {
@@ -6125,7 +6176,16 @@ else if (typeof exports === 'object')
       // the fields, for their names and tags. A fillable PDF's fields are the PDF's, labels too
       // (its author's, which OCR can only do worse): only what's printed around them.
       if (read) markLineWords(read, bands, scale, h);
-      if (read && fromPdf) sectionFields(found, read);
+      if (read && fromPdf){
+        // A field the PDF's author left unnamed ("Text1") is labelled from the page, as a field
+        // found in the picture is; the rest keep the PDF's labels
+        if (found.some(f => !f.label)){
+          const copies = found.map(f => ({ ...f }));
+          labelFields(copies, read, lineAcross);
+          copies.forEach((c, i) => { if (!found[i].label && c.label) Object.assign(found[i], { label: c.label, _words: c._words }); });
+        }
+        sectionFields(found, read);
+      }
       else if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its lines' furthest end)
         inkColons(read, inkMap, w, h, scale);
