@@ -2209,6 +2209,9 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 3, "region": [395, 1000, 315, 48], "reason": "\"Contact Number:\": the physician's phone (clinic_phone); \"contact number\" names no detail that can be told whose, as on the IDP form's two parents' contact numbers"},
       {"test": "tags", "page": 3, "region": [925, 1000, 395, 48], "reason": "\"Date:\" beside \"Contact Number:\": a date beside a value OSCAR doesn't fill is that value's, not today (as \"INR: ____ Date: ____\"); the contact number's tag isn't found"},
       {"test": "extraFields", "page": 3, "region": [68, 1340, 1370, 46], "reason": "the blank strip between the box's last line of text (\"Phone: ... E-Mail: ...\") and its bottom edge: room under a label in its own cell, as a cell to write in is"}
+    ],
+    "variationSkip": [
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [1148, 1604, 292, 46], "reason": "the blank after \"(Printed Name)\", the caption under the printed name's line: at 0.7× the captions' row is read as a line with a label along it (the pushed app does the same)"}
     ]
   },
   {
@@ -2223,6 +2226,13 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [120, 462, 360, 62], "reason": "the child's first name: the whole name line, labelled by the heading above it (see the Last Name skip)"},
       {"test": "tags", "page": 1, "region": [790, 462, 315, 62], "reason": "the date of birth: its caption under the line (\"Date of Birth (month/day/year)\") gives way to the instruction above it (\"*If YES, please fax to AIDP\"), as on the name line"},
       {"test": "extraFields", "page": 1, "region": [345, 1758, 610, 30], "reason": "\"For Office Use Only:\": the office box's heading, a label ending with a colon with blank page after it in its row, which is how a field is shown"}
+    ],
+    "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["mother_u_father", "no"], "reason": "the first \"Mother\" box, a shadowed box (\"❑\") whose pixel-thin sides 0.7× leaves broken; and the \"No\" box of \"Yes❑ No ❑\", printed against the s of \"Yes\", found on the page but joined to the letter at 0.7×, 2× and 2.5× (the pushed app misses both too)"},
+      {"variation": "2× size", "boxes": ["no"], "reason": "as at 0.7×: the \"No\" box against the s of \"Yes\""},
+      {"variation": "2.5× size", "boxes": ["no"], "reason": "as at 0.7×: the \"No\" box against the s of \"Yes\""},
+      {"variation": "faint print", "boxes": ["father_1"], "reason": "the first \"Father\" box, missed on the page itself (see the case's skip): its pixel-thin left side"},
+      {"variation": "faint print", "test": "extraTicks", "page": 1, "region": [434, 1142, 28, 28], "reason": "the D of \"Expected Due Date\", taken on the page itself (see the case's skip)"}
     ]
   },
   {
