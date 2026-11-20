@@ -6647,6 +6647,23 @@ function eformChecks(){
 
   out.push({ level: duplicates.length ? 'warn':'ok', text: duplicates.length ? `Duplicate field names (${duplicates.length}): ` + duplicates.slice(0,6).map(([name,count])=>`${name}×${count}`).join(', ') : 'No duplicate field names.' });
 
+  // (a tag OSCAR fills in is usually wanted once on a page: two fields with it, "Physician" and
+  // "Prescribing physician" both current_user, often means one is someone else's. Only a warning:
+  // two signatures' dates are both today. Per page, as a header can repeat the patient's details
+  // on every page)
+  const tagUses = new Map();
+  dataFields(state.fields).forEach(f => {
+    const tag = usesCustomFill(f) ? '' : String(f.oscarTag || '').trim();
+    if (!tag) return;
+    const key = `${f.page}\u0000${tag}`;
+    if (!tagUses.has(key)) tagUses.set(key, { page: f.page, tag, names: [] });
+    tagUses.get(key).names.push(f.name || '(unnamed)');
+  });
+  const repeated = [...tagUses.values()].filter(u => u.names.length > 1).sort((a,b) => a.page - b.page || a.tag.localeCompare(b.tag));
+  if (repeated.length) out.push({ level: 'warn', text: `The same oscarDB tag on more than one field of a page (${repeated.length}): ` +
+    repeated.slice(0, 6).map(u => `${u.tag} ×${u.names.length} (page ${u.page}: ${u.names.join(', ')})`).join('; ') + (repeated.length > 6 ? '; …' : '') +
+    '. A tag is usually wanted once on a page: check each field is that person\'s detail, and leave it if it is (two signatures\' dates are both today).' });
+
   // (most untagged fields are filled in by hand, "Reason for referral": only those whose name or
   // label suggests a tag, "Patient Name", are pointed out, and nothing is said when there are none)
   const couldBeTagged = dataFields(state.fields).map(f => [f, suggestedTag(f)]).filter(([, tag]) => tag);
