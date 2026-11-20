@@ -2139,6 +2139,7 @@ window.TEST_CASE_LIST = [
     "session": "twc_assessment_session.json",
     "variations": true,
     "skip": [
+      {"test": "tags", "page": 1, "region": [185, 320, 465, 45], "reason": "\"SIN\": the eForm leaves it untagged, from before Auto Detect knew OSCAR 12's sin tag, which it now gives; the expected answer is the user's to change"},
       {"test": "fields", "page": 1, "region": [845, 385, 405, 40], "reason": "the three PHN blanks (\"PHN# ____ - ____ - ____\"): short lines with the \"DD  MM  YY\" captions of the birth date's blanks just above them, read as their labels, so the space between is no room to write; telling a row above's captions from a line's own label needs more than ink"},
       {"test": "fields", "page": 1, "region": [500, 715, 815, 80], "reason": "the five small boxes for numbers (\"Dependent Children (enter # of children in box)\"): about twice as wide as tall, too wide for a tick box and too short for lines that bound a field"},
       {"test": "fields", "page": 2, "region": [210, 918, 1225, 55], "reason": "\"Operations\": its label at the foot of its row, the line under it the medications table's top edge, and no line between the label and the row above to close a box over its blank"},
@@ -2187,6 +2188,78 @@ window.TEST_CASE_LIST = [
     "skip": [
       {"test": "tags", "page": 1, "region": [870, 722, 240, 52], "reason": "\"Gender Identity\": the PDF names the field \"gender\", which elsewhere is the patient's sex; the page's own label isn't read when the PDF's name gives a tag"},
       {"test": "tags", "page": 4, "region": [1080, 1796, 295, 56], "reason": "\"Designation / College ID #\": OCR reads only \"Designation\" on this page (on page 3 it reads the whole label, which gets current_user_cpsid)"}
+    ]
+  },
+  {
+    "name": "FAME screening and consent (three pages: a table of labelled cells, Yes/No columns, a consent's blanks along a sentence)",
+    "folder": "fame-screening-consent",
+    "session": "fame_screening_consent_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [70, 815, 490, 128], "reason": "the room under \"Post-Stroke Impairments\" in the table's label column: blank page under a label in its own cell, as a cell to write in under its heading is (\"PERTINENT HISTORY:\" over the rest of its cell); the eForm writes in the cell beside it"},
+      {"test": "extraFields", "page": 1, "region": [70, 1140, 490, 128], "reason": "the room under \"Cardiovascular Condition\" in the label column: as \"Post-Stroke Impairments\""},
+      {"test": "extraFields", "page": 1, "region": [70, 1340, 490, 96], "reason": "the room under \"Other chronic condition\" in the label column: as \"Post-Stroke Impairments\""},
+      {"test": "tags", "page": 1, "region": [710, 500, 250, 50], "reason": "\"(Work):\" after \"Phone (Home): ____\": the work phone (phone2), named only by the bracketed word, which names no detail on its own"},
+      {"test": "extraFields", "page": 2, "region": [205, 828, 745, 64], "reason": "\"Signature:\": a signature line, which the eForm leaves to the signature"},
+      {"test": "extraFields", "page": 2, "region": [230, 1562, 450, 46], "reason": "\"By: ____\" over \"(Participant's Signature)\": a signature line"},
+      {"test": "extraFields", "page": 2, "region": [82, 1604, 252, 46], "reason": "the blank before \"(Participant's Signature)\", the caption under the signature line: a caption's row, read as a line with labels along it"},
+      {"test": "extraFields", "page": 2, "region": [610, 1604, 362, 46], "reason": "the blank between \"(Participant's Signature)\" and \"(Printed Name)\": the captions' row, read as a line with labels along it"},
+      {"test": "extraFields", "page": 3, "region": [175, 860, 485, 64], "reason": "\"Physician's Signature\": a signature line"},
+      {"test": "extraFields", "page": 3, "region": [865, 860, 480, 64], "reason": "the second \"Physician's Signature\": a signature line"},
+      {"test": "tags", "page": 3, "region": [395, 1000, 315, 48], "reason": "\"Contact Number:\": the physician's phone (clinic_phone); \"contact number\" names no detail that can be told whose, as on the IDP form's two parents' contact numbers"},
+      {"test": "tags", "page": 3, "region": [925, 1000, 395, 48], "reason": "\"Date:\" beside \"Contact Number:\": a date beside a value OSCAR doesn't fill is that value's, not today (as \"INR: ____ Date: ____\"); the contact number's tag isn't found"},
+      {"test": "extraFields", "page": 3, "region": [68, 1340, 1370, 46], "reason": "the blank strip between the box's last line of text (\"Phone: ... E-Mail: ...\") and its bottom edge: room under a label in its own cell, as a cell to write in is"}
+    ]
+  },
+  {
+    "name": "IDP intake (fill-in lines with captions under them, shadowed tick boxes, an office-use box)",
+    "folder": "idp-intake",
+    "session": "idp_intake_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [236, 637, 32, 32], "reason": "the first \"Father\" box (\"❑ Mother ❑ Father\"): its left side is a pixel thin, which the 0.82x working copy leaves at 0.82 of its length on the ink map, under the 0.85 a printed side needs; at 0.80 the box is still not taken (its other checks fail too) and nothing else on any case changes"},
+      {"test": "extraTicks", "page": 1, "region": [434, 1142, 28, 28], "reason": "the D of \"Expected Due Date\": a capital's height, its curve on the right square at this size, with an empty middle"},
+      {"test": "fields", "page": 1, "region": [476, 462, 300, 62], "reason": "\"Last Name\", the second caption under the name line (\"Child's First Name ... Last Name\"): captions spaced along a line split it only when nothing else labels it, and \"Family Information:\" above is taken for its label; a label above with a format under it (\"NAME\" over \"FIRST MIDDLE LAST\") is the commoner layout"},
+      {"test": "tags", "page": 1, "region": [120, 462, 360, 62], "reason": "the child's first name: the whole name line, labelled by the heading above it (see the Last Name skip)"},
+      {"test": "tags", "page": 1, "region": [790, 462, 315, 62], "reason": "the date of birth: its caption under the line (\"Date of Birth (month/day/year)\") gives way to the instruction above it (\"*If YES, please fax to AIDP\"), as on the name line"},
+      {"test": "extraFields", "page": 1, "region": [345, 1758, 610, 30], "reason": "\"For Office Use Only:\": the office box's heading, a label ending with a colon with blank page after it in its row, which is how a field is shown"}
+    ]
+  },
+  {
+    "name": "Access Line home and community care referral (fillable PDF: patient, alternative contact and referring clinician's details)",
+    "folder": "access-line-referral",
+    "eform": "access_line_referral.html",
+    "images": ["access_line_referral_page1.png"],
+    "pdf": "Access_Line_Referral_Form_April_2026.pdf",
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [495, 1768, 395, 46], "reason": "the PDF's text field for \"Physician/Nurse Practitioner Signature\": a signature, which the eForm leaves to the signature"}
+    ]
+  },
+  {
+    "name": "MOST medical order for scope of treatment (fillable PDF: radio buttons in a table, a patient label box)",
+    "folder": "most-order",
+    "eform": "most_order.html",
+    "images": ["most_order_page1.png"],
+    "pdf": "MOST_Medical_Order_for_Scope_of_Treatment.pdf",
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [508, 1774, 372, 72], "reason": "the PDF's text field for \"Prescriber Signature\": a signature"},
+      {"test": "tags", "page": 1, "region": [900, 40, 565, 378], "reason": "the patient label's box (label): an unlabelled box at the top right, which the page doesn't name"}
+    ]
+  },
+  {
+    "name": "CPP disability medical report (fillable PDF, ten pages: a SIN header on each page, tables of medications, a declaration)",
+    "folder": "cpp-disability-medical-report",
+    "eform": "cpp_disability_medical_report.html",
+    "images": ["cpp_disability_medical_report_page1.png", "cpp_disability_medical_report_page2.png", "cpp_disability_medical_report_page3.png", "cpp_disability_medical_report_page4.png", "cpp_disability_medical_report_page5.png", "cpp_disability_medical_report_page6.png", "cpp_disability_medical_report_page7.png", "cpp_disability_medical_report_page8.png", "cpp_disability_medical_report_page9.png", "cpp_disability_medical_report_page10.png"],
+    "pdf": "ISP-2519.pdf",
+    "skip": [
+      {"test": "extraFields", "page": 2, "region": [100, 1280, 682, 60], "reason": "the PDF's text field for \"Signature of applicant / legal representative\": a signature"},
+      {"test": "extraFields", "page": 2, "region": [92, 1616, 955, 54], "reason": "the PDF's text field for \"Witness signature\": a signature"},
+      {"test": "extraFields", "page": 10, "region": [92, 1180, 668, 72], "reason": "the PDF's text field for the declaration's \"Signature\": a signature"},
+      {"test": "tags", "page": 2, "region": [1040, 1616, 380, 54], "reason": "the witness's \"Date (YYYY-MM-DD)\": the PDF's tooltip (\"Date - Enter 4 digit year...\") is more than \"Date\", and the label printed by it isn't read for this field"},
+      {"test": "tags", "page": 10, "region": [92, 1082, 668, 72], "reason": "the declaration's \"Name\": the physician's or nurse practitioner's, said only by the options above it (\"I am a: ○ general practice physician...\"), not by a heading"},
+      {"test": "tags", "page": 10, "region": [764, 1104, 648, 240], "reason": "\"Address and telephone number (Please print or use a stamp)\": the clinician's stamp's details (clinic_label); a field for an address and a phone holds neither tag alone, and a stamp offered in brackets doesn't make it a stamp's"},
+      {"test": "tags", "page": 10, "region": [92, 1280, 668, 72], "reason": "the declaration's \"Date (YYYY-MM-DD)\": today, but the PDF's tooltip is more than \"Date\" and its printed label isn't read for it"}
     ]
   }
 ];

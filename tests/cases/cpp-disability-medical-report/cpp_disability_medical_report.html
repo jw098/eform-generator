@@ -1,0 +1,869 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>Generated OSCAR eForm</title>
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	overflow: hidden;
+ }
+ /* (on screen, each field is a light blue box, so it's clear where to type; drawn inside the
+    field, it doesn't move it, and the print styles have none, so the page prints clean) */
+ .gen_input, .xMarkOnly { background:rgba(66,133,244,0.08) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.45) !important; }
+ .gen_input:focus, .xMarkOnly:focus { background:rgba(66,133,244,0.16) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.9) !important; outline:0; }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; text-align:center; font-weight:bold; }
+ .circleToggle { -webkit-appearance:none; appearance:none; background:rgba(66,133,244,0.08) !important; }
+ .circleToggle[value="O"] { border-color:#000 !important; }
+ .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ .circleToggle[value="O"] { border-color:#000 !important; }   /* (a circled choice prints circled) */
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+// Points a page's background image at its file: in OSCAR's image folder once the eForm is in
+// OSCAR (opened over http), or beside the eForm's HTML when it is opened from disk
+function changeImage(img, imgId){
+  var bg = document.getElementById(imgId);
+  if (bg) bg.src = resourceLink(img);
+}
+// A file's address: "${oscar_image_path}page1.png" in OSCAR, "page1.png" opened from disk
+function resourceLink(resource){
+  var prefix = (window.location.href.toLowerCase().indexOf('http') != -1) ? '${oscar_image_path}' : '';
+  return prefix + resource;
+}
+</script>
+
+<script>
+// Fields shown by a choice: ticking a "parent-field" shows the fields of class "child-<its id>"
+// (or "child-<its value>"); of the boxes sharing an "only-one-…" class, only one stays ticked
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+// "Print & Submit": prints the form
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+// Typing in the form marks it changed, so leaving asks first; submitting clears that
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+// The warning shown on leaving a changed form
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+// (OSCAR's own functions that startup() calls, where this OSCAR doesn't have them: they do nothing)
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+// Shows the current provider's signature image in each page's signature stamp ("signature",
+// "signature2"…; hidden where they have none)
+function SignForm() {
+  try {
+    var providerField = document.getElementById('current_user_id'), provNum = providerField ? providerField.value : '';
+    var stamps = document.querySelectorAll('[id^="CanvasProSignature"] img');
+    for (var i = 0; i < stamps.length; i++){
+      stamps[i].onerror = function(){ this.style.display = 'none'; };
+      stamps[i].src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+      stamps[i].alt = provNum;
+    }
+  } catch(e){}
+}
+// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
+// with ids "clinic_fax_12"), or null
+function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
+// The fax number to send to: the first filled-in fax number field on the form
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var input = fieldCalled(ids[i]);
+    if (!input) continue;
+    var faxNo = (input.value || '').trim();
+    if (faxNo) return faxNo;
+  }
+  return '';
+}
+// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
+function syncFaxNoMirror(){
+  var faxNo = getFaxTargetNo();
+  var hiddenFaxNo = document.getElementById('faxnumber');
+  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
+}
+// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
+// form has one of those
+function primeFaxNo(){
+  try{
+    var faxNoBox = fieldCalled('faxNo');
+    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var input = fieldCalled(candidates[i]);
+      if (!input) continue;
+      var faxNo = (input.value || '').trim();
+      if (faxNo){ faxNoBox.value = faxNo; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var faxControl = document.getElementById('faxControl');
+    if (faxControl){
+      faxControl.style.display = 'inline-block';
+      if (faxControl.children && faxControl.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+// "Fax & Submit": fills in the fax number, faxes, then submits the form
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
+}
+</script>
+
+<script>
+// Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
+// its hidden "<name>_fontsize" input so it is saved with the form
+function changeFontSize(name, delta){
+  var box = document.getElementsByName(name)[0], saved = document.getElementsByName(name + '_fontsize')[0];
+  if (!box) return;
+  var size = Math.max(6, (parseInt(window.getComputedStyle(box).fontSize, 10) || 12) + delta);
+  box.style.fontSize = size + 'px';
+  if (saved){ saved.value = size; saved.setAttribute('value', size); }
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On load: gives each textarea back the font size saved with the form
+function loadFontSize(){
+  var saved = document.querySelectorAll("input[name$='_fontsize']");
+  for (var i = 0; i < saved.length; i++){
+    if (!saved[i].value) continue;
+    var box = document.getElementsByName(saved[i].name.slice(0, -'_fontsize'.length))[0];
+    if (box) box.style.fontSize = saved[i].value + 'px';
+  }
+}
+</script>
+<script>
+// On load: shows each page's background image, then sets up the fax number, signature and the rest
+function startup(){
+  changeImage('cpp_disability_medical_report_page1.png', 'BGImage1');
+  changeImage('cpp_disability_medical_report_page2.png', 'BGImage2');
+  changeImage('cpp_disability_medical_report_page3.png', 'BGImage3');
+  changeImage('cpp_disability_medical_report_page4.png', 'BGImage4');
+  changeImage('cpp_disability_medical_report_page5.png', 'BGImage5');
+  changeImage('cpp_disability_medical_report_page6.png', 'BGImage6');
+  changeImage('cpp_disability_medical_report_page7.png', 'BGImage7');
+  changeImage('cpp_disability_medical_report_page8.png', 'BGImage8');
+  changeImage('cpp_disability_medical_report_page9.png', 'BGImage9');
+  changeImage('cpp_disability_medical_report_page10.png', 'BGImage10');
+  loadFontSize();
+  setFaxNo();
+  primeFaxNo();
+  syncFaxNoMirror();
+  SignForm();
+  checkGender();
+}
+</script>
+</head>
+<body onload="startup()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}cpp_disability_medical_report_page1.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin -->
+<input class="gen_input noborder" id="txtf_sin_1" name="txtf_sin" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:49px; top:618px; width:264px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- rb_language -->
+<input class="xMarkOnly noborder" id="rb_language_2" name="rb_language" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:367px; top:625px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_language_2 -->
+<input class="xMarkOnly noborder" id="rb_language_2_3" name="rb_language_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:445px; top:625px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_salutation -->
+<input class="xMarkOnly noborder" id="rb_salutation_4" name="rb_salutation" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:118px; top:653px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_salutation_2 -->
+<input class="xMarkOnly noborder" id="rb_salutation_2_5" name="rb_salutation_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:169px; top:653px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_salutation_3 -->
+<input class="xMarkOnly noborder" id="rb_salutation_3_6" name="rb_salutation_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:230px; top:653px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_salutation_4 -->
+<input class="xMarkOnly noborder" id="rb_salutation_4_7" name="rb_salutation_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:290px; top:653px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_firstnameandinitial -->
+<input class="gen_input noborder" id="txtf_firstnameandinitial_8" name="txtf_firstnameandinitial" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:49px; top:690px; width:192px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_firstnameandinitial_2 -->
+<input class="gen_input noborder" id="txtf_firstnameandinitial_2_9" name="txtf_firstnameandinitial_2" type="text" autocomplete="off" style="position:absolute; left:247px; top:690px; width:115px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_firstnameandinitial_3 -->
+<input class="gen_input noborder" id="txtf_firstnameandinitial_3_10" name="txtf_firstnameandinitial_3" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:368px; top:690px; width:192px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_dob -->
+<input class="gen_input noborder" id="txtf_dob_11" name="txtf_dob" oscarDB="dobc2" type="text" autocomplete="off" style="position:absolute; left:49px; top:734px; width:192px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_lastnamebirth -->
+<input class="gen_input noborder" id="txtf_lastnamebirth_12" name="txtf_lastnamebirth" type="text" autocomplete="off" style="position:absolute; left:247px; top:734px; width:313px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_homeaddress -->
+<input class="gen_input noborder" id="txtf_homeaddress_13" name="txtf_homeaddress" oscarDB="address" type="text" autocomplete="off" style="position:absolute; left:49px; top:778px; width:655px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_telehphone -->
+<input class="gen_input noborder" id="txtf_telehphone_14" name="txtf_telehphone" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:49px; top:822px; width:324px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- txtf_alternatetelephone -->
+<input class="gen_input noborder" id="txtf_alternatetelephone_15" name="txtf_alternatetelephone" type="text" autocomplete="off" style="position:absolute; left:379px; top:822px; width:324px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- rb_best_time_to_call -->
+<input class="xMarkOnly noborder" id="rb_best_time_to_call_16" name="rb_best_time_to_call" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:325px; top:862px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_best_time_to_call_2 -->
+<input class="xMarkOnly noborder" id="rb_best_time_to_call_2_17" name="rb_best_time_to_call_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:403px; top:862px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_best_time_to_call_3 -->
+<input class="xMarkOnly noborder" id="rb_best_time_to_call_3_18" name="rb_best_time_to_call_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:491px; top:862px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+</div>
+<div id="page2" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage2" src="${oscar_image_path}cpp_disability_medical_report_page2.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_2 -->
+<input class="gen_input noborder" id="txtf_sin_2_19" name="txtf_sin_2" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- rb_consent -->
+<input class="xMarkOnly noborder" id="rb_consent_20" name="rb_consent" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:49px; top:452px; width:15px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_consent_2 -->
+<input class="xMarkOnly noborder" id="rb_consent_2_21" name="rb_consent_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:49px; top:511px; width:15px; height:15px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- df_date -->
+<input class="gen_input noborder" id="df_date_23" name="df_date" oscarDB="today" type="text" autocomplete="off" style="position:absolute; left:424px; top:643px; width:120px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent;">
+<!-- txtf_givenname -->
+<input class="gen_input noborder" id="txtf_givenname_24" name="txtf_givenname" type="text" autocomplete="off" style="position:absolute; left:49px; top:772px; width:164px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- txtf_givenname_2 -->
+<input class="gen_input noborder" id="txtf_givenname_2_25" name="txtf_givenname_2" type="text" autocomplete="off" style="position:absolute; left:219px; top:772px; width:109px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- txtf_givenname_3 -->
+<input class="gen_input noborder" id="txtf_givenname_3_26" name="txtf_givenname_3" type="text" autocomplete="off" style="position:absolute; left:335px; top:772px; width:181px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- txtf_givenname_4 -->
+<input class="gen_input noborder" id="txtf_givenname_4_27" name="txtf_givenname_4" type="text" autocomplete="off" style="position:absolute; left:523px; top:772px; width:181px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- df_datewitnesssignature -->
+<input class="gen_input noborder" id="df_datewitnesssignature_29" name="df_datewitnesssignature" oscarDB="today" type="text" autocomplete="off" style="position:absolute; left:523px; top:811px; width:181px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+</div>
+<div id="page3" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage3" src="${oscar_image_path}cpp_disability_medical_report_page3.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_3 -->
+<input class="gen_input noborder" id="txtf_sin_3_30" name="txtf_sin_3" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+</div>
+<div id="page4" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage4" src="${oscar_image_path}cpp_disability_medical_report_page4.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_4 -->
+<input class="gen_input noborder" id="txtf_sin_4_31" name="txtf_sin_4" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- rb_howmanyyears -->
+<input class="xMarkOnly noborder" id="rb_howmanyyears_32" name="rb_howmanyyears" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:50px; top:589px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_howmanyyears_2 -->
+<input class="xMarkOnly noborder" id="rb_howmanyyears_2_33" name="rb_howmanyyears_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:160px; top:589px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_howmanyyears_3 -->
+<input class="xMarkOnly noborder" id="rb_howmanyyears_3_34" name="rb_howmanyyears_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:265px; top:589px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_howmanyyears_4 -->
+<input class="xMarkOnly noborder" id="rb_howmanyyears_4_35" name="rb_howmanyyears_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:369px; top:589px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_numberoftimes -->
+<input class="gen_input noborder" id="txtf_numberoftimes_36" name="txtf_numberoftimes" type="text" autocomplete="off" style="position:absolute; left:452px; top:612px; width:105px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent;">
+<!-- df_dateoflastvisit -->
+<input class="gen_input noborder" id="df_dateoflastvisit_37" name="df_dateoflastvisit" type="text" autocomplete="off" style="position:absolute; left:259px; top:640px; width:144px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent;">
+<!-- df_dateyoufirststarted -->
+<input class="gen_input noborder" id="df_dateyoufirststarted_38" name="df_dateyoufirststarted" type="text" autocomplete="off" style="position:absolute; left:512px; top:673px; width:133px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent;">
+</div>
+<div id="page5" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage5" src="${oscar_image_path}cpp_disability_medical_report_page5.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_5 -->
+<input class="gen_input noborder" id="txtf_sin_5_39" name="txtf_sin_5" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- yes -->
+<input class="xMarkOnly noborder" id="yes_40" name="yes" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:83px; top:303px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_row1 -->
+<textarea class="gen_input noborder" id="txtf_row1_41" name="txtf_row1" style="position:absolute; left:61px; top:365px; width:327px; height:41px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_icdcode -->
+<textarea class="gen_input noborder" id="txtf_icdcode_42" name="txtf_icdcode" style="position:absolute; left:392px; top:365px; width:140px; height:41px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- df_row1 -->
+<input class="gen_input noborder" id="df_row1_43" name="df_row1" type="text" autocomplete="off" style="position:absolute; left:536px; top:365px; width:151px; height:41px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- yes_2 -->
+<input class="xMarkOnly noborder" id="yes_2_44" name="yes_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:83px; top:551px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_row1 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:391px; top:365px;" onclick="changeFontSize('txtf_row1', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:391px; top:385px;" onclick="changeFontSize('txtf_row1', -1);">&#9660;</span>
+<input type="hidden" name="txtf_row1_fontsize" id="txtf_row1_fontsize">
+<!-- txtf_icdcode -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:534px; top:365px;" onclick="changeFontSize('txtf_icdcode', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:534px; top:385px;" onclick="changeFontSize('txtf_icdcode', -1);">&#9660;</span>
+<input type="hidden" name="txtf_icdcode_fontsize" id="txtf_icdcode_fontsize">
+</div>
+<div id="page6" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage6" src="${oscar_image_path}cpp_disability_medical_report_page6.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_6 -->
+<input class="gen_input noborder" id="txtf_sin_6_47" name="txtf_sin_6" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_patient_height -->
+<input class="gen_input noborder" id="txtf_patient_height_48" name="txtf_patient_height" type="text" autocomplete="off" style="position:absolute; left:49px; top:121px; width:324px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- txtf_patient_weight -->
+<input class="gen_input noborder" id="txtf_patient_weight_49" name="txtf_patient_weight" type="text" autocomplete="off" style="position:absolute; left:379px; top:121px; width:324px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- txtf_medicalcondition -->
+<input class="gen_input noborder" id="txtf_medicalcondition_50" name="txtf_medicalcondition" type="text" autocomplete="off" style="position:absolute; left:151px; top:146px; width:552px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_icdcode_2 -->
+<input class="gen_input noborder" id="txtf_icdcode_2_51" name="txtf_icdcode_2" type="text" autocomplete="off" style="position:absolute; left:178px; top:168px; width:525px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- df_dateofsymptomonset -->
+<input class="gen_input noborder" id="df_dateofsymptomonset_52" name="df_dateofsymptomonset" type="text" autocomplete="off" style="position:absolute; left:250px; top:190px; width:454px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_impairment -->
+<textarea class="gen_input noborder" id="txtf_impairment_53" name="txtf_impairment" style="position:absolute; left:49px; top:230px; width:655px; height:77px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_functionallimitations -->
+<textarea class="gen_input noborder" id="txtf_functionallimitations_54" name="txtf_functionallimitations" style="position:absolute; left:49px; top:329px; width:655px; height:77px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- rb_prognosis -->
+<input class="xMarkOnly noborder" id="rb_prognosis_55" name="rb_prognosis" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:430px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_2 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_2_56" name="rb_prognosis_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:259px; top:430px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_3 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_3_57" name="rb_prognosis_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:364px; top:430px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_4 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_4_58" name="rb_prognosis_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:496px; top:430px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_expectedduration -->
+<input class="xMarkOnly noborder" id="rb_expectedduration_59" name="rb_expectedduration" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:477px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_expectedduration_2 -->
+<input class="xMarkOnly noborder" id="rb_expectedduration_2_60" name="rb_expectedduration_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:309px; top:477px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency -->
+<input class="xMarkOnly noborder" id="rb_frequency_61" name="rb_frequency" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:504px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_2 -->
+<input class="xMarkOnly noborder" id="rb_frequency_2_62" name="rb_frequency_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:309px; top:504px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_3 -->
+<input class="xMarkOnly noborder" id="rb_frequency_3_63" name="rb_frequency_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:419px; top:504px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- textfield1 -->
+<textarea class="gen_input noborder" id="textfield1_64" name="textfield1" style="position:absolute; left:49px; top:603px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield1 -->
+<input class="gen_input noborder" id="datefield1_65" name="datefield1" type="text" autocomplete="off" style="position:absolute; left:245px; top:603px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield4 -->
+<input class="gen_input noborder" id="datefield4_66" name="datefield4" type="text" autocomplete="off" style="position:absolute; left:355px; top:603px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield10 -->
+<textarea class="gen_input noborder" id="textfield10_67" name="textfield10" style="position:absolute; left:472px; top:603px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield6 -->
+<input class="gen_input noborder" id="datefield6_68" name="datefield6" type="text" autocomplete="off" style="position:absolute; left:245px; top:647px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield3 -->
+<input class="gen_input noborder" id="datefield3_69" name="datefield3" type="text" autocomplete="off" style="position:absolute; left:355px; top:647px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield9 -->
+<textarea class="gen_input noborder" id="textfield9_70" name="textfield9" style="position:absolute; left:472px; top:647px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield1_2 -->
+<textarea class="gen_input noborder" id="textfield1_2_71" name="textfield1_2" style="position:absolute; left:49px; top:647px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield5 -->
+<input class="gen_input noborder" id="datefield5_72" name="datefield5" type="text" autocomplete="off" style="position:absolute; left:245px; top:692px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield2 -->
+<input class="gen_input noborder" id="datefield2_73" name="datefield2" type="text" autocomplete="off" style="position:absolute; left:355px; top:692px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield8 -->
+<textarea class="gen_input noborder" id="textfield8_74" name="textfield8" style="position:absolute; left:472px; top:692px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield1_3 -->
+<textarea class="gen_input noborder" id="textfield1_3_75" name="textfield1_3" style="position:absolute; left:49px; top:692px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield22 -->
+<textarea class="gen_input noborder" id="textfield22_76" name="textfield22" style="position:absolute; left:49px; top:791px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield12 -->
+<input class="gen_input noborder" id="datefield12_77" name="datefield12" type="text" autocomplete="off" style="position:absolute; left:245px; top:791px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield11 -->
+<input class="gen_input noborder" id="datefield11_78" name="datefield11" type="text" autocomplete="off" style="position:absolute; left:355px; top:791px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield19 -->
+<textarea class="gen_input noborder" id="textfield19_79" name="textfield19" style="position:absolute; left:472px; top:791px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield18 -->
+<textarea class="gen_input noborder" id="textfield18_80" name="textfield18" style="position:absolute; left:49px; top:835px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield10 -->
+<input class="gen_input noborder" id="datefield10_81" name="datefield10" type="text" autocomplete="off" style="position:absolute; left:245px; top:835px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield9 -->
+<input class="gen_input noborder" id="datefield9_82" name="datefield9" type="text" autocomplete="off" style="position:absolute; left:355px; top:835px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield15 -->
+<textarea class="gen_input noborder" id="textfield15_83" name="textfield15" style="position:absolute; left:472px; top:835px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield14 -->
+<textarea class="gen_input noborder" id="textfield14_84" name="textfield14" style="position:absolute; left:49px; top:879px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield8 -->
+<input class="gen_input noborder" id="datefield8_85" name="datefield8" type="text" autocomplete="off" style="position:absolute; left:245px; top:879px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield7 -->
+<input class="gen_input noborder" id="datefield7_86" name="datefield7" type="text" autocomplete="off" style="position:absolute; left:355px; top:879px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield11 -->
+<textarea class="gen_input noborder" id="textfield11_87" name="textfield11" style="position:absolute; left:472px; top:879px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_impairment -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:230px;" onclick="changeFontSize('txtf_impairment', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:250px;" onclick="changeFontSize('txtf_impairment', -1);">&#9660;</span>
+<input type="hidden" name="txtf_impairment_fontsize" id="txtf_impairment_fontsize">
+<!-- txtf_functionallimitations -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:329px;" onclick="changeFontSize('txtf_functionallimitations', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:349px;" onclick="changeFontSize('txtf_functionallimitations', -1);">&#9660;</span>
+<input type="hidden" name="txtf_functionallimitations_fontsize" id="txtf_functionallimitations_fontsize">
+<!-- textfield1 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:603px;" onclick="changeFontSize('textfield1', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:623px;" onclick="changeFontSize('textfield1', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_fontsize" id="textfield1_fontsize">
+<!-- textfield10 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:603px;" onclick="changeFontSize('textfield10', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:623px;" onclick="changeFontSize('textfield10', -1);">&#9660;</span>
+<input type="hidden" name="textfield10_fontsize" id="textfield10_fontsize">
+<!-- textfield9 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:647px;" onclick="changeFontSize('textfield9', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:667px;" onclick="changeFontSize('textfield9', -1);">&#9660;</span>
+<input type="hidden" name="textfield9_fontsize" id="textfield9_fontsize">
+<!-- textfield1_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:647px;" onclick="changeFontSize('textfield1_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:667px;" onclick="changeFontSize('textfield1_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_2_fontsize" id="textfield1_2_fontsize">
+<!-- textfield8 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:692px;" onclick="changeFontSize('textfield8', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:712px;" onclick="changeFontSize('textfield8', -1);">&#9660;</span>
+<input type="hidden" name="textfield8_fontsize" id="textfield8_fontsize">
+<!-- textfield1_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:692px;" onclick="changeFontSize('textfield1_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:712px;" onclick="changeFontSize('textfield1_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_3_fontsize" id="textfield1_3_fontsize">
+<!-- textfield22 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:791px;" onclick="changeFontSize('textfield22', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:811px;" onclick="changeFontSize('textfield22', -1);">&#9660;</span>
+<input type="hidden" name="textfield22_fontsize" id="textfield22_fontsize">
+<!-- textfield19 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:791px;" onclick="changeFontSize('textfield19', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:811px;" onclick="changeFontSize('textfield19', -1);">&#9660;</span>
+<input type="hidden" name="textfield19_fontsize" id="textfield19_fontsize">
+<!-- textfield18 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:835px;" onclick="changeFontSize('textfield18', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:855px;" onclick="changeFontSize('textfield18', -1);">&#9660;</span>
+<input type="hidden" name="textfield18_fontsize" id="textfield18_fontsize">
+<!-- textfield15 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:835px;" onclick="changeFontSize('textfield15', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:855px;" onclick="changeFontSize('textfield15', -1);">&#9660;</span>
+<input type="hidden" name="textfield15_fontsize" id="textfield15_fontsize">
+<!-- textfield14 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:879px;" onclick="changeFontSize('textfield14', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:899px;" onclick="changeFontSize('textfield14', -1);">&#9660;</span>
+<input type="hidden" name="textfield14_fontsize" id="textfield14_fontsize">
+<!-- textfield11 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:879px;" onclick="changeFontSize('textfield11', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:899px;" onclick="changeFontSize('textfield11', -1);">&#9660;</span>
+<input type="hidden" name="textfield11_fontsize" id="textfield11_fontsize">
+</div>
+<div id="page7" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage7" src="${oscar_image_path}cpp_disability_medical_report_page7.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_7 -->
+<input class="gen_input noborder" id="txtf_sin_7_102" name="txtf_sin_7" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_medicalcondition_2 -->
+<input class="gen_input noborder" id="txtf_medicalcondition_2_103" name="txtf_medicalcondition_2" type="text" autocomplete="off" style="position:absolute; left:151px; top:96px; width:552px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_icdcode_3 -->
+<input class="gen_input noborder" id="txtf_icdcode_3_104" name="txtf_icdcode_3" type="text" autocomplete="off" style="position:absolute; left:182px; top:118px; width:522px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- df_dateofsymptomonset_2 -->
+<input class="gen_input noborder" id="df_dateofsymptomonset_2_105" name="df_dateofsymptomonset_2" type="text" autocomplete="off" style="position:absolute; left:250px; top:140px; width:454px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_impairment_2 -->
+<textarea class="gen_input noborder" id="txtf_impairment_2_106" name="txtf_impairment_2" style="position:absolute; left:49px; top:180px; width:655px; height:83px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_functionallimitations_2 -->
+<textarea class="gen_input noborder" id="txtf_functionallimitations_2_107" name="txtf_functionallimitations_2" style="position:absolute; left:49px; top:284px; width:655px; height:83px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- rb_prognosis_5 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_5_108" name="rb_prognosis_5" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_6 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_6_109" name="rb_prognosis_6" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:259px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_7 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_7_110" name="rb_prognosis_7" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:364px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_8 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_8_111" name="rb_prognosis_8" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:496px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_expectedduration_3 -->
+<input class="xMarkOnly noborder" id="rb_expectedduration_3_112" name="rb_expectedduration_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:438px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_expectedduration_4 -->
+<input class="xMarkOnly noborder" id="rb_expectedduration_4_113" name="rb_expectedduration_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:309px; top:438px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_4 -->
+<input class="xMarkOnly noborder" id="rb_frequency_4_114" name="rb_frequency_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:465px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_5 -->
+<input class="xMarkOnly noborder" id="rb_frequency_5_115" name="rb_frequency_5" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:309px; top:465px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_6 -->
+<input class="xMarkOnly noborder" id="rb_frequency_6_116" name="rb_frequency_6" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:425px; top:465px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- textfield1_4 -->
+<textarea class="gen_input noborder" id="textfield1_4_117" name="textfield1_4" style="position:absolute; left:49px; top:559px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield18 -->
+<input class="gen_input noborder" id="datefield18_118" name="datefield18" type="text" autocomplete="off" style="position:absolute; left:245px; top:559px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield17 -->
+<input class="gen_input noborder" id="datefield17_119" name="datefield17" type="text" autocomplete="off" style="position:absolute; left:355px; top:559px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield10_2 -->
+<textarea class="gen_input noborder" id="textfield10_2_120" name="textfield10_2" style="position:absolute; left:472px; top:559px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield16 -->
+<input class="gen_input noborder" id="datefield16_121" name="datefield16" type="text" autocomplete="off" style="position:absolute; left:245px; top:603px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield15 -->
+<input class="gen_input noborder" id="datefield15_122" name="datefield15" type="text" autocomplete="off" style="position:absolute; left:355px; top:603px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield9_2 -->
+<textarea class="gen_input noborder" id="textfield9_2_123" name="textfield9_2" style="position:absolute; left:472px; top:603px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield1_5 -->
+<textarea class="gen_input noborder" id="textfield1_5_124" name="textfield1_5" style="position:absolute; left:49px; top:603px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield14 -->
+<input class="gen_input noborder" id="datefield14_125" name="datefield14" type="text" autocomplete="off" style="position:absolute; left:245px; top:647px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield13 -->
+<input class="gen_input noborder" id="datefield13_126" name="datefield13" type="text" autocomplete="off" style="position:absolute; left:355px; top:647px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield8_2 -->
+<textarea class="gen_input noborder" id="textfield8_2_127" name="textfield8_2" style="position:absolute; left:472px; top:647px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield1_6 -->
+<textarea class="gen_input noborder" id="textfield1_6_128" name="textfield1_6" style="position:absolute; left:49px; top:647px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield22_2 -->
+<textarea class="gen_input noborder" id="textfield22_2_129" name="textfield22_2" style="position:absolute; left:49px; top:747px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield24 -->
+<input class="gen_input noborder" id="datefield24_130" name="datefield24" type="text" autocomplete="off" style="position:absolute; left:245px; top:747px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield23 -->
+<input class="gen_input noborder" id="datefield23_131" name="datefield23" type="text" autocomplete="off" style="position:absolute; left:355px; top:747px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield19_2 -->
+<textarea class="gen_input noborder" id="textfield19_2_132" name="textfield19_2" style="position:absolute; left:472px; top:747px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield18_2 -->
+<textarea class="gen_input noborder" id="textfield18_2_133" name="textfield18_2" style="position:absolute; left:49px; top:791px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield22 -->
+<input class="gen_input noborder" id="datefield22_134" name="datefield22" type="text" autocomplete="off" style="position:absolute; left:245px; top:791px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield21 -->
+<input class="gen_input noborder" id="datefield21_135" name="datefield21" type="text" autocomplete="off" style="position:absolute; left:355px; top:791px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield15_2 -->
+<textarea class="gen_input noborder" id="textfield15_2_136" name="textfield15_2" style="position:absolute; left:472px; top:791px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield14_2 -->
+<textarea class="gen_input noborder" id="textfield14_2_137" name="textfield14_2" style="position:absolute; left:49px; top:835px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield20 -->
+<input class="gen_input noborder" id="datefield20_138" name="datefield20" type="text" autocomplete="off" style="position:absolute; left:245px; top:835px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield19 -->
+<input class="gen_input noborder" id="datefield19_139" name="datefield19" type="text" autocomplete="off" style="position:absolute; left:355px; top:835px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield11_2 -->
+<textarea class="gen_input noborder" id="textfield11_2_140" name="textfield11_2" style="position:absolute; left:472px; top:835px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_impairment_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:180px;" onclick="changeFontSize('txtf_impairment_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:200px;" onclick="changeFontSize('txtf_impairment_2', -1);">&#9660;</span>
+<input type="hidden" name="txtf_impairment_2_fontsize" id="txtf_impairment_2_fontsize">
+<!-- txtf_functionallimitations_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:284px;" onclick="changeFontSize('txtf_functionallimitations_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:304px;" onclick="changeFontSize('txtf_functionallimitations_2', -1);">&#9660;</span>
+<input type="hidden" name="txtf_functionallimitations_2_fontsize" id="txtf_functionallimitations_2_fontsize">
+<!-- textfield1_4 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:559px;" onclick="changeFontSize('textfield1_4', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:579px;" onclick="changeFontSize('textfield1_4', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_4_fontsize" id="textfield1_4_fontsize">
+<!-- textfield10_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:559px;" onclick="changeFontSize('textfield10_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:579px;" onclick="changeFontSize('textfield10_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield10_2_fontsize" id="textfield10_2_fontsize">
+<!-- textfield9_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:603px;" onclick="changeFontSize('textfield9_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:623px;" onclick="changeFontSize('textfield9_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield9_2_fontsize" id="textfield9_2_fontsize">
+<!-- textfield1_5 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:603px;" onclick="changeFontSize('textfield1_5', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:623px;" onclick="changeFontSize('textfield1_5', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_5_fontsize" id="textfield1_5_fontsize">
+<!-- textfield8_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:647px;" onclick="changeFontSize('textfield8_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:667px;" onclick="changeFontSize('textfield8_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield8_2_fontsize" id="textfield8_2_fontsize">
+<!-- textfield1_6 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:647px;" onclick="changeFontSize('textfield1_6', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:667px;" onclick="changeFontSize('textfield1_6', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_6_fontsize" id="textfield1_6_fontsize">
+<!-- textfield22_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:747px;" onclick="changeFontSize('textfield22_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:767px;" onclick="changeFontSize('textfield22_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield22_2_fontsize" id="textfield22_2_fontsize">
+<!-- textfield19_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:747px;" onclick="changeFontSize('textfield19_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:767px;" onclick="changeFontSize('textfield19_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield19_2_fontsize" id="textfield19_2_fontsize">
+<!-- textfield18_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:791px;" onclick="changeFontSize('textfield18_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:811px;" onclick="changeFontSize('textfield18_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield18_2_fontsize" id="textfield18_2_fontsize">
+<!-- textfield15_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:791px;" onclick="changeFontSize('textfield15_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:811px;" onclick="changeFontSize('textfield15_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield15_2_fontsize" id="textfield15_2_fontsize">
+<!-- textfield14_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:835px;" onclick="changeFontSize('textfield14_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:855px;" onclick="changeFontSize('textfield14_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield14_2_fontsize" id="textfield14_2_fontsize">
+<!-- textfield11_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:835px;" onclick="changeFontSize('textfield11_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:855px;" onclick="changeFontSize('textfield11_2', -1);">&#9660;</span>
+<input type="hidden" name="textfield11_2_fontsize" id="textfield11_2_fontsize">
+</div>
+<div id="page8" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage8" src="${oscar_image_path}cpp_disability_medical_report_page8.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_8 -->
+<input class="gen_input noborder" id="txtf_sin_8_155" name="txtf_sin_8" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_medicalcondition_3 -->
+<input class="gen_input noborder" id="txtf_medicalcondition_3_156" name="txtf_medicalcondition_3" type="text" autocomplete="off" style="position:absolute; left:151px; top:96px; width:552px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_icdcode_4 -->
+<input class="gen_input noborder" id="txtf_icdcode_4_157" name="txtf_icdcode_4" type="text" autocomplete="off" style="position:absolute; left:181px; top:118px; width:523px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- df_dateofsymptomonset_3 -->
+<input class="gen_input noborder" id="df_dateofsymptomonset_3_158" name="df_dateofsymptomonset_3" type="text" autocomplete="off" style="position:absolute; left:250px; top:140px; width:454px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_impairment_3 -->
+<textarea class="gen_input noborder" id="txtf_impairment_3_159" name="txtf_impairment_3" style="position:absolute; left:49px; top:180px; width:655px; height:83px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_functionallimitations_3 -->
+<textarea class="gen_input noborder" id="txtf_functionallimitations_3_160" name="txtf_functionallimitations_3" style="position:absolute; left:49px; top:284px; width:655px; height:83px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- rb_prognosis_9 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_9_161" name="rb_prognosis_9" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_10 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_10_162" name="rb_prognosis_10" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:259px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_11 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_11_163" name="rb_prognosis_11" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:364px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_prognosis_12 -->
+<input class="xMarkOnly noborder" id="rb_prognosis_12_164" name="rb_prognosis_12" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:496px; top:391px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_expectedduration_5 -->
+<input class="xMarkOnly noborder" id="rb_expectedduration_5_165" name="rb_expectedduration_5" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:438px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_expectedduration_6 -->
+<input class="xMarkOnly noborder" id="rb_expectedduration_6_166" name="rb_expectedduration_6" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:309px; top:438px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_7 -->
+<input class="xMarkOnly noborder" id="rb_frequency_7_167" name="rb_frequency_7" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:165px; top:465px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_8 -->
+<input class="xMarkOnly noborder" id="rb_frequency_8_168" name="rb_frequency_8" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:309px; top:465px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_frequency_9 -->
+<input class="xMarkOnly noborder" id="rb_frequency_9_169" name="rb_frequency_9" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:425px; top:465px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- textfield1_7 -->
+<textarea class="gen_input noborder" id="textfield1_7_170" name="textfield1_7" style="position:absolute; left:49px; top:559px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield30 -->
+<input class="gen_input noborder" id="datefield30_171" name="datefield30" type="text" autocomplete="off" style="position:absolute; left:245px; top:559px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield29 -->
+<input class="gen_input noborder" id="datefield29_172" name="datefield29" type="text" autocomplete="off" style="position:absolute; left:355px; top:559px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield10_3 -->
+<textarea class="gen_input noborder" id="textfield10_3_173" name="textfield10_3" style="position:absolute; left:472px; top:559px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield1_8 -->
+<textarea class="gen_input noborder" id="textfield1_8_174" name="textfield1_8" style="position:absolute; left:49px; top:603px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield28 -->
+<input class="gen_input noborder" id="datefield28_175" name="datefield28" type="text" autocomplete="off" style="position:absolute; left:245px; top:603px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield27 -->
+<input class="gen_input noborder" id="datefield27_176" name="datefield27" type="text" autocomplete="off" style="position:absolute; left:355px; top:603px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield9_3 -->
+<textarea class="gen_input noborder" id="textfield9_3_177" name="textfield9_3" style="position:absolute; left:472px; top:603px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield1_9 -->
+<textarea class="gen_input noborder" id="textfield1_9_178" name="textfield1_9" style="position:absolute; left:49px; top:647px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield26 -->
+<input class="gen_input noborder" id="datefield26_179" name="datefield26" type="text" autocomplete="off" style="position:absolute; left:245px; top:647px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield25 -->
+<input class="gen_input noborder" id="datefield25_180" name="datefield25" type="text" autocomplete="off" style="position:absolute; left:355px; top:647px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield8_3 -->
+<textarea class="gen_input noborder" id="textfield8_3_181" name="textfield8_3" style="position:absolute; left:472px; top:647px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield22_3 -->
+<textarea class="gen_input noborder" id="textfield22_3_182" name="textfield22_3" style="position:absolute; left:49px; top:747px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield36 -->
+<input class="gen_input noborder" id="datefield36_183" name="datefield36" type="text" autocomplete="off" style="position:absolute; left:245px; top:747px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield35 -->
+<input class="gen_input noborder" id="datefield35_184" name="datefield35" type="text" autocomplete="off" style="position:absolute; left:355px; top:747px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield19_3 -->
+<textarea class="gen_input noborder" id="textfield19_3_185" name="textfield19_3" style="position:absolute; left:472px; top:747px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield18_3 -->
+<textarea class="gen_input noborder" id="textfield18_3_186" name="textfield18_3" style="position:absolute; left:49px; top:791px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield34 -->
+<input class="gen_input noborder" id="datefield34_187" name="datefield34" type="text" autocomplete="off" style="position:absolute; left:245px; top:791px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield33 -->
+<input class="gen_input noborder" id="datefield33_188" name="datefield33" type="text" autocomplete="off" style="position:absolute; left:355px; top:791px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield15_3 -->
+<textarea class="gen_input noborder" id="textfield15_3_189" name="textfield15_3" style="position:absolute; left:472px; top:791px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- textfield14_3 -->
+<textarea class="gen_input noborder" id="textfield14_3_190" name="textfield14_3" style="position:absolute; left:49px; top:835px; width:192px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- datefield32 -->
+<input class="gen_input noborder" id="datefield32_191" name="datefield32" type="text" autocomplete="off" style="position:absolute; left:245px; top:835px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- datefield31 -->
+<input class="gen_input noborder" id="datefield31_192" name="datefield31" type="text" autocomplete="off" style="position:absolute; left:355px; top:835px; width:106px; height:40px; font-family:sans-serif; font-size:24px; background-color:transparent;">
+<!-- textfield11_3 -->
+<textarea class="gen_input noborder" id="textfield11_3_193" name="textfield11_3" style="position:absolute; left:472px; top:835px; width:232px; height:40px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_impairment_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:180px;" onclick="changeFontSize('txtf_impairment_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:200px;" onclick="changeFontSize('txtf_impairment_3', -1);">&#9660;</span>
+<input type="hidden" name="txtf_impairment_3_fontsize" id="txtf_impairment_3_fontsize">
+<!-- txtf_functionallimitations_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:284px;" onclick="changeFontSize('txtf_functionallimitations_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:304px;" onclick="changeFontSize('txtf_functionallimitations_3', -1);">&#9660;</span>
+<input type="hidden" name="txtf_functionallimitations_3_fontsize" id="txtf_functionallimitations_3_fontsize">
+<!-- textfield1_7 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:559px;" onclick="changeFontSize('textfield1_7', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:579px;" onclick="changeFontSize('textfield1_7', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_7_fontsize" id="textfield1_7_fontsize">
+<!-- textfield10_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:559px;" onclick="changeFontSize('textfield10_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:579px;" onclick="changeFontSize('textfield10_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield10_3_fontsize" id="textfield10_3_fontsize">
+<!-- textfield1_8 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:603px;" onclick="changeFontSize('textfield1_8', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:623px;" onclick="changeFontSize('textfield1_8', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_8_fontsize" id="textfield1_8_fontsize">
+<!-- textfield9_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:603px;" onclick="changeFontSize('textfield9_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:623px;" onclick="changeFontSize('textfield9_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield9_3_fontsize" id="textfield9_3_fontsize">
+<!-- textfield1_9 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:647px;" onclick="changeFontSize('textfield1_9', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:667px;" onclick="changeFontSize('textfield1_9', -1);">&#9660;</span>
+<input type="hidden" name="textfield1_9_fontsize" id="textfield1_9_fontsize">
+<!-- textfield8_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:647px;" onclick="changeFontSize('textfield8_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:667px;" onclick="changeFontSize('textfield8_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield8_3_fontsize" id="textfield8_3_fontsize">
+<!-- textfield22_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:747px;" onclick="changeFontSize('textfield22_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:767px;" onclick="changeFontSize('textfield22_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield22_3_fontsize" id="textfield22_3_fontsize">
+<!-- textfield19_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:747px;" onclick="changeFontSize('textfield19_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:767px;" onclick="changeFontSize('textfield19_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield19_3_fontsize" id="textfield19_3_fontsize">
+<!-- textfield18_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:791px;" onclick="changeFontSize('textfield18_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:811px;" onclick="changeFontSize('textfield18_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield18_3_fontsize" id="textfield18_3_fontsize">
+<!-- textfield15_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:791px;" onclick="changeFontSize('textfield15_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:811px;" onclick="changeFontSize('textfield15_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield15_3_fontsize" id="textfield15_3_fontsize">
+<!-- textfield14_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:242px; top:835px;" onclick="changeFontSize('textfield14_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:242px; top:855px;" onclick="changeFontSize('textfield14_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield14_3_fontsize" id="textfield14_3_fontsize">
+<!-- textfield11_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:835px;" onclick="changeFontSize('textfield11_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:855px;" onclick="changeFontSize('textfield11_3', -1);">&#9660;</span>
+<input type="hidden" name="textfield11_3_fontsize" id="textfield11_3_fontsize">
+</div>
+<div id="page9" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage9" src="${oscar_image_path}cpp_disability_medical_report_page9.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_9 -->
+<input class="gen_input noborder" id="txtf_sin_9_208" name="txtf_sin_9" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- rb_q1 -->
+<input class="xMarkOnly noborder" id="rb_q1_209" name="rb_q1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:154px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q1_2 -->
+<input class="xMarkOnly noborder" id="rb_q1_2_210" name="rb_q1_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:181px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q1_3 -->
+<input class="xMarkOnly noborder" id="rb_q1_3_211" name="rb_q1_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:209px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- df_dob -->
+<input class="gen_input noborder" id="df_dob_212" name="df_dob" type="text" autocomplete="off" style="position:absolute; left:435px; top:149px; width:128px; height:21px; font-family:sans-serif; font-size:14px; background-color:transparent;">
+<!-- rb_q2 -->
+<input class="xMarkOnly noborder" id="rb_q2_213" name="rb_q2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:303px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q2_2 -->
+<input class="xMarkOnly noborder" id="rb_q2_2_214" name="rb_q2_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:330px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q2_3 -->
+<input class="xMarkOnly noborder" id="rb_q2_3_215" name="rb_q2_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:358px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q3 -->
+<input class="xMarkOnly noborder" id="rb_q3_216" name="rb_q3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:424px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q3_2 -->
+<input class="xMarkOnly noborder" id="rb_q3_2_217" name="rb_q3_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:204px; top:424px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q3_3 -->
+<input class="xMarkOnly noborder" id="rb_q3_3_218" name="rb_q3_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:347px; top:424px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q3_4 -->
+<input class="xMarkOnly noborder" id="rb_q3_4_219" name="rb_q3_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:518px; top:424px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q4 -->
+<input class="xMarkOnly noborder" id="rb_q4_220" name="rb_q4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:490px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q4_2 -->
+<input class="xMarkOnly noborder" id="rb_q4_2_221" name="rb_q4_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:176px; top:490px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q4_3 -->
+<input class="xMarkOnly noborder" id="rb_q4_3_222" name="rb_q4_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:303px; top:490px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_q4_4 -->
+<input class="xMarkOnly noborder" id="rb_q4_4_223" name="rb_q4_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:66px; top:518px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_otherq4 -->
+<input class="gen_input noborder" id="txtf_otherq4_224" name="txtf_otherq4" type="text" autocomplete="off" style="position:absolute; left:129px; top:515px; width:437px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_otherrelevantinformation -->
+<textarea class="gen_input noborder" id="txtf_otherrelevantinformation_225" name="txtf_otherrelevantinformation" style="position:absolute; left:49px; top:639px; width:655px; height:269px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_otherrelevantinformation -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:706px; top:639px;" onclick="changeFontSize('txtf_otherrelevantinformation', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:706px; top:659px;" onclick="changeFontSize('txtf_otherrelevantinformation', -1);">&#9660;</span>
+<input type="hidden" name="txtf_otherrelevantinformation_fontsize" id="txtf_otherrelevantinformation_fontsize">
+</div>
+<div id="page10" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage10" src="${oscar_image_path}cpp_disability_medical_report_page10.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- txtf_sin_10 -->
+<input class="gen_input noborder" id="txtf_sin_10_227" name="txtf_sin_10" oscarDB="sin" type="text" autocomplete="off" style="position:absolute; left:178px; top:30px; width:129px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- medicalinvestigation -->
+<input class="xMarkOnly noborder" id="medicalinvestigation_228" name="medicalinvestigation" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:165px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- medicalinvestigation_2 -->
+<input class="xMarkOnly noborder" id="medicalinvestigation_2_229" name="medicalinvestigation_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:192px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- specialistsreports -->
+<input class="xMarkOnly noborder" id="specialistsreports_230" name="specialistsreports" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:220px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hospitaldischarge -->
+<input class="xMarkOnly noborder" id="hospitaldischarge_231" name="hospitaldischarge" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:248px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- other -->
+<input class="xMarkOnly noborder" id="other_232" name="other" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:275px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_other -->
+<input class="gen_input noborder" id="txtf_other_233" name="txtf_other" type="text" autocomplete="off" style="position:absolute; left:212px; top:272px; width:437px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- rb_section10 -->
+<input class="xMarkOnly noborder" id="rb_section10_234" name="rb_section10" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:413px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_section10_2 -->
+<input class="xMarkOnly noborder" id="rb_section10_2_235" name="rb_section10_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:441px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_section10_3 -->
+<input class="xMarkOnly noborder" id="rb_section10_3_236" name="rb_section10_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:468px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- rb_section10_4 -->
+<input class="xMarkOnly noborder" id="rb_section10_4_237" name="rb_section10_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:61px; top:496px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- txtf_other_2 -->
+<input class="gen_input noborder" id="txtf_other_2_238" name="txtf_other_2" type="text" autocomplete="off" style="position:absolute; left:317px; top:438px; width:332px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- txtf_name -->
+<input class="gen_input noborder" id="txtf_name_239" name="txtf_name" oscarDB="current_user" type="text" autocomplete="off" style="position:absolute; left:49px; top:544px; width:324px; height:28px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- txtf_signature_2 -->
+<textarea class="gen_input noborder" id="txtf_signature_2_240" name="txtf_signature_2" oscarDB="clinic_label" style="position:absolute; left:385px; top:555px; width:313px; height:110px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- txtf_dob_2 -->
+<input class="gen_input noborder" id="txtf_dob_2_242" name="txtf_dob_2" oscarDB="today" type="text" autocomplete="off" style="position:absolute; left:49px; top:643px; width:324px; height:28px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- txtf_signature_2 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:700px; top:555px;" onclick="changeFontSize('txtf_signature_2', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:700px; top:575px;" onclick="changeFontSize('txtf_signature_2', -1);">&#9660;</span>
+<input type="hidden" name="txtf_signature_2_fontsize" id="txtf_signature_2_fontsize">
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+
+</form>
+</body>
+</html>

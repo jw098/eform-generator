@@ -1376,6 +1376,11 @@ else if (typeof exports === 'object')
     // (a question asks for an answer, not the details it names: "ARE YOU THE PATIENT'S REGULAR
     // PRACTITIONER?")
     if (/\?\s*$/.test(label)) return '';
+    // (nor do instructions of more than one sentence, what they name in passing: "Provide specific
+    // details for referral (if required). Attach Patient's current medication list"; not a label
+    // with a word or two after a stop, "Phone (Check primary). Home")
+    const sentences = String(label || '').split(/(?<=[a-z)]{2}[.!])\s+(?=[A-Z])/);
+    if (sentences.length > 1 && sentences.filter(t => t.trim().split(/\s+/).length >= 4).length > 1) return '';
     if (/_/.test(label) && STANDARD_TAGS.has(label.trim())) return label.trim();
     // (a stamp's details: "Doctor stamp", "Physician stamp" is the clinician's name; "Clinic stamp",
     // "Office stamp" the clinic's name and address. Not a stamp offered in brackets as another way
@@ -1408,7 +1413,7 @@ else if (typeof exports === 'object')
     any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name', allergies: 'allergies_des' },
     patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
                  workPhone: 'phone2', email: 'email', address: 'addressline', city: 'city', province: 'province', postal: 'postal',
-                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin' },   // (the patient's MSP or OHIP number is their health number)
+                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin', sin: 'sin', fullAddress: 'address' },   // (the patient's MSP or OHIP number is their health number)
     clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no', college: 'current_user_cpsid' },                       // (OSCAR 12 has no tag for their email)
@@ -1430,14 +1435,20 @@ else if (typeof exports === 'object')
     // witness (print)", the patient's employer: "EMPLOYER ADDRESS", a choice the writer names:
     // "☐ Specialty Clinic (specify): ____")
     if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|witness|employer|employers|time|hours|specify')) return '';
-    // (a name the patient goes by isn't the one in the chart: "Preferred Name", "Nickname")
-    if (hasWord('preferred_name|nickname|alias')) return '';
+    // (a name the patient goes by, or went by, isn't the one in the chart: "Preferred Name",
+    // "Nickname", "Last name at birth (if different from above)")
+    if (hasWord('preferred_name|nickname|alias|birth_name') || (hasWord('at_birth') && hasWord('name|names|surname'))) return '';
+    // (a second number or contact isn't the chart's: "Alternate telephone number", "Alternative contact")
+    if (hasWord('alternate|alternative')) return '';
     if (hasWord('email|e_mail')) return 'email';
+    // (one field for two details holds neither alone: "Phone & Fax: ____", "Address and telephone number")
+    if (hasWord('fax|address') && hasWord('phone|telephone|tel')) return '';
     if (hasWord('fax')) return 'fax';
     if (hasWord('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return hasWord('version') ? 'hinVersion' : 'hin';
     if (hasWord('version_code')) return 'hinVersion';
     if (hasWord('billing')) return 'billing';
     if (hasWord('msp|ohip')) return 'number';
+    if (hasWord('sin|social_insurance_number|social_insurance_no|social_insurance')) return 'sin';
     // (a clinician's licence with their college: "College ID #", "CPSID"; not a word in a name, "Name of college")
     if (hasWord('college_id|college_no|college_number|college_registration|cpsid|cpso|cpsbc') || /^college$/.test(words)) return 'college';
     // ("born ____" is the birth date too, but not "Place born" or "Country born")
@@ -1445,6 +1456,9 @@ else if (typeof exports === 'object')
     if (hasWord('cell|mobile')) return 'cell';
     if (hasWord('work_phone|business_phone')) return 'workPhone';
     if (hasWord('phone|telephone|tel')) return 'phone';
+    // (an address that names its city or postal code with it is the whole address: "Mailing address
+    // (No., Street, Apt.), City/Town, Province/Territory, Postal code")
+    if (hasWord('address') && hasWord('city|town|province|postal|postal_code|zip')) return 'fullAddress';
     if (hasWord('postal|postal_code|zip')) return 'postal';
     if (hasWord('city|town')) return 'city';
     if (hasWord('province')) return 'province';
@@ -1519,7 +1533,8 @@ else if (typeof exports === 'object')
   // its left can be another table's ("PATIENT | REFERRING MD" side by side).
   // The owner is the patient ("Participant information" too), the referring clinician
   // (current_user), the family doctor (doctor, the patient's MRP or PCP), someone else of the patient's
-  // ("Parent/guardian contact information", "Emergency contact"), the receiving office ("FOR
+  // ("Parent/guardian contact information", "Person to contact in case of emergency"; a witness's
+  // details are no more the chart's: "First name of witness"), the receiving office ("FOR
   // OFFICE USE ONLY") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
   // "cc": not the column's or the box's owner, whoever's details are around it); guessTag turns
   // it into the tag (TAG_FOR).
@@ -1527,8 +1542,8 @@ else if (typeof exports === 'object')
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
     ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
-    ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
-    ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|office)\b/],
+    ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|in case of emergency|substitute decision maker|witness(es)?)\b/],
+    ['clinician', /\b(referring|referred by|referral source|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|(?<!post )office)\b/],   // (not an address's "Post Office Box")
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
   ];
   // Whose details a text names ("Referring physician" -> clinician), from OWNER_CUES, or ''
@@ -1539,6 +1554,7 @@ else if (typeof exports === 'object')
     const writes = found.filter(f => (f.type === 'text' || f.type === 'textarea' || f.type === 'date') && f.label);
     const labelOf = new Map();                               // a label's word -> its field
     writes.forEach(f => (f._words || []).forEach(w => labelOf.set(w, f)));
+    const optionWords = new Set(found.filter(f => f.type === 'checkbox').flatMap(f => f._words || []));   // (tick boxes' labels)
     const fieldOfWord = (w) => labelOf.get(w) || null;
     // The page's text in pieces: a line split where its words are far apart (two labels on a row,
     // or headings side by side)
@@ -1566,16 +1582,22 @@ else if (typeof exports === 'object')
     // What is just above: the nearest text over its column (or a heading over the whole width),
     // a field's label (that field's owner) or a short line naming someone (a sentence of
     // instructions doesn't count)
-    const up = (f, box) => {
-      const { x0, top } = extent(f);
-      const above = parts.filter(p => p.y1 <= top + 2 && ((p.x0 < f.x + f.width && p.x1 > x0) || heads(p)) && inside(box, p)).sort((a,b) => b.y1 - a.y1);
-      for (const p of above){
+    // (the text over its column, or a heading over the whole width, nearest first)
+    const textAbove = (f, box) => { const { x0, top } = extent(f);
+      return parts.filter(p => p.y1 <= top + 2 && ((p.x0 < f.x + f.width && p.x1 > x0) || heads(p)) && inside(box, p)).sort((a,b) => b.y1 - a.y1); };
+    // (a short line, not a sentence, naming someone; a heading's aside in brackets doesn't make it
+    // a sentence: "Parent/guardian contact information (for adolescents age 13–18 only)")
+    const namesWhose = (p) => { const aside = p.words.findIndex(w => /^\(/.test(w.text)), lead = aside > 0 ? p.words.slice(0, aside) : p.words;
+      return isSentence(lead) ? '' : ownerCue(lead.map(w => w.text).join(' ')); };
+    // (a line alone on its row: a heading, of a table or a section)
+    const alone = (p) => !parts.some(q => q !== p && q.y0 < p.y1 && q.y1 > p.y0);
+    // (`from`: no higher than this, a table cell's section heading)
+    const up = (f, box, from = -Infinity) => {
+      for (const p of textAbove(f, box)){
+        if (p.y0 < from) break;
         const g = p.words.map(fieldOfWord).find(g => g && g !== f);
         if (g){ if (owner.get(g)) return owner.get(g); continue; }
-        // (a heading's aside in brackets doesn't make it a sentence: "Parent/guardian contact
-        // information (for adolescents age 13–18 only)")
-        const aside = p.words.findIndex(w => /^\(/.test(w.text)), lead = aside > 0 ? p.words.slice(0, aside) : p.words;
-        if (!isSentence(lead)){ const o = ownerCue(lead.map(w => w.text).join(' ')); if (o) return o; }
+        const o = namesWhose(p); if (o) return o;
       }
       return '';
     };
@@ -1590,13 +1612,39 @@ else if (typeof exports === 'object')
       const r = rows[rows.length-1], cy = f.y + f.height/2;
       if (r && Math.abs(cy - r.cy) < Math.max(r.h, f.height)/2) r.fs.push(f); else rows.push({ cy, h: f.height, fs: [f] });
     });
+    // (a row that asks whose relation someone is holds someone else's details: "Name: ____
+    // Relationship: ____", "Phone number: ____  Relationship: ____")
+    const relationRows = new Set(rows.filter(r => r.fs.some(f => /\brelation(ship)?\b/i.test(f.label))).flatMap(r => r.fs));
     rows.flatMap(r => r.fs.sort((a,b) => a.x - b.x))
       .forEach(f => {
         const own = ownerCue(f.label);
         if (own){ owner.set(f, own); return; }                    // (its label says whose)
+        if (relationRows.has(f)){ owner.set(f, 'guardian'); return; }
         // In a box, only what is inside it ("Referring MD" heading the box), and the patient's when
-        // nothing there says; a table cell (a box holding just its label) looks at the page around it
-        const look = (box) => f.box ? up(f, box) || left(f, box) : left(f, box) || up(f, box);
+        // nothing there says; a table cell (a box holding just its label) looks at the page around it:
+        // its column's heading first, then the cells on its row whose own labels say whose (a table
+        // of rows of someone's details: "Physician's Name: ____ | Phone: ____" under the patient's
+        // "Phone: ____"; "Date | Printed Name | Signature"), then the field above it, then the one
+        // before it
+        // (the nearest cell on its row whose own label says whose, those before it first; a copy's
+        // is only its own, "ADDRESS | CITY/TOWN | POSTAL CODE | COPY RESULTS TO:")
+        const rowOwner = () => { const r = rows.find(r => r.fs.includes(f)), cx = f.x + f.width/2;
+          const named = r.fs.filter(g => g !== f && ownerCue(g.label) && ownerCue(g.label) !== 'copy').sort((a,b) => (a.x > f.x) - (b.x > f.x) || Math.abs(a.x + a.width/2 - cx) - Math.abs(b.x + b.width/2 - cx));
+          return named.length ? ownerCue(named[0].label) : ''; };
+        // (the heading over its column, past the other rows' fields: "ORDERING PRACTITIONER" over
+        // "MSP #" over "Phone"; up to a line alone on its row that names no one, over its column or
+        // not, the table's or a section's heading, "Demographics", "Section 1 - Resident Information")
+        // A heading that names no one ends the look up from the cell, there too: what is over it is
+        // another section's ("Care Community Information" under the previous MRP's details)
+        let sectionTop = -Infinity;
+        const heading = (box) => { const { x0, top } = extent(f);
+          for (const p of parts.filter(p => p.y1 <= top + 2 && ((p.x0 < f.x + f.width && p.x1 > x0) || alone(p)) && inside(box, p)).sort((a,b) => b.y1 - a.y1)){
+          // (past the other rows' labels, and tick boxes' options: "☐ Relevant Reports")
+          if (p.words.some(w => optionWords.has(w) || (fieldOfWord(w) && fieldOfWord(w) !== f))) continue;
+          const o = namesWhose(p); if (o) return o;
+          if (alone(p)){ sectionTop = p.y1; return ''; } } return ''; };
+        const cell = (box) => heading(box) || rowOwner() || up(f, box, sectionTop) || left(f, box);
+        const look = (box) => f.box ? cell(box) : left(f, box) || up(f, box);
         const box = !f.box && boxOf ? boxOf(extent(f).x0, f) : null;
         owner.set(f, (box ? look(box) : look(null)) || 'patient');
       });
@@ -5844,7 +5892,9 @@ else if (typeof exports === 'object')
         }
         // (a name the PDF's authoring tool made up says nothing of what the field asks for, so it is no label)
         // (a radio button's or tick box's own value, "Male" of the group "Gender", is part of its label)
-        let label = fieldNamePart(a.alternativeText || a.fieldName);
+        // (its tooltip, whole: a tooltip's full stops end its sentences, "orders (if required).
+        // Attach…", where a name's join its parts, "form1.page2.name")
+        let label = String(a.alternativeText || '').replace(/\s+/g, ' ').trim() || fieldNamePart(a.fieldName);
         const option = type === 'checkbox' ? String(a.buttonValue || a.exportValue || '').trim() : '';
         if (option && !/^(on|yes|off|\d+)$/i.test(option) && !nameKey(label).endsWith(nameKey(option))) label = `${label} ${option}`;
         out.push({ fx: Math.min(x1, x2) / vp.width, fy: Math.min(y1, y2) / vp.width, fw: Math.abs(x2 - x1) / vp.width, fh: Math.abs(y2 - y1) / vp.width,
@@ -6045,6 +6095,12 @@ else if (typeof exports === 'object')
       // alone), at least lineMinPct% of the page's width. A line shorter than that is taken only
       // with room to write on it (textFieldsFromLines)
       const longLine = Math.round(w*(lineMinPct/100)), letterHeight = textCapHeight(inkMap, w, h, 0.75);
+      // A square tick box is at least 0.7 of the page's letter height, as a round button is
+      // (isRealCircle): a small letter whose serifs all but close it, the n of "pain" in a
+      // paragraph, is a square of ink the height of a small letter. Measured on the cases' pages:
+      // such letters 0.41 to 0.65 (and a legend's tiny box, "☐ Optional", 0.65), their tick
+      // boxes 0.73 and up
+      const boxTallEnough = (bw, bh) => !letterHeight || Math.min(bw, bh) >= letterHeight*0.7;
       const minSeg = letterHeight ? Math.max(3, Math.round(letterHeight*2.5)) : longLine;
       const segs = [];
       for(let y=0;y<h;y++){
@@ -6124,7 +6180,7 @@ else if (typeof exports === 'object')
 
           // Round option buttons (○) are real fields too; anything else must pass isRealBox
           const round = isRealCircle(inkMap,w,h,minx,miny,maxx,maxy,letterHeight);
-          if(!round && !isRealBox(inkMap,w,h,minx,miny,maxx,maxy,gray)) continue;
+          if(!round && !(boxTallEnough(bw, bh) && isRealBox(inkMap,w,h,minx,miny,maxx,maxy,gray))) continue;
 
           const type = 'checkbox';
           const size = Math.max(8, sizeNat);
@@ -6143,7 +6199,7 @@ else if (typeof exports === 'object')
       const maxSzPx = Math.round(maxNat * scale);
       // (isRealBox judges the inside, on the grey image, where a blurred side's halo isn't ink)
       const rectCandidates = rectScan(inkMap, w, h, minSzPx, maxSzPx, 0.40, 1,
-        (x1,y1,x2,y2) => isRealBox(inkMap, w, h, x1, y1, x2, y2, gray));
+        (x1,y1,x2,y2) => boxTallEnough(x2-x1+1, y2-y1+1) && isRealBox(inkMap, w, h, x1, y1, x2, y2, gray));
       rectCandidates.forEach(r => {
         const bw = r.x2-r.x1+1, bh = r.y2-r.y1+1;
         const wNat = bw/scale, hNat = bh/scale;
@@ -6278,10 +6334,14 @@ else if (typeof exports === 'object')
       // (a fillable PDF's field its label gives no tag, nor a tick box its sex: its label is the
       // PDF's tooltip or name, often a code, a short form or a word of the row ("prov", "date_birth",
       // "sex_2", "Yes. List"). Then the label printed by it, unless that is a question or a sentence,
-      // which asks for more than one detail; then the PDF's field name, "Allergies")
+      // which asks for more than one detail; then, for a label of a word or three, the PDF's field
+      // name, "Allergies")
       const untagged = (f) => f.type === 'checkbox' ? !f.fill : !f.oscarTag;
+      // (a label of four words or more describes the field itself, and its giving no tag is an answer:
+      // "Date you recommend the patient stop working", which the PDF names "df_DOB")
+      const describes = (label) => String(label || '').trim().split(/\s+/).length >= 4;
       const alternatives = [(f) => f._pageLabel && !isSentence(f._pageWords || []) ? { label: f._pageLabel, _words: f._pageWords } : null,
-                            (f) => f.name && nameKey(f.name) !== nameKey(f.label) ? { label: f.name.replace(/_\d+$/, '').replace(/_/g, ' '), _words: [] } : null];
+                            (f) => f.name && nameKey(f.name) !== nameKey(f.label) && !describes(f.label) ? { label: f.name.replace(/_\d+$/, '').replace(/_/g, ' '), _words: [] } : null];
       if (read && fromPdf) alternatives.forEach(alternative => {
         if (!found.some(f => untagged(f) && alternative(f))) return;
         const others = found.map(f => ({ ...f, ...(alternative(f) || {}), oscarTag: '', fill: undefined }));
