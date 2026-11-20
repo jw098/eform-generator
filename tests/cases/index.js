@@ -942,6 +942,74 @@ window.TEST_CASE_LIST = [
         ],
         "reason": "the Prescriber Signature cell: a signature isn't a text field, and Auto Detect can't make one"
       }
+    ],
+    "variationSkip": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "region": [
+          455,
+          492,
+          40,
+          40
+        ],
+        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
+      }
     ]
   },
   {
@@ -1009,6 +1077,140 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 2,
         "reason": "an information page (the HFC triage flow chart and an acronym legend), with nothing to fill in: the blank in its boxes under their bullet lists, and between the boxes where the connectors run, is taken for writing areas and table cells (each is blank page closed by lines); a check would have to read the bullet lists as statements rather than labels"
+      }
+    ],
+    "variationSkip": [
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "region": [
+          796,
+          34,
+          30,
+          30
+        ],
+        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "region": [
+          796,
+          34,
+          30,
+          30
+        ],
+        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "region": [
+          796,
+          34,
+          30,
+          30
+        ],
+        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "region": [
+          796,
+          34,
+          30,
+          30
+        ],
+        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "region": [
+          796,
+          34,
+          30,
+          30
+        ],
+        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "region": [
+          894,
+          244,
+          40,
+          40
+        ],
+        "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "region": [
+          798,
+          164,
+          30,
+          30
+        ],
+        "reason": "the light grey \"P\" of \"PHN\" in the IH USE ONLY box, closed at 0.7× by the box's side line just left of it"
       }
     ]
   },
@@ -1231,6 +1433,223 @@ window.TEST_CASE_LIST = [
         "test": "extraFields",
         "page": 2,
         "reason": "an information page (\"DO NOT FAX THIS SIDE\": the Clinical Frailty Scale), with nothing to fill in: the blank part of each table row under its description, the header's blank top right, \"Email:\" in a sentence and the page's empty foot are taken for fields; a check would have to read the descriptions as statements rather than labels"
+      }
+    ],
+    "variationSkip": [
+      {
+        "variation": "0.7× size",
+        "boxes": [
+          "arrange_appointment_with_the_contact",
+          "medication_list_attached"
+        ],
+        "reason": "the boxes inside grey bars are lost in the bars on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "boxes": [
+          "arrange_appointment_with_the_contact",
+          "medication_list_attached"
+        ],
+        "reason": "the boxes inside grey bars are lost in the bars on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "boxes": [
+          "arrange_appointment_with_the_contact",
+          "medication_list_attached"
+        ],
+        "reason": "the boxes inside grey bars are lost in the bars on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "boxes": [
+          "arrange_appointment_with_the_contact",
+          "medication_list_attached"
+        ],
+        "reason": "the boxes inside grey bars are lost in the bars on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "boxes": [
+          "arrange_appointment_with_the_contact",
+          "medication_list_attached"
+        ],
+        "reason": "the boxes inside grey bars are lost in the bars on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "boxes": [
+          "arrange_appointment_with_the_contact",
+          "medication_list_attached"
+        ],
+        "reason": "the boxes inside grey bars are lost in the bars on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "region": [
+          124,
+          676,
+          50,
+          50
+        ],
+        "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "page": 1,
+        "region": [
+          184,
+          368,
+          30,
+          30
+        ],
+        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "page": 1,
+        "region": [
+          184,
+          368,
+          30,
+          30
+        ],
+        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "page": 1,
+        "region": [
+          184,
+          368,
+          30,
+          30
+        ],
+        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "page": 1,
+        "region": [
+          184,
+          368,
+          30,
+          30
+        ],
+        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "region": [
+          184,
+          368,
+          30,
+          30
+        ],
+        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "0.7× size",
+        "page": 1,
+        "region": [
+          478,
+          652,
+          30,
+          30
+        ],
+        "reason": "the bold O of \"DO NOT PROCEED\" at 0.7× (about 123 dpi): its squared outline and empty middle are a box's"
+      },
+      {
+        "variation": "faint print",
+        "page": 1,
+        "region": [
+          1330,
+          1548,
+          30,
+          30
+        ],
+        "reason": "the small \"fy\" of \"(*specify)\" under the specify line, printed faint: it and the line close into a square"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "fields",
+        "page": 1,
+        "region": [
+          1290,
+          1600,
+          100,
+          70
+        ],
+        "reason": "the MMSE blank \"MMSE: ____ (score)\" at 0.7×: the field is taken up to the cell's top line above it, too tall to match the one on its line"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 1,
+        "region": [
+          1290,
+          1600,
+          100,
+          70
+        ],
+        "reason": "the MMSE blank at 0.7×, taken up to the cell's top line (the skip above)"
       }
     ]
   },
@@ -1470,6 +1889,169 @@ window.TEST_CASE_LIST = [
           50
         ],
         "reason": "the foot of the self-harm box under its two ruled lines: a cell's blank under its last line"
+      }
+    ],
+    "variationSkip": [
+      {
+        "variation": "0.7× size",
+        "boxes": [
+          "cymh_vernon",
+          "vernon_mental_health",
+          "cymh_salmon_arm"
+        ],
+        "reason": "the circles to pick a site are past the largest tick box Auto Detect takes, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "boxes": [
+          "cymh_vernon",
+          "vernon_mental_health",
+          "cymh_salmon_arm"
+        ],
+        "reason": "the circles to pick a site are past the largest tick box Auto Detect takes, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "boxes": [
+          "cymh_vernon",
+          "vernon_mental_health",
+          "cymh_salmon_arm"
+        ],
+        "reason": "the circles to pick a site are past the largest tick box Auto Detect takes, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "boxes": [
+          "cymh_vernon",
+          "vernon_mental_health",
+          "cymh_salmon_arm"
+        ],
+        "reason": "the circles to pick a site are past the largest tick box Auto Detect takes, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "boxes": [
+          "cymh_vernon",
+          "vernon_mental_health",
+          "cymh_salmon_arm"
+        ],
+        "reason": "the circles to pick a site are past the largest tick box Auto Detect takes, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "boxes": [
+          "cymh_vernon",
+          "vernon_mental_health",
+          "cymh_salmon_arm"
+        ],
+        "reason": "the circles to pick a site are past the largest tick box Auto Detect takes, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "1.5× size",
+        "boxes": [
+          "diuretics"
+        ],
+        "reason": "the Diuretics box has the descender of the g in \"purging\" joined to its top on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2× size",
+        "boxes": [
+          "diuretics"
+        ],
+        "reason": "the Diuretics box has the descender of the g in \"purging\" joined to its top on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "2.5× size",
+        "boxes": [
+          "diuretics"
+        ],
+        "reason": "the Diuretics box has the descender of the g in \"purging\" joined to its top on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "3× size",
+        "boxes": [
+          "diuretics"
+        ],
+        "reason": "the Diuretics box has the descender of the g in \"purging\" joined to its top on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "faint print",
+        "boxes": [
+          "diuretics"
+        ],
+        "reason": "the Diuretics box has the descender of the g in \"purging\" joined to its top on the ink map, as on the page itself (the case's skip)"
+      },
+      {
+        "variation": "0.7× size",
+        "boxes": [
+          "anorexia_nervosa_restricting_type",
+          "bulimia_nervosa"
+        ],
+        "reason": "the AN/R and Bulimia Nervosa boxes are stacked one on the other, each joined to the other, as on the page itself (the case's skip); some sizes blur them apart"
+      },
+      {
+        "variation": "2× size",
+        "boxes": [
+          "anorexia_nervosa_restricting_type",
+          "bulimia_nervosa"
+        ],
+        "reason": "the AN/R and Bulimia Nervosa boxes are stacked one on the other, each joined to the other, as on the page itself (the case's skip); some sizes blur them apart"
+      },
+      {
+        "variation": "2.5× size",
+        "boxes": [
+          "anorexia_nervosa_restricting_type",
+          "bulimia_nervosa"
+        ],
+        "reason": "the AN/R and Bulimia Nervosa boxes are stacked one on the other, each joined to the other, as on the page itself (the case's skip); some sizes blur them apart"
+      },
+      {
+        "variation": "faint print",
+        "boxes": [
+          "anorexia_nervosa_restricting_type",
+          "bulimia_nervosa"
+        ],
+        "reason": "the AN/R and Bulimia Nervosa boxes are stacked one on the other, each joined to the other, as on the page itself (the case's skip); some sizes blur them apart"
+      },
+      {
+        "variation": "1.5× size",
+        "boxes": [
+          "checkbox_11_1"
+        ],
+        "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
+      },
+      {
+        "variation": "2× size",
+        "boxes": [
+          "checkbox_11_1"
+        ],
+        "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
+      },
+      {
+        "variation": "2.5× size",
+        "boxes": [
+          "checkbox_11_1"
+        ],
+        "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
+      },
+      {
+        "variation": "3× size",
+        "boxes": [
+          "checkbox_11_1"
+        ],
+        "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
+      },
+      {
+        "variation": "0.7× size",
+        "test": "extraFields",
+        "page": 4,
+        "region": [
+          1166,
+          1386,
+          186,
+          54
+        ],
+        "reason": "the blank right of the OSFED box at 0.7×, where the box's bottom line and the frame's run together: blank page to the frame's side"
       }
     ]
   },
