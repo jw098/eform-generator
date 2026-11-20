@@ -1,0 +1,883 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>Generated OSCAR eForm</title>
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	overflow: hidden;
+ }
+ /* (on screen, each field is a light blue box, so it's clear where to type; drawn inside the
+    field, it doesn't move it, and the print styles have none, so the page prints clean) */
+ .gen_input, .xMarkOnly { background:rgba(66,133,244,0.08) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.45) !important; }
+ .gen_input:focus, .xMarkOnly:focus { background:rgba(66,133,244,0.16) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.9) !important; outline:0; }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; text-align:center; font-weight:bold; }
+ .circleToggle { -webkit-appearance:none; appearance:none; background:rgba(66,133,244,0.08) !important; }
+ .circleToggle[value="O"] { border-color:#000 !important; }
+ .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ .circleToggle[value="O"] { border-color:#000 !important; }   /* (a circled choice prints circled) */
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+// Points a page's background image at its file: in OSCAR's image folder once the eForm is in
+// OSCAR (opened over http), or beside the eForm's HTML when it is opened from disk
+function changeImage(img, imgId){
+  var bg = document.getElementById(imgId);
+  if (bg) bg.src = resourceLink(img);
+}
+// A file's address: "${oscar_image_path}page1.png" in OSCAR, "page1.png" opened from disk
+function resourceLink(resource){
+  var prefix = (window.location.href.toLowerCase().indexOf('http') != -1) ? '${oscar_image_path}' : '';
+  return prefix + resource;
+}
+</script>
+
+<script>
+// Fields shown by a choice: ticking a "parent-field" shows the fields of class "child-<its id>"
+// (or "child-<its value>"); of the boxes sharing an "only-one-…" class, only one stays ticked
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+// "Print & Submit": prints the form
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+// Typing in the form marks it changed, so leaving asks first; submitting clears that
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+// The warning shown on leaving a changed form
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+// (OSCAR's own functions that startup() calls, where this OSCAR doesn't have them: they do nothing)
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+// Shows the current provider's signature image in each page's signature stamp ("signature",
+// "signature2"…; hidden where they have none)
+function SignForm() {
+  try {
+    var providerField = document.getElementById('current_user_id'), provNum = providerField ? providerField.value : '';
+    var stamps = document.querySelectorAll('[id^="CanvasProSignature"] img');
+    for (var i = 0; i < stamps.length; i++){
+      stamps[i].onerror = function(){ this.style.display = 'none'; };
+      stamps[i].src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+      stamps[i].alt = provNum;
+    }
+  } catch(e){}
+}
+// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
+// with ids "clinic_fax_12"), or null
+function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
+// The fax number to send to: the first filled-in fax number field on the form
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var input = fieldCalled(ids[i]);
+    if (!input) continue;
+    var faxNo = (input.value || '').trim();
+    if (faxNo) return faxNo;
+  }
+  return '';
+}
+// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
+function syncFaxNoMirror(){
+  var faxNo = getFaxTargetNo();
+  var hiddenFaxNo = document.getElementById('faxnumber');
+  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
+}
+// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
+// form has one of those
+function primeFaxNo(){
+  try{
+    var faxNoBox = fieldCalled('faxNo');
+    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var input = fieldCalled(candidates[i]);
+      if (!input) continue;
+      var faxNo = (input.value || '').trim();
+      if (faxNo){ faxNoBox.value = faxNo; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var faxControl = document.getElementById('faxControl');
+    if (faxControl){
+      faxControl.style.display = 'inline-block';
+      if (faxControl.children && faxControl.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+// "Fax & Submit": fills in the fax number, faxes, then submits the form
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
+}
+</script>
+
+<script>
+// Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
+// its hidden "<name>_fontsize" input so it is saved with the form
+function changeFontSize(name, delta){
+  var box = document.getElementsByName(name)[0], saved = document.getElementsByName(name + '_fontsize')[0];
+  if (!box) return;
+  var size = Math.max(6, (parseInt(window.getComputedStyle(box).fontSize, 10) || 12) + delta);
+  box.style.fontSize = size + 'px';
+  if (saved){ saved.value = size; saved.setAttribute('value', size); }
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On load: gives each textarea back the font size saved with the form
+function loadFontSize(){
+  var saved = document.querySelectorAll("input[name$='_fontsize']");
+  for (var i = 0; i < saved.length; i++){
+    if (!saved[i].value) continue;
+    var box = document.getElementsByName(saved[i].name.slice(0, -'_fontsize'.length))[0];
+    if (box) box.style.fontSize = saved[i].value + 'px';
+  }
+}
+</script>
+<script>
+// Whether the form is new (not opened again after it was saved)
+function isNewForm(){
+  var flag = document.getElementById('newForm');
+  return !!flag && flag.value === 'True';
+}
+// Marks the form saved, so the next time it opens what it was saved with stays
+function markFormSaved(){
+  var flag = document.getElementById('newForm');
+  if (flag){ flag.value = 'False'; flag.setAttribute('value', 'False'); }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var form = document.getElementById('FormName');
+  if (form) form.addEventListener('submit', markFormSaved);
+});
+</script>
+<script>
+// On a new form, ticks each box for the patient's sex (data-tick-if-sex="M" or "F"), from the
+// hidden PatientGender field that OSCAR fills
+function tickSexBoxes(){
+  var sexField = document.getElementById('PatientGender');
+  if (!isNewForm() || !sexField) return;
+  var sex = String(sexField.value || '').trim().toUpperCase();
+  var boxes = document.querySelectorAll('[data-tick-if-sex]');
+  for (var i = 0; i < boxes.length; i++){
+    if (sex && boxes[i].getAttribute('data-tick-if-sex') === sex) boxes[i].value = 'X';
+  }
+}
+</script>
+<link rel="stylesheet" type="text/css" media="all" href="../share/calendar/calendar.css">
+<script type="text/javascript" src="../share/calendar/calendar.js"></script>
+<script type="text/javascript" src="../share/calendar/lang/calendar-en.js"></script>
+<script type="text/javascript" src="../share/calendar/calendar-setup.js"></script>
+<script>
+// Gives each date field OSCAR's calendar, which a click on the field opens
+function setUpCalendars(){
+  if (typeof Calendar === 'undefined' || !Calendar.setup) return;
+  var fields = document.querySelectorAll('input.dateField');
+  for (var i = 0; i < fields.length; i++)
+    Calendar.setup({ inputField: fields[i].id, button: fields[i].id, ifFormat: fields[i].getAttribute('data-date-format') || '%Y-%m-%d', showsTime: false, singleClick: true, step: 1 });
+}
+</script>
+<script>
+// On load: shows each page's background image, then sets up the fax number, signature and the rest
+function startup(){
+  changeImage('youth_substance_use_application_page1.png', 'BGImage1');
+  changeImage('youth_substance_use_application_page2.png', 'BGImage2');
+  changeImage('youth_substance_use_application_page3.png', 'BGImage3');
+  changeImage('youth_substance_use_application_page4.png', 'BGImage4');
+  loadFontSize();
+  setFaxNo();
+  primeFaxNo();
+  syncFaxNoMirror();
+  SignForm();
+  checkGender();
+  tickSexBoxes();
+  setUpCalendars();
+}
+</script>
+</head>
+<body onload="startup()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}youth_substance_use_application_page1.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- patient_last -->
+<input class="gen_input noborder" id="patient_last_1" name="patient_last" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:497px; top:15px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_first -->
+<input class="gen_input noborder" id="patient_first_2" name="patient_first" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:497px; top:36px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_birth -->
+<input class="gen_input noborder dateField" id="date_birth_3" name="date_birth" oscarDB="dobc" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:501px; top:59px; width:93px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phn_10 -->
+<input class="gen_input noborder" id="phn_10_4" name="phn_10" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:429px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- mrn_10 -->
+<input class="gen_input noborder" id="mrn_10_5" name="mrn_10" type="text" autocomplete="off" style="position:absolute; left:600px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- acc_visit_12 -->
+<input class="gen_input noborder" id="acc_visit_12_6" name="acc_visit_12" type="text" autocomplete="off" style="position:absolute; left:482px; top:101px; width:155px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- centre_1 -->
+<input class="xMarkOnly noborder" id="centre_1_7" name="centre_1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:63px; top:210px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- centre_2 -->
+<input class="xMarkOnly noborder" id="centre_2_8" name="centre_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:63px; top:228px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- centre_3 -->
+<input class="xMarkOnly noborder" id="centre_3_9" name="centre_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:63px; top:246px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- why_loc -->
+<input class="gen_input noborder" id="why_loc_10" name="why_loc" type="text" autocomplete="off" style="position:absolute; left:227px; top:268px; width:501px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_first_2 -->
+<input class="gen_input noborder" id="patient_first_2_11" name="patient_first_2" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:154px; top:326px; width:133px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_last_2 -->
+<input class="gen_input noborder" id="patient_last_2_12" name="patient_last_2" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:387px; top:326px; width:121px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- preferred_name -->
+<input class="gen_input noborder" id="preferred_name_13" name="preferred_name" type="text" autocomplete="off" style="position:absolute; left:602px; top:326px; width:126px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phn_10_2 -->
+<input class="gen_input noborder" id="phn_10_2_14" name="phn_10_2" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:190px; top:344px; width:97px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_birth_2 -->
+<input class="gen_input noborder dateField" id="date_birth_2_15" name="date_birth_2" oscarDB="dobc" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:527px; top:345px; width:93px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- age -->
+<input class="gen_input noborder" id="age_16" name="age" oscarDB="age" type="text" autocomplete="off" style="position:absolute; left:689px; top:347px; width:39px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- sex -->
+<input class="xMarkOnly noborder" id="sex_17" name="sex" data-tick-if-sex="M" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:141px; top:365px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- sex_2 -->
+<input class="xMarkOnly noborder" id="sex_2_18" name="sex_2" data-tick-if-sex="F" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:196px; top:365px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- sex_3 -->
+<input class="xMarkOnly noborder" id="sex_3_19" name="sex_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:263px; top:365px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gender -->
+<input class="gen_input noborder" id="gender_20" name="gender" type="text" autocomplete="off" style="position:absolute; left:438px; top:364px; width:112px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- pronoun -->
+<input class="gen_input noborder" id="pronoun_21" name="pronoun" type="text" autocomplete="off" style="position:absolute; left:615px; top:364px; width:113px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- address -->
+<input class="gen_input noborder" id="address_22" name="address" oscarDB="addressline" type="text" autocomplete="off" style="position:absolute; left:110px; top:382px; width:310px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- city -->
+<input class="gen_input noborder" id="city_23" name="city" oscarDB="city" type="text" autocomplete="off" style="position:absolute; left:455px; top:382px; width:185px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- prov -->
+<input class="gen_input noborder" id="prov_24" name="prov" oscarDB="province" type="text" autocomplete="off" style="position:absolute; left:699px; top:382px; width:29px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phone -->
+<input class="gen_input noborder" id="phone_25" name="phone" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:102px; top:399px; width:186px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- email -->
+<input class="gen_input noborder" id="email_26" name="email" oscarDB="email" type="text" autocomplete="off" style="position:absolute; left:332px; top:399px; width:396px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- contact -->
+<input class="xMarkOnly noborder" id="contact_27" name="contact" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:246px; top:418px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- message -->
+<input class="xMarkOnly noborder" id="message_28" name="message" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:316px; top:418px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- contact_2 -->
+<input class="xMarkOnly noborder" id="contact_2_29" name="contact_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:460px; top:418px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- contact_3 -->
+<input class="xMarkOnly noborder" id="contact_3_30" name="contact_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:511px; top:418px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 0 -->
+<input class="xMarkOnly noborder" id="0_31" name="0" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:184px; top:436px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 1 -->
+<input class="xMarkOnly noborder" id="1_32" name="1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:372px; top:436px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 2 -->
+<input class="xMarkOnly noborder" id="2_33" name="2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:504px; top:436px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 0_2 -->
+<input class="xMarkOnly noborder" id="0_2_34" name="0_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:184px; top:454px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 1_2 -->
+<input class="xMarkOnly noborder" id="1_2_35" name="1_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:372px; top:454px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 2_2 -->
+<input class="xMarkOnly noborder" id="2_2_36" name="2_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:504px; top:454px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- live_other -->
+<input class="gen_input noborder" id="live_other_37" name="live_other" type="text" autocomplete="off" style="position:absolute; left:602px; top:450px; width:126px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- guard_1 -->
+<input class="gen_input noborder" id="guard_1_38" name="guard_1" type="text" autocomplete="off" style="position:absolute; left:111px; top:510px; width:617px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- guard_2 -->
+<input class="gen_input noborder" id="guard_2_39" name="guard_2" type="text" autocomplete="off" style="position:absolute; left:111px; top:528px; width:309px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- guard_2_city -->
+<input class="gen_input noborder" id="guard_2_city_40" name="guard_2_city" type="text" autocomplete="off" style="position:absolute; left:455px; top:528px; width:184px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- guard_2_prov -->
+<input class="gen_input noborder" id="guard_2_prov_41" name="guard_2_prov" type="text" autocomplete="off" style="position:absolute; left:699px; top:528px; width:29px; height:14px; font-family:sans-serif; font-size:9px; background-color:transparent;">
+<!-- guard_3 -->
+<input class="gen_input noborder" id="guard_3_42" name="guard_3" type="text" autocomplete="off" style="position:absolute; left:101px; top:546px; width:185px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- guard_4 -->
+<input class="gen_input noborder" id="guard_4_43" name="guard_4" type="text" autocomplete="off" style="position:absolute; left:332px; top:546px; width:396px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- school -->
+<input class="xMarkOnly noborder" id="school_44" name="school" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:250px; top:606px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- school_2 -->
+<input class="xMarkOnly noborder" id="school_2_45" name="school_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:299px; top:606px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- date_school -->
+<input class="gen_input noborder dateField" id="date_school_46" name="date_school" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:512px; top:603px; width:93px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- school_name -->
+<input class="gen_input noborder" id="school_name_47" name="school_name" type="text" autocomplete="off" style="position:absolute; left:184px; top:620px; width:544px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- school_contact -->
+<input class="gen_input noborder" id="school_contact_48" name="school_contact" type="text" autocomplete="off" style="position:absolute; left:165px; top:639px; width:298px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- school_phone -->
+<input class="gen_input noborder" id="school_phone_49" name="school_phone" type="text" autocomplete="off" style="position:absolute; left:512px; top:639px; width:215px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- aboriginal -->
+<input class="xMarkOnly noborder" id="aboriginal_50" name="aboriginal" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:240px; top:701px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- aboriginal_2 -->
+<input class="xMarkOnly noborder" id="aboriginal_2_51" name="aboriginal_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:290px; top:701px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ethnicity -->
+<input class="gen_input noborder" id="ethnicity_52" name="ethnicity" type="text" autocomplete="off" style="position:absolute; left:465px; top:699px; width:263px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- language -->
+<input class="gen_input noborder" id="language_53" name="language" type="text" autocomplete="off" style="position:absolute; left:163px; top:718px; width:565px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- spiritual -->
+<input class="gen_input noborder" id="spiritual_54" name="spiritual" type="text" autocomplete="off" style="position:absolute; left:131px; top:752px; width:597px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- legal_1 -->
+<input class="xMarkOnly noborder" id="legal_1_55" name="legal_1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:815px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- legal_1_2 -->
+<input class="xMarkOnly noborder" id="legal_1_2_56" name="legal_1_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:815px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- legal_1_note -->
+<input class="gen_input noborder" id="legal_1_note_57" name="legal_1_note" type="text" autocomplete="off" style="position:absolute; left:205px; top:831px; width:522px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- legal_2 -->
+<input class="xMarkOnly noborder" id="legal_2_58" name="legal_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:852px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- legal_2_2 -->
+<input class="xMarkOnly noborder" id="legal_2_2_59" name="legal_2_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:852px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- legal_2_note -->
+<input class="gen_input noborder" id="legal_2_note_60" name="legal_2_note" type="text" autocomplete="off" style="position:absolute; left:354px; top:868px; width:374px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- legal_3 -->
+<input class="xMarkOnly noborder" id="legal_3_61" name="legal_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:890px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- legal_3_2 -->
+<input class="xMarkOnly noborder" id="legal_3_2_62" name="legal_3_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:890px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+</div>
+<div id="page2" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage2" src="${oscar_image_path}youth_substance_use_application_page2.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- patient_last_3 -->
+<input class="gen_input noborder" id="patient_last_3_63" name="patient_last_3" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:453px; top:15px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_first_3 -->
+<input class="gen_input noborder" id="patient_first_3_64" name="patient_first_3" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:453px; top:36px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_birth_3 -->
+<input class="gen_input noborder dateField" id="date_birth_3_65" name="date_birth_3" oscarDB="dobc" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:457px; top:59px; width:93px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phn_10_3 -->
+<input class="gen_input noborder" id="phn_10_3_66" name="phn_10_3" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:385px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- mrn_10_2 -->
+<input class="gen_input noborder" id="mrn_10_2_67" name="mrn_10_2" type="text" autocomplete="off" style="position:absolute; left:556px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- acc_visit_12_2 -->
+<input class="gen_input noborder" id="acc_visit_12_2_68" name="acc_visit_12_2" type="text" autocomplete="off" style="position:absolute; left:438px; top:101px; width:155px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent;">
+<!-- housing_1 -->
+<input class="xMarkOnly noborder" id="housing_1_69" name="housing_1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:208px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- housing_1_2 -->
+<input class="xMarkOnly noborder" id="housing_1_2_70" name="housing_1_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:648px; top:208px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- housing_1_note -->
+<textarea class="gen_input noborder" id="housing_1_note_71" name="housing_1_note" style="position:absolute; left:43px; top:224px; width:641px; height:75px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- housing_2_note -->
+<textarea class="gen_input noborder" id="housing_2_note_72" name="housing_2_note" style="position:absolute; left:43px; top:316px; width:641px; height:75px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- housing_3 -->
+<input class="xMarkOnly noborder" id="housing_3_73" name="housing_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:391px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- housing_3_2 -->
+<input class="xMarkOnly noborder" id="housing_3_2_74" name="housing_3_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:648px; top:391px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- housing_3_note -->
+<textarea class="gen_input noborder" id="housing_3_note_75" name="housing_3_note" style="position:absolute; left:43px; top:407px; width:641px; height:85px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_1 -->
+<input class="xMarkOnly noborder" id="ment_1_76" name="ment_1" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:525px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_1_2 -->
+<input class="xMarkOnly noborder" id="ment_1_2_77" name="ment_1_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:648px; top:525px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_1_note -->
+<textarea class="gen_input noborder" id="ment_1_note_78" name="ment_1_note" style="position:absolute; left:43px; top:540px; width:641px; height:75px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_2 -->
+<input class="xMarkOnly noborder" id="ment_2_79" name="ment_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:616px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_2_2 -->
+<input class="xMarkOnly noborder" id="ment_2_2_80" name="ment_2_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:648px; top:616px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_2_note -->
+<textarea class="gen_input noborder" id="ment_2_note_81" name="ment_2_note" style="position:absolute; left:43px; top:647px; width:641px; height:75px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_3 -->
+<input class="xMarkOnly noborder" id="ment_3_82" name="ment_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:724px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_3_2 -->
+<input class="xMarkOnly noborder" id="ment_3_2_83" name="ment_3_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:648px; top:724px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_3_note -->
+<textarea class="gen_input noborder" id="ment_3_note_84" name="ment_3_note" style="position:absolute; left:43px; top:741px; width:641px; height:75px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_4 -->
+<input class="xMarkOnly noborder" id="ment_4_85" name="ment_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:816px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_4_2 -->
+<input class="xMarkOnly noborder" id="ment_4_2_86" name="ment_4_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:649px; top:816px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_4_note -->
+<textarea class="gen_input noborder" id="ment_4_note_87" name="ment_4_note" style="position:absolute; left:45px; top:833px; width:641px; height:69px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- housing_1_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:686px; top:224px;" onclick="changeFontSize('housing_1_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:686px; top:244px;" onclick="changeFontSize('housing_1_note', -1);">&#9660;</span>
+<input type="hidden" name="housing_1_note_fontsize" id="housing_1_note_fontsize">
+<!-- housing_2_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:686px; top:316px;" onclick="changeFontSize('housing_2_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:686px; top:336px;" onclick="changeFontSize('housing_2_note', -1);">&#9660;</span>
+<input type="hidden" name="housing_2_note_fontsize" id="housing_2_note_fontsize">
+<!-- housing_3_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:686px; top:407px;" onclick="changeFontSize('housing_3_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:686px; top:427px;" onclick="changeFontSize('housing_3_note', -1);">&#9660;</span>
+<input type="hidden" name="housing_3_note_fontsize" id="housing_3_note_fontsize">
+<!-- ment_1_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:686px; top:540px;" onclick="changeFontSize('ment_1_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:686px; top:560px;" onclick="changeFontSize('ment_1_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_1_note_fontsize" id="ment_1_note_fontsize">
+<!-- ment_2_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:686px; top:647px;" onclick="changeFontSize('ment_2_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:686px; top:667px;" onclick="changeFontSize('ment_2_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_2_note_fontsize" id="ment_2_note_fontsize">
+<!-- ment_3_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:686px; top:741px;" onclick="changeFontSize('ment_3_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:686px; top:761px;" onclick="changeFontSize('ment_3_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_3_note_fontsize" id="ment_3_note_fontsize">
+<!-- ment_4_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:687px; top:833px;" onclick="changeFontSize('ment_4_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:687px; top:853px;" onclick="changeFontSize('ment_4_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_4_note_fontsize" id="ment_4_note_fontsize">
+</div>
+<div id="page3" style="page-break-after:always;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage3" src="${oscar_image_path}youth_substance_use_application_page3.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- patient_last_4 -->
+<input class="gen_input noborder" id="patient_last_4_95" name="patient_last_4" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:497px; top:15px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_first_4 -->
+<input class="gen_input noborder" id="patient_first_4_96" name="patient_first_4" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:497px; top:36px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_birth_4 -->
+<input class="gen_input noborder dateField" id="date_birth_4_97" name="date_birth_4" oscarDB="dobc" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:501px; top:59px; width:93px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phn_10_4 -->
+<input class="gen_input noborder" id="phn_10_4_98" name="phn_10_4" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:429px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- mrn_10_3 -->
+<input class="gen_input noborder" id="mrn_10_3_99" name="mrn_10_3" type="text" autocomplete="off" style="position:absolute; left:600px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- acc_visit_12_3 -->
+<input class="gen_input noborder" id="acc_visit_12_3_100" name="acc_visit_12_3" type="text" autocomplete="off" style="position:absolute; left:482px; top:101px; width:155px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- ment_5 -->
+<input class="xMarkOnly noborder" id="ment_5_101" name="ment_5" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:155px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_5_2 -->
+<input class="xMarkOnly noborder" id="ment_5_2_102" name="ment_5_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:155px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_5_note -->
+<textarea class="gen_input noborder" id="ment_5_note_103" name="ment_5_note" style="position:absolute; left:88px; top:171px; width:641px; height:87px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_6 -->
+<input class="xMarkOnly noborder" id="ment_6_104" name="ment_6" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:259px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_6_2 -->
+<input class="xMarkOnly noborder" id="ment_6_2_105" name="ment_6_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:259px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_6_note -->
+<textarea class="gen_input noborder" id="ment_6_note_106" name="ment_6_note" style="position:absolute; left:88px; top:290px; width:641px; height:87px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_7 -->
+<input class="xMarkOnly noborder" id="ment_7_107" name="ment_7" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:378px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_7_2 -->
+<input class="xMarkOnly noborder" id="ment_7_2_108" name="ment_7_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:378px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_7_note -->
+<textarea class="gen_input noborder" id="ment_7_note_109" name="ment_7_note" style="position:absolute; left:88px; top:408px; width:641px; height:87px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_8 -->
+<input class="xMarkOnly noborder" id="ment_8_110" name="ment_8" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:496px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_8_2 -->
+<input class="xMarkOnly noborder" id="ment_8_2_111" name="ment_8_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:496px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_8_note -->
+<textarea class="gen_input noborder" id="ment_8_note_112" name="ment_8_note" style="position:absolute; left:88px; top:512px; width:641px; height:87px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_9 -->
+<input class="xMarkOnly noborder" id="ment_9_113" name="ment_9" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:599px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_9_2 -->
+<input class="xMarkOnly noborder" id="ment_9_2_114" name="ment_9_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:599px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 0_3 -->
+<input class="xMarkOnly noborder" id="0_3_115" name="0_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:86px; top:615px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 1_3 -->
+<input class="xMarkOnly noborder" id="1_3_116" name="1_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:196px; top:615px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 2_3 -->
+<input class="xMarkOnly noborder" id="2_3_117" name="2_3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:328px; top:615px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 3 -->
+<input class="xMarkOnly noborder" id="3_118" name="3" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:430px; top:615px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 4 -->
+<input class="xMarkOnly noborder" id="4_119" name="4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:531px; top:615px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 0_4 -->
+<input class="xMarkOnly noborder" id="0_4_120" name="0_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:86px; top:631px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 1_4 -->
+<input class="xMarkOnly noborder" id="1_4_121" name="1_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:196px; top:631px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 2_4 -->
+<input class="xMarkOnly noborder" id="2_4_122" name="2_4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:328px; top:631px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 3_2 -->
+<input class="xMarkOnly noborder" id="3_2_123" name="3_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:430px; top:631px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_10 -->
+<input class="xMarkOnly noborder" id="ment_10_124" name="ment_10" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:652px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_10_2 -->
+<input class="xMarkOnly noborder" id="ment_10_2_125" name="ment_10_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:652px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_10_note -->
+<textarea class="gen_input noborder" id="ment_10_note_126" name="ment_10_note" style="position:absolute; left:88px; top:666px; width:641px; height:87px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- ment_11 -->
+<input class="xMarkOnly noborder" id="ment_11_127" name="ment_11" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:643px; top:754px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_11_2 -->
+<input class="xMarkOnly noborder" id="ment_11_2_128" name="ment_11_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:693px; top:754px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ment_11_note -->
+<textarea class="gen_input noborder" id="ment_11_note_129" name="ment_11_note" style="position:absolute; left:88px; top:785px; width:641px; height:87px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- date_signature -->
+<input class="gen_input noborder dateField" id="date_signature_130" name="date_signature" oscarDB="today" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:69px; top:893px; width:93px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- time_signature -->
+<input class="gen_input noborder" id="time_signature_131" name="time_signature" type="text" autocomplete="off" style="position:absolute; left:224px; top:893px; width:80px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- designation -->
+<input class="gen_input noborder" id="designation_132" name="designation" oscarDB="current_user_cpsid" type="text" autocomplete="off" style="position:absolute; left:587px; top:893px; width:137px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- ment_5_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:730px; top:171px;" onclick="changeFontSize('ment_5_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:730px; top:191px;" onclick="changeFontSize('ment_5_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_5_note_fontsize" id="ment_5_note_fontsize">
+<!-- ment_6_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:730px; top:290px;" onclick="changeFontSize('ment_6_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:730px; top:310px;" onclick="changeFontSize('ment_6_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_6_note_fontsize" id="ment_6_note_fontsize">
+<!-- ment_7_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:730px; top:408px;" onclick="changeFontSize('ment_7_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:730px; top:428px;" onclick="changeFontSize('ment_7_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_7_note_fontsize" id="ment_7_note_fontsize">
+<!-- ment_8_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:730px; top:512px;" onclick="changeFontSize('ment_8_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:730px; top:532px;" onclick="changeFontSize('ment_8_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_8_note_fontsize" id="ment_8_note_fontsize">
+<!-- ment_10_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:730px; top:666px;" onclick="changeFontSize('ment_10_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:730px; top:686px;" onclick="changeFontSize('ment_10_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_10_note_fontsize" id="ment_10_note_fontsize">
+<!-- ment_11_note -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:730px; top:785px;" onclick="changeFontSize('ment_11_note', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:730px; top:805px;" onclick="changeFontSize('ment_11_note', -1);">&#9660;</span>
+<input type="hidden" name="ment_11_note_fontsize" id="ment_11_note_fontsize">
+</div>
+<div id="page4" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage4" src="${oscar_image_path}youth_substance_use_application_page4.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- patient_last_5 -->
+<input class="gen_input noborder" id="patient_last_5_139" name="patient_last_5" oscarDB="patient_nameL" type="text" autocomplete="off" style="position:absolute; left:453px; top:15px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- patient_first_5 -->
+<input class="gen_input noborder" id="patient_first_5_140" name="patient_first_5" oscarDB="patient_nameF" type="text" autocomplete="off" style="position:absolute; left:453px; top:36px; width:232px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- date_birth_5 -->
+<input class="gen_input noborder dateField" id="date_birth_5_141" name="date_birth_5" oscarDB="dobc" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:457px; top:59px; width:93px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- phn_10_5 -->
+<input class="gen_input noborder" id="phn_10_5_142" name="phn_10_5" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:385px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- mrn_10_4 -->
+<input class="gen_input noborder" id="mrn_10_4_143" name="mrn_10_4" type="text" autocomplete="off" style="position:absolute; left:556px; top:78px; width:128px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent;">
+<!-- acc_visit_12_4 -->
+<input class="gen_input noborder" id="acc_visit_12_4_144" name="acc_visit_12_4" type="text" autocomplete="off" style="position:absolute; left:438px; top:101px; width:155px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent;">
+<!-- opioid_program -->
+<input class="xMarkOnly noborder" id="opioid_program_145" name="opioid_program" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:599px; top:197px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- opioid_program_2 -->
+<input class="xMarkOnly noborder" id="opioid_program_2_146" name="opioid_program_2" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:649px; top:197px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- part_b_question_1 -->
+<input class="gen_input noborder" id="part_b_question_1_147" name="part_b_question_1" type="text" autocomplete="off" style="position:absolute; left:167px; top:211px; width:518px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 0_5 -->
+<input class="gen_input noborder" id="0_5_148" name="0_5" type="text" autocomplete="off" style="position:absolute; left:122px; top:287px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 0_6 -->
+<input class="gen_input noborder" id="0_6_149" name="0_6" type="text" autocomplete="off" style="position:absolute; left:199px; top:287px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 0_7 -->
+<input class="gen_input noborder" id="0_7_150" name="0_7" type="text" autocomplete="off" style="position:absolute; left:288px; top:287px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 0_8 -->
+<input class="gen_input noborder" id="0_8_151" name="0_8" type="text" autocomplete="off" style="position:absolute; left:382px; top:287px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 0_9 -->
+<input class="gen_input noborder dateField" id="0_9_152" name="0_9" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:287px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 0_10 -->
+<input class="gen_input noborder" id="0_10_153" name="0_10" type="text" autocomplete="off" style="position:absolute; left:564px; top:287px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 1_5 -->
+<input class="gen_input noborder" id="1_5_154" name="1_5" type="text" autocomplete="off" style="position:absolute; left:122px; top:306px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 1_6 -->
+<input class="gen_input noborder" id="1_6_155" name="1_6" type="text" autocomplete="off" style="position:absolute; left:199px; top:306px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 1_7 -->
+<input class="gen_input noborder" id="1_7_156" name="1_7" type="text" autocomplete="off" style="position:absolute; left:288px; top:306px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 1_8 -->
+<input class="gen_input noborder" id="1_8_157" name="1_8" type="text" autocomplete="off" style="position:absolute; left:382px; top:306px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 1_9 -->
+<input class="gen_input noborder dateField" id="1_9_158" name="1_9" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:306px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 1_10 -->
+<input class="gen_input noborder" id="1_10_159" name="1_10" type="text" autocomplete="off" style="position:absolute; left:564px; top:306px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 2_5 -->
+<input class="gen_input noborder" id="2_5_160" name="2_5" type="text" autocomplete="off" style="position:absolute; left:122px; top:325px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 2_6 -->
+<input class="gen_input noborder" id="2_6_161" name="2_6" type="text" autocomplete="off" style="position:absolute; left:199px; top:325px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 2_7 -->
+<input class="gen_input noborder" id="2_7_162" name="2_7" type="text" autocomplete="off" style="position:absolute; left:288px; top:325px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 2_8 -->
+<input class="gen_input noborder" id="2_8_163" name="2_8" type="text" autocomplete="off" style="position:absolute; left:382px; top:325px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 2_9 -->
+<input class="gen_input noborder dateField" id="2_9_164" name="2_9" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:325px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 2_10 -->
+<input class="gen_input noborder" id="2_10_165" name="2_10" type="text" autocomplete="off" style="position:absolute; left:564px; top:325px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 3_3 -->
+<input class="gen_input noborder" id="3_3_166" name="3_3" type="text" autocomplete="off" style="position:absolute; left:122px; top:344px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 3_4 -->
+<input class="gen_input noborder" id="3_4_167" name="3_4" type="text" autocomplete="off" style="position:absolute; left:199px; top:344px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 3_5 -->
+<input class="gen_input noborder" id="3_5_168" name="3_5" type="text" autocomplete="off" style="position:absolute; left:288px; top:344px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 3_6 -->
+<input class="gen_input noborder" id="3_6_169" name="3_6" type="text" autocomplete="off" style="position:absolute; left:382px; top:344px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 3_7 -->
+<input class="gen_input noborder dateField" id="3_7_170" name="3_7" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:344px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 3_8 -->
+<input class="gen_input noborder" id="3_8_171" name="3_8" type="text" autocomplete="off" style="position:absolute; left:564px; top:344px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 4_2 -->
+<input class="gen_input noborder" id="4_2_172" name="4_2" type="text" autocomplete="off" style="position:absolute; left:122px; top:363px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 4_3 -->
+<input class="gen_input noborder" id="4_3_173" name="4_3" type="text" autocomplete="off" style="position:absolute; left:199px; top:363px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 4_4 -->
+<input class="gen_input noborder" id="4_4_174" name="4_4" type="text" autocomplete="off" style="position:absolute; left:288px; top:363px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 4_5 -->
+<input class="gen_input noborder" id="4_5_175" name="4_5" type="text" autocomplete="off" style="position:absolute; left:382px; top:363px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 4_6 -->
+<input class="gen_input noborder dateField" id="4_6_176" name="4_6" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:363px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 4_7 -->
+<input class="gen_input noborder" id="4_7_177" name="4_7" type="text" autocomplete="off" style="position:absolute; left:564px; top:363px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 5 -->
+<input class="gen_input noborder" id="5_178" name="5" type="text" autocomplete="off" style="position:absolute; left:122px; top:382px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 5_2 -->
+<input class="gen_input noborder" id="5_2_179" name="5_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:382px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 5_3 -->
+<input class="gen_input noborder" id="5_3_180" name="5_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:382px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 5_4 -->
+<input class="gen_input noborder" id="5_4_181" name="5_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:382px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 5_5 -->
+<input class="gen_input noborder dateField" id="5_5_182" name="5_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:382px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 5_6 -->
+<input class="gen_input noborder" id="5_6_183" name="5_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:382px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 6 -->
+<input class="gen_input noborder" id="6_184" name="6" type="text" autocomplete="off" style="position:absolute; left:122px; top:402px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 6_2 -->
+<input class="gen_input noborder" id="6_2_185" name="6_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:402px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 6_3 -->
+<input class="gen_input noborder" id="6_3_186" name="6_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:402px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 6_4 -->
+<input class="gen_input noborder" id="6_4_187" name="6_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:402px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 6_5 -->
+<input class="gen_input noborder dateField" id="6_5_188" name="6_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:402px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 6_6 -->
+<input class="gen_input noborder" id="6_6_189" name="6_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:402px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 7 -->
+<input class="gen_input noborder" id="7_190" name="7" type="text" autocomplete="off" style="position:absolute; left:122px; top:421px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 7_2 -->
+<input class="gen_input noborder" id="7_2_191" name="7_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:421px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 7_3 -->
+<input class="gen_input noborder" id="7_3_192" name="7_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:421px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 7_4 -->
+<input class="gen_input noborder" id="7_4_193" name="7_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:421px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 7_5 -->
+<input class="gen_input noborder dateField" id="7_5_194" name="7_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:421px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 7_6 -->
+<input class="gen_input noborder" id="7_6_195" name="7_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:421px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 8 -->
+<input class="gen_input noborder" id="8_196" name="8" type="text" autocomplete="off" style="position:absolute; left:122px; top:440px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 8_2 -->
+<input class="gen_input noborder" id="8_2_197" name="8_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:440px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 8_3 -->
+<input class="gen_input noborder" id="8_3_198" name="8_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:440px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 8_4 -->
+<input class="gen_input noborder" id="8_4_199" name="8_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:440px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 8_5 -->
+<input class="gen_input noborder dateField" id="8_5_200" name="8_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:440px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 8_6 -->
+<input class="gen_input noborder" id="8_6_201" name="8_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:440px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 9 -->
+<input class="gen_input noborder" id="9_202" name="9" type="text" autocomplete="off" style="position:absolute; left:122px; top:459px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 9_2 -->
+<input class="gen_input noborder" id="9_2_203" name="9_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:459px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 9_3 -->
+<input class="gen_input noborder" id="9_3_204" name="9_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:459px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 9_4 -->
+<input class="gen_input noborder" id="9_4_205" name="9_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:459px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 9_5 -->
+<input class="gen_input noborder dateField" id="9_5_206" name="9_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:459px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 9_6 -->
+<input class="gen_input noborder" id="9_6_207" name="9_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:459px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 10 -->
+<input class="gen_input noborder" id="10_208" name="10" type="text" autocomplete="off" style="position:absolute; left:122px; top:478px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 10_2 -->
+<input class="gen_input noborder" id="10_2_209" name="10_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:478px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 10_3 -->
+<input class="gen_input noborder" id="10_3_210" name="10_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:478px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 10_4 -->
+<input class="gen_input noborder" id="10_4_211" name="10_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:478px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 10_5 -->
+<input class="gen_input noborder dateField" id="10_5_212" name="10_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:478px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 10_6 -->
+<input class="gen_input noborder" id="10_6_213" name="10_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:478px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 11 -->
+<input class="gen_input noborder" id="11_214" name="11" type="text" autocomplete="off" style="position:absolute; left:122px; top:497px; width:75px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 11_2 -->
+<input class="gen_input noborder" id="11_2_215" name="11_2" type="text" autocomplete="off" style="position:absolute; left:199px; top:497px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 11_3 -->
+<input class="gen_input noborder" id="11_3_216" name="11_3" type="text" autocomplete="off" style="position:absolute; left:288px; top:497px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 11_4 -->
+<input class="gen_input noborder" id="11_4_217" name="11_4" type="text" autocomplete="off" style="position:absolute; left:382px; top:497px; width:91px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 11_5 -->
+<input class="gen_input noborder dateField" id="11_5_218" name="11_5" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:476px; top:497px; width:86px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- 11_6 -->
+<input class="gen_input noborder" id="11_6_219" name="11_6" type="text" autocomplete="off" style="position:absolute; left:564px; top:497px; width:119px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- part_b_3 -->
+<textarea class="gen_input noborder" id="part_b_3_220" name="part_b_3" style="position:absolute; left:42px; top:538px; width:641px; height:64px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- 0_11 -->
+<input class="gen_input noborder" id="0_11_221" name="0_11" type="text" autocomplete="off" style="position:absolute; left:156px; top:676px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_11 -->
+<input class="gen_input noborder" id="1_11_222" name="1_11" type="text" autocomplete="off" style="position:absolute; left:288px; top:676px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_11 -->
+<input class="gen_input noborder" id="2_11_223" name="2_11" type="text" autocomplete="off" style="position:absolute; left:464px; top:676px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_9 -->
+<input class="gen_input noborder" id="3_9_224" name="3_9" type="text" autocomplete="off" style="position:absolute; left:553px; top:676px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_12 -->
+<input class="gen_input noborder" id="0_12_225" name="0_12" type="text" autocomplete="off" style="position:absolute; left:156px; top:695px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_12 -->
+<input class="gen_input noborder" id="1_12_226" name="1_12" type="text" autocomplete="off" style="position:absolute; left:288px; top:695px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_12 -->
+<input class="gen_input noborder" id="2_12_227" name="2_12" type="text" autocomplete="off" style="position:absolute; left:464px; top:695px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_10 -->
+<input class="gen_input noborder" id="3_10_228" name="3_10" type="text" autocomplete="off" style="position:absolute; left:553px; top:695px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_13 -->
+<input class="gen_input noborder" id="0_13_229" name="0_13" type="text" autocomplete="off" style="position:absolute; left:156px; top:715px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_13 -->
+<input class="gen_input noborder" id="1_13_230" name="1_13" type="text" autocomplete="off" style="position:absolute; left:288px; top:715px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_13 -->
+<input class="gen_input noborder" id="2_13_231" name="2_13" type="text" autocomplete="off" style="position:absolute; left:464px; top:715px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_11 -->
+<input class="gen_input noborder" id="3_11_232" name="3_11" type="text" autocomplete="off" style="position:absolute; left:553px; top:715px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_14 -->
+<input class="gen_input noborder" id="0_14_233" name="0_14" type="text" autocomplete="off" style="position:absolute; left:156px; top:734px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_14 -->
+<input class="gen_input noborder" id="1_14_234" name="1_14" type="text" autocomplete="off" style="position:absolute; left:288px; top:734px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_14 -->
+<input class="gen_input noborder" id="2_14_235" name="2_14" type="text" autocomplete="off" style="position:absolute; left:464px; top:734px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_12 -->
+<input class="gen_input noborder" id="3_12_236" name="3_12" type="text" autocomplete="off" style="position:absolute; left:553px; top:734px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_15 -->
+<input class="gen_input noborder" id="0_15_237" name="0_15" type="text" autocomplete="off" style="position:absolute; left:156px; top:753px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_15 -->
+<input class="gen_input noborder" id="1_15_238" name="1_15" type="text" autocomplete="off" style="position:absolute; left:288px; top:753px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_15 -->
+<input class="gen_input noborder" id="2_15_239" name="2_15" type="text" autocomplete="off" style="position:absolute; left:464px; top:753px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_13 -->
+<input class="gen_input noborder" id="3_13_240" name="3_13" type="text" autocomplete="off" style="position:absolute; left:553px; top:753px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_16 -->
+<input class="gen_input noborder" id="0_16_241" name="0_16" type="text" autocomplete="off" style="position:absolute; left:156px; top:772px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_16 -->
+<input class="gen_input noborder" id="1_16_242" name="1_16" type="text" autocomplete="off" style="position:absolute; left:288px; top:772px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_16 -->
+<input class="gen_input noborder" id="2_16_243" name="2_16" type="text" autocomplete="off" style="position:absolute; left:464px; top:772px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_14 -->
+<input class="gen_input noborder" id="3_14_244" name="3_14" type="text" autocomplete="off" style="position:absolute; left:553px; top:772px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_17 -->
+<input class="gen_input noborder" id="0_17_245" name="0_17" oscarDB="current_user" type="text" autocomplete="off" style="position:absolute; left:156px; top:791px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_17 -->
+<input class="gen_input noborder" id="1_17_246" name="1_17" type="text" autocomplete="off" style="position:absolute; left:288px; top:791px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_17 -->
+<input class="gen_input noborder" id="2_17_247" name="2_17" type="text" autocomplete="off" style="position:absolute; left:464px; top:791px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_15 -->
+<input class="gen_input noborder" id="3_15_248" name="3_15" type="text" autocomplete="off" style="position:absolute; left:553px; top:791px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_18 -->
+<input class="gen_input noborder" id="0_18_249" name="0_18" type="text" autocomplete="off" style="position:absolute; left:156px; top:811px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_18 -->
+<input class="gen_input noborder" id="1_18_250" name="1_18" type="text" autocomplete="off" style="position:absolute; left:288px; top:811px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_18 -->
+<input class="gen_input noborder" id="2_18_251" name="2_18" type="text" autocomplete="off" style="position:absolute; left:464px; top:811px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_16 -->
+<input class="gen_input noborder" id="3_16_252" name="3_16" type="text" autocomplete="off" style="position:absolute; left:553px; top:811px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_19 -->
+<input class="gen_input noborder" id="0_19_253" name="0_19" type="text" autocomplete="off" style="position:absolute; left:156px; top:830px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_19 -->
+<input class="gen_input noborder" id="1_19_254" name="1_19" type="text" autocomplete="off" style="position:absolute; left:288px; top:830px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_19 -->
+<input class="gen_input noborder" id="2_19_255" name="2_19" type="text" autocomplete="off" style="position:absolute; left:464px; top:830px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_17 -->
+<input class="gen_input noborder" id="3_17_256" name="3_17" type="text" autocomplete="off" style="position:absolute; left:553px; top:830px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_20 -->
+<input class="gen_input noborder" id="0_20_257" name="0_20" type="text" autocomplete="off" style="position:absolute; left:156px; top:849px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_20 -->
+<input class="gen_input noborder" id="1_20_258" name="1_20" type="text" autocomplete="off" style="position:absolute; left:288px; top:849px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_20 -->
+<input class="gen_input noborder" id="2_20_259" name="2_20" type="text" autocomplete="off" style="position:absolute; left:464px; top:849px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_18 -->
+<input class="gen_input noborder" id="3_18_260" name="3_18" type="text" autocomplete="off" style="position:absolute; left:553px; top:849px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 0_21 -->
+<input class="gen_input noborder" id="0_21_261" name="0_21" type="text" autocomplete="off" style="position:absolute; left:156px; top:868px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 1_21 -->
+<input class="gen_input noborder" id="1_21_262" name="1_21" type="text" autocomplete="off" style="position:absolute; left:288px; top:868px; width:174px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 2_21 -->
+<input class="gen_input noborder" id="2_21_263" name="2_21" type="text" autocomplete="off" style="position:absolute; left:464px; top:868px; width:87px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- 3_19 -->
+<input class="gen_input noborder" id="3_19_264" name="3_19" type="text" autocomplete="off" style="position:absolute; left:553px; top:868px; width:130px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent;">
+<!-- date_signature_2 -->
+<input class="gen_input noborder dateField" id="date_signature_2_265" name="date_signature_2" oscarDB="today" data-date-format="%d/%m/%Y" type="text" autocomplete="off" style="position:absolute; left:26px; top:902px; width:93px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- time_signature_2 -->
+<input class="gen_input noborder" id="time_signature_2_266" name="time_signature_2" type="text" autocomplete="off" style="position:absolute; left:181px; top:902px; width:80px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- designation_2 -->
+<input class="gen_input noborder" id="designation_2_267" name="designation_2" oscarDB="current_user_cpsid" type="text" autocomplete="off" style="position:absolute; left:544px; top:902px; width:137px; height:20px; font-family:sans-serif; font-size:13px; background-color:transparent;">
+<!-- part_b_3 -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:685px; top:538px;" onclick="changeFontSize('part_b_3', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:685px; top:558px;" onclick="changeFontSize('part_b_3', -1);">&#9660;</span>
+<input type="hidden" name="part_b_3_fontsize" id="part_b_3_fontsize">
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">
+<input type="hidden" id="newForm" name="newForm" value="True">
+
+</form>
+</body>
+</html>

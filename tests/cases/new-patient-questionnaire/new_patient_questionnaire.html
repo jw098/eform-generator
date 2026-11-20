@@ -1,0 +1,517 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=750, initial-scale=1">
+<title>Generated OSCAR eForm</title>
+<style type="text/css" media="screen" >
+ body { margin:0; padding:0; }
+ input {
+	-moz-box-sizing: content-box;
+	-webkit-print-color-adjust: exact;
+	-webkit-box-sizing: content-box;
+	box-sizing: content-box
+ }
+/* Drawing the 'gripper' for touch-enabled devices */
+ html.touch #content {
+	float:left;
+	width:92%;
+}
+ html.touch #scrollgrabber {
+	float:right;
+	width:4%;
+	margin-right:2%;
+	background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAFCAAAAACh79lDAAAAAXNSR0IArs4c6QAAABJJREFUCB1jmMmQxjCT4T/DfwAPLgOXlrt3IwAAAABJRU5ErkJggg==)
+ }
+ html.borderradius #scrollgrabber {
+	border-radius: 1em;
+ }
+ .noborder {
+	border : 0px;
+	overflow: hidden;
+ }
+ /* (on screen, each field is a light blue box, so it's clear where to type; drawn inside the
+    field, it doesn't move it, and the print styles have none, so the page prints clean) */
+ .gen_input, .xMarkOnly { background:rgba(66,133,244,0.08) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.45) !important; }
+ .gen_input:focus, .xMarkOnly:focus { background:rgba(66,133,244,0.16) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.9) !important; outline:0; }
+ .xBox { text-align:center; font-weight:bold; }
+ .sig img { display:block; }
+ .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; text-align:center; font-weight:bold; }
+ .circleToggle { -webkit-appearance:none; appearance:none; background:rgba(66,133,244,0.08) !important; }
+ .circleToggle[value="O"] { border-color:#000 !important; }
+ .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
+ html, body { margin:0; padding:0; }
+ img[id^="BGImage"] { display:block; }
+</style>
+<style type="text/css" media="print">
+ .DoNotPrint {
+	display: none;
+ }
+ .noborder {
+	border : 0px;
+	background: transparent;
+	background: transparent;
+	overflow: hidden;
+ }
+ .circleToggle[value="O"] { border-color:#000 !important; }   /* (a circled choice prints circled) */
+ @page { size: auto; margin: 0mm; }
+ html, body { margin:0 !important; padding:0 !important; width:100% !important; }
+ #page1, #page2 { transform-origin: top left; }
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" integrity="sha384-blTaEWzbMI7nCOIelIDU1hT3BACXx/GqeUx+R7CYDLtUVqTnXYvF3J36PN0oyuxf" crossorigin="anonymous"></script>
+<script>if (window.jQuery) jQuery.migrateMute = true;</script>
+<script>window.jQuery || document.write('<script src="../js/jquery-1.7.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="jquery-1.7.1.min.js"><\/script>')</script>
+
+<script>
+// Points a page's background image at its file: in OSCAR's image folder once the eForm is in
+// OSCAR (opened over http), or beside the eForm's HTML when it is opened from disk
+function changeImage(img, imgId){
+  var bg = document.getElementById(imgId);
+  if (bg) bg.src = resourceLink(img);
+}
+// A file's address: "${oscar_image_path}page1.png" in OSCAR, "page1.png" opened from disk
+function resourceLink(resource){
+  var prefix = (window.location.href.toLowerCase().indexOf('http') != -1) ? '${oscar_image_path}' : '';
+  return prefix + resource;
+}
+</script>
+
+<script>
+// Fields shown by a choice: ticking a "parent-field" shows the fields of class "child-<its id>"
+// (or "child-<its value>"); of the boxes sharing an "only-one-…" class, only one stays ticked
+$(document).ready(function() {
+  $('[class^="child-"]').hide();
+  $('.parent-field').click(function() {
+    $('[class^="child-"]').hide();
+    $('.parent-field').each(function() {
+      if ($(this).is('input:checkbox')) {
+        if (this.checked) $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+      if ($(this).is('input:text')) {
+        if ($(this).val() === 'X') $('.child-' + $(this).prop('id')).show();
+        else $('.child-' + $(this).val()).show();
+      }
+    });
+  });
+  $('[class^="only-one-"]').click(function() {
+    if ($(this).is('input:checkbox')) {
+      $('.' + $(this).attr('class')).prop('checked', false);
+      $(this).prop('checked', true);
+    }
+    if ($(this).is('input:text')) {
+      $('.' + $(this).attr('class')).val('');
+      $(this).val('X');
+    }
+  });
+});
+</script>
+
+<script type="text/javascript" src="${oscar_javascript_path}eforms/faxControl.js"></script>
+
+<script>
+// "Print & Submit": prints the form
+function formPrint(){ try{ window.print(); }catch(e){} }
+
+// Typing in the form marks it changed, so leaving asks first; submitting clears that
+var needToConfirm = false;
+document.onkeyup = setDirtyFlag;
+function setDirtyFlag(){ needToConfirm = true; }
+function releaseDirtyFlag(){ needToConfirm = false; }
+window.onbeforeunload = confirmExit;
+// The warning shown on leaving a changed form
+function confirmExit(){
+  if (needToConfirm){
+    return "You have attempted to leave this page. If you have made any changes to the fields without clicking the Save button, your changes will be lost. Are you sure you want to exit this page?";
+  }
+}
+// (OSCAR's own functions that startup() calls, where this OSCAR doesn't have them: they do nothing)
+if (typeof window.setFaxNo !== 'function') window.setFaxNo = function(){};
+if (typeof window.checkGender !== 'function') window.checkGender = function(){};
+if (typeof window.loadSig !== 'function') window.loadSig = function(){};
+
+// Shows the current provider's signature image in each page's signature stamp ("signature",
+// "signature2"…; hidden where they have none)
+function SignForm() {
+  try {
+    var providerField = document.getElementById('current_user_id'), provNum = providerField ? providerField.value : '';
+    var stamps = document.querySelectorAll('[id^="CanvasProSignature"] img');
+    for (var i = 0; i < stamps.length; i++){
+      stamps[i].onerror = function(){ this.style.display = 'none'; };
+      stamps[i].src = "../eform/displayImage.do?imagefile=consult_sig_" + provNum + ".png";
+      stamps[i].alt = provNum;
+    }
+  } catch(e){}
+}
+// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
+// with ids "clinic_fax_12"), or null
+function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
+// The fax number to send to: the first filled-in fax number field on the form
+function getFaxTargetNo(){
+  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
+  for (var i=0;i<ids.length;i++){
+    var input = fieldCalled(ids[i]);
+    if (!input) continue;
+    var faxNo = (input.value || '').trim();
+    if (faxNo) return faxNo;
+  }
+  return '';
+}
+// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
+function syncFaxNoMirror(){
+  var faxNo = getFaxTargetNo();
+  var hiddenFaxNo = document.getElementById('faxnumber');
+  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
+}
+// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
+// form has one of those
+function primeFaxNo(){
+  try{
+    var faxNoBox = fieldCalled('faxNo');
+    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
+    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
+    for (var i=0;i<candidates.length;i++){
+      var input = fieldCalled(candidates[i]);
+      if (!input) continue;
+      var faxNo = (input.value || '').trim();
+      if (faxNo){ faxNoBox.value = faxNo; break; }
+    }
+    syncFaxNoMirror();
+  }catch(e){}
+}
+// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
+function formFax(){
+  try{
+    syncFaxNoMirror();
+    var faxNo = getFaxTargetNo();
+    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
+    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
+    if (typeof setFaxNo === 'function') { setFaxNo(); }
+    var faxControl = document.getElementById('faxControl');
+    if (faxControl){
+      faxControl.style.display = 'inline-block';
+      if (faxControl.children && faxControl.children.length) return;
+    }
+    alert('Fax control not available in this context.');
+  }catch(e){ alert('Fax control not available in this context.'); }
+}
+// "Fax & Submit": fills in the fax number, faxes, then submits the form
+function formSubmitAndFax(){
+  try{ primeFaxNo(); }catch(e){}
+  try{ formFax(); }catch(e){}
+  try{ releaseDirtyFlag(); }catch(e){}
+  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
+}
+</script>
+
+<script>
+// Font size buttons: makes a textarea's text bigger or smaller by delta px, and keeps the size in
+// its hidden "<name>_fontsize" input so it is saved with the form
+function changeFontSize(name, delta){
+  var box = document.getElementsByName(name)[0], saved = document.getElementsByName(name + '_fontsize')[0];
+  if (!box) return;
+  var size = Math.max(6, (parseInt(window.getComputedStyle(box).fontSize, 10) || 12) + delta);
+  box.style.fontSize = size + 'px';
+  if (saved){ saved.value = size; saved.setAttribute('value', size); }
+  if (typeof setDirtyFlag === 'function') setDirtyFlag();
+}
+// On load: gives each textarea back the font size saved with the form
+function loadFontSize(){
+  var saved = document.querySelectorAll("input[name$='_fontsize']");
+  for (var i = 0; i < saved.length; i++){
+    if (!saved[i].value) continue;
+    var box = document.getElementsByName(saved[i].name.slice(0, -'_fontsize'.length))[0];
+    if (box) box.style.fontSize = saved[i].value + 'px';
+  }
+}
+</script>
+<script>
+// Whether the form is new (not opened again after it was saved)
+function isNewForm(){
+  var flag = document.getElementById('newForm');
+  return !!flag && flag.value === 'True';
+}
+// Marks the form saved, so the next time it opens what it was saved with stays
+function markFormSaved(){
+  var flag = document.getElementById('newForm');
+  if (flag){ flag.value = 'False'; flag.setAttribute('value', 'False'); }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var form = document.getElementById('FormName');
+  if (form) form.addEventListener('submit', markFormSaved);
+});
+</script>
+<script>
+// On a new form, ticks each box for the patient's sex (data-tick-if-sex="M" or "F"), from the
+// hidden PatientGender field that OSCAR fills
+function tickSexBoxes(){
+  var sexField = document.getElementById('PatientGender');
+  if (!isNewForm() || !sexField) return;
+  var sex = String(sexField.value || '').trim().toUpperCase();
+  var boxes = document.querySelectorAll('[data-tick-if-sex]');
+  for (var i = 0; i < boxes.length; i++){
+    if (sex && boxes[i].getAttribute('data-tick-if-sex') === sex) boxes[i].value = 'X';
+  }
+}
+</script>
+<link rel="stylesheet" type="text/css" media="all" href="../share/calendar/calendar.css">
+<script type="text/javascript" src="../share/calendar/calendar.js"></script>
+<script type="text/javascript" src="../share/calendar/lang/calendar-en.js"></script>
+<script type="text/javascript" src="../share/calendar/calendar-setup.js"></script>
+<script>
+// Gives each date field OSCAR's calendar, which a click on the field opens
+function setUpCalendars(){
+  if (typeof Calendar === 'undefined' || !Calendar.setup) return;
+  var fields = document.querySelectorAll('input.dateField');
+  for (var i = 0; i < fields.length; i++)
+    Calendar.setup({ inputField: fields[i].id, button: fields[i].id, ifFormat: fields[i].getAttribute('data-date-format') || '%Y-%m-%d', showsTime: false, singleClick: true, step: 1 });
+}
+</script>
+<script>
+// On load: shows each page's background image, then sets up the fax number, signature and the rest
+function startup(){
+  changeImage('new_patient_questionnaire_page1.png', 'BGImage1');
+  loadFontSize();
+  setFaxNo();
+  primeFaxNo();
+  syncFaxNoMirror();
+  SignForm();
+  checkGender();
+  tickSexBoxes();
+  setUpCalendars();
+}
+</script>
+</head>
+<body onload="startup()">
+<form method="post" action="" name="FormName" id="FormName">
+<div id="page1" style="page-break-after:auto;position:relative;width:750px;height:971px;overflow:hidden;">
+<img id="BGImage1" src="${oscar_image_path}new_patient_questionnaire_page1.png" style="position:absolute;left:0;top:0;width:750px;height:971px;">
+<!-- surgeon_cader -->
+<input class="xMarkOnly noborder" id="surgeon_cader_1" name="surgeon_cader" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:480px; top:29px; width:11px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- date -->
+<input class="gen_input noborder dateField" id="date_2" name="date" oscarDB="today" data-date-format="%Y-%m-%d" type="text" autocomplete="off" style="position:absolute; left:75px; top:103px; width:166px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- personal_health_number -->
+<input class="gen_input noborder" id="personal_health_number_3" name="personal_health_number" oscarDB="hin" type="text" autocomplete="off" style="position:absolute; left:394px; top:102px; width:114px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- family_doctor -->
+<input class="gen_input noborder" id="family_doctor_4" name="family_doctor" oscarDB="doctor" type="text" autocomplete="off" style="position:absolute; left:594px; top:102px; width:108px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- full_name -->
+<input class="gen_input noborder" id="full_name_5" name="full_name" oscarDB="patient_name" type="text" autocomplete="off" style="position:absolute; left:106px; top:131px; width:222px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- email -->
+<input class="gen_input noborder" id="email_6" name="email" oscarDB="email" type="text" autocomplete="off" style="position:absolute; left:374px; top:131px; width:161px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- gender_male -->
+<input class="xMarkOnly noborder" id="gender_male_7" name="gender_male" data-tick-if-sex="M" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:586px; top:143px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- address -->
+<input class="gen_input noborder" id="address_8" name="address" oscarDB="addressline" type="text" autocomplete="off" style="position:absolute; left:95px; top:160px; width:362px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- language -->
+<input class="gen_input noborder" id="language_9" name="language" type="text" autocomplete="off" style="position:absolute; left:519px; top:160px; width:181px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- home -->
+<input class="gen_input noborder" id="home_10" name="home" oscarDB="phone" type="text" autocomplete="off" style="position:absolute; left:217px; top:188px; width:108px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- cell -->
+<input class="gen_input noborder" id="cell_11" name="cell" oscarDB="cell" type="text" autocomplete="off" style="position:absolute; left:386px; top:188px; width:107px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- other -->
+<input class="gen_input noborder" id="other_12" name="other" type="text" autocomplete="off" style="position:absolute; left:565px; top:188px; width:108px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- emergency_contact_name -->
+<input class="gen_input noborder" id="emergency_contact_name_13" name="emergency_contact_name" type="text" autocomplete="off" style="position:absolute; left:189px; top:217px; width:161px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- relationship -->
+<input class="gen_input noborder" id="relationship_14" name="relationship" type="text" autocomplete="off" style="position:absolute; left:429px; top:218px; width:101px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- emergency_phone -->
+<input class="gen_input noborder" id="emergency_phone_15" name="emergency_phone" type="text" autocomplete="off" style="position:absolute; left:574px; top:217px; width:121px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- medications -->
+<input class="gen_input noborder" id="medications_16" name="medications" oscarDB="druglist_line" type="text" autocomplete="off" style="position:absolute; left:118px; top:246px; width:584px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- allergies -->
+<input class="gen_input noborder" id="allergies_17" name="allergies" oscarDB="allergies_des" type="text" autocomplete="off" style="position:absolute; left:328px; top:274px; width:376px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- no_allergies -->
+<input class="xMarkOnly noborder" id="no_allergies_18" name="no_allergies" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:244px; top:285px; width:22px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- no_smoking -->
+<input class="xMarkOnly noborder" id="no_smoking_19" name="no_smoking" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:115px; top:314px; width:22px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- number_of_cigarettes -->
+<input class="gen_input noborder" id="number_of_cigarettes_20" name="number_of_cigarettes" type="text" autocomplete="off" style="position:absolute; left:175px; top:312px; width:23px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent;">
+<!-- years_smoking -->
+<input class="gen_input noborder" id="years_smoking_21" name="years_smoking" type="text" autocomplete="off" style="position:absolute; left:319px; top:310px; width:22px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- quit_smoking -->
+<input class="gen_input noborder" id="quit_smoking_22" name="quit_smoking" type="text" autocomplete="off" style="position:absolute; left:422px; top:308px; width:21px; height:21px; font-family:sans-serif; font-size:14px; background-color:transparent;">
+<!-- height -->
+<input class="gen_input noborder" id="height_23" name="height" type="text" autocomplete="off" style="position:absolute; left:568px; top:303px; width:40px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- weight -->
+<input class="gen_input noborder" id="weight_24" name="weight" type="text" autocomplete="off" style="position:absolute; left:665px; top:303px; width:40px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- no_alcohol -->
+<input class="xMarkOnly noborder" id="no_alcohol_25" name="no_alcohol" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:110px; top:342px; width:22px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- of_drinks -->
+<input class="gen_input noborder" id="of_drinks_26" name="of_drinks" type="text" autocomplete="off" style="position:absolute; left:166px; top:339px; width:22px; height:19px; font-family:sans-serif; font-size:12px; background-color:transparent;">
+<!-- no_drugs -->
+<input class="xMarkOnly noborder" id="no_drugs_27" name="no_drugs" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:434px; top:342px; width:22px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- yes_list -->
+<input class="gen_input noborder" id="yes_list_28" name="yes_list" type="text" autocomplete="off" style="position:absolute; left:519px; top:332px; width:115px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- previous_surgeries -->
+<input class="gen_input noborder" id="previous_surgeries_29" name="previous_surgeries" type="text" autocomplete="off" style="position:absolute; left:152px; top:361px; width:551px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- egd -->
+<input class="xMarkOnly noborder" id="egd_30" name="egd" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:211px; top:399px; width:22px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- c_scope -->
+<input class="xMarkOnly noborder" id="c_scope_31" name="c_scope" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:311px; top:399px; width:22px; height:22px; font-family:sans-serif; font-size:14px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dates -->
+<input class="gen_input noborder" id="dates_32" name="dates" type="text" autocomplete="off" style="position:absolute; left:384px; top:393px; width:316px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- e_confirm_no -->
+<input class="xMarkOnly noborder" id="e_confirm_no_33" name="e_confirm_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:419px; top:434px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dropdown1 -->
+<input class="gen_input noborder" id="dropdown1_34" name="dropdown1" type="text" autocomplete="off" style="position:absolute; left:535px; top:428px; width:152px; height:25px; font-family:sans-serif; font-size:16px; background-color:transparent;">
+<!-- pharmanet_no -->
+<input class="xMarkOnly noborder" id="pharmanet_no_35" name="pharmanet_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:398px; top:467px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ai_no -->
+<input class="xMarkOnly noborder" id="ai_no_36" name="ai_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:549px; top:499px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- heart_attack_date -->
+<input class="gen_input noborder dateField" id="heart_attack_date_37" name="heart_attack_date" data-date-format="%Y-%m-%d" type="text" autocomplete="off" style="position:absolute; left:159px; top:531px; width:95px; height:14px; font-family:sans-serif; font-size:9px; background-color:transparent;">
+<!-- surgeon_li -->
+<input class="xMarkOnly noborder" id="surgeon_li_38" name="surgeon_li" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:480px; top:48px; width:11px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- surgeon_young -->
+<input class="xMarkOnly noborder" id="surgeon_young_39" name="surgeon_young" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:480px; top:67px; width:11px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- surgeon_zih -->
+<input class="xMarkOnly noborder" id="surgeon_zih_40" name="surgeon_zih" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:593px; top:68px; width:11px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- surgeon_hintz -->
+<input class="xMarkOnly noborder" id="surgeon_hintz_41" name="surgeon_hintz" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:593px; top:30px; width:11px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- surgeon_nguyen -->
+<input class="xMarkOnly noborder" id="surgeon_nguyen_42" name="surgeon_nguyen" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:593px; top:49px; width:11px; height:11px; font-family:sans-serif; font-size:7px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gender_female -->
+<input class="xMarkOnly noborder" id="gender_female_43" name="gender_female" data-tick-if-sex="F" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:659px; top:144px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- phone_cell -->
+<input class="xMarkOnly noborder" id="phone_cell_44" name="phone_cell" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:498px; top:202px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- phone_other -->
+<input class="xMarkOnly noborder" id="phone_other_45" name="phone_other" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:687px; top:201px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 0 -->
+<input class="xMarkOnly noborder" id="0_46" name="0" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:533px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- 0_no -->
+<input class="xMarkOnly noborder" id="0_no_47" name="0_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:333px; top:532px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dysrhythmia -->
+<input class="xMarkOnly noborder" id="dysrhythmia_48" name="dysrhythmia" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:533px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- cad -->
+<input class="xMarkOnly noborder" id="cad_49" name="cad" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:551px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- af -->
+<input class="xMarkOnly noborder" id="af_50" name="af" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:379px; top:532px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- arrhythmia -->
+<input class="xMarkOnly noborder" id="arrhythmia_51" name="arrhythmia" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:379px; top:544px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- pacemaker -->
+<input class="xMarkOnly noborder" id="pacemaker_52" name="pacemaker" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:379px; top:556px; width:12px; height:12px; font-family:sans-serif; font-size:8px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- cad_no -->
+<input class="xMarkOnly noborder" id="cad_no_53" name="cad_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:333px; top:552px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- htn -->
+<input class="xMarkOnly noborder" id="htn_54" name="htn" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:570px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- htn_no -->
+<input class="xMarkOnly noborder" id="htn_no_55" name="htn_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:571px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hypot4 -->
+<input class="xMarkOnly noborder" id="hypot4_56" name="hypot4" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:570px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- copd -->
+<input class="xMarkOnly noborder" id="copd_57" name="copd" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:51px; top:590px; width:18px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- asthma -->
+<input class="xMarkOnly noborder" id="asthma_58" name="asthma" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:133px; top:589px; width:18px; height:18px; font-family:sans-serif; font-size:12px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hypot4_no -->
+<input class="xMarkOnly noborder" id="hypot4_no_59" name="hypot4_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:570px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- copd_asthma -->
+<input class="xMarkOnly noborder" id="copd_asthma_60" name="copd_asthma" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:590px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- copd_asthma_no -->
+<input class="xMarkOnly noborder" id="copd_asthma_no_61" name="copd_asthma_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:591px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gerd -->
+<input class="xMarkOnly noborder" id="gerd_62" name="gerd" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:589px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gerd_no -->
+<input class="xMarkOnly noborder" id="gerd_no_63" name="gerd_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:590px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- osa -->
+<input class="xMarkOnly noborder" id="osa_64" name="osa" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:609px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- osa_no -->
+<input class="xMarkOnly noborder" id="osa_no_65" name="osa_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:611px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dm -->
+<input class="xMarkOnly noborder" id="dm_66" name="dm" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:609px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dm_no -->
+<input class="xMarkOnly noborder" id="dm_no_67" name="dm_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:610px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- cpap -->
+<input class="xMarkOnly noborder" id="cpap_68" name="cpap" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:627px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- cpap_no -->
+<input class="xMarkOnly noborder" id="cpap_no_69" name="cpap_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:630px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- insulin -->
+<input class="xMarkOnly noborder" id="insulin_70" name="insulin" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:628px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- insulin_no -->
+<input class="xMarkOnly noborder" id="insulin_no_71" name="insulin_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:628px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ckd -->
+<input class="xMarkOnly noborder" id="ckd_72" name="ckd" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:647px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ckd_no -->
+<input class="xMarkOnly noborder" id="ckd_no_73" name="ckd_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:648px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- stroke -->
+<input class="xMarkOnly noborder" id="stroke_74" name="stroke" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:648px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- stroke_no -->
+<input class="xMarkOnly noborder" id="stroke_no_75" name="stroke_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:648px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dialysis -->
+<input class="xMarkOnly noborder" id="dialysis_76" name="dialysis" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:666px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dialysis_no -->
+<input class="xMarkOnly noborder" id="dialysis_no_77" name="dialysis_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:668px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- seizures -->
+<input class="xMarkOnly noborder" id="seizures_78" name="seizures" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:666px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- seizures_no -->
+<input class="xMarkOnly noborder" id="seizures_no_79" name="seizures_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:666px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dyslipidemia -->
+<input class="xMarkOnly noborder" id="dyslipidemia_80" name="dyslipidemia" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:686px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dyslipidemia_no -->
+<input class="xMarkOnly noborder" id="dyslipidemia_no_81" name="dyslipidemia_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:688px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- arthritis -->
+<input class="xMarkOnly noborder" id="arthritis_82" name="arthritis" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:686px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- arthritis_no -->
+<input class="xMarkOnly noborder" id="arthritis_no_83" name="arthritis_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:686px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dvt_pe -->
+<input class="xMarkOnly noborder" id="dvt_pe_84" name="dvt_pe" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:706px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dvt_pe_no -->
+<input class="xMarkOnly noborder" id="dvt_pe_no_85" name="dvt_pe_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:707px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- prostate -->
+<input class="xMarkOnly noborder" id="prostate_86" name="prostate" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:706px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- prostate_no -->
+<input class="xMarkOnly noborder" id="prostate_no_87" name="prostate_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:706px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hiv_hepatitis -->
+<input class="xMarkOnly noborder" id="hiv_hepatitis_88" name="hiv_hepatitis" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:282px; top:726px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- hiv_hepatitis_no -->
+<input class="xMarkOnly noborder" id="hiv_hepatitis_no_89" name="hiv_hepatitis_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:726px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- fmhx_ca -->
+<input class="xMarkOnly noborder" id="fmhx_ca_90" name="fmhx_ca" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:567px; top:726px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- fmhx_ca_no -->
+<input class="xMarkOnly noborder" id="fmhx_ca_no_91" name="fmhx_ca_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:726px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- prev_ca -->
+<input class="xMarkOnly noborder" id="prev_ca_92" name="prev_ca" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:283px; top:745px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- prev_cancer -->
+<input class="gen_input noborder" id="prev_cancer_93" name="prev_cancer" type="text" autocomplete="off" style="position:absolute; left:143px; top:743px; width:135px; height:23px; font-family:sans-serif; font-size:15px; background-color:transparent;">
+<!-- other_medical_problems_not_listed_above -->
+<input class="gen_input noborder" id="other_medical_problems_not_listed_above_94" name="other_medical_problems_not_listed_above" type="text" autocomplete="off" style="position:absolute; left:280px; top:767px; width:376px; height:27px; font-family:sans-serif; font-size:18px; background-color:transparent;">
+<!-- bmi -->
+<input class="gen_input noborder" id="bmi_95" name="bmi" type="text" autocomplete="off" style="position:absolute; left:205px; top:821px; width:56px; height:26px; font-family:sans-serif; font-size:17px; background-color:transparent;">
+<!-- office_use -->
+<textarea class="gen_input noborder" id="office_use_96" name="office_use" style="position:absolute; left:263px; top:813px; width:447px; height:134px; font-family:sans-serif; font-size:12px; background-color:transparent; resize:none;"></textarea>
+<!-- prev_ca_no -->
+<input class="xMarkOnly noborder" id="prev_ca_no_97" name="prev_ca_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:334px; top:746px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- gender_u -->
+<input class="xMarkOnly noborder" id="gender_u_98" name="gender_u" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:700px; top:144px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- dysrhythmia_no -->
+<input class="xMarkOnly noborder" id="dysrhythmia_no_99" name="dysrhythmia_no" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:611px; top:533px; width:17px; height:17px; font-family:sans-serif; font-size:11px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- phone_home -->
+<input class="xMarkOnly noborder" id="phone_home_100" name="phone_home" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:329px; top:201px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- e_confirm -->
+<input class="xMarkOnly noborder" id="e_confirm_101" name="e_confirm" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:469px; top:435px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- pharmanet -->
+<input class="xMarkOnly noborder" id="pharmanet_102" name="pharmanet" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:451px; top:467px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- ai -->
+<input class="xMarkOnly noborder" id="ai_103" name="ai" type="text" value="" maxlength="1" readonly="readonly" onclick="this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag();" onkeydown="if(event.key===' '||event.key==='Enter'){this.value=(this.value==='X'?'':'X'); setDirtyFlag&&setDirtyFlag(); return false;} return event.key!=='Backspace';" style="position:absolute; left:601px; top:500px; width:17px; height:16px; font-family:sans-serif; font-size:10px; background-color:transparent; border:0; outline:0; box-shadow:none; background:transparent; text-align:center; font-weight:bold; padding:0; margin:0; cursor:pointer;">
+<!-- office_use -->
+<span class="DoNotPrint FontSizeChange" title="Increase font size" style="left:711px; top:813px;" onclick="changeFontSize('office_use', 1);">&#9650;</span>
+<span class="DoNotPrint FontSizeChange" title="Decrease font size" style="left:711px; top:833px;" onclick="changeFontSize('office_use', -1);">&#9660;</span>
+<input type="hidden" name="office_use_fontsize" id="office_use_fontsize">
+</div>
+
+<div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <input type="hidden" name="faxnumber" id="faxnumber">
+  <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="releaseDirtyFlag();">
+  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="formSubmitAndFax();">
+  <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
+  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+</div>
+
+<input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
+<input type="hidden" id="PatientGender" name="PatientGender" oscarDB="sex">
+<input type="hidden" id="newForm" name="newForm" value="True">
+
+</form>
+</body>
+</html>

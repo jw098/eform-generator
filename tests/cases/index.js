@@ -524,18 +524,7 @@ window.TEST_CASE_LIST = [
     "skip": [
       {"test": "tags", "page": 1, "region": [880, 835, 345, 40], "reason": "\"Pharmacy phone\" is tagged phone: OSCAR 12 has no tags for a pharmacy, and telling its details from the patient's would need an owner made for this form (eForms are rarely a pharmacy's medication review)"},
       {"test": "tags", "page": 1, "region": [165, 1110, 445, 40], "reason": "\"Reviewed by\" gets no current_user: a reviewer is named only on a review form such as this one, and taking \"reviewed by\" for the clinician would be a word added for one form"},
-      {"test": "tags", "page": 1, "region": [780, 1110, 230, 40], "reason": "\"Date of review\" gets no today: a review date is often the next or last one (\"Review date\", \"Next review\"), so taking it for the form's own date would be right here and wrong on many forms"},
-      {
-        "test": "tags",
-        "page": 1,
-        "region": [
-          790,
-          145,
-          280,
-          45
-        ],
-        "reason": "the date of birth in three parts (\"Date of birth: ____ / ____ / ____\", \"YYYY  MM  DD\" printed under them): dob_year, dob_month and dob_day could be told only from the captions under a row of blanks, by a check made for this one layout, not worth its complexity; the year and month parts are tagged dobc2, the day part nothing"
-      }
+      {"test": "tags", "page": 1, "region": [780, 1110, 230, 40], "reason": "\"Date of review\" gets no today: a review date is often the next or last one (\"Review date\", \"Next review\"), so taking it for the form's own date would be right here and wrong on many forms"}
     ]
   },
   {
@@ -2111,6 +2100,93 @@ window.TEST_CASE_LIST = [
         ],
         "reason": "\"English-speaking Contact's Phone\": someone else's, but \"contact\" names no one OSCAR has tags for, and \"Contact\" alone is often the patient's, so it gets the patient's phone"
       }
+    ]
+  },
+  {
+    "name": "Pre-op physician history (a two-column table of labelled rows, headings in cells)",
+    "folder": "preop-physician-history",
+    "session": "preop_physician_history_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [755, 765, 690, 40], "reason": "the blank under \"MEDICATIONS\", a heading centred in its cell over the right column's rows: the eForm leaves it out, but the cell is a row of the table, its ink a label at its top, as \"CARDIAC\" is in the cell beside it, which has a field"},
+      {"test": "extraFields", "page": 1, "region": [755, 1078, 690, 38], "reason": "the blank under \"PHYSICAL EXAMINATION\", a heading centred in its cell: as \"MEDICATIONS\", the same in ink as a labelled row"},
+      {"test": "extraFields", "page": 1, "region": [72, 1695, 690, 75], "reason": "\"PHYSICIAN'S SIGNATURE\": a signature's cell, which the eForm leaves to the signature"}
+    ]
+  },
+  {
+    "name": "Request to change designated MRP (boxed cells with labels on top, grey section bars)",
+    "folder": "mrp-change-request",
+    "session": "mrp_change_request_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [640, 335, 150, 65], "reason": "the blank over the header's rule between \"New: April 19, 2024\" and \"Page: 1 of 1\": the form's dates printed on the rule read as labels along a fill-in line"},
+      {"test": "extraFields", "page": 1, "region": [905, 330, 560, 75], "reason": "the blank top right of the page over the form's first line, beside the form number: an unlabelled space for a patient label, which the eForm leaves out"},
+      {"test": "extraFields", "page": 1, "region": [1010, 530, 445, 60], "reason": "the blank under \"Sex ☐ M ☐ F ☐ X\": a blank after a row of options, which the eForm leaves out, where the same layout of a cell's label over its blank gets a field in the cells beside it"},
+      {"test": "extraFields", "page": 1, "region": [128, 1812, 1335, 46], "reason": "the blank last row of the instructions box, under \"E-mailed to Central Intake at ...\": the box's bottom edge closes it as a fill-in line"},
+      {"test": "tags", "page": 1, "region": [575, 748, 445, 65], "reason": "\"First name\" under the grey bar \"Previous Resident's MRP Information\": the bar's words lie over the first column only, so the second looks up past them to \"First Name\" of the row above, the patient's; reading a bar's heading across the whole table would need the bar's extent in the owner check"},
+      {"test": "tags", "page": 1, "region": [1010, 748, 445, 65], "reason": "\"MSP No.\" under \"Previous Resident's MRP Information\": as its row's \"First name\", the heading in the bar is over the first column only, so it is the patient's (hin)"},
+      {"test": "tags", "page": 1, "region": [130, 872, 450, 80], "reason": "\"Name\" under \"Care Community Information\": a heading that names no one doesn't stop the look upward, which reaches the previous MRP's \"Last name\" and makes it the doctor's"},
+      {"test": "tags", "page": 1, "region": [130, 966, 450, 80], "reason": "\"Postal Code\" under \"Care Community Information\": as \"Name\" above it, taken for the previous MRP's, whose postal code OSCAR has no tag for"},
+      {"test": "tags", "page": 1, "region": [1010, 966, 445, 80], "reason": "\"Other Phone\": the resident's second phone, which OSCAR 12 has no tag for (phone2 is a work phone); \"phone\" is on it, as on \"Home Phone\""}
+    ],
+    "variationSkip": [
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [495, 1688, 955, 45], "reason": "the blank after \"Completed form must be:\" in the instructions box, a colon with blank page after it: a field only at 0.7× (not traced further; the pushed app does the same)"}
+    ]
+  },
+  {
+    "name": "TWC assessment (five pages of fill-in lines, tables and boxes for numbers)",
+    "folder": "twc-assessment",
+    "session": "twc_assessment_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [845, 385, 405, 40], "reason": "the three PHN blanks (\"PHN# ____ - ____ - ____\"): short lines with the \"DD  MM  YY\" captions of the birth date's blanks just above them, read as their labels, so the space between is no room to write; telling a row above's captions from a line's own label needs more than ink"},
+      {"test": "fields", "page": 1, "region": [500, 715, 815, 80], "reason": "the five small boxes for numbers (\"Dependent Children (enter # of children in box)\"): about twice as wide as tall, too wide for a tick box and too short for lines that bound a field"},
+      {"test": "fields", "page": 2, "region": [210, 918, 1225, 55], "reason": "\"Operations\": its label at the foot of its row, the line under it the medications table's top edge, and no line between the label and the row above to close a box over its blank"},
+      {"test": "fields", "page": 5, "region": [960, 1512, 75, 45], "reason": "the first blank of the client's \"Date ___/___/___\": its line starts just right of \"Date\" and is read with it as the label's underline"},
+      {"test": "extraFields", "page": 2, "region": [505, 212, 930, 45], "reason": "the blank right of \"Drug & Alcohol Recovery & Education Society\" over the header's rule: the rule runs under the society's name as a fill-in line would under a label"},
+      {"test": "extraFields", "page": 2, "region": [285, 1020, 725, 40], "reason": "the blanks between the medication table's headings (\"Name ____ Condition Being Treated\"), over the table's top edge: the same as labels along a fill-in line"},
+      {"test": "extraFields", "page": 5, "region": [570, 284, 725, 42], "reason": "the blanks between the professionals table's headings (\"Name ____ Agency / Office ____ Tel\"), over the table's top edge: the same as labels along a fill-in line"},
+      {"test": "extraFields", "page": 3, "region": [70, 1162, 232, 60], "reason": "the suicide risk row is split at \"Suicide Risk\"'s end, its tick boxes' words over the rest: the eForm's one field across the row"},
+      {"test": "extraFields", "page": 5, "region": [260, 1505, 540, 45], "reason": "\"Client Signature\": a signature line, which the eForm leaves to the signature"},
+      {"test": "extraFields", "page": 5, "region": [240, 1740, 540, 45], "reason": "\"Staff Signature\": a signature line, which the eForm leaves to the signature"},
+      {"test": "extraFields", "page": 5, "region": [950, 1785, 495, 45], "reason": "the \"Day  Month  Year\" captions under the staff date's blanks, read as labels with blank page after them"},
+      {"test": "tags", "page": 1, "region": [240, 568, 420, 45], "reason": "\"Contact # 1\": a phone number named only by \"#\", which OCR and the label's words drop; \"contact\" alone names no one (seen, not traced)"},
+      {"test": "tags", "page": 1, "region": [325, 386, 40, 40], "reason": "the \"M ☐\" of \"Gender ID\": the box's label is \"M\" and \"Gender ID\" is more than ten boxes' width to its left, where a sex is looked for (seen, not traced)"},
+      {"test": "tags", "page": 2, "region": [715, 702, 700, 50], "reason": "\"Physician for pre-natal care ____ Tel ____\": a physician named by their role, which can't be told from the clinician's (\"Physician\", \"Prescribing physician\")"},
+      {"test": "tags", "page": 2, "region": [870, 1548, 235, 45], "reason": "\"Prescribing Physician\": the methadone prescriber, named by the role that elsewhere names the referring clinician"},
+      {"test": "tags", "page": 2, "region": [66, 1650, 1370, 40], "reason": "the second line of \"Allergies (drug, food, environmental – include reactions)\": the line above's continuation, with the label over it as well"},
+      {"test": "tags", "page": 4, "region": [460, 1150, 170, 55], "reason": "the Method cell on the \"Misuse of other Prescription Meds\" row: its row's heading names medications, and a table cell takes it as its label"},
+      {"test": "tags", "page": 4, "region": [60, 1465, 1390, 50], "reason": "\"Other Addictions (sex, food, gambling, etc)\": \"sex\" in the examples in brackets; the words in brackets are often what a field asks for (\"Phone (home)\"), so they are read"},
+      {"test": "tags", "page": 5, "region": [330, 376, 425, 55], "reason": "\"Addictions Physician\": a physician named by their role, which can't be told from the clinician's"},
+      {"test": "tags", "page": 5, "region": [90, 1260, 480, 60], "reason": "\"I ____, verify that ...\" with \"Print Name\" under it: the client's name, but the label read is \"I\""},
+      {"test": "tags", "page": 5, "region": [895, 1742, 135, 45], "reason": "the staff date's first blank (\"Date ____/____/____\" over \"Day  Month  Year\"): its caption is taken for a field of its own, so it is the whole date, today"}
+    ],
+    "variationSkip": [
+      {"variation": "2× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "the Per Diem \"Other ____\" blank, with \"...into the TWC Program\" printed just over its start: found on the page and at the other sizes; at 2× and 2.5× it is lost (not traced further; the pushed app loses it there too)"},
+      {"variation": "2.5× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "as at 2×: the Per Diem \"Other ____\" blank under the end of \"...TWC Program\""},
+      {"variation": "0.7× size", "boxes": ["checkbox_5_1"], "reason": "the box after \"Carry Privileges ... No\", printed right against the o of \"No\": found on the page and the larger copies, missed at 0.7× (not traced further; the pushed app misses it too)"},
+      {"variation": "0.7× size", "test": "fields", "page": 5, "region": [1030, 1508, 95, 48], "reason": "the client's date, month blank (\"Date ___/___/___\" over \"DD MM YY\"): missed at 0.7×, short lines with slashes between them (not traced further; the pushed app misses it too)"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 5, "region": [895, 1742, 475, 45], "reason": "the staff date's three blanks (\"___/___/___\"): at 0.7× one field across them, where the eForm has a field each (not traced further; the pushed app does the same)"},
+      {"variation": "2× size", "test": "fields", "page": 5, "region": [330, 542, 425, 55], "reason": "the Name cell of the \"A & D Counselling\" row: found on the page and the smaller copies; lost at 2× and 2.5× (not traced further; the pushed app loses it there too)"},
+      {"variation": "2.5× size", "test": "fields", "page": 5, "region": [330, 542, 425, 55], "reason": "as at 2×: the Name cell of the \"A & D Counselling\" row"}
+    ]
+  },
+  {
+    "name": "New patient questionnaire (fillable PDF: radio buttons for Yes/No, sex)",
+    "folder": "new-patient-questionnaire",
+    "eform": "new_patient_questionnaire.html",
+    "images": ["new_patient_questionnaire_page1.png"],
+    "pdf": "New_Patient_Questionnaire_FGSG_2025_Fillable.pdf"
+  },
+  {
+    "name": "Youth substance use treatment application (fillable PDF: date fields, a patient header on each page)",
+    "folder": "youth-substance-use-application",
+    "eform": "youth_substance_use_application.html",
+    "images": ["youth_substance_use_application_page1.png", "youth_substance_use_application_page2.png", "youth_substance_use_application_page3.png", "youth_substance_use_application_page4.png"],
+    "pdf": "youth-substance-use-treatment-application.pdf",
+    "skip": [
+      {"test": "tags", "page": 1, "region": [870, 722, 240, 52], "reason": "\"Gender Identity\": the PDF names the field \"gender\", which elsewhere is the patient's sex; the page's own label isn't read when the PDF's name gives a tag"},
+      {"test": "tags", "page": 4, "region": [1080, 1796, 295, 56], "reason": "\"Designation / College ID #\": OCR reads only \"Designation\" on this page (on page 3 it reads the whole label, which gets current_user_cpsid)"}
     ]
   }
 ];

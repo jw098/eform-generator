@@ -1396,17 +1396,19 @@ else if (typeof exports === 'object')
     // (a billing number is a practitioner's, never the patient's: where nothing else says whose,
     // the referring clinician's, "Billing #: ____")
     if (kind === 'billing'){ kind = 'number'; if (who === 'patient') who = 'clinician'; }
+    // (nor is a college licence the patient's: "Designation / College ID #")
+    if (kind === 'college' && who === 'patient') who = 'clinician';
     // (the family doctor's clinic isn't the clinician's: "PCP's Clinic Name")
     const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' || who === 'copy' || (who === 'family' && kind === 'clinic') ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
     return tag;
   }
   // The tag for what a field asks for, by whose it is. "any" is the same tag whoever's it is
-  // (but none for the receiving office's)
+  // (but none for the receiving office's; allergies and the drug list are always the patient's)
   const TAG_FOR = {
-    any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name' },
+    any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name', allergies: 'allergies_des' },
     patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
                  workPhone: 'phone2', email: 'email', address: 'addressline', city: 'city', province: 'province', postal: 'postal',
-                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin', allergies: 'allergies_des' },   // (the patient's MSP or OHIP number is their health number)
+                 hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin' },   // (the patient's MSP or OHIP number is their health number)
     clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no', college: 'current_user_cpsid' },                       // (OSCAR 12 has no tag for their email)
@@ -1428,6 +1430,8 @@ else if (typeof exports === 'object')
     // witness (print)", the patient's employer: "EMPLOYER ADDRESS", a choice the writer names:
     // "☐ Specialty Clinic (specify): ____")
     if (hasWord('appointment|appt|maiden|seen|requisition|facility|initials|recorder|signature|sig|witness|employer|employers|time|hours|specify')) return '';
+    // (a name the patient goes by isn't the one in the chart: "Preferred Name", "Nickname")
+    if (hasWord('preferred_name|nickname|alias')) return '';
     if (hasWord('email|e_mail')) return 'email';
     if (hasWord('fax')) return 'fax';
     if (hasWord('phn|hin|personal_health_number|health_number|health_card|care_card|carecard')) return hasWord('version') ? 'hinVersion' : 'hin';
@@ -1522,7 +1526,7 @@ else if (typeof exports === 'object')
   const OWNER_CUES = [
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
-    ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp|pcp)\b/],
+    ['family', /\bfamily (doctor|physician|md|dr|practitioner)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
     ['guardian', /\b(parents?|guardians?|next of kin|emergency contact|substitute decision maker)\b/],
     ['clinician', /\b(referring|referred by|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|office)\b/],
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
@@ -1627,7 +1631,9 @@ else if (typeof exports === 'object')
       const cy = f.y + f.height/2, near = read.words.filter(w =>
         (w.y0 <= cy && w.y1 >= cy && w.x1 <= f.x && w.x1 >= f.x - f.width*10) ||
         (w.y1 <= f.y && f.y - w.y1 <= f.height*2 && w.x1 >= f.x - f.width*8 && w.x0 <= f.x + f.width*2));
-      const label = nameKey(f.label), namesSex = near.some(w => /^(sex|gender)\b/i.test(w.text));
+      // (a label can name the question with the option, as a fillable PDF's names do: "gender_male")
+      const named = nameKey(f.label).match(/^(?:sex|gender)(?:_.*)?_(male|female|m|f)$/);
+      const label = named ? named[1] : nameKey(f.label), namesSex = !!named || near.some(w => /^(sex|gender)\b/i.test(w.text));
       const sex = label === 'male' || (label === 'm' && namesSex) ? 'sex_male' : label === 'female' || (label === 'f' && namesSex) ? 'sex_female' : '';
       if (sex) f.fill = { on: true, action: sex };
     });
@@ -1638,6 +1644,22 @@ else if (typeof exports === 'object')
       f.oscarTag = guessTag('', f.type, f.label, owners.get(f));
       if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
       f.oscarTag = captionTag(f.oscarTag, f.label);
+    });
+    // A blank for one part of a date, its part printed under it ("Date of Birth ___/___/___" over
+    // "DD  MM  YY"): the part of a birth date it holds (dob_day…), and nothing for a part of
+    // another date, which OSCAR fills only whole. A part whose label is just its caption ("MM") is
+    // part of the date the blank left of it is part of
+    const partOf = (f) => { const c = String(f.caption || '').trim();
+      return /^(d{1,2}|day)$/i.test(c) ? 'day' : /^(m{1,3}|mon|month)$/i.test(c) ? 'month' : /^(y{2,4}|year)$/i.test(c) ? 'year' : ''; };
+    const dateOf = new Map();
+    writes.filter(partOf).sort((a,b) => a.x - b.x).forEach(f => {
+      const prev = nameKey(f.label) === nameKey(f.caption) ? fieldLeftOf(f, writes) : null;
+      const date = prev ? dateOf.get(prev) : f.oscarTag;
+      if (date === undefined || !(date === '' || /^dob/.test(date) || YMD_DATE_TAGS.has(date))) return;
+      if (!date && !prev && !labelNamesADate(f.label)) return;
+      dateOf.set(f, date);
+      f.oscarTag = /^dob/.test(date) ? 'dob_' + partOf(f) : '';
+      f._datePart = true;
     });
     // (an option's write-in isn't a value with a date: "☐ Specialist (specify): ____  Date: ____")
     const optionWords = new Set(found.filter(f => f.type === 'checkbox').flatMap(f => f._words || []));
@@ -1650,6 +1672,7 @@ else if (typeof exports === 'object')
     // format printed with it ("(dd/mm/yyyy)"). A date field OSCAR fills ("today") takes OSCAR's
     // format instead, whatever is printed or a fillable PDF says, so the two don't mix
     writes.forEach(f => {
+      if (f._datePart){ if (f.type === 'date'){ f.type = 'text'; delete f.dateFormat; } delete f._datePart; return; }
       if (f.type === 'text' && labelNamesADate(f.label)){
         f.type = 'date';
         const format = printedDateFormat((f.caption || '') + ' ' + f.label);
@@ -4946,6 +4969,14 @@ else if (typeof exports === 'object')
   function fieldsFromLabels(fields){
     // (whether f's label words are also another field's label)
     const labelShared = (f) => (f._words || []).some(w => fields.some(g => g !== f && (g._words || []).includes(w)));
+    // (the blank in a label's own cell, which goes, hands its label to the empty cell just right
+    // of it on its row: "PHN | ____" with the label cell wider than its word)
+    fields.forEach(f => {
+      if (!(f._lone && f.box && f._words && f._words.length) || endsWithColon(f._words)) return;
+      const next = fields.find(g => g !== f && g.type !== 'checkbox' && !(g._words && g._words.length) && Math.abs(g.x - (f.x + f.width)) <= f.height &&
+                                    Math.min(g.y + g.height, f.y + f.height) - Math.max(g.y, f.y) >= Math.min(g.height, f.height)*0.5);
+      if (next) Object.assign(next, { label: f.label, _words: f._words });
+    });
     return fields.flatMap(f => {
       const { _split, _afterOption, _lone, toEnd, ...g } = f;
       if (_split) return _split.map(part => ({ ...g, ...part }));
@@ -5604,11 +5635,14 @@ else if (typeof exports === 'object')
         };
         // (print over an open line that runs on past its left end, on the same rows, is the row
         // above's, "Emergent (Immediate to 24 hours) Call Cardiology" over "Urgent ... Reason: ____":
-        // a label printed on a line starts on it, "Other: ____")
+        // a label printed on a line starts on it, "Other: ____". Print that runs on is there on
+        // both sides of the line's end: a label ending just before the line and a word further
+        // along over it, "Client Last Name ________ First ____", is the line's own)
         const runsIn = () => {
           if (bounded || lowInk < 0) return false;
-          for (let y=highInk; y<=lowInk; y++) for (let x=Math.max(0, L.x1 - Math.round((capHeight || lineHeight*0.4)*1.5)); x<L.x1-2; x++) if (isInk(x,y)) return true;
-          return false;
+          const reach = Math.round((capHeight || lineHeight*0.4)*1.5);
+          const inkIn = (xa, xb) => { for (let y=highInk; y<=lowInk; y++) for (let x=Math.max(0, xa); x<xb; x++) if (isInk(x,y)) return true; return false; };
+          return inkIn(L.x1 - reach, L.x1 - 2) && inkIn(L.x1 - 2, L.x1 + reach);
         };
         const fs = [];
         let below = null;                                  // (the top of a field under its label)
@@ -5654,6 +5688,10 @@ else if (typeof exports === 'object')
           // (in the line under a heading: below the heading, and a bullet "▪" isn't a label)
           const ya = Math.max(y1, y2 - Math.round(lineHeight), several ? blocks[blocks.length-2].y2 + 3 : 0);
           if (several && labels.filter(g => g.x2 - g.x1 >= (capHeight || lineHeight*0.3)).length < 2) labels.length = 0;
+          // (an open line with its label before it and another printed further along it: a blank
+          // before that one too, "Client Last Name ________ First ________")
+          if (!bounded && labels.length && labels[0].x1 - x1 >= lineHeight*2.5 && labelled())
+            fs.push({ x1, y1: ya, x2: labels[0].x1 - Math.round(lineHeight*0.3), y2 });
           labels.forEach((g, j) => {
             const end = j+1 < labels.length ? labels[j+1].x1 - Math.round(lineHeight*0.3) : x2;
             if (end - g.x2 >= lineHeight*2.5) fs.push({ x1: g.x2 + Math.round(lineHeight*0.3), y1: ya, x2: end, y2, lone: labels.length === 1 });
@@ -5805,7 +5843,10 @@ else if (typeof exports === 'object')
           if (opt && !/^(on|yes|off|\d+)$/.test(opt) && !name.endsWith(opt)) name = `${name}_${opt}`;
         }
         // (a name the PDF's authoring tool made up says nothing of what the field asks for, so it is no label)
-        const label = fieldNamePart(a.alternativeText || a.fieldName);
+        // (a radio button's or tick box's own value, "Male" of the group "Gender", is part of its label)
+        let label = fieldNamePart(a.alternativeText || a.fieldName);
+        const option = type === 'checkbox' ? String(a.buttonValue || a.exportValue || '').trim() : '';
+        if (option && !/^(on|yes|off|\d+)$/i.test(option) && !nameKey(label).endsWith(nameKey(option))) label = `${label} ${option}`;
         out.push({ fx: Math.min(x1, x2) / vp.width, fy: Math.min(y1, y2) / vp.width, fw: Math.abs(x2 - x1) / vp.width, fh: Math.abs(y2 - y1) / vp.width,
                    type, name, label: GENERIC_PDF_NAME_RE.test(label) ? '' : label, ...(keptDateFormat(dateFormat) ? { dateFormat } : {}) });
       });
@@ -6179,12 +6220,15 @@ else if (typeof exports === 'object')
       if (read) markLineWords(read, bands, scale, h);
       if (read && fromPdf){
         // A field the PDF's author left unnamed ("Text1") is labelled from the page, as a field
-        // found in the picture is; the rest keep the PDF's labels
-        if (found.some(f => !f.label)){
-          const copies = found.map(f => ({ ...f }));
-          labelFields(copies, read, lineAcross);
-          copies.forEach((c, i) => { if (!found[i].label && c.label) Object.assign(found[i], { label: c.label, _words: c._words }); });
-        }
+        // found in the picture is; the rest keep the PDF's labels, but the page's is kept too
+        // (`_pageLabel`), for the tag when the PDF's name gives none ("prov" by "Province")
+        const copies = found.map(f => ({ ...f }));
+        labelFields(copies, read, lineAcross);
+        copies.forEach((c, i) => {
+          if (!c.label) return;
+          if (!found[i].label) Object.assign(found[i], { label: c.label, _words: c._words });
+          else if (c.label !== found[i].label) Object.assign(found[i], { _pageLabel: c.label, _pageWords: c._words });
+        });
         sectionFields(found, read);
       }
       else if (read){
@@ -6231,6 +6275,25 @@ else if (typeof exports === 'object')
         used.add(f.name);
       });
       if (read) tagFields(found, read, boxOf);
+      // (a fillable PDF's field its label gives no tag, nor a tick box its sex: its label is the
+      // PDF's tooltip or name, often a code, a short form or a word of the row ("prov", "date_birth",
+      // "sex_2", "Yes. List"). Then the label printed by it, unless that is a question or a sentence,
+      // which asks for more than one detail; then the PDF's field name, "Allergies")
+      const untagged = (f) => f.type === 'checkbox' ? !f.fill : !f.oscarTag;
+      const alternatives = [(f) => f._pageLabel && !isSentence(f._pageWords || []) ? { label: f._pageLabel, _words: f._pageWords } : null,
+                            (f) => f.name && nameKey(f.name) !== nameKey(f.label) ? { label: f.name.replace(/_\d+$/, '').replace(/_/g, ' '), _words: [] } : null];
+      if (read && fromPdf) alternatives.forEach(alternative => {
+        if (!found.some(f => untagged(f) && alternative(f))) return;
+        const others = found.map(f => ({ ...f, ...(alternative(f) || {}), oscarTag: '', fill: undefined }));
+        tagFields(others, read, boxOf);
+        found.forEach((f, i) => {
+          if (!untagged(f) || !alternative(f)) return;
+          if (f.type === 'checkbox'){ if (others[i].fill) f.fill = others[i].fill; return; }
+          f.oscarTag = others[i].oscarTag || '';
+          if (f.type === 'date' && YMD_DATE_TAGS.has(f.oscarTag)) delete f.dateFormat;
+        });
+      });
+      found.forEach(f => { delete f._pageLabel; delete f._pageWords; });
       if (read) fitMultilineFields(found, inkMap, w, scale);
       // (whatever check found a field: none covers printed text)
       trimFieldsToBlank(found, inkMap, w, h, scale, bands, 3);
