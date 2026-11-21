@@ -1726,6 +1726,17 @@ else if (typeof exports === 'object')
       if (f.caption) f.oscarTag = captionTag(f.oscarTag, f.caption);
       f.oscarTag = captionTag(f.oscarTag, f.label);
     });
+    // A blank labelled only by a phone's kind, after the patient's phone on its row, is that kind
+    // of the patient's phone: "Tel (Home): ____ (Work): ____ (cell): ____", "Phone numbers: (H)
+    // ____ (W) ____ (C) ____", "Home: ____ Mobile: ____ Work: ____"
+    const PHONES = new Set(['phone', 'cell', 'phone2']);
+    writes.slice().sort((a,b) => a.x - b.x).forEach(f => {
+      if (f.oscarTag || f._column) return;
+      const kind = String(f.label || '').toLowerCase().replace(/[^a-z]/g, '');
+      const tag = { h: 'phone', home: 'phone', w: 'phone2', work: 'phone2', business: 'phone2', c: 'cell', cell: 'cell', mobile: 'cell' }[kind];
+      const prev = tag && fieldLeftOf(f, writes);
+      if (prev && PHONES.has(prev.oscarTag) && prev.oscarTag !== tag && !writes.some(g => g !== f && g.oscarTag === tag && fieldLeftOf(g, writes) === prev)) f.oscarTag = tag;
+    });
     // A blank for one part of a date, its part printed under it ("Date of Birth ___/___/___" over
     // "DD  MM  YY"): the part of a birth date it holds (dob_day…), and nothing for a part of
     // another date, which OSCAR fills only whole. A part whose label is just its caption ("MM") is
