@@ -4396,6 +4396,81 @@ else if (typeof exports === 'object')
     });
   }
 
+  // Fields on short fill-in lines, after a word with no colon: "Yes ____  No ____", "Rm# ____",
+  // "EDD ___/___/___", a column of "____" beside a list ("Suspected CAD  ____"). Pass 1 takes no
+  // run of ink shorter than two and a half letters for a line, as a row of letters can be that
+  // long, and makes no field narrower than a line and a fifth of writing (textFieldsFromLines).
+  // Here, with the words read, a shorter run (under maxLen) is a blank when it is at least 1.4
+  // letters long and thin, with: blank page above it for most of a letter's height (not letters'
+  // feet, nor an underline); a row of paper just under it, on the grey image (not the tops of
+  // small letters run together, "ower", their bodies right there; a caption under a line is
+  // printed a little apart, "DD MM YY"); below it, just beside its ends, little ink (not a dash in the middle of a row of
+  // text, with letters reaching below it on both sides; a caption under the line itself is the
+  // blank's, "___/___/___" over "DD MM YY"); no side line up or down from either end (not a box's
+  // or a cell's edge); and a word on its row just before or after it, its label. gray: the
+  // page's grey levels; cap: the page's letter height; maxLen: the narrowest field pass 1 makes on a line; rowLine:
+  // one written line's height (all canvas px). Page-image px out.
+  function shortLineFields(read, inkMap, gray, w, h, scale, page, found, cap, maxLen, rowLine){
+    if (!cap) return [];
+    const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
+    const minLen = Math.round(cap*1.4), thin = Math.max(2, Math.round(cap*0.2));
+    // (the share of columns x1..x2 with ink in rows ya..yb)
+    const inkShare = (x1, x2, ya, yb) => {
+      let n = 0;
+      for (let x = x1; x <= x2; x++) for (let y = ya; y <= yb; y++) if (isInk(x, y)){ n++; break; }
+      return n / (x2 - x1 + 1);
+    };
+    // the short runs of ink along each row (gaps of up to two pixels bridged, as pass 1's)
+    const runs = [];
+    for (let y = 0; y < h; y++){
+      let x = 0;
+      while (x < w){
+        while (x < w && !inkMap[y*w+x]) x++;
+        if (x >= w) break;
+        const start = x; let end = x, gap = 0;
+        while (x < w){ if (inkMap[y*w+x]){ end = x; gap = 0; } else if (++gap > 2) break; x++; }
+        if (end - start + 1 >= minLen && end - start + 1 < maxLen) runs.push({ x1: start, x2: end, y1: y, y2: y });
+      }
+    }
+    // (runs of about the same span in rows one after the other are one band)
+    const bands = [];
+    runs.forEach(r => {
+      const b = bands.find(b => b.y2 === r.y1 - 1 && Math.abs(b.x1 - r.x1) <= 2 && Math.abs(b.x2 - r.x2) <= 2);
+      if (b){ b.y2 = r.y1; b.x1 = Math.min(b.x1, r.x1); b.x2 = Math.max(b.x2, r.x2); } else bands.push({ ...r });
+    });
+    const overlaps = (a, b) => {
+      const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+      return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
+    };
+    const side = (x, ya, yb) => sideLine(inkMap, w, h, x, ya, yb, 0.85, 1);
+    const reach = Math.round(cap*1.2), aside = Math.round(cap*0.5), capPage = cap/scale;
+    const out = [];
+    bands.forEach(b => {
+      if (b.y2 - b.y1 + 1 > thin) return;
+      if (inkShare(b.x1, b.x2, b.y1 - Math.round(cap*0.8), b.y1 - 2) > 0.1) return;
+      // (paper right under it: the tops of small letters run together, "ower", have their bodies there)
+      let darkest = 255; for (let y = b.y1; y <= b.y2; y++) for (let x = b.x1; x <= b.x2; x++) darkest = Math.min(darkest, gray[y*w+x]);
+      const mid = (darkest + 255)/2, paperRow = (y) => { for (let x = b.x1; x <= b.x2; x++) if (gray[y*w+x] < mid) return false; return true; };
+      let gap = false; for (let y = b.y2 + 1; y <= Math.min(h - 1, b.y2 + Math.max(2, Math.round(cap*0.2))) && !gap; y++) gap = paperRow(y);
+      if (!gap) return;
+      const belowY = [b.y2 + 2, b.y2 + Math.round(cap*0.4)];
+      if (inkShare(b.x1 - aside, b.x1 - 1, ...belowY) + inkShare(b.x2 + 1, b.x2 + aside, ...belowY) > 0.4) return;
+      if ([b.x1, b.x2].some(x => side(x, b.y1 - reach, b.y1 - 1) || side(x, b.y2 + 1, b.y2 + reach))) return;
+      const x1 = b.x1/scale, x2 = (b.x2 + 1)/scale, top = (b.y1 - 2)/scale;
+      // (its label: a word on its row, or a blank just before it, the one before it in "___/___/___")
+      const onRow = (g) => g.y + g.height > top - capPage*1.6 && g.y < top;
+      const label = read.words.some(u => /[A-Za-z0-9]/.test(u.text) && onRow({ y: u.y0, height: u.y1 - u.y0 }) && u.x1 > x1 - capPage*8 && u.x0 < x2 + capPage*2) ||
+                    found.concat(out).some(g => g.type !== 'checkbox' && onRow(g) && g.x + g.width <= x1 && g.x + g.width > x1 - capPage*2);
+      if (!label) return;
+      const f = { page, x: x1, y: top - rowLine/scale, width: x2 - x1, height: rowLine/scale, type: 'text', name: 'text', oscarTag: '' };
+      // (below a field over the top of its space: "Test Indication: ____" with the list's first
+      // "____" under it)
+      found.concat(out).forEach(g => { if (overlaps(f, g) && g.y + g.height < top - rowLine/scale*0.5 && g.y + g.height > f.y){ f.height -= g.y + g.height - f.y; f.y = g.y + g.height; } });
+      if (!found.concat(out).some(g => overlaps(f, g))) out.push(f);
+    });
+    return out;
+  }
+
   // Fields after a label that ends with a colon, where nothing is printed to write on: the blank
   // page right after it on its row ("INR: ______  Date: ______", "Date of Birth: ______  M ☐"),
   // up to the next ink, when it is at least a few letters wide. When the blank also goes on
@@ -6349,6 +6424,7 @@ else if (typeof exports === 'object')
         inkColons(read, inkMap, w, h, scale);
         found = joinCharacterBoxes(found, read);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
+        found = found.concat(shortLineFields(read, inkMap, gray, w, h, scale, page, found, letterHeight, Math.round(lineHeight*1.2) + 7, Math.min(lineHeight, letterHeight*1.6)));
         labelFields(found, read, lineAcross);
         fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);
