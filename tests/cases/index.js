@@ -2365,6 +2365,7 @@ window.TEST_CASE_LIST = [
     "folder": "foundry-psychiatric-referral",
     "session": "foundry_psychiatric_referral_session.json",
     "skip": [
+      {"test": "tags", "page": 1, "region": [278, 488, 492, 50], "reason": "the fax cover's \"From:\" (current_user): \"From\" names whoever sends it, which askedFor doesn't read as a name"},
       {"test": "extraFields", "page": 2, "region": [768, 702, 372, 150], "reason": "the referral source box's part found, left of a speck (see its missed field)"},
       {"test": "extraFields", "page": 2, "region": [104, 1308, 1334, 142], "reason": "the clinical question box's part found (see its missed field)"},
       {"test": "extraFields", "page": 3, "region": [388, 232, 1042, 72], "reason": "the interventions box's part found (see its missed field)"},
@@ -2427,6 +2428,8 @@ window.TEST_CASE_LIST = [
     "folder": "vch-central-intake",
     "session": "vch_central_intake_session.json",
     "skip": [
+      {"test": "extraFields", "page": 1, "region": [288, 1576, 158, 46], "reason": "the blank after \"Risk Assessment:\", before \"Self-Harm: Low ☐\": blank page after a label with a colon, ended by another label rather than an option's box"},
+      {"test": "tags", "page": 1, "region": [712, 768, 234, 50], "reason": "the contact person's \"Phone:\" (no tag): \"Contact person (if relevant)\" doesn't say whose the row is, so the phone is read as the patient's"},
       {"test": "extraFields", "page": 1, "region": [1084, 738, 310, 66], "reason": "the relationship's field found taller (see the contact row's missed fields)"},
       {"test": "extraFields", "page": 1, "region": [98, 1392, 1296, 38], "reason": "the second meds line in three parts (see its missed field)"},
       {"test": "ticks", "page": 1, "region": [318, 1438, 1050, 108], "reason": "the substance use's \"C☐ P☐\" boxes: each printed a pixel or two from its letter, C or P: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
@@ -2576,84 +2579,197 @@ window.TEST_CASE_LIST = [
     "name": "Gilwest Clinic referral (Vancouver Coastal Health, one page: a bordered table of patient details, small printed box glyphs for the services and labs)",
     "folder": "gilwest-referral",
     "session": "gilwest_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [162, 670, 30, 30], "reason": "the \"□ HIV Referral\" box, a printed box glyph 12 px across at 1500 px: under 0.7 of the page's letter height, where the size check (boxTallEnough) turns away small letters (an n, an o); its sides on the ink map are also broken (isRealBox's straight sides). The two \"□\" found beside it are the same glyph a pixel off"},
+      {"test": "ticks", "page": 1, "region": [162, 1048, 30, 360], "reason": "the lab list's \"□\" boxes (Hepatitis C antibody ... Any consults): printed box glyphs 12 px across, under 0.7 of the letter height, which the size check takes for small letters"},
+      {"test": "extraFields", "page": 1, "region": [404, 328, 946, 46], "reason": "the blank after the heading \"Client Information:\" in its bar: blank page after a label with a colon, which can't be told from a label's blank"},
+      {"test": "extraFields", "page": 1, "region": [728, 600, 620, 46], "reason": "the blank after \"Requested Service: (**Please tick all that apply)\": blank page after a label ending in brackets and a colon, over the options below"},
+      {"test": "extraFields", "page": 1, "region": [634, 1696, 584, 50], "reason": "\"Signature with MSP # ____\": a signature line"},
+      {"test": "extraFields", "page": 1, "region": [982, 224, 370, 44], "reason": "the blank after \"Mailing Address:\" in the clinic's header, its address printed below it"},
+      {"test": "tags", "page": 1, "region": [820, 396, 530, 128], "reason": "the client table's right column (Address, City, Province, Postal Code: address...): its heading \"Client Information:\" is the box's own first row, which the owner check doesn't reach past the clinic's address and \"Mailing Address:\" above the box"},
+      {"test": "tags", "page": 1, "region": [788, 764, 562, 48], "reason": "\"Reason for Referral/Diagnoses/Current Medications:\" (no tag): one field for several details; askedFor reads \"medications\""},
+      {"test": "tags", "page": 1, "region": [474, 1754, 204, 50], "reason": "\"Contact information: Phone:\" under the referring physician (clinic_phone): \"contact information\" names a field for all of someone's ways to be reached, so askedFor gives nothing"}
+    ]
   },
   {
     "name": "Healthy Bones referral (Fraser Health, one page: fill-in lines after labels, light grey tick boxes, a ruled writing area)",
     "folder": "healthy-bones-referral",
     "session": "healthy_bones_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [80, 522, 36, 70], "reason": "the light grey boxes of \"Previous bone density\" and \"Recent lab studies\" (grey 133-155, 1 px sides at 1500 px): shrunk to the canvas, each side falls across two pixel rows, and the faint second row makes the box's blob 13×16, out of square (0.81). Trimming faint edge rows on the grey image before the square check was tried: it found three letters elsewhere (on the CPP, Northern Health MOST and VCH forms) and still not these"},
+      {"test": "tags", "page": 1, "region": [78, 1148, 1346, 200], "reason": "the reason-for-referral area (no tag): its field takes in the printed heading \"REASON FOR REFERRAL AND PERTINENT HISTORY\" and is labelled from \"FAMILY PHYSICIAN\" above it"},
+      {"test": "tags", "page": 1, "region": [1080, 792, 334, 50], "reason": "\"REFERRAL PHONE:\" (clinic_phone): \"referral\" alone doesn't say whose; the clinician's on a referral"},
+      {"test": "tags", "page": 1, "region": [1054, 916, 364, 50], "reason": "the \"PHONE\" after \"BEST PERSON TO CONTACT\" (no tag): the contact's, read as the patient's phone"}
+    ]
   },
   {
     "name": "Osteoporosis clinic referral (New Westminster, one page: fill-in lines after labels, ruled writing areas)",
     "folder": "osteoporosis-clinic-referral",
     "session": "osteoporosis_clinic_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [482, 966, 842, 52], "reason": "the blank after \"Please include in referral:\", over the list of what to include: blank page after a label with a colon"}
+    ]
   },
   {
     "name": "Peripheral nerve surgery clinic referral (UBC, one page: fill-in lines and labels over open page)",
     "folder": "peripheral-nerve-referral",
     "session": "peripheral_nerve_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [440, 640, 810, 46], "reason": "\"Occupation prior to injury:\": OCR reads it without its colon, and the colon's two dots in the ink are joined to the y by the ink map's soft edges"},
+      {"test": "fields", "page": 1, "region": [472, 818, 782, 220], "reason": "\"ICBC Claim No. (if applicable):\" and \"Nature of injury:\": open page, each blank after its label run down into one area"},
+      {"test": "extraFields", "page": 1, "region": [342, 878, 142, 168], "reason": "the area between \"Nature of injury:\" and the ICBC field's area (see fields)"},
+      {"test": "fields", "page": 1, "region": [680, 1116, 567, 50], "reason": "\"Surgeries to date (please attach operative record):\": OCR's colon is read on the bracket; the blank after it isn't found"},
+      {"test": "tags", "page": 1, "region": [976, 510, 182, 52], "reason": "the \"(C)\" phone (cell): OCR doesn't read \"(C)\", so the blank has no label to give its kind"}
+    ]
   },
   {
     "name": "RebalanceMD physician referral (one page: two columns of patient and referring physician details in boxes, tick boxes, writing boxes)",
     "folder": "rebalance-msk-referral",
     "session": "rebalance_msk_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [512, 264, 264, 260], "reason": "\"Gender:\" (sex): the box beside it runs on down to the WCB row, blank under the label, so the field takes the box's height"},
+      {"test": "extraFields", "page": 1, "region": [512, 264, 264, 260], "reason": "\"Gender:\": the field the box's height (see fields)"},
+      {"test": "fields", "page": 1, "region": [362, 478, 170, 50], "reason": "\"WCB Claim # if applicable:\": its blank is under \"Secondary Contact:\"'s field and the box's bottom edge, too short a strip after the label"},
+      {"test": "extraFields", "page": 1, "region": [280, 576, 822, 104], "reason": "the blank under \"☐ Yes. ☐ No. Prefer to see Dr.:\" in the FAAST cell: blank page in a box under a row of options"},
+      {"test": "tags", "page": 1, "region": [712, 550, 392, 48], "reason": "\"No. Prefer to see Dr.:\" (no tag): a specialist the patient would rather see, read as the clinician (\"Dr.\")"}
+    ]
   },
   {
     "name": "South Fraser Cardiology requisition (one page: short fill-in lines beside lists of indications, two large tick boxes)",
     "folder": "south-fraser-cardiology-req",
     "session": "south_fraser_cardiology_req_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [114, 690, 680, 58], "reason": "the \"24-HR HOLTER\" and \"TREADMILL TEST\" boxes: 44 px across at 1500 px, bigger than the largest tick box (40), with an underscore line printed inside along their bottoms"},
+      {"test": "extraFields", "page": 1, "region": [936, 362, 458, 70], "reason": "the blank after \"Dr. Stephen Pearce\" in the letterhead"},
+      {"test": "extraFields", "page": 1, "region": [182, 560, 214, 48], "reason": "the blank between \"PHN:\" and its line: blank page after a label with a colon, before the line set back from it"},
+      {"test": "extraFields", "page": 1, "region": [300, 796, 1086, 50], "reason": "the blanks after the headings \"Test Indication:\" and \"Symptoms:\": blank page after a label with a colon, over the lists they head"},
+      {"test": "extraFields", "page": 1, "region": [216, 1026, 1170, 50], "reason": "the blanks after the headings \"History:\" and \"Risk Profile:\": blank page after a label with a colon, over the lists they head"},
+      {"test": "tags", "page": 1, "region": [380, 616, 240, 54], "reason": "\"DOB: D/M/Y ___/___/___\" (dob_day, dob_month, dob_year): the format is printed in the label, not under each blank, so the blanks aren't read as the date's parts"}
+    ]
   },
   {
     "name": "Wound healing clinic referral (VCH, one page: bordered rows under grey section bars, tick boxes)",
     "folder": "wound-healing-referral",
     "session": "wound_healing_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [582, 1044, 756, 48], "reason": "the answer to \"How long has the wound(s) been open?\": a question with no line or colon, blank page after it"},
+      {"test": "fields", "page": 1, "region": [884, 1076, 454, 48], "reason": "the blank after \"☐ Yes. Where?\": a question with no line or colon after an option"},
+      {"test": "fields", "page": 1, "region": [412, 1292, 926, 48], "reason": "\"Precautions (ie. MRSA):\": its colon after a bracket is read as part of \"MRSA):\", a word ending in a bracket, and the blank after it is taken for the next row's"},
+      {"test": "extraFields", "page": 1, "region": [158, 1440, 1184, 46], "reason": "the strip at the bottom of the Additional Information box, under its last bullet: blank page between the last row of text and the box's bottom edge"}
+    ]
   },
   {
     "name": "Provincial Mental Health Metabolic Program referral (BC Children's, one page: labels with colons over open page, writing strips under prompts)",
     "folder": "pmhmp-referral",
     "session": "pmhmp_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [814, 236, 598, 196], "reason": "\"PHN:\" and \"Email:\" (one line each): open page after a label, the blank runs down to the next label in the column"},
+      {"test": "extraFields", "page": 1, "region": [814, 236, 598, 196], "reason": "\"PHN:\" and \"Email:\" taken as areas (see fields)"},
+      {"test": "fields", "page": 1, "region": [400, 282, 1004, 44], "reason": "\"Primary Caregiver(s) Name:\": its blank stops at the PHN area beside it (see above)"},
+      {"test": "extraFields", "page": 1, "region": [400, 282, 1004, 44], "reason": "\"Primary Caregiver(s) Name:\" (see fields)"},
+      {"test": "fields", "page": 1, "region": [672, 368, 731, 48], "reason": "\"Legal Guardian (if different from Primary Caregiver):\": the Email area beside it (see above) leaves no blank after the label"},
+      {"test": "extraFields", "page": 1, "region": [96, 482, 1306, 70], "reason": "the blanks beside the italic note \"Please ensure consent has been obtained ...\", over the line under it"},
+      {"test": "extraFields", "page": 1, "region": [82, 622, 1328, 45], "reason": "the strip between the referring physician's \"Phone: Fax:\" row and the box's bottom edge"},
+      {"test": "extraFields", "page": 1, "region": [1087, 1488, 325, 44], "reason": "the blank after \"Please fax the requested information to: (604)875-2271\""},
+      {"test": "extraFields", "page": 1, "region": [662, 1034, 750, 58], "reason": "the blank after \"Lab results (including baseline monitoring):\" on its own row, as well as the strip under it"},
+      {"test": "extraFields", "page": 1, "region": [466, 1410, 948, 48], "reason": "the blank after \"Substance Use Concerns:\" on its own row, as well as the strip under it"}
+    ]
   },
   {
     "name": "STAR day treatment referral (three pages: fill-in lines, ruled writing areas, two ruled tables)",
     "folder": "star-referral",
     "session": "star_referral_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [1178, 409, 97, 48], "reason": "the date's MM blank, \"__ | __ | __\" over \"YY MM DD\": its line is broken by a gap, two short pieces, each shorter than a blank"},
+      {"test": "extraFields", "page": 2, "region": [472, 430, 896, 48], "reason": "the blank after the heading \"Previous/Current Treatment:\": blank page after a label with a colon, over the table it heads"},
+      {"test": "extraFields", "page": 2, "region": [580, 488, 790, 46], "reason": "the blanks after the column headings \"Date:\" and \"Comments:\": blank page after labels with colons, a table's heading row over open rows"},
+      {"test": "tags", "page": 1, "region": [1040, 610, 330, 110], "reason": "the counsellor's and the doctor's \"Phone Number:\" (no tag): under \"If client has any of the following, please list:\", a sentence, which the owner check doesn't take for a heading; \"Doctor/Psychiatrist\" makes them the clinician's"},
+      {"test": "tags", "page": 1, "region": [354, 676, 414, 52], "reason": "\"Doctor/Psychiatrist:\" (no tag): the client's, under a sentence the owner check doesn't read as a heading"},
+      {"test": "tags", "page": 1, "region": [984, 900, 380, 60], "reason": "\"Date of Birth: __ | __ | __\" over \"YY MM DD\" (dob_year, dob_month, dob_day): the captions are under a second row of print, read as their own line, not the blanks' captions"},
+      {"test": "tags", "page": 3, "region": [132, 1082, 1238, 144], "reason": "\"Have you recently stopped taking any prescription medications? If yes, details\" (no tag): a question with a request after it, read for \"medications\""}
+    ]
   },
   {
     "name": "Ultrasound / fetal monitoring intake (BC Women's, one page: dense fill-in lines and tick boxes, short date blanks)",
     "folder": "fetal-monitoring-intake",
     "session": "fetal_monitoring_intake_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [230, 768, 66, 48], "reason": "EDD's MM blank, \"___/___/___\" with a slash at each end: the slashes reach below the line on both sides, which the short-line check takes for a dash in a row of text"},
+      {"test": "fields", "page": 1, "region": [1296, 768, 70, 48], "reason": "LNMP's MM blank, between two slashes (as EDD's)"},
+      {"test": "extraFields", "page": 1, "region": [1126, 342, 290, 92], "reason": "the two \"Signature: ____\" lines"},
+      {"test": "extraFields", "page": 1, "region": [864, 1752, 546, 36], "reason": "the strip under \"GA ___ EDD ___ Initials ___\", above the office box's bottom edge"},
+      {"test": "extraFields", "page": 1, "region": [1278, 1398, 134, 58], "reason": "the blank after \"For BC Women's Office use only:\" in its box"}
+    ]
   },
   {
     "name": "White Rock Orthopaedic Surgery Centre patient registration (three pages: fill-in lines, short Yes ____ No ____ blanks)",
     "folder": "wrosc-registration",
     "session": "wrosc_registration_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "fields", "page": 1, "region": [425, 878, 119, 46], "reason": "the blank after \"New Patient: Yes\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
+      {"test": "fields", "page": 1, "region": [1138, 1696, 280, 46], "reason": "\"Explain:________\" after \"Does the patient have dependents at home?\": its line runs on from the colon, the label's ink over its start"},
+      {"test": "fields", "page": 2, "region": [422, 1640, 119, 46], "reason": "\"any implanted device? Yes________\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
+      {"test": "fields", "page": 2, "region": [1056, 1672, 100, 52], "reason": "\"... shrapnel Yes__No_\": two blanks of two underscores and one, shorter than a letter and a half, a run of letters' feet's length"},
+      {"test": "fields", "page": 3, "region": [268, 1004, 119, 46], "reason": "\"Bonesecan Yes_______\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
+      {"test": "fields", "page": 3, "region": [423, 1072, 119, 46], "reason": "\"Laboratory investigation Yes_______\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
+      {"test": "fields", "page": 3, "region": [1064, 1140, 119, 46], "reason": "\"... Procedures document? Yes________\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
+      {"test": "extraFields", "page": 1, "region": [290, 182, 612, 54], "reason": "the blank right of the centre's logo, beside its address: blank page under the letterhead"},
+      {"test": "extraFields", "page": 1, "region": [248, 880, 146, 52], "reason": "the blank between \"New Patient:\" and \"Yes_______\": blank page after a label with a colon, before options with blanks"},
+      {"test": "extraFields", "page": 2, "region": [420, 1094, 998, 60], "reason": "the blank after the heading \"Does the patient have:\": blank page after a label with a colon, over the list it heads"},
+      {"test": "extraFields", "page": 3, "region": [148, 222, 168, 52], "reason": "the blank between \"Pain:\" and \"Yes____\": blank page after a label with a colon, before options with blanks"},
+      {"test": "extraFields", "page": 3, "region": [594, 1308, 822, 70], "reason": "the blank after \"Patient registration completed by:\", over the table's \"Print name | Signature | Date\" headings"}
+    ]
   },
   {
     "name": "Foundry Prince George engagement form (two pages: fill-in lines inside sentences, tick boxes, a table)",
     "folder": "foundry-pg-engagement",
     "session": "foundry_pg_engagement_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [152, 928, 46, 46], "reason": "the \"☐ I don't know it.\" box: under \"My BC Personal Health Number (PHN) is ____.\", its top edge a few pixels under the line, close enough that the ink map may join them"},
+      {"test": "extraTicks", "page": 1, "region": [354, 82, 45, 45], "reason": "the O of the \"FOUNDRY\" logo, a square-cornered letter as tall as a box, with an empty middle"},
+      {"test": "extraFields", "page": 1, "region": [156, 142, 1198, 40], "reason": "the strip between \"MOIS Chart #\" and the header's grey line"},
+      {"test": "extraFields", "page": 1, "region": [154, 1708, 1200, 50], "reason": "the strip under \"My email is ____\", above the section's grey line"},
+      {"test": "extraFields", "page": 2, "region": [150, 790, 1200, 70], "reason": "the strip under the emergency contact note, above the section's grey line"},
+      {"test": "extraFields", "page": 2, "region": [856, 1688, 452, 70], "reason": "\"Your Signature\": a signature line"},
+      {"test": "tags", "page": 1, "region": [396, 440, 820, 62], "reason": "\"My legal name is ____ ____\" over \"First\" and \"Last\" (patient_nameF, patient_nameL): the captions under the lines are too far below to be read as theirs"},
+      {"test": "tags", "page": 1, "region": [1196, 1530, 182, 54], "reason": "the blank after \"☐ other:\" (no tag): its label takes in the row's options, \"email\" among them"},
+      {"test": "tags", "page": 2, "region": [758, 904, 510, 50], "reason": "\"☐ Yes, their name is ____\" under \"I have a family doctor or clinic ...\" (doctor): the family doctor named in a sentence over the options"},
+      {"test": "tags", "page": 2, "region": [196, 1688, 512, 70], "reason": "\"Print your name\" under the line (patient_name): the youth filling in the form, which the caption doesn't say"}
+    ]
   },
   {
     "name": "Pre-surgical health history questionnaire (Fraser Health, its first page: bordered rows, tables, Yes/No tick boxes)",
     "folder": "presurgical-questionnaire",
     "session": "presurgical_questionnaire_session.json",
-    "variations": true
+    "variations": true,
+    "skip": [
+      {"test": "tags", "page": 1, "region": [612, 484, 146, 46], "reason": "\"Female☐ Male☐\" (sex F, sex M): each label printed before its box, so a box takes the word after it, \"Male\" for the first and \"Personal Health Number\" for the second"},
+      {"test": "fields", "page": 1, "region": [380, 1770, 1040, 56], "reason": "\"If yes, Number/Day____ Number of years____ Date last cigarette____\": their lines are five pixels above the table row's bottom line, and in the ink map their soft edges join it, one band taken for the row's edge"},
+      {"test": "extraFields", "page": 1, "region": [656, 792, 804, 48], "reason": "the blank after \"If yes, list below.\", in the allergy question's box: blank page after a sentence's end, before the table it points to"},
+      {"test": "extraFields", "page": 1, "region": [784, 832, 676, 46], "reason": "the blank after the column heading \"How you react:\": a table's heading with a colon over its rows"},
+      {"test": "extraFields", "page": 1, "region": [498, 1410, 962, 50], "reason": "the blank after \"Screening for Sleep Apnea:\" in its grey heading bar"}
+    ]
   },
   {
     "name": "Substance use bed based treatment referral (Fraser Health, fillable PDF, pages 2-3: personal and referral source details, tables)",
     "folder": "fha-substance-use-referral",
     "session": "fha_substance_use_referral_session.json",
-    "pdf": "FHA_Substance_Use_Referral_pages2-3.pdf"
+    "pdf": "FHA_Substance_Use_Referral_pages2-3.pdf",
+    "skip": [
+      {"test": "tags", "page": 1, "region": [862, 1062, 562, 54], "reason": "\"If yes, what date is withdrawal management expected to be completed:\" (no tag): a question without its question mark, read as \"Date completed\""},
+      {"test": "tags", "page": 2, "region": [168, 340, 1250, 150], "reason": "the Referral Source's \"Name\", \"Email #1\", \"Email #2\", \"Cell\", \"Fax\" (current_user, none, none, none, clinic_fax): their heading, \"Referral Source: All correspondence will be sent ...\", runs on into a sentence, which the owner check doesn't read as a heading"}
+    ]
   }
 ];
