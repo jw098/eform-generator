@@ -1487,7 +1487,10 @@ else if (typeof exports === 'object')
     if (/^(patient_)?age$/.test(words)) return 'age';
     if (hasWord('date|age')) return '';
     if (/medical_history/.test(words)) return 'history';
-    if (hasWord('medications|meds|medication_list')) return /allerg/.test(words) ? '' : 'meds';   // (with allergies, not the drug list)
+    // (medications asked for with another detail in one field are neither alone: "Allergies &
+    // Medications", "Reason for Referral/Diagnoses/Current Medications", "Presenting symptoms &
+    // current medications")
+    if (hasWord('medications|meds|medication_list')) return /allerg|diagnos|symptom|reason/.test(words) ? '' : 'meds';
     if (hasWord('allergies|allergy|drug_allergies')) return 'allergies';                                // ("Allergies: ____"; with medications, neither)
     // (both names in one field, first name first: "Legal First & Last Name", "Given name and surname")
     if (hasWord('first|given') && hasWord('last|surname')) return /(^|_)(first|given)_.*(last|surname)/.test(words) ? 'firstLastName' : 'name';
@@ -1533,11 +1536,15 @@ else if (typeof exports === 'object')
 
   // A tag made more exact by the words printed under the field, or in its label: "FIRST  MIDDLE
   // LAST" under a name is the first name first (first_last_name; OSCAR's patient_name is "Last,
-  // First"); "D/M/Y" under a birth date is day first (dobc; dobc2 is year first)
+  // First"), "First" alone the first name, "Last" alone the last; "D/M/Y" under a birth date is
+  // day first (dobc; dobc2 is year first)
   function captionTag(tag, caption){
     const c = ' ' + caption.toUpperCase() + ' ';
     const first = c.search(/\b(FIRST|GIVEN)\b/), last = c.search(/\b(LAST|SURNAME)\b/);
     if (tag === 'patient_name' && first >= 0 && last > first) return 'first_last_name';
+    // (just one of them under a name: "My legal name is ____ ____" over "First" and "Last")
+    if (tag === 'patient_name' && /^ (FIRST|GIVEN)( NAMES?)? $/.test(c)) return 'patient_nameF';
+    if (tag === 'patient_name' && /^ (LAST|SURNAME|FAMILY)( NAMES?)? $/.test(c)) return 'patient_nameL';
     if (tag === 'dobc2' || tag === 'dob'){
       if (DAY_FIRST_RE.test(c)) return 'dobc';
       if (YEAR_FIRST_RE.test(c)) return 'dobc2';
@@ -1613,7 +1620,10 @@ else if (typeof exports === 'object')
       return parts.filter(p => p.y1 <= top + 2 && ((p.x0 < f.x + f.width && p.x1 > x0) || heads(p)) && inside(box, p)).sort((a,b) => b.y1 - a.y1); };
     // (a short line, not a sentence, naming someone; a heading's aside in brackets doesn't make it
     // a sentence: "Parent/guardian contact information (for adolescents age 13–18 only)")
-    const namesWhose = (p) => { const aside = p.words.findIndex(w => /^\(/.test(w.text)), lead = aside > 0 ? p.words.slice(0, aside) : p.words;
+    // ... nor does a sentence after the heading's own label and colon: "Referral Source: All
+    // correspondence will be sent to both email addresses listed")
+    const namesWhose = (p) => { const aside = p.words.findIndex(w => /^\(/.test(w.text)), colon = p.words.findIndex(w => /:$/.test(w.text));
+      const lead = colon >= 0 && colon < p.words.length - 1 && (aside < 0 || colon < aside) ? p.words.slice(0, colon + 1) : aside > 0 ? p.words.slice(0, aside) : p.words;
       return isSentence(lead) ? '' : ownerCue(lead.map(w => w.text).join(' ')); };
     // (a line alone on its row: a heading, of a table or a section)
     const alone = (p) => !parts.some(q => q !== p && q.y0 < p.y1 && q.y1 > p.y0);
@@ -4436,11 +4446,12 @@ else if (typeof exports === 'object')
   // blank's, "___/___/___" over "DD MM YY"); no side line up or down from either end (not a box's
   // or a cell's edge); and a word on its row just before or after it, its label. gray: the
   // page's grey levels; cap: the page's letter height; maxLen: the narrowest field pass 1 makes on a line; rowLine:
-  // one written line's height (all canvas px). Page-image px out.
-  function shortLineFields(read, inkMap, gray, w, h, scale, page, found, cap, maxLen, rowLine){
+  // one written line's height (all canvas px); lineRows: how many rows thick the page's long
+  // lines are, which a short line may be too, up to a quarter of a letter. Page-image px out.
+  function shortLineFields(read, inkMap, gray, w, h, scale, page, found, cap, maxLen, rowLine, lineRows = 0){
     if (!cap) return [];
     const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
-    const minLen = Math.round(cap*1.4), thin = Math.max(2, Math.round(cap*0.2));
+    const minLen = Math.round(cap*1.4), thin = Math.max(2, Math.round(cap*0.2), Math.min(lineRows, Math.round(cap*0.25)));
     // (the share of columns x1..x2 with ink in rows ya..yb)
     const inkShare = (x1, x2, ya, yb) => {
       let n = 0;
@@ -5855,6 +5866,11 @@ else if (typeof exports === 'object')
             else blocks.push({ y1: y, y2: y, most: n, right: last });
           }
         }
+        // Ink only touching the top of an open line's space, a row or two tall, is the row above's
+        // (its descenders, "Family physician:" over "No ____"), not a label over this line
+        if (!bounded && blocks.length && highInk <= y1 + 1 && lowInk - highInk + 1 <= Math.max(2, (capHeight || lineHeight*0.4)*0.2)){
+          highInk = lowInk = rightInk = -1; blocks.length = 0;
+        }
         // Faint marks under the label (the YYYY | MM | DD ticks at the foot of a date box) aren't label
         if (blocks.length > 1 && blocks.slice(1).every(b => b.most < blocks[0].most*0.3 && b.most < lineHeight*0.5)){
           highInk = blocks[0].y1; lowInk = blocks[0].y2; rightInk = blocks[0].right; blocks.length = 1;
@@ -6477,7 +6493,11 @@ else if (typeof exports === 'object')
         inkColons(read, gray, w, h, scale);
         found = joinCharacterBoxes(found, read);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
-        found = found.concat(shortLineFields(read, inkMap, gray, w, h, scale, page, found, letterHeight, Math.round(lineHeight*1.2) + 7, Math.min(lineHeight, letterHeight*1.6)));
+        // (how thick the page's lines print at this rendering: the middle thickness of its long
+        // bands, a line's width of the page or more; a resized page's soft edges thicken them all)
+        const longRows = bands.filter(b => b.x2 - b.x1 + 1 >= w*0.3 && b.y2 - b.y1 + 1 <= maxLineThickness(h)).map(b => b.y2 - b.y1 + 1).sort((p,q) => p - q);
+        const lineRows = longRows.length >= 3 ? longRows[longRows.length >> 1] : 0;
+        found = found.concat(shortLineFields(read, inkMap, gray, w, h, scale, page, found, letterHeight, Math.round(lineHeight*1.2) + 7, Math.min(lineHeight, letterHeight*1.6), lineRows));
         labelFields(found, read, lineAcross);
         fitFieldsToLabels(found, inkMap, w, h, scale);
         found = fieldsFromLabels(found);
