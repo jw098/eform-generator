@@ -4492,8 +4492,11 @@ else if (typeof exports === 'object')
       if (!gap) return;
       const belowY = [b.y2 + 2, b.y2 + Math.round(cap*0.4)];
       if (inkShare(b.x1 - aside, b.x1 - 1, ...belowY) + inkShare(b.x2 + 1, b.x2 + aside, ...belowY) > 0.4) return;
-      // (at its ends as found, before trimming: a box's sides, which the trim would take for letters)
-      if ([b.x1, b.x2, x1_, x2_].some(x => side(x, b.y1 - reach, b.y1 - 1) || side(x, b.y2 + 1, b.y2 + reachDown))) return;
+      // (and a box's edge: sides at both its ends as found, before trimming, which the trim would
+      // take for letters; a box's sides are shorter than a line of text, a letter beside a blank
+      // stands at one end only, the N of "Yes ___No")
+      if ([b.x1, b.x2].some(x => side(x, b.y1 - reach, b.y1 - 1) || side(x, b.y2 + 1, b.y2 + reachDown))) return;
+      if ([x1_, x2_].every(x => side(x, b.y1 - reachDown, b.y1 - 1)) || [x1_, x2_].every(x => side(x, b.y2 + 1, b.y2 + reachDown))) return;
       const x1 = b.x1/scale, x2 = (b.x2 + 1)/scale, top = (b.y1 - 2)/scale;
       // (its label: a word on its row, or a blank just before it, the one before it in "___/___/___")
       const onRow = (g) => g.y + g.height > top - capPage*1.6 && g.y < top;
