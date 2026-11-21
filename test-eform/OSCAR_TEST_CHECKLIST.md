@@ -8,6 +8,10 @@ doctor filled in.
 
 Tick each box as it passes; note what went wrong under any that fails.
 
+The package must be exported by the current generator: one exported before 2026-11-21 has the old
+fax behaviour and the old faint field edges. If in doubt, open the session with Load Session and
+export the package again.
+
 ## 1. Install and open
 
 - [ ] Upload the HTML and every page image (`page1.png`, `page2.png` …) in the eForm manager
@@ -22,6 +26,10 @@ Tick each box as it passes; note what went wrong under any that fails.
 - [ ] Text fits its fields at the default font size: nothing cut off, long words wrap in text areas
 - [ ] Controls in the right margin are visible on screen and don't cover the form (phone selector,
       free draw toolbar, signature controls)
+- [ ] On screen, every text field, text area and tick box has a light blue tint and a thin solid
+      dark blue edge, easy to see among the page's own lines; the edge doesn't move or shrink the field
+- [ ] A focused field's edge is thicker (2px) and its tint a little darker
+- [ ] A circle toggle not yet circled shows a thin dashed dark blue oval; no focus style is expected
 
 ## 3. Data OSCAR fills in on a new form (oscarDB tags)
 
@@ -92,16 +100,27 @@ The feature test eForm has two on page 2: "Provider signature" and "Second signa
 - [ ] Print scaling is right on Letter (or A4) paper
 - [ ] None of the on-screen controls print (buttons, toolbars, signature controls, font buttons, phone selector)
 - [ ] Ticks, circles, drawings and the signature do print
+- [ ] The fields' blue tint and edges, the dashed ovals of circle toggles not circled, and the
+      "Fax to:" box don't print; a circled choice prints as a black ring
 
 ## 10. Fax
 
-- [ ] "Fax & Submit" fills the fax number from the fax field, falling back to the clinic's or referral's fax
-- [ ] The fax goes out (or the fax pop-up opens), then the form is submitted
+The toolbar has its own "Fax to:" box beside "Fax & Submit". It isn't a field of the form: nothing
+fills it in, and the fax goes only to the number typed in it, never to a fax number on the form.
+
+- [ ] The "Fax to:" box shows beside "Fax & Submit", empty on a new form (even with `clinic_fax` and
+      `referral_fax` filled in on the form)
+- [ ] Type a fax number and press "Fax & Submit": OSCAR's fax screen shows that number as the
+      recipient, the fax goes out, then the form is submitted
+- [ ] With the box empty, "Fax & Submit" opens OSCAR's fax with no number, to pick one; it doesn't
+      fax the clinic's own number
 - [ ] With no fax set up in OSCAR, the message says so and nothing breaks
+- [ ] If OSCAR's fax screen doesn't show the typed number, note what it shows: its fax code may look
+      for the number somewhere else
 
 ## 11. Other
 
 - [ ] Re-import the exported eForm or OSCAR package `.zip` into the generator: fields, tags,
-      validation groups and signatures come back
+      validation groups and signatures come back, and the "Fax to:" box doesn't come back as a field
 - [ ] Works in each browser the clinic uses: Chrome, Edge, Firefox
 - [ ] Attaching the eForm to a consultation request, or other clinic workflows, works
