@@ -1563,7 +1563,7 @@ else if (typeof exports === 'object')
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|for( [\w-]+){1,2} use only|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
     ['family', /\b(family|primary care) (doctor|physician|md|dr|practitioner|provider)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
-    ['guardian', /\b(parents?|guardians?|next of kin|(legal )?representatives?|directors?|emergency contact|in case of emergency|substitute decision maker|witness(es)?|support (persons?|people|contacts?)|names? of supports?|personal supports?|pharmac(y|ies))\b/],
+    ['guardian', /\b(parents?|guardians?|caregivers?|next of kin|(legal )?representatives?|directors?|emergency contact|in case of emergency|substitute decision maker|witness(es)?|support (persons?|people|contacts?)|names? of supports?|personal supports?|pharmac(y|ies))\b/],
     ['clinician', /\b(referring|referred by|referral source|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|(?<!post )office)\b/],   // (not an address's "Post Office Box")
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
   ];
@@ -4367,14 +4367,19 @@ else if (typeof exports === 'object')
   }
 
   // A colon OCR left off a word, from the ink: at a small size it reads "DATE" for "DATE:", the
-  // colon only a few pixels. Right after the word, past a gap, a mark narrower than half the
+  // colon only a few pixels (or after a bracket: "(if different from Primary Caregiver):"). Right after the word, past a gap, a mark narrower than half the
   // text's height, of two dots one over the other, each shorter than half that height (an i or
-  // an l has a stem, a ! one long stroke), is its colon, and the word gets it.
-  function inkColons(read, inkMap, w, h, scale){
-    const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && inkMap[y*w+x] === 1;
+  // an l has a stem, a ! one long stroke), is its colon, and the word gets it. Looked for on the
+  // grey image (gray), not the ink map, whose soft edges can close the gap of a pixel or two
+  // between the last letter and the colon ("Name:", "Language:" at 1500 px).
+  function inkColons(read, gray, w, h, scale){
     read.words.forEach(word => {
-      if (!/[A-Za-z]$/.test(word.text)) return;
-      const textHeight = word.y1 - word.y0, ya = Math.round(word.y0*scale), yb = Math.round(word.y1*scale);
+      if (!/[A-Za-z)]$/.test(word.text)) return;
+      const textHeight = word.y1 - word.y0, ya = Math.max(0, Math.round(word.y0*scale)), yb = Math.min(h - 1, Math.round(word.y1*scale));
+      // (ink: darker than halfway from the word's darkest pixel to white paper)
+      let darkest = 255;
+      for (let y=ya; y<=yb; y++) for (let x=Math.max(0, Math.round(word.x0*scale)); x<=Math.min(w - 1, Math.round(word.x1*scale)); x++) darkest = Math.min(darkest, gray[y*w+x]);
+      const isInk = (x,y) => x >= 0 && x < w && y >= 0 && y < h && gray[y*w+x] < (darkest + 255)/2;
       const inkInColumn = (x) => { for (let y=ya; y<=yb; y++) if (isInk(x,y)) return true; return false; };
       let x = Math.round(word.x1*scale);
       const xz = Math.round((word.x1 + textHeight*0.6)*scale);
@@ -6421,7 +6426,7 @@ else if (typeof exports === 'object')
       }
       else if (read){
         const right = bands.length ? Math.max(...bands.map(b => b.x2))/scale : w/scale;   // (the form's right edge: its lines' furthest end)
-        inkColons(read, inkMap, w, h, scale);
+        inkColons(read, gray, w, h, scale);
         found = joinCharacterBoxes(found, read);
         found = found.concat(colonFields(read, inkMap, w, h, scale, page, found, right));
         found = found.concat(shortLineFields(read, inkMap, gray, w, h, scale, page, found, letterHeight, Math.round(lineHeight*1.2) + 7, Math.min(lineHeight, letterHeight*1.6)));
