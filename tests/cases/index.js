@@ -2571,5 +2571,89 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 2, "region": [196, 1180, 1256, 268], "reason": "the early exit plan's support contacts (\"Name\", \"Phone\", \"Address\" rows, no tag): their heading, \"Early exit plan for all patients (...)\", says who the plan is for, which the owner check takes for whose details these are"},
       {"test": "tags", "page": 2, "region": [1020, 1442, 432, 92], "reason": "the preferred pharmacy's \"Address\" (no tag): in a cell of its own, it looks at the column above it (the support contacts') before the pharmacy on its row"}
     ]
+  },
+  {
+    "name": "Gilwest Clinic referral (Vancouver Coastal Health, one page: a bordered table of patient details, small printed box glyphs for the services and labs)",
+    "folder": "gilwest-referral",
+    "session": "gilwest_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "Healthy Bones referral (Fraser Health, one page: fill-in lines after labels, light grey tick boxes, a ruled writing area)",
+    "folder": "healthy-bones-referral",
+    "session": "healthy_bones_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "Osteoporosis clinic referral (New Westminster, one page: fill-in lines after labels, ruled writing areas)",
+    "folder": "osteoporosis-clinic-referral",
+    "session": "osteoporosis_clinic_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "Peripheral nerve surgery clinic referral (UBC, one page: fill-in lines and labels over open page)",
+    "folder": "peripheral-nerve-referral",
+    "session": "peripheral_nerve_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "RebalanceMD physician referral (one page: two columns of patient and referring physician details in boxes, tick boxes, writing boxes)",
+    "folder": "rebalance-msk-referral",
+    "session": "rebalance_msk_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "South Fraser Cardiology requisition (one page: short fill-in lines beside lists of indications, two large tick boxes)",
+    "folder": "south-fraser-cardiology-req",
+    "session": "south_fraser_cardiology_req_session.json",
+    "variations": true
+  },
+  {
+    "name": "Wound healing clinic referral (VCH, one page: bordered rows under grey section bars, tick boxes)",
+    "folder": "wound-healing-referral",
+    "session": "wound_healing_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "Provincial Mental Health Metabolic Program referral (BC Children's, one page: labels with colons over open page, writing strips under prompts)",
+    "folder": "pmhmp-referral",
+    "session": "pmhmp_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "STAR day treatment referral (three pages: fill-in lines, ruled writing areas, two ruled tables)",
+    "folder": "star-referral",
+    "session": "star_referral_session.json",
+    "variations": true
+  },
+  {
+    "name": "Ultrasound / fetal monitoring intake (BC Women's, one page: dense fill-in lines and tick boxes, short date blanks)",
+    "folder": "fetal-monitoring-intake",
+    "session": "fetal_monitoring_intake_session.json",
+    "variations": true
+  },
+  {
+    "name": "White Rock Orthopaedic Surgery Centre patient registration (three pages: fill-in lines, short Yes ____ No ____ blanks)",
+    "folder": "wrosc-registration",
+    "session": "wrosc_registration_session.json",
+    "variations": true
+  },
+  {
+    "name": "Foundry Prince George engagement form (two pages: fill-in lines inside sentences, tick boxes, a table)",
+    "folder": "foundry-pg-engagement",
+    "session": "foundry_pg_engagement_session.json",
+    "variations": true
+  },
+  {
+    "name": "Pre-surgical health history questionnaire (Fraser Health, its first page: bordered rows, tables, Yes/No tick boxes)",
+    "folder": "presurgical-questionnaire",
+    "session": "presurgical_questionnaire_session.json",
+    "variations": true
+  },
+  {
+    "name": "Substance use bed based treatment referral (Fraser Health, fillable PDF, pages 2-3: personal and referral source details, tables)",
+    "folder": "fha-substance-use-referral",
+    "session": "fha_substance_use_referral_session.json",
+    "pdf": "FHA_Substance_Use_Referral_pages2-3.pdf"
   }
 ];
