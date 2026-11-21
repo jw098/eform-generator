@@ -2537,7 +2537,6 @@ window.TEST_CASE_LIST = [
     "session": "emg_requisition_session.json",
     "skip": [
       {"test": "ticks", "page": 1, "region": [748, 1502, 40, 40], "reason": "the \"Sensory\" box (\"☐ Sensory\"), three pixel rows under the row line above it (rows 1506-1508 white at 1500 px): the line's lower edge (grey 78) and the box's top edge (155) are dark enough on this scan that the ink map joins them, so the box is part of the line's blob; the \"Motor\" box beside it has a lighter edge (188) and is found. A box against a line, as on other forms: accepting a box joined at one side takes letters on lines too"},
-      {"test": "fields", "page": 1, "region": [236, 552, 930, 58], "reason": "the ordering physician's \"Phone:\" and \"Fax:\" lines (rows 593-596 at 1500 px), three pixels above the box's bottom edge (rows 599-601): in the ink map their soft edges join into one band, taken for the box's edge"},
       {"test": "fields", "page": 1, "region": [826, 1154, 438, 46], "reason": "\"Describe: ____\" after \"Increased risk of bleeding? ☐ No ☐ Yes\": its line runs along the box's bottom edge, which takes it, as the Phone line above (a scan)"},
       {"test": "extraFields", "page": 1, "region": [144, 830, 1278, 32], "reason": "the strip between the last fill-in line (\"Mobile #\", rows 831-833) and the patient box's bottom edge (rows 858-861): blank page between two lines, as a table row is"},
       {"test": "extraFields", "page": 1, "region": [500, 1316, 260, 186], "reason": "blanks between the diagnoses' names and their \"Right\" boxes in the diagnosis table: blank page in a row ruled top and bottom, after an option's label"},
@@ -2619,7 +2618,7 @@ window.TEST_CASE_LIST = [
     "session": "peripheral_nerve_referral_session.json",
     "variations": true,
     "skip": [
-      {"test": "fields", "page": 1, "region": [440, 640, 810, 46], "reason": "\"Occupation prior to injury:\": OCR reads it without its colon, and the colon's two dots in the ink are joined to the y by the ink map's soft edges"},
+      {"test": "fields", "page": 1, "region": [440, 640, 810, 46], "reason": "\"Occupation prior to injury:\": the bulleted-list check (bulletUnder) looks a line and a half under the label and finds the top two rows of the next line's \"D\" (\"Date of Injury\"), a mark a bullet's size with a gap after it, so the label is taken for a list's. Requiring the mark to end inside the rows looked at was tried: real bullets as close under their label end there too (\"REFERRAL CRITERIA:\" on the EPI form, \"Completed form must be:\" on the MRP form), whose labels then got blanks"},
       {"test": "fields", "page": 1, "region": [472, 818, 782, 220], "reason": "\"ICBC Claim No. (if applicable):\" and \"Nature of injury:\": open page, each blank after its label run down into one area"},
       {"test": "extraFields", "page": 1, "region": [342, 878, 142, 168], "reason": "the area between \"Nature of injury:\" and the ICBC field's area (see fields)"},
       {"test": "fields", "page": 1, "region": [680, 1116, 567, 50], "reason": "\"Surgeries to date (please attach operative record):\": OCR's colon is read on the bracket; the blank after it isn't found"},
