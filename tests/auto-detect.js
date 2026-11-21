@@ -432,6 +432,28 @@
     sameList(T.parseTemplateHtml(exportOf([[1, 'fax_number'], [1, 'Name']]).html, 'test.html').fields.map(f => f.name), ['fax_number', 'Name'], 'the fields read'),
     { group: 'Export: field names', short: 'a field named like a toolbar control is read back' });
 
+  // The fax number OSCAR is sent (the hidden "faxnumber") once the eForm's syncFaxNoMirror runs,
+  // its fax functions run on the exported eForm's document; `fill`: values to type, by element id
+  const faxSent = (e, fill) => {
+    const source = ['getFaxTargetNo', 'syncFaxNoMirror'].map(fn => (e.html.match(new RegExp(`function ${fn}\\(\\)\\{[\\s\\S]*?\\n\\}`)) || [''])[0]).join('\n');
+    Object.entries(fill).forEach(([id, value]) => { const el = e.doc.getElementById(id); if (el) el.value = value; });
+    new Function('document', source + '\nsyncFaxNoMirror();')(e.doc);
+    return (e.doc.getElementById('faxnumber') || {}).value;
+  };
+  const faxTest = (short, fn) => test(`Export: fax number: ${short}`, fn, { group: 'Export: fax number', short });
+  faxTest('the toolbar has its own "Fax to:" box, by the Fax button, which an eForm read back leaves out', () => {
+    const e = exportOf([[1, 'Name']]), box = e.doc.getElementById('faxNo');
+    if (!box || !box.closest('#BottomButtons')) throw new Error('no "Fax to:" box (#faxNo) in the toolbar');
+    if (box.getAttribute('oscarDB')) throw new Error('the "Fax to:" box has a tag: ' + box.getAttribute('oscarDB'));
+    sameList(T.parseTemplateHtml(e.html, 'test.html').fields.map(f => f.name), ['Name'], 'the fields read');
+  });
+  faxTest("the fax goes to the box's number, never to a fax number on the form", () => {
+    const e = exportOf([[1, 'fax_number', 'text', { oscarTag: 'clinic_fax' }], [1, 'faxNo']]);
+    const onForm = e.inputs.map(el => el.id);
+    sameList([faxSent(e, { [onForm[0]]: '604-555-0100', [onForm[1]]: '604-555-0101', faxNo: '604-555-0199' })], ['604-555-0199'], 'the number sent, with the box filled');
+    sameList([faxSent(e, { faxNo: '' })], [''], 'the number sent, with the box empty');
+  });
+
   // Date fields get OSCAR's calendar: the ids its Calendar.setup is called with when the eForm's
   // setUpCalendars runs, against a stand-in Calendar, and the format each fills in
   const calendarsSetUp = (e) => {

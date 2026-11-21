@@ -7008,41 +7008,16 @@ function SignForm() {
     }
   } catch(e){}
 }
-// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
-// with ids "clinic_fax_12"), or null
-function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
-// The fax number to send to: the first filled-in fax number field on the form
+// The fax number to send to: what is typed in the toolbar's "Fax to:" box, which is the toolbar's
+// own, not a field of the form (nothing fills it: a fax number on the form can be the clinic's own)
 function getFaxTargetNo(){
-  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
-  for (var i=0;i<ids.length;i++){
-    var input = fieldCalled(ids[i]);
-    if (!input) continue;
-    var faxNo = (input.value || '').trim();
-    if (faxNo) return faxNo;
-  }
-  return '';
+  var box = document.getElementById('faxNo');
+  return box ? (box.value || '').trim() : '';
 }
 // Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
 function syncFaxNoMirror(){
-  var faxNo = getFaxTargetNo();
   var hiddenFaxNo = document.getElementById('faxnumber');
-  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
-}
-// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
-// form has one of those
-function primeFaxNo(){
-  try{
-    var faxNoBox = fieldCalled('faxNo');
-    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
-    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
-    for (var i=0;i<candidates.length;i++){
-      var input = fieldCalled(candidates[i]);
-      if (!input) continue;
-      var faxNo = (input.value || '').trim();
-      if (faxNo){ faxNoBox.value = faxNo; break; }
-    }
-    syncFaxNoMirror();
-  }catch(e){}
+  if (hiddenFaxNo) hiddenFaxNo.value = getFaxTargetNo();
 }
 // Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
 function formFax(){
@@ -7060,9 +7035,9 @@ function formFax(){
     alert('Fax control not available in this context.');
   }catch(e){ alert('Fax control not available in this context.'); }
 }
-// "Fax & Submit": fills in the fax number, faxes, then submits the form
+// "Fax & Submit": faxes to the number in the "Fax to:" box (OSCAR's fax asks for one when it's
+// empty), then submits the form
 function formSubmitAndFax(){
-  try{ primeFaxNo(); }catch(e){}
   try{ formFax(); }catch(e){}
   try{ releaseDirtyFlag(); }catch(e){}
   setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
@@ -7071,7 +7046,7 @@ function formSubmitAndFax(){
 `;
 
   // (the steps of startup(), which the body's onload calls)
-  let startupSteps = ['setFaxNo()', 'primeFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
+  let startupSteps = ['setFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
   // (font size buttons: their script and style, and the saved sizes put back on load, only when a field has them)
   const usesFontButtons = exportPages.some(page => getPageFields(page).some(f => f.type === 'fontbuttons'));
   // (early, after the images: it needs nothing else, so a failing step after it can't stop it)
@@ -7504,6 +7479,7 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
   <input type="hidden" name="faxnumber" id="faxnumber">
   <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="${usesValidation ? 'if(!requiredChecked &amp;&amp; !checkRequiredFields()) return false; requiredChecked=false; ' : ''}releaseDirtyFlag();">
   <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formSubmitAndFax();">
+  <label for="faxNo" style="margin-left:4px;">Fax to: <input type="text" name="faxNo" id="faxNo" size="14" autocomplete="off" oninput="syncFaxNoMirror();"></label>
   <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
   <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
 </div>
