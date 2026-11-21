@@ -4470,7 +4470,10 @@ else if (typeof exports === 'object')
       return ox > 0 && oy > 0 && ox*oy > Math.min(a.width*a.height, b.width*b.height)*0.25;
     };
     const side = (x, ya, yb) => sideLine(inkMap, w, h, x, ya, yb, 0.85, 1);
-    const reach = Math.round(cap*1.2), aside = Math.round(cap*0.5), capPage = cap/scale;
+    // (a side line runs up from a cell's bottom edge, or down from a box's top edge: a tick box
+    // is 0.7 of a letter tall or more, so down it is looked for 0.6 of a letter; up, a line and
+    // more, past the stem of a letter just after a blank, "Yes ___No")
+    const reach = Math.round(cap*1.2), reachDown = Math.round(cap*0.6), aside = Math.round(cap*0.5), capPage = cap/scale;
     const out = [];
     bands.forEach(b => {
       if (b.y2 - b.y1 + 1 > thin) return;
@@ -4489,7 +4492,8 @@ else if (typeof exports === 'object')
       if (!gap) return;
       const belowY = [b.y2 + 2, b.y2 + Math.round(cap*0.4)];
       if (inkShare(b.x1 - aside, b.x1 - 1, ...belowY) + inkShare(b.x2 + 1, b.x2 + aside, ...belowY) > 0.4) return;
-      if ([b.x1, b.x2].some(x => side(x, b.y1 - reach, b.y1 - 1) || side(x, b.y2 + 1, b.y2 + reach))) return;
+      // (at its ends as found, before trimming: a box's sides, which the trim would take for letters)
+      if ([b.x1, b.x2, x1_, x2_].some(x => side(x, b.y1 - reach, b.y1 - 1) || side(x, b.y2 + 1, b.y2 + reachDown))) return;
       const x1 = b.x1/scale, x2 = (b.x2 + 1)/scale, top = (b.y1 - 2)/scale;
       // (its label: a word on its row, or a blank just before it, the one before it in "___/___/___")
       const onRow = (g) => g.y + g.height > top - capPage*1.6 && g.y < top;
