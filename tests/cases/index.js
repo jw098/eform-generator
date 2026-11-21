@@ -115,21 +115,6 @@ window.TEST_CASE_LIST = [
       "RMH_2.png"
     ],
     "variations": true,
-    "variationSkip": [
-      {
-        "variation": "0.7× size",
-        "page": 2,
-        "region": [625, 1655, 35, 35],
-        "reason": "the bold D of \"DETAILS\" in a heading: at 0.7× (about 123 dpi) its straight stem, flat top and bottom, filled corners and empty inside are a tick box's, and only the line of capitals it is in says it is a letter"
-      },
-      {
-        "variation": "0.7× size",
-        "test": "extraFields",
-        "page": 2,
-        "region": [740, 1645, 620, 50],
-        "reason": "the blank beside RELEVANT MEDICAL HISTORY / ADDITIONAL DETAILS:, from the bold D of DETAILS taken for a tick box (the skip above): the box splits the label, so it no longer starts where the writing area under it does, and isn't taken for that area's heading"
-      }
-    ],
     "skip": [
       {
         "test": "extraFields",
@@ -300,13 +285,6 @@ window.TEST_CASE_LIST = [
       },
       {
         "variation": "0.7× size",
-        "test": "extraFields",
-        "page": 1,
-        "region": [640, 1025, 130, 50],
-        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the footer \"GP Standard Medical Report\": at 70 dpi the bottoms of its letters run together into what reads as a fill-in line"
-      },
-      {
-        "variation": "0.7× size",
         "test": "fields",
         "page": 2,
         "region": [35, 358, 575, 70],
@@ -318,13 +296,6 @@ window.TEST_CASE_LIST = [
         "page": 1,
         "region": [536, 398, 280, 26],
         "reason": "the PRACTITIONER INFORMATION heading row, right of the MSP/PRACTITIONER NUMBER column: the hairline under the row is light grey (about 150 of 255), which faint print takes to about 224, and only its part from that column's divider on still reads as a line, so that part makes a row of its own, with no label in it, under the table's top rule"
-      },
-      {
-        "variation": "0.7× size",
-        "test": "extraFields",
-        "page": 2,
-        "region": [640, 1035, 130, 40],
-        "reason": "at 0.7× the page is about 70 dpi (it is 850 px wide), far below a PDF render (the app's is 1500 px wide): the footer \"GP Standard Medical Report\": at 70 dpi the bottoms of its letters run together into what reads as a fill-in line"
       }
     ],
     "skip": [
@@ -360,12 +331,6 @@ window.TEST_CASE_LIST = [
       },
       {
         "test": "fields",
-        "page": 2,
-        "region": [35, 1018, 780, 32],
-        "reason": "the eForm splits the one ANTICIPATED DATE OF FULL RECOVERY blank into a date and a note"
-      },
-      {
-        "test": "extraFields",
         "page": 2,
         "region": [35, 1018, 780, 32],
         "reason": "the eForm splits the one ANTICIPATED DATE OF FULL RECOVERY blank into a date and a note"
@@ -469,20 +434,6 @@ window.TEST_CASE_LIST = [
     "folder": "typed-form",
     "session": "typed_form_session.json",
     "variations": true,
-    "variationSkip": [
-      {
-        "variation": "2.5× size",
-        "page": 1,
-        "test": "fields",
-        "region": [
-          575,
-          630,
-          70,
-          55
-        ],
-        "reason": "the blank after \"Number of visits requested: ......\": at 2.5× OCR reads \"requested\" without its colon, and the dots are shorter than a line pass 1 finds, so nothing makes a field of them (a short line is taken only after a colon: taking one after any word would take short lines and dots that are no blanks)"
-      }
-    ],
     "skip": [
       {
         "test": "extraFields",
@@ -522,7 +473,6 @@ window.TEST_CASE_LIST = [
     "session": "medication_review_session.json",
     "variations": true,
     "skip": [
-      {"test": "tags", "page": 1, "region": [880, 835, 345, 40], "reason": "\"Pharmacy phone\" is tagged phone: OSCAR 12 has no tags for a pharmacy, and telling its details from the patient's would need an owner made for this form (eForms are rarely a pharmacy's medication review)"},
       {"test": "tags", "page": 1, "region": [165, 1110, 445, 40], "reason": "\"Reviewed by\" gets no current_user: a reviewer is named only on a review form such as this one, and taking \"reviewed by\" for the clinician would be a word added for one form"},
       {"test": "tags", "page": 1, "region": [780, 1110, 230, 40], "reason": "\"Date of review\" gets no today: a review date is often the next or last one (\"Review date\", \"Next review\"), so taking it for the form's own date would be right here and wrong on many forms"}
     ]
@@ -810,17 +760,6 @@ window.TEST_CASE_LIST = [
         "reason": "the \"Date: ____\" after the cardiologist's name (\"Has this patient been seen by a Cardiologist before?\") gets today: a bare \"Date:\" beside a name OSCAR fills is the form's date on most forms; that this one is an earlier visit's is said only by the question on the row above"
       },
       {
-        "test": "tags",
-        "page": 1,
-        "region": [
-          1090,
-          584,
-          334,
-          54
-        ],
-        "reason": "\"Alternate phone number\" gets phone (home): OSCAR 12 has home, work and cell phones, and \"alternate\" names none of them, so no check can tell which it is, or that it isn't the home phone"
-      },
-      {
         "test": "fields",
         "page": 1,
         "region": [
@@ -937,17 +876,6 @@ window.TEST_CASE_LIST = [
     ],
     "variationSkip": [
       {
-        "variation": "0.7× size",
-        "page": 1,
-        "region": [
-          455,
-          492,
-          40,
-          40
-        ],
-        "reason": "the key's ☐ in \"☐ Optional: Prescriber check (✓)…\", as on the page itself (the case's skip)"
-      },
-      {
         "variation": "1.5× size",
         "page": 1,
         "region": [
@@ -1014,17 +942,6 @@ window.TEST_CASE_LIST = [
         "test": "extraTicks",
         "page": 1,
         "region": [
-          796,
-          34,
-          30,
-          30
-        ],
-        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, where the box's top and side lines meet it: a square of ink with an empty middle at that size"
-      },
-      {
-        "test": "extraTicks",
-        "page": 1,
-        "region": [
           894,
           244,
           40,
@@ -1072,61 +989,6 @@ window.TEST_CASE_LIST = [
       }
     ],
     "variationSkip": [
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "region": [
-          796,
-          34,
-          30,
-          30
-        ],
-        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "1.5× size",
-        "page": 1,
-        "region": [
-          796,
-          34,
-          30,
-          30
-        ],
-        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "2× size",
-        "page": 1,
-        "region": [
-          796,
-          34,
-          30,
-          30
-        ],
-        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "3× size",
-        "page": 1,
-        "region": [
-          796,
-          34,
-          30,
-          30
-        ],
-        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "faint print",
-        "page": 1,
-        "region": [
-          796,
-          34,
-          30,
-          30
-        ],
-        "reason": "the corner of the light grey \"P\" of \"Patient Name\" in the IH USE ONLY box, as on the page itself (the case's skip)"
-      },
       {
         "variation": "0.7× size",
         "page": 1,
@@ -1192,17 +1054,6 @@ window.TEST_CASE_LIST = [
           40
         ],
         "reason": "the light grey bold \"O\" of \"IH USE ONLY\", as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "0.7× size",
-        "page": 1,
-        "region": [
-          798,
-          164,
-          30,
-          30
-        ],
-        "reason": "the light grey \"P\" of \"PHN\" in the IH USE ONLY box, closed at 0.7× by the box's side line just left of it"
       }
     ]
   },
@@ -1266,17 +1117,6 @@ window.TEST_CASE_LIST = [
           95
         ],
         "reason": "the room after the two \"☐ Other:\" options at the table's right edge: about three letters wide, too narrow for a field after a colon"
-      },
-      {
-        "test": "extraTicks",
-        "page": 1,
-        "region": [
-          184,
-          368,
-          30,
-          30
-        ],
-        "reason": "the I of \"Form ID:\" with the top of the D: bold capitals that close into a square at this size"
       },
       {
         "test": "extraTicks",
@@ -1381,17 +1221,6 @@ window.TEST_CASE_LIST = [
         "test": "tags",
         "page": 1,
         "region": [
-          856,
-          1146,
-          600,
-          60
-        ],
-        "reason": "Email: the field is found but gets no tag; its label \"Email:\" wasn't traced to see why it isn't read as the field's"
-      },
-      {
-        "test": "tags",
-        "page": 1,
-        "region": [
           300,
           714,
           290,
@@ -1409,17 +1238,6 @@ window.TEST_CASE_LIST = [
           50
         ],
         "reason": "\"Fax #:\" under Referee Name: nothing on its row or above in its cell says whose, so it gets no tag"
-      },
-      {
-        "test": "tags",
-        "page": 1,
-        "region": [
-          376,
-          1284,
-          1080,
-          55
-        ],
-        "reason": "Name & Relationship and Phone Number under the grey \"Alternative Contact\" bar: \"alternative contact\" names no one OSCAR has tags for, but the row above (Family Doctor) gives the name doctor and the clinic in the header gives the phone clinic_phone"
       },
       {
         "test": "extraFields",
@@ -1543,61 +1361,6 @@ window.TEST_CASE_LIST = [
         "reason": "the D of \"Date of Referral\" at the left end of a grey bar, as on the page itself (the case's skip)"
       },
       {
-        "variation": "1.5× size",
-        "page": 1,
-        "region": [
-          184,
-          368,
-          30,
-          30
-        ],
-        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "2× size",
-        "page": 1,
-        "region": [
-          184,
-          368,
-          30,
-          30
-        ],
-        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "2.5× size",
-        "page": 1,
-        "region": [
-          184,
-          368,
-          30,
-          30
-        ],
-        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "3× size",
-        "page": 1,
-        "region": [
-          184,
-          368,
-          30,
-          30
-        ],
-        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
-      },
-      {
-        "variation": "faint print",
-        "page": 1,
-        "region": [
-          184,
-          368,
-          30,
-          30
-        ],
-        "reason": "the I of \"Form ID:\" with the top of the D, as on the page itself (the case's skip)"
-      },
-      {
         "variation": "0.7× size",
         "page": 1,
         "region": [
@@ -1607,17 +1370,6 @@ window.TEST_CASE_LIST = [
           30
         ],
         "reason": "the bold O of \"DO NOT PROCEED\" at 0.7× (about 123 dpi): its squared outline and empty middle are a box's"
-      },
-      {
-        "variation": "faint print",
-        "page": 1,
-        "region": [
-          1330,
-          1548,
-          30,
-          30
-        ],
-        "reason": "the small \"fy\" of \"(*specify)\" under the specify line, printed faint: it and the line close into a square"
       },
       {
         "variation": "0.7× size",
@@ -2079,17 +1831,6 @@ window.TEST_CASE_LIST = [
         "test": "tags",
         "page": 1,
         "region": [
-          280,
-          994,
-          400,
-          80
-        ],
-        "reason": "\"English-speaking Contact's Name\": someone else's, but \"contact\" names no one OSCAR has tags for, and \"Contact\" alone is often the patient's (\"Contact number\"), so it gets the patient's name"
-      },
-      {
-        "test": "tags",
-        "page": 1,
-        "region": [
           1018,
           996,
           386,
@@ -2120,11 +1861,7 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [905, 330, 560, 75], "reason": "the blank top right of the page over the form's first line, beside the form number: an unlabelled space for a patient label, which the eForm leaves out"},
       {"test": "extraFields", "page": 1, "region": [1010, 530, 445, 60], "reason": "the blank under \"Sex ☐ M ☐ F ☐ X\": a blank after a row of options, which the eForm leaves out, where the same layout of a cell's label over its blank gets a field in the cells beside it"},
       {"test": "extraFields", "page": 1, "region": [128, 1812, 1335, 46], "reason": "the blank last row of the instructions box, under \"E-mailed to Central Intake at ...\": the box's bottom edge closes it as a fill-in line"},
-      {"test": "tags", "page": 1, "region": [575, 748, 445, 65], "reason": "\"First name\" under the grey bar \"Previous Resident's MRP Information\": the bar's words lie over the first column only, so the second looks up past them to \"First Name\" of the row above, the patient's; reading a bar's heading across the whole table would need the bar's extent in the owner check"},
-      {"test": "tags", "page": 1, "region": [1010, 748, 445, 65], "reason": "\"MSP No.\" under \"Previous Resident's MRP Information\": as its row's \"First name\", the heading in the bar is over the first column only, so it is the patient's (hin)"},
-      {"test": "tags", "page": 1, "region": [130, 872, 450, 80], "reason": "\"Name\" under \"Care Community Information\": a heading that names no one doesn't stop the look upward, which reaches the previous MRP's \"Last name\" and makes it the doctor's"},
-      {"test": "tags", "page": 1, "region": [130, 966, 450, 80], "reason": "\"Postal Code\" under \"Care Community Information\": as \"Name\" above it, taken for the previous MRP's, whose postal code OSCAR has no tag for"},
-      {"test": "tags", "page": 1, "region": [1010, 966, 445, 80], "reason": "\"Other Phone\": the resident's second phone, which OSCAR 12 has no tag for (phone2 is a work phone); \"phone\" is on it, as on \"Home Phone\""}
+      {"test": "tags", "page": 1, "region": [130, 872, 450, 80], "reason": "\"Name\" under \"Care Community Information\": a heading that names no one doesn't stop the look upward, which reaches the previous MRP's \"Last name\" and makes it the doctor's"}
     ],
     "variationSkip": [
       {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [495, 1688, 955, 45], "reason": "the blank after \"Completed form must be:\" in the instructions box, a colon with blank page after it: a field only at 0.7× (not traced further; the pushed app does the same)"}
@@ -2194,15 +1931,12 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [70, 815, 490, 128], "reason": "the room under \"Post-Stroke Impairments\" in the table's label column: blank page under a label in its own cell, as a cell to write in under its heading is (\"PERTINENT HISTORY:\" over the rest of its cell); the eForm writes in the cell beside it"},
       {"test": "extraFields", "page": 1, "region": [70, 1140, 490, 128], "reason": "the room under \"Cardiovascular Condition\" in the label column: as \"Post-Stroke Impairments\""},
       {"test": "extraFields", "page": 1, "region": [70, 1340, 490, 96], "reason": "the room under \"Other chronic condition\" in the label column: as \"Post-Stroke Impairments\""},
-      {"test": "tags", "page": 1, "region": [710, 500, 250, 50], "reason": "\"(Work):\" after \"Phone (Home): ____\": the work phone (phone2), named only by the bracketed word, which names no detail on its own"},
       {"test": "extraFields", "page": 2, "region": [205, 828, 745, 64], "reason": "\"Signature:\": a signature line, which the eForm leaves to the signature"},
       {"test": "extraFields", "page": 2, "region": [230, 1562, 450, 46], "reason": "\"By: ____\" over \"(Participant's Signature)\": a signature line"},
       {"test": "extraFields", "page": 2, "region": [82, 1604, 252, 46], "reason": "the blank before \"(Participant's Signature)\", the caption under the signature line: a caption's row, read as a line with labels along it"},
       {"test": "extraFields", "page": 2, "region": [610, 1604, 362, 46], "reason": "the blank between \"(Participant's Signature)\" and \"(Printed Name)\": the captions' row, read as a line with labels along it"},
       {"test": "extraFields", "page": 3, "region": [175, 860, 485, 64], "reason": "\"Physician's Signature\": a signature line"},
       {"test": "extraFields", "page": 3, "region": [865, 860, 480, 64], "reason": "the second \"Physician's Signature\": a signature line"},
-      {"test": "tags", "page": 3, "region": [395, 1000, 315, 48], "reason": "\"Contact Number:\": the physician's phone (clinic_phone); \"contact number\" names no detail that can be told whose, as on the IDP form's two parents' contact numbers"},
-      {"test": "tags", "page": 3, "region": [925, 1000, 395, 48], "reason": "\"Date:\" beside \"Contact Number:\": a date beside a value OSCAR doesn't fill is that value's, not today (as \"INR: ____ Date: ____\"); the contact number's tag isn't found"},
       {"test": "extraFields", "page": 3, "region": [68, 1340, 1370, 46], "reason": "the blank strip between the box's last line of text (\"Phone: ... E-Mail: ...\") and its bottom edge: room under a label in its own cell, as a cell to write in is"}
     ],
     "variationSkip": [
@@ -2411,7 +2145,6 @@ window.TEST_CASE_LIST = [
     ],
     "skip": [
       {"test": "fields", "page": 1, "region": [792, 558, 218, 54], "reason": "\"OTHER NAMES\", the third label over the name row's blank: the first name's blank runs on under it; the cell has no side between them"},
-      {"test": "fields", "page": 1, "region": [224, 610, 1222, 46], "reason": "\"PHN\" with blank page after it on its row, a short cell between two lines with no colon"},
       {"test": "fields", "page": 1, "region": [156, 682, 1292, 60], "reason": "the ADDRESS and PHONE cells' first rows (\"ADDRESS\" over a blank; \"PHONE Res ____ Cell ____\"): the blank between a label and the next row's labels (\"CITY PROVINCE POSTAL CODE\", \"Bus Ext\") in one tall cell, with no line under it"},
       {"test": "fields", "page": 1, "region": [268, 876, 572, 48], "reason": "the referring physician's \"PHONE#\" at the foot of the cell, under the name's blank: a label with no colon, its blank in the same cell as the name's"},
       {"test": "fields", "page": 1, "region": [198, 954, 424, 114], "reason": "the consulting surgeon's \"Dr ____\" and \"PHONE#\" in one cell: labels with no colon and no line"},
@@ -2438,9 +2171,7 @@ window.TEST_CASE_LIST = [
       {"test": "ticks", "page": 1, "region": [318, 1438, 1050, 108], "reason": "the substance use's \"C☐ P☐\" boxes: each printed a pixel or two from its letter, C or P: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
       {"test": "fields", "page": 1, "region": [420, 766, 980, 46], "reason": "\"Contact person (if relevant): ____ Phone: ____ Relationship: ____\": the relationship's field is found taller, over the row above (\"Leave message\"), and the contact person's and phone's lines are missed (cause not traced on this fax)"},
       {"test": "fields", "page": 1, "region": [98, 1390, 1296, 40], "reason": "the second line of \"Current Meds:\", split where the substances' labels below begin (\"Alcohol:\", \"Nicotine:\") into three fields"},
-      {"test": "tags", "page": 1, "region": [96, 574, 940, 98], "reason": "\"PHN\" and the address's second line: the PHN's field is named from \"(m/d/y)\" above it and the address's second line is labelled \"Address PHN\", so the hin goes to the address line (OCR on the fax)"},
-      {"test": "tags", "page": 1, "region": [1012, 658, 380, 50], "reason": "\"Work\" (phone2): a phone's kind alone after \"Phone: Home ... Cell ...\"; \"work\" alone can't be read as a phone"},
-      {"test": "tags", "page": 1, "region": [242, 818, 394, 38], "reason": "\"Referred by:\" (current_user): the field is named \"referred_by\" but gets no clinician's tag; why was not traced on this fax"}
+      {"test": "tags", "page": 1, "region": [96, 574, 940, 98], "reason": "\"PHN\" and the address's second line: the PHN's field is named from \"(m/d/y)\" above it and the address's second line is labelled \"Address PHN\", so the hin goes to the address line (OCR on the fax)"}
     ]
   },
   {
@@ -2450,16 +2181,12 @@ window.TEST_CASE_LIST = [
     "variations": true,
     "variationSkip": [
       {"variation": "0.7× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
-      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [696, 1066, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
-      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [696, 1228, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
       {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [1228, 718, 214, 42], "reason": "the room under \"PHN:\" in its cell, taken as a second field at some sizes, beside the one after its colon"},
       {"variation": "1.5× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
-      {"variation": "1.5× size", "page": 1, "test": "fields", "region": [696, 1066, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
       {"variation": "2× size", "boxes": ["interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "2.5× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "2.5× size", "page": 1, "test": "extraFields", "region": [1228, 718, 214, 42], "reason": "the room under \"PHN:\" in its cell, taken as a second field at some sizes, beside the one after its colon"},
       {"variation": "3× size", "boxes": ["interpreter_no", "interpreter_yes", "regular", "urgent"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
-      {"variation": "3× size", "page": 1, "test": "fields", "region": [696, 1066, 262, 60], "reason": "\"Office fax:\": its cell narrow beside its label, missed at some sizes"},
       {"variation": "3× size", "page": 1, "test": "extraFields", "region": [1226, 682, 222, 50], "reason": "the blank right of \"PATIENT INFORMATION (please print clearly)\" on its shaded bar, at 3x"},
       {"variation": "faint print", "boxes": ["interpreter_no", "interpreter_yes"], "reason": "missed on the page itself too (see the case's skips for these boxes)"}
     ],
@@ -2492,8 +2219,7 @@ window.TEST_CASE_LIST = [
     "name": "Mental Health Act Form 5 consent for treatment (fillable PDF: blanks along sentences, captions under them)",
     "folder": "mha-form5-consent",
     "session": "mha_form5_consent_session.json",
-    "pdf": "HLTH3505_Form5_Consent_for_Treatment.pdf",
-    "skip": []
+    "pdf": "HLTH3505_Form5_Consent_for_Treatment.pdf"
   },
   {
     "name": "PWD designation application, Section 2 medical report (fillable PDF, five pages: a diagnoses table, rows of tick boxes, a certification)",
@@ -2544,8 +2270,7 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [500, 1316, 260, 186], "reason": "blanks between the diagnoses' names and their \"Right\" boxes in the diagnosis table: blank page in a row ruled top and bottom, after an option's label"},
       {"test": "extraFields", "page": 1, "region": [1012, 1324, 330, 186], "reason": "the blanks right of the \"Left\" boxes in the diagnosis table: blank page in a row ruled top and bottom, after an option's label"},
       {"test": "extraFields", "page": 1, "region": [158, 1532, 1178, 46], "reason": "the blank row under \"☐ Peripheral Neuropathy ☐ Sensory ☐ Motor\", ruled top and bottom: blank page between two lines, as a table row is"},
-      {"test": "extraFields", "page": 1, "region": [566, 1632, 768, 46], "reason": "the blank right of \"☐ Motor Neuron Disorder\": blank page after an option's label, on a row ruled top and bottom"},
-      {"test": "tags", "page": 1, "region": [724, 798, 312, 36], "reason": "\"Home #:\" (phone): \"Home\" with \"#\" names a phone only beside \"Mobile #\"; the words alone ask for nothing"}
+      {"test": "extraFields", "page": 1, "region": [566, 1632, 768, 46], "reason": "the blank right of \"☐ Motor Neuron Disorder\": blank page after an option's label, on a row ruled top and bottom"}
     ]
   },
   {
@@ -2720,9 +2445,7 @@ window.TEST_CASE_LIST = [
     "skip": [
       {"test": "fields", "page": 1, "region": [814, 236, 598, 196], "reason": "\"PHN:\" and \"Email:\" (one line each): open page after a label, the blank runs down to the next label in the column"},
       {"test": "extraFields", "page": 1, "region": [814, 236, 598, 196], "reason": "\"PHN:\" and \"Email:\" taken as areas (see fields)"},
-      {"test": "fields", "page": 1, "region": [400, 282, 1004, 44], "reason": "\"Primary Caregiver(s) Name:\": its blank stops at the PHN area beside it (see above)"},
       {"test": "extraFields", "page": 1, "region": [400, 282, 1004, 44], "reason": "\"Primary Caregiver(s) Name:\" (see fields)"},
-      {"test": "fields", "page": 1, "region": [672, 368, 731, 48], "reason": "\"Legal Guardian (if different from Primary Caregiver):\": the Email area beside it (see above) leaves no blank after the label"},
       {"test": "extraFields", "page": 1, "region": [96, 482, 1306, 70], "reason": "the blanks beside the italic note \"Please ensure consent has been obtained ...\", over the line under it"},
       {"test": "extraFields", "page": 1, "region": [82, 622, 1328, 45], "reason": "the strip between the referring physician's \"Phone: Fax:\" row and the box's bottom edge"},
       {"test": "extraFields", "page": 1, "region": [1087, 1488, 325, 44], "reason": "the blank after \"Please fax the requested information to: (604)875-2271\""},
