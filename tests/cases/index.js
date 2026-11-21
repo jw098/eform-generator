@@ -2479,7 +2479,6 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [130, 578, 1332, 38], "reason": "the blank under \"If clinically safe, have patient HOLD BETA BLOCKERS...\" over the box's bottom side: blank page over a long line"},
       {"test": "extraFields", "page": 1, "region": [128, 1136, 1318, 32], "reason": "the blank between the two rules under \"G.P/Family doctor:\" and \"Copies to:\": a double rule taken for a fill-in line"},
       {"test": "extraFields", "page": 1, "region": [522, 1604, 116, 74], "reason": "the blank between \"Ca Channel Blocker\" and the appointment box: blank page over the box's top side"},
-      {"test": "tags", "page": 1, "region": [372, 1090, 446, 48], "reason": "\"G.P/Family doctor:\" (doctor): the field is named \"g_p_family\": its label read without \"doctor\" (the next field takes \"G.P/Family doctor\")"},
       {"test": "tags", "page": 1, "region": [692, 1674, 264, 46], "reason": "the LMH Cardiology appointment's \"Date:\" (no tag): the receiving clinic's appointment, in a box at the foot headed \"LMH Cardiology Appointment:\" on the same row, not above it"}
     ]
   },
