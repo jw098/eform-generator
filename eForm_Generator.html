@@ -1955,11 +1955,9 @@ else if (typeof exports === 'object')
       if (isGenerated && (refId === 'bottombuttons' || /submit|faxcontrol/i.test(refId))) return;
 
       const page = inferPage(box.ref || el);
+      // (kept as the eForm has it, a number at its end too, "phone_number_2", "phn_10": OSCAR keeps
+      // what's typed in a form under its fields' names, so exported again, a field keeps its name)
       const name = (rawName && !GENERIC_NAME_RE.test(rawName)) ? rawName : (oscarTag || rawName);
-
-      // (an eForm this app made: its names lose the "_1", "_2"… that sanitizeUniqueFieldNames
-      // added to keep them apart, "patient_name_1" -> "patient_name")
-      const cleanName = isGenerated ? name.replace(/_\d+$/, '') : name;
 
       const exportW = template.pageExportW[page] ? template.pageExportW[page].w : null;
 
@@ -1976,7 +1974,7 @@ else if (typeof exports === 'object')
         width:  (box.width  != null ? box.width  : (type === 'checkbox' ? 20 : 150)),
         height: (box.height != null ? box.height : (type === 'checkbox' ? 20 : 20)),
         type,
-        name: cleanName,
+        name,
         oscarTag,
         label,
         ...(parseAttr(el, 'id') ? { elementId: parseAttr(el, 'id') } : {}),
@@ -6497,17 +6495,20 @@ const keptDateFormat = (format) => DATE_FORMATS[format] && format !== 'ymd' ? fo
 // slashes or dashes
 const dateFormatFrom = (calendarFormat) => (/^\s*%[de]/.test(calendarFormat || '') ? 'dmy' : 'ymd') + (/\//.test(calendarFormat || '') ? '_slash' : '');
 // The fields, each given a name safe for the exported HTML (letters, digits and _) as
-// _safeName, and no two the same: a name already taken gets the first number ending that isn't
-// ("name", "name_1", "name_2"), so it can't take another field's own "name_1"; _origName keeps
+// _safeName, and no two the same: the first field with a name keeps it, and a repeat gets the
+// first number ending from 2 that no field has as its own name or was given ("name", "name_2",
+// "name_3"), as the app numbers its names, so a field named "name_2" keeps it; _origName keeps
 // its name
 function sanitizeUniqueFieldNames(fields){
-  const taken = new Set();
+  const safeOf = (f, idx) => String(f.name || '').trim().replace(/[^A-Za-z0-9_]/g, '_').replace(/^_+|_+$/g, '') || `field_${idx+1}`;
+  const own = new Set(fields.map(safeOf)), taken = new Set();
   return fields.map((f, idx) => {
-    let base = String(f.name || '').trim();
-    if (!base) base = `field_${idx+1}`;
-    const safeBase = base.replace(/[^A-Za-z0-9_]/g, '_').replace(/^_+|_+$/g, '') || `field_${idx+1}`;
+    const base = String(f.name || '').trim() || `field_${idx+1}`, safeBase = safeOf(f, idx);
     let safeName = safeBase;
-    for (let n = 1; taken.has(safeName); n++) safeName = `${safeBase}_${n}`;
+    if (taken.has(safeName)){
+      let n = 2; while (taken.has(`${safeBase}_${n}`) || own.has(`${safeBase}_${n}`)) n++;
+      safeName = `${safeBase}_${n}`;
+    }
     taken.add(safeName);
     return { ...f, _safeName: safeName, _origName: base };
   });

@@ -421,16 +421,21 @@
   const nameTest = (short, fields, expected) => test(`Export: field names: ${short}`, () =>
     sameList(exportOf(fields).inputs.map(el => el ? el.getAttribute('name') : '(none)'), expected, `expected ${expected.join(', ')}; the eForm's names`), { group: 'Export: field names', short });
   nameTest('a name used once is kept as it is', [[1, 'Name'], [1, 'Phone']], ['Name', 'Phone']);
-  nameTest('the same name twice on a page gets a number', [[1, 'Name'], [1, 'Name']], ['Name', 'Name_1']);
-  nameTest('the same name on two pages gets a number', [[1, 'Name'], [2, 'Name']], ['Name', 'Name_1']);
-  nameTest('a number is never one another field has', [[1, 'Name'], [1, 'Name'], [1, 'Name_3'], [2, 'Name']], ['Name', 'Name_1', 'Name_3', 'Name_2']);
-  nameTest('a field named with a number a repeat took gets another', [[1, 'Name'], [1, 'Name'], [2, 'Name_1']], ['Name', 'Name_1', 'Name_1_1']);
-  nameTest('names the same once made safe for HTML', [[1, 'Pt name'], [1, 'Pt_name']], ['Pt_name', 'Pt_name_1']);
+  nameTest('the same name twice on a page gets a number, from 2', [[1, 'Name'], [1, 'Name']], ['Name', 'Name_2']);
+  nameTest('the same name on two pages gets a number', [[1, 'Name'], [2, 'Name']], ['Name', 'Name_2']);
+  nameTest('a number is never one another field has', [[1, 'Name'], [1, 'Name'], [1, 'Name_3'], [2, 'Name']], ['Name', 'Name_2', 'Name_3', 'Name_4']);
+  nameTest("a field keeps its own numbered name, which a repeat doesn't take", [[1, 'Name'], [1, 'Name'], [2, 'Name_2']], ['Name', 'Name_3', 'Name_2']);
+  nameTest('names the same once made safe for HTML', [[1, 'Pt name'], [1, 'Pt_name']], ['Pt_name', 'Pt_name_2']);
   // An exported eForm read back keeps every field, one named as a toolbar control is but for its
   // punctuation too ("fax_number", the toolbar's hidden "faxnumber")
   test('Export: field names: a field named like a toolbar control is read back', () =>
     sameList(T.parseTemplateHtml(exportOf([[1, 'fax_number'], [1, 'Name']]).html, 'test.html').fields.map(f => f.name), ['fax_number', 'Name'], 'the fields read'),
     { group: 'Export: field names', short: 'a field named like a toolbar control is read back' });
+  // An eForm read back keeps its names as they are, a number at their end too: exported again, its
+  // fields keep their names, which OSCAR keeps what's typed in them under
+  test('Export: field names: an eForm read back keeps its names, numbers and all', () =>
+    sameList(T.parseTemplateHtml(exportOf([[1, 'phone'], [1, 'phone'], [1, 'phn_10']]).html, 'test.html').fields.map(f => f.name), ['phone', 'phone_2', 'phn_10'], 'the fields read'),
+    { group: 'Export: field names', short: 'an eForm read back keeps its names, numbers and all' });
 
   // The fax number OSCAR is sent (the hidden "faxnumber") once the eForm's syncFaxNoMirror runs,
   // its fax functions run on the exported eForm's document; `fill`: values to type, by element id
@@ -440,6 +445,35 @@
     new Function('document', source + '\nsyncFaxNoMirror();')(e.doc);
     return (e.doc.getElementById('faxnumber') || {}).value;
   };
+  // Auto Detect's numbered names ("text_1", "checkbox_1", for a field it has no label to name by,
+  // as with no words read) go on across the form: page 2's carry on from page 1's. It runs on two
+  // copies of a drawn page of fill-in lines and tick boxes, on the app's next two pages
+  test("Auto Detect: names: a field with no label takes the form's next numbered name, not its page's", async () => {
+    const c = document.createElement('canvas'); c.width = 1000; c.height = 1300;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1000, 1300); g.fillStyle = '#000'; g.strokeStyle = '#000'; g.lineWidth = 2;
+    for (let i = 0; i < 4; i++){ g.fillRect(300, 200 + 120*i, 500, 2); g.strokeRect(120, 760 + 60*i, 22, 22); }
+    const url = c.toDataURL(), img = await loadImage(url), first = nextPage, pages = [first, first + 1];
+    nextPage += 2;
+    const keep = { fields: T.state.fields, current: T.state.currentPage };
+    try {
+      T.state.fields = [];
+      for (const n of pages){
+        T.createPageDOM(n);
+        T.state.pages[n] = { imgData: url, naturalW: img.width, naturalH: img.height, fileName: `names_page${n}.png` };
+        document.getElementById('img' + n).src = url;
+        T.setCurrentPage(n);
+        await T.detectCurrentPage({ readWords: false });
+      }
+      const names = pages.map(n => T.state.fields.filter(f => Number(f.page) === n && f.type !== 'fontbuttons').map(f => f.name));
+      if (names.some(list => list.length < 4)) throw new Error(`too few fields found to tell: ${names.map(l => l.join(', ')).join(' / ')}`);
+      const all = names.flat(), repeated = all.filter((name, i) => all.indexOf(name) !== i);
+      if (repeated.length) throw new Error(`names used twice: ${[...new Set(repeated)].join(', ')} (page 1: ${names[0].join(', ')}; page 2: ${names[1].join(', ')})`);
+    } finally {
+      pages.forEach(n => onShow.set(n, []));
+      T.state.fields = keep.fields; T.setCurrentPage(keep.current || 1);
+    }
+  }, { group: 'Auto Detect: names', short: "a field with no label takes the form's next numbered name, not its page's" });
+
   const faxTest = (short, fn) => test(`Export: fax number: ${short}`, fn, { group: 'Export: fax number', short });
   faxTest('the toolbar has its own "Fax to:" box, by the Fax button, which an eForm read back leaves out', () => {
     const e = exportOf([[1, 'Name']]), box = e.doc.getElementById('faxNo');

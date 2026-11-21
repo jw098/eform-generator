@@ -2005,28 +2005,28 @@ window.TEST_CASE_LIST = [
       {
         "variation": "1.5× size",
         "boxes": [
-          "checkbox_11_1"
+          "checkbox_37"
         ],
         "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
       },
       {
         "variation": "2× size",
         "boxes": [
-          "checkbox_11_1"
+          "checkbox_37"
         ],
         "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
       },
       {
         "variation": "2.5× size",
         "boxes": [
-          "checkbox_11_1"
+          "checkbox_37"
         ],
         "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
       },
       {
         "variation": "3× size",
         "boxes": [
-          "checkbox_11_1"
+          "checkbox_37"
         ],
         "reason": "the OSFED box sits on the box's bottom line, a pixel or two of paper between them on the page; enlarging it blurs that gap away, so the line is joined to the box's bottom, as a fill-in line under letters is"
       },
@@ -2159,7 +2159,7 @@ window.TEST_CASE_LIST = [
     "variationSkip": [
       {"variation": "2× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "the Per Diem \"Other ____\" blank, with \"...into the TWC Program\" printed just over its start: found on the page and at the other sizes; at 2× and 2.5× it is lost (not traced further; the pushed app loses it there too)"},
       {"variation": "2.5× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "as at 2×: the Per Diem \"Other ____\" blank under the end of \"...TWC Program\""},
-      {"variation": "0.7× size", "boxes": ["checkbox_5_1"], "reason": "the box after \"Carry Privileges ... No\", printed right against the o of \"No\": found on the page and the larger copies, missed at 0.7× (not traced further; the pushed app misses it too)"},
+      {"variation": "0.7× size", "boxes": ["checkbox_23"], "reason": "the box after \"Carry Privileges ... No\", printed right against the o of \"No\": found on the page and the larger copies, missed at 0.7× (not traced further; the pushed app misses it too)"},
       {"variation": "0.7× size", "test": "fields", "page": 5, "region": [1030, 1508, 95, 48], "reason": "the client's date, month blank (\"Date ___/___/___\" over \"DD MM YY\"): missed at 0.7×, short lines with slashes between them (not traced further; the pushed app misses it too)"},
       {"variation": "0.7× size", "test": "extraFields", "page": 5, "region": [895, 1742, 475, 45], "reason": "the staff date's three blanks (\"___/___/___\"): at 0.7× one field across them, where the eForm has a field each (not traced further; the pushed app does the same)"},
       {"variation": "2× size", "test": "fields", "page": 5, "region": [330, 542, 425, 55], "reason": "the Name cell of the \"A & D Counselling\" row: found on the page and the smaller copies; lost at 2× and 2.5× (not traced further; the pushed app loses it there too)"},
@@ -2223,7 +2223,7 @@ window.TEST_CASE_LIST = [
       {"variation": "0.7× size", "boxes": ["mother_u_father", "no"], "reason": "the first \"Mother\" box, a shadowed box (\"❑\") whose pixel-thin sides 0.7× leaves broken; and the \"No\" box of \"Yes❑ No ❑\", printed against the s of \"Yes\", found on the page but joined to the letter at 0.7×, 2× and 2.5× (the pushed app misses both too)"},
       {"variation": "2× size", "boxes": ["no"], "reason": "as at 0.7×: the \"No\" box against the s of \"Yes\""},
       {"variation": "2.5× size", "boxes": ["no"], "reason": "as at 0.7×: the \"No\" box against the s of \"Yes\""},
-      {"variation": "faint print", "boxes": ["father_1"], "reason": "the first \"Father\" box, missed on the page itself (see the case's skip): its pixel-thin left side"},
+      {"variation": "faint print", "boxes": ["father_2"], "reason": "the first \"Father\" box, missed on the page itself (see the case's skip): its pixel-thin left side"},
       {"variation": "faint print", "test": "extraTicks", "page": 1, "region": [434, 1142, 28, 28], "reason": "the D of \"Expected Due Date\", taken on the page itself (see the case's skip)"}
     ]
   },

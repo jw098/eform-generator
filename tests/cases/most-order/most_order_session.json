@@ -317,7 +317,7 @@
       "width": 498,
       "height": 42,
       "type": "text",
-      "name": "name",
+      "name": "name_2",
       "oscarTag": "",
       "label": ""
     },
@@ -329,7 +329,7 @@
       "width": 546,
       "height": 42,
       "type": "text",
-      "name": "relationship",
+      "name": "relationship_2",
       "oscarTag": "",
       "label": ""
     },
