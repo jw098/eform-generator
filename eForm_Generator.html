@@ -1613,19 +1613,25 @@ else if (typeof exports === 'object')
     // (a line alone on its row: a heading, of a table or a section)
     const alone = (p) => !parts.some(q => q !== p && q.y0 < p.y1 && q.y1 > p.y0);
     // (`from`: no higher than this, a table cell's section heading)
-    const up = (f, box, from = -Infinity) => {
+    // (named: only a text naming someone, past the other fields' labels, up to a section's heading)
+    const up = (f, box, from = -Infinity, named = false) => {
       for (const p of textAbove(f, box)){
         if (p.y0 < from) break;
         const g = p.words.map(fieldOfWord).find(g => g && g !== f);
-        if (g){ if (owner.get(g)) return owner.get(g); continue; }
+        if (g){ if (owner.get(g) && !named) return owner.get(g); continue; }
         const o = namesWhose(p); if (o) return o;
+        if (named && alone(p)) break;                          // (a section's heading naming no one ends it)
       }
       return '';
     };
-    // What is just left: the field before it on its row
+    // What is just left: the field before it on its row. Past a line down between them, a text
+    // above it in its own column in its box naming someone comes first: "PATIENT INFORMATION |
+    // REFERRING PHYSICIAN" side by side in one box, each column's "Name: ____ / MSP: ____" its
+    // own; a table's row of cells, "Name | Fax Number", is one person's
     const left = (f, box) => {
       const g = fieldLeftOf(f, writes.filter(g => inside(box, rect(g))));
-      return g ? owner.get(g) || '' : '';
+      if (!g) return '';
+      return (box && boxOf.parted && boxOf.parted(g, f) && up(f, box, -Infinity, true)) || owner.get(g) || '';
     };
     // Row by row from the top, each left to right, so what is left of and above a field is settled first
     const rows = [];
@@ -6450,6 +6456,13 @@ else if (typeof exports === 'object')
             return { x0: T.x1/scale, x1: T.x2/scale, y0: T.y1/scale, y1: B.y2/scale };
         }
         return null;
+      };
+      // (a line down between field a and field b, left to right, along b's row: a column's divider)
+      boxOf.parted = (a, b) => {
+        const xa = Math.round((a.x + a.width)*scale), xz = Math.round(Math.min(b.x, ...(b._words || []).map(u => u.x0))*scale);
+        const ya = Math.round(b.y*scale), yb = Math.round((b.y + b.height)*scale);
+        for (let x = xa; x <= xz; x++) if (sideLine(inkMap, w, h, x, ya, yb, 0.9, 0)) return true;
+        return false;
       };
 
       if (opts.undo !== false) pushUndo();
