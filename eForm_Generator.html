@@ -2288,6 +2288,12 @@ else if (typeof exports === 'object')
   function getPageOverlay(page){ return $('overlay'+page); }
   // The number of the last page
   function getPageCount(){ return Math.max(...Object.keys(state.pages).map(Number)); }
+  // The first numbered name ("text_1", "text_2"…) that no field of the form has, on any page;
+  // `used`: the names taken, if not just the fields' (a name it gives is taken from then on)
+  function freeNumberedName(prefix, used = new Set(state.fields.map(f => f.name))){
+    let n = 1; while (used.has(`${prefix}_${n}`)) n++;
+    used.add(`${prefix}_${n}`); return `${prefix}_${n}`;
+  }
   // Whether two page numbers are the same page (one may be a string)
   function samePage(a,b){ return Number(a) === Number(b); }
 
@@ -2739,7 +2745,7 @@ else if (typeof exports === 'object')
       x, y,
       width: boxSize, height: boxSize,
       type: 'checkbox',
-      name: `checkbox_${getPageFields(page).filter(k=>k.type==='checkbox').length + 1}`,
+      name: freeNumberedName('checkbox'),
       oscarTag: ''
     });
     selectOne(f.id);
@@ -3148,7 +3154,7 @@ else if (typeof exports === 'object')
   $('btnFreeDraw').addEventListener('click', ()=>{
     const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
     pushUndo();
-    const f = addField({ page: state.currentPage, x: 30, y: 30, width: p.naturalW / 3, height: p.naturalH / 6, type: 'drawing', name: `drawing_${state.fields.length+1}`, oscarTag: '' });
+    const f = addField({ page: state.currentPage, x: 30, y: 30, width: p.naturalW / 3, height: p.naturalH / 6, type: 'drawing', name: freeNumberedName('drawing'), oscarTag: '' });
     selectOne(f.id); renderAll();
     msg('Added a free draw area: drag it over what is to be marked, and size it by its corner.', 'ok');
   });
@@ -3158,7 +3164,7 @@ else if (typeof exports === 'object')
     const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return; }
     pushUndo();
     const k = p.naturalW / EXPORT_PAGE_W;
-    const f = addField({ page: state.currentPage, x: 30, y: 30, width: 50 * k, height: 22 * k, type: 'circle', name: `circle_${getPageFields(state.currentPage).filter(g => g.type === 'circle').length + 1}`, oscarTag: '' });
+    const f = addField({ page: state.currentPage, x: 30, y: 30, width: 50 * k, height: 22 * k, type: 'circle', name: freeNumberedName('circle'), oscarTag: '' });
     selectOne(f.id); renderAll();
     msg('Added a circle: drag it over the choice it circles, and size it by its corner. On the eForm, a click circles it or takes the circle away.', 'ok');
   });
@@ -3182,7 +3188,7 @@ else if (typeof exports === 'object')
     const p = state.pages[state.currentPage]; if (!p.naturalW) { msg('Upload current page image first.', 'warn'); return null; }
     pushUndo();
     const [width, height] = size(p);
-    const f = addField({ page: state.currentPage, x: 30, y: 30, width, height, type, name: `${name}_${state.fields.length+1}`, oscarTag: '' });
+    const f = addField({ page: state.currentPage, x: 30, y: 30, width, height, type, name: freeNumberedName(name), oscarTag: '' });
     selectOne(f.id); renderAll();
     return f;
   }
@@ -6322,8 +6328,6 @@ else if (typeof exports === 'object')
 
       if (opts.undo !== false) pushUndo();
       const before = getPageFields(page).length;
-      let tN = getPageFields(page).filter(f=>f.type==='text'||f.type==='textarea').length + 1;
-      let cN = getPageFields(page).filter(f=>f.type==='checkbox').length + 1;
       const used = new Set(state.fields.map(k => k.name));
       // (a label as a field name: lowercase words joined by _, at most 40 characters)
       const tidy = (v) => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40).replace(/_+$/, '');
@@ -6333,7 +6337,7 @@ else if (typeof exports === 'object')
         const box = f.type==='checkbox';
         const base = f.label ? tidy((f.section ? f.section + ' ' : '') + f.label) : '';
         if (base){ let n = base, k = 2; while (used.has(n)) n = `${base}_${k++}`; f.name = n; }
-        else f.name = box ? `checkbox_${cN++}` : `text_${tN++}`;
+        else f.name = freeNumberedName(box ? 'checkbox' : 'text', used);
         used.add(f.name);
       });
       if (read) tagFields(found, read, boxOf);
