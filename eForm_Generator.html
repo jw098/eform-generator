@@ -4869,6 +4869,13 @@ else if (typeof exports === 'object')
       }
       if (got.length){ f.label = phraseText(got); f._words = got; got.forEach(w => taken.add(w)); }
     });
+    // (a box with nothing after it on its row takes the word just before it, a word space away or
+    // less, when that word labels no other box: "Gender ID  M ☐" printed with the label first)
+    boxes.forEach(f => {
+      if (f.label) return;
+      const prev = words.filter(w => onRow(f, w) && w.x1 <= f.x + 2 && f.x - w.x1 <= wordHeight && !taken.has(w)).sort((a,b) => b.x1 - a.x1)[0];
+      if (prev){ f.label = phraseText([prev]); f._words = [prev]; taken.add(prev); }
+    });
     const free = words.filter(w => !taken.has(w));
     const aboveOnly = [];                                 // [field, the words just above it]
 

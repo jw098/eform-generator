@@ -1105,7 +1105,7 @@ window.TEST_CASE_LIST = [
           350,
           50
         ],
-        "reason": "\"Phone #:\" under Referee Name: the blank beside it in its cell, between the lines under Referee Name and over Fax #, isn't found (no field after its colon either); not traced further, as the table's other rows of this kind are found"
+        "reason": "\"Phone #:\" under Referee Name: pass 1 finds the blank beside it in its cell, but OCR reads \"#:\" as a word of its own, without letters, so the label is just \"Phone\": no colon or \"#\", and with the Fax # row's field right under it, the cell's one label doesn't ask for the blank (fieldsFromLabels), which goes. Joining a \"#:\" word onto the word before it was tried: it found this blank, but also kept the blank beside \"Care Card #\" at the top of a taller cell on the Seamless Perinatal form, where the field is under the label"
       },
       {
         "test": "fields",
@@ -1864,7 +1864,7 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [130, 872, 450, 80], "reason": "\"Name\" under \"Care Community Information\": a heading that names no one doesn't stop the look upward, which reaches the previous MRP's \"Last name\" and makes it the doctor's"}
     ],
     "variationSkip": [
-      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [495, 1688, 955, 45], "reason": "the blank after \"Completed form must be:\" in the instructions box, a colon with blank page after it: a field only at 0.7× (not traced further; the pushed app does the same)"}
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [495, 1688, 955, 45], "reason": "the blank after \"Completed form must be:\" in the instructions box: on the page itself the bulleted-list check (bulletUnder) finds the \"•\" under the label and the colon step makes no blank; at 0.7× it doesn't find it (OCR reads the bullet as \"0\"), and a blank is made after the colon"}
     ]
   },
   {
@@ -1885,8 +1885,7 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 5, "region": [260, 1505, 540, 45], "reason": "\"Client Signature\": a signature line, which the eForm leaves to the signature"},
       {"test": "extraFields", "page": 5, "region": [240, 1740, 540, 45], "reason": "\"Staff Signature\": a signature line, which the eForm leaves to the signature"},
       {"test": "extraFields", "page": 5, "region": [950, 1785, 495, 45], "reason": "the \"Day  Month  Year\" captions under the staff date's blanks, read as labels with blank page after them"},
-      {"test": "tags", "page": 1, "region": [240, 568, 420, 45], "reason": "\"Contact # 1\": a phone number named only by \"#\", which OCR and the label's words drop; \"contact\" alone names no one (seen, not traced)"},
-      {"test": "tags", "page": 1, "region": [325, 386, 40, 40], "reason": "the \"M ☐\" of \"Gender ID\": the box's label is \"M\" and \"Gender ID\" is more than ten boxes' width to its left, where a sex is looked for (seen, not traced)"},
+      {"test": "tags", "page": 1, "region": [240, 568, 420, 45], "reason": "\"Contact # 1\" (phone): OCR reads \"Contact\", \"#\" and \"1\" as three words, and a label keeps only words with letters, so the label is \"Contact\", which names no detail (\"Contact number\" would be a phone). Joining a \"#\" word onto the word before it was tried (for the Falls Prevention form's \"Phone #:\"): it kept a blank beside \"Care Card #\" on the Seamless Perinatal form that the form has under the label"},
       {"test": "tags", "page": 2, "region": [715, 702, 700, 50], "reason": "\"Physician for pre-natal care ____ Tel ____\": a physician named by their role, which can't be told from the clinician's (\"Physician\", \"Prescribing physician\")"},
       {"test": "tags", "page": 2, "region": [870, 1548, 235, 45], "reason": "\"Prescribing Physician\": the methadone prescriber, named by the role that elsewhere names the referring clinician"},
       {"test": "tags", "page": 2, "region": [66, 1650, 1370, 40], "reason": "the second line of \"Allergies (drug, food, environmental – include reactions)\": the line above's continuation, with the label over it as well"},
@@ -1897,12 +1896,12 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 5, "region": [895, 1742, 135, 45], "reason": "the staff date's first blank (\"Date ____/____/____\" over \"Day  Month  Year\"): its caption is taken for a field of its own, so it is the whole date, today"}
     ],
     "variationSkip": [
-      {"variation": "2× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "the Per Diem \"Other ____\" blank, with \"...into the TWC Program\" printed just over its start: found on the page and at the other sizes; at 2× and 2.5× it is lost (not traced further; the pushed app loses it there too)"},
+      {"variation": "2× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "the Per Diem \"Other ____\" blank: at 2× and 2.5× its line (y 961) and the table's line under it (y 964) are 3 px apart, and the lower line's ink right under it reads as letters under an underline (isLine), so it isn't taken for a line"},
       {"variation": "2.5× size", "test": "fields", "page": 1, "region": [905, 922, 530, 45], "reason": "as at 2×: the Per Diem \"Other ____\" blank under the end of \"...TWC Program\""},
-      {"variation": "0.7× size", "boxes": ["checkbox_23"], "reason": "the box after \"Carry Privileges ... No\", printed right against the o of \"No\": found on the page and the larger copies, missed at 0.7× (not traced further; the pushed app misses it too)"},
-      {"variation": "0.7× size", "test": "fields", "page": 5, "region": [1030, 1508, 95, 48], "reason": "the client's date, month blank (\"Date ___/___/___\" over \"DD MM YY\"): missed at 0.7×, short lines with slashes between them (not traced further; the pushed app misses it too)"},
-      {"variation": "0.7× size", "test": "extraFields", "page": 5, "region": [895, 1742, 475, 45], "reason": "the staff date's three blanks (\"___/___/___\"): at 0.7× one field across them, where the eForm has a field each (not traced further; the pushed app does the same)"},
-      {"variation": "2× size", "test": "fields", "page": 5, "region": [330, 542, 425, 55], "reason": "the Name cell of the \"A & D Counselling\" row: found on the page and the smaller copies; lost at 2× and 2.5× (not traced further; the pushed app loses it there too)"},
+      {"variation": "0.7× size", "boxes": ["checkbox_23"], "reason": "the box after \"Carry Privileges ... No\", printed right against the o of \"No\": at 0.7× box and o join into one 35×15 px blob, and the squares inside fail the last check (ink runs on out of the left side, 6 rows where 2 are allowed)"},
+      {"variation": "0.7× size", "test": "fields", "page": 5, "region": [1030, 1508, 95, 48], "reason": "the client's date, month blank (\"Date ___/___/___\" over \"DD MM YY\"): at 0.7× its caption \"MM\" is right under the line, which reads as letters under an underline (isLine)"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 5, "region": [895, 1742, 475, 45], "reason": "the staff date's three blanks (\"___/___/___\"): at 0.7× a 1-row band runs across all three lines and the slashes between them, one line, so one field over the three blanks"},
+      {"variation": "2× size", "test": "fields", "page": 5, "region": [330, 542, 425, 55], "reason": "the Name cell of the \"A & D Counselling\" row: at 2× and 2.5× the row's tick box takes \"A D\" as its own label, so the blank after \"Counselling\" follows an option's label (_afterOption) and the label step drops it (fieldsFromLabels); on the page itself the box doesn't take them"},
       {"variation": "2.5× size", "test": "fields", "page": 5, "region": [330, 542, 425, 55], "reason": "as at 2×: the Name cell of the \"A & D Counselling\" row"}
     ]
   },
@@ -2005,8 +2004,8 @@ window.TEST_CASE_LIST = [
     "session": "northern_health_most_session.json",
     "variations": true,
     "variationSkip": [
-      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [284, 1690, 1182, 42], "reason": "\"☐ Other: ____\": at 0.7x its line is found only to its middle (cause not traced)"},
-      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [286, 1692, 602, 42], "reason": "\"☐ Other: ____\": at 0.7x its line is found only to its middle (cause not traced)"},
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [284, 1690, 1182, 42], "reason": "\"☐ Other: ____\": at 0.7× the blank on its line is cut off at x≈874, by the step that stops a blank before a mark in its right half (trim in textFieldsFromLines)"},
+      {"variation": "0.7× size", "page": 1, "test": "extraFields", "region": [286, 1692, 602, 42], "reason": "\"☐ Other: ____\": at 0.7× the blank on its line is cut off at x≈874, by the step that stops a blank before a mark in its right half (trim in textFieldsFromLines); the shorter field is the extra"},
       {"variation": "1.5× size", "page": 1, "region": [992, 940, 32, 32], "reason": "the D of \"Do not attempt resuscitation\" in bold: a bold character, square at this size, with an empty middle"},
       {"variation": "1.5× size", "page": 1, "region": [1096, 1424, 32, 32], "reason": "the D of \"Date:\": a bold character, square at this size, with an empty middle"},
       {"variation": "2× size", "page": 1, "region": [1096, 1424, 32, 32], "reason": "the D of \"Date:\": a bold character, square at this size, with an empty middle"},
@@ -2039,7 +2038,7 @@ window.TEST_CASE_LIST = [
       {"variation": "2.5× size", "boxes": ["six_minute_resting_study", "ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "2.5× size", "page": 1, "region": [166, 970, 32, 32], "reason": "the D of \"4. DIAGNOSTIC DATA\" on its shaded bar: a bold character, square at this size, with an empty middle"},
       {"variation": "2.5× size", "page": 1, "region": [602, 1524, 32, 32], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold character, square at this size, with an empty middle"},
-      {"variation": "2.5× size", "page": 1, "test": "fields", "region": [588, 1478, 200, 48], "reason": "the \"Completed by:\" row's \"Phone:\" field, missed at 2.5x (cause not traced)"},
+      {"variation": "2.5× size", "page": 1, "test": "fields", "region": [588, 1478, 200, 48], "reason": "the \"Completed by:\" row's \"Phone:\" field: at 2.5× the row's cell reads only \"Completed by:\" as print (its ink ends at x≈339), so one blank is made after it across the row and none after \"Phone:\""},
       {"variation": "3× size", "boxes": ["six_minute_resting_study", "ambulatory_study", "nocturnal_study"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "3× size", "page": 1, "region": [166, 454, 32, 32], "reason": "the D of \"1. DATE of APPLICATION\" on its shaded bar: a bold character, square at this size, with an empty middle"},
       {"variation": "3× size", "page": 1, "region": [602, 1524, 32, 32], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold character, square at this size, with an empty middle"},
@@ -2054,7 +2053,7 @@ window.TEST_CASE_LIST = [
       {"test": "extraTicks", "page": 1, "region": [604, 1526, 25, 25], "reason": "the D of \"MANDATORY\" on its shaded bar: a bold capital, square at this size, with its bowl the bar's grey"},
       {"test": "fields", "page": 1, "region": [434, 856, 1018, 84], "reason": "\"Most Responsible Diagnosis\" and \"Precautions (i e MRSA, VRE, TB etc.)\": a label with no colon and blank page after it to its cell's side, which is how a row's heading is laid out too"},
       {"test": "fields", "page": 1, "region": [436, 1238, 352, 42], "reason": "\"Referring Physician or NP\": a label with no colon and blank page after it in its cell"},
-      {"test": "fields", "page": 1, "region": [320, 1612, 1130, 40], "reason": "the signature's \"Date: (DD/MM/YYYY) ____\": the field is put right of its line instead, on the blank after it to the form's side, under the signature's line (cause not traced further)"},
+      {"test": "fields", "page": 1, "region": [320, 1612, 1130, 40], "reason": "the signature's \"Date: (DD/MM/YYYY) ____\": its line (y 1642) is 5 px over the signature's line (y 1647), whose ink right under it reads as letters under an underline (isLine), so it isn't a line; the field is made on the blank after it instead"},
       {"test": "extraFields", "page": 1, "region": [914, 338, 550, 62], "reason": "the blank in the header row of a Fraser Health form (\"Form ID: ... Rev: ... Page: 1 of 1\" over its rule, the patient label's place right of the vertical line): blank page over a long line, as a fill-in line is, that the eForm leaves empty"},
       {"test": "extraFields", "page": 1, "region": [692, 532, 514, 38], "reason": "the blank between the two dates' captions (\"DD/MM/YYYY\" under each line): blank page over the rule under the row"},
       {"test": "extraFields", "page": 1, "region": [1086, 828, 360, 36], "reason": "the blank on the shaded bar after \"Note: Palliative clients must present with hypoxemia\": the bar's bottom edge taken for a line"},
@@ -2063,7 +2062,7 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [234, 636, 282, 34], "reason": "\"D. 0. B.\": OCR reads the O as a zero, so the label isn't a birth date's"},
       {"test": "tags", "page": 1, "region": [406, 728, 628, 56], "reason": "the client's \"Primary Contact Number\" and \"Secondary Contact Number\" (phone, phone2): \"contact\" names someone else of the patient's (\"Emergency contact\"), and \"contact number\" alone can't be told from it"},
       {"test": "tags", "page": 1, "region": [350, 1440, 436, 42], "reason": "\"Hospital Ward Fax:\" (no tag): a fax in the referring physician's box, which is the clinician's"},
-      {"test": "tags", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP subsidy review's \"Date:\" (no tag): its section heading \"7. HOP SUBSIDY REVIEW - For HOP use only\", on a shaded bar, doesn't make it the office's (the owner cue for \"For ... use only\" is there; why the heading isn't taken was not traced)"},
+      {"test": "tags", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP subsidy review's \"Date:\" (no tag): the field is inside a box whose top line is under the shaded heading bar \"7. HOP SUBSIDY REVIEW - For HOP use only\"; in a box only what is inside it says whose, so the heading isn't seen and the date is read as the form's (today)"},
       {"test": "dates", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP review's \"Date:\": a box taller than a line, made a text area"}
     ]
   },
@@ -2075,7 +2074,7 @@ window.TEST_CASE_LIST = [
     "variationSkip": [
       {"variation": "0.7× size", "boxes": ["yes_refugee", "yes_consent", "midwife", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "0.7× size", "boxes": ["no", "cgh", "rch"], "reason": "the \"No\" of the Aboriginal question (\"☐ No\"); \"☐CGH\"; \"☐RCH\": printed tight against its word, joined to it at this size (as the page's \"☐Yes\" boxes are at every size)"},
-      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [1188, 622, 274, 46], "reason": "\"Due Date (dd/mm/yyyy)\": missed at 0.7x (cause not traced)"},
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [1188, 622, 274, 46], "reason": "\"Due Date (dd/mm/yyyy)\": at 0.7× the label's ink ends 20 px over the cell's foot, under the 0.6 of a written line (21 px) asked for a blank under a label (textFieldsFromLines)"},
       {"variation": "1.5× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "2× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
       {"variation": "2.5× size", "boxes": ["yes_refugee", "yes_consent", "single_parent", "financial", "housing", "limited_education", "nutrition_risk", "unplanned_pregnancy", "late_prenatal_care", "isolated", "limited_transportation", "alcohol", "substance_use", "tobacco_use", "current_mental_health", "developmental_disability", "previous_traumatic_birth", "other_mmh", "history_of_abuse", "intimate_partner_violence", "parenting_capacity"], "reason": "missed on the page itself too (see the case's skips for these boxes)"},
@@ -2116,8 +2115,8 @@ window.TEST_CASE_LIST = [
       {"test": "fields", "page": 2, "region": [772, 708, 664, 144], "reason": "the referral source's box under \"Referral Source Information (Name/Contact/MSP #)\": found only to a speck of the scan in it"},
       {"test": "fields", "page": 2, "region": [104, 1208, 1338, 296], "reason": "the clinical question's box: the scan's specks in it (\". .\" at the left) cut it to its lower part"},
       {"test": "fields", "page": 3, "region": [96, 126, 1336, 182], "reason": "the interventions' box: a speck of the scan in it cuts it to its lower right"},
-      {"test": "fields", "page": 3, "region": [376, 1272, 1062, 116], "reason": "the Hallucinations and Delusions rows of the symptoms table: the rows above and below them are found, these two are not; the scan is tilted about a degree (cause not traced further)"},
-      {"test": "fields", "page": 3, "region": [378, 1494, 1062, 116], "reason": "the Impulsivity and Substance Use rows of the symptoms table: missed as the Hallucinations and Delusions rows are, on the same tilted scan (cause not traced further)"},
+      {"test": "fields", "page": 3, "region": [376, 1272, 1062, 116], "reason": "the Hallucinations and Delusions rows of the symptoms table: pass 1 finds their cells, and the heading-row step (dropHeadingRows) drops them, taking the rows, print in their first cell over empty rows, for a table's heading row (the scan is tilted about a degree)"},
+      {"test": "fields", "page": 3, "region": [378, 1494, 1062, 116], "reason": "the Impulsivity and Substance Use rows of the symptoms table: dropped by the heading-row step as the Hallucinations and Delusions rows are"},
       {"test": "fields", "page": 3, "region": [374, 1604, 1068, 82], "reason": "the \"Other (specify in comments)\" row's cells: found only in their lower half, under the row's two-line label (\"Other (specify in comments)\")"},
       {"test": "extraTicks", "page": 1, "region": [558, 1246, 23, 23], "reason": "the D of \"ADHD\" in the cover's text, square at this size on the scan"},
       {"test": "extraFields", "page": 1, "region": [656, 136, 836, 88], "reason": "the blank right of the \"FOUNDRY\" logo: blank page over the cover's top rule"},
@@ -2169,7 +2168,7 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [1084, 738, 310, 66], "reason": "the relationship's field found taller (see the contact row's missed fields)"},
       {"test": "extraFields", "page": 1, "region": [98, 1392, 1296, 38], "reason": "the second meds line in three parts (see its missed field)"},
       {"test": "ticks", "page": 1, "region": [318, 1438, 1050, 108], "reason": "the substance use's \"C☐ P☐\" boxes: each printed a pixel or two from its letter, C or P: at the 0.82x working copy the ink map's soft edges join them, so the box has ink joined on from outside; on the grey image a column of paper still parts them, but letters in a word are parted the same way (excusing it took the D of \"Date\", \"Doctor\", \"Development\" for boxes on other forms), and starting the outline scan at the box's own side found nothing more"},
-      {"test": "fields", "page": 1, "region": [420, 766, 980, 46], "reason": "\"Contact person (if relevant): ____ Phone: ____ Relationship: ____\": the relationship's field is found taller, over the row above (\"Leave message\"), and the contact person's and phone's lines are missed (cause not traced on this fax)"},
+      {"test": "fields", "page": 1, "region": [420, 766, 980, 46], "reason": "\"Contact person (if relevant): ____ Phone: ____ Relationship: ____\": the contact person's and phone's lines (y 805-806) have the next row's print right under them, which reads as letters under an underline (isLine); the relationship's field is then found taller, over the row above"},
       {"test": "fields", "page": 1, "region": [98, 1390, 1296, 40], "reason": "the second line of \"Current Meds:\", split where the substances' labels below begin (\"Alcohol:\", \"Nicotine:\") into three fields"},
       {"test": "tags", "page": 1, "region": [96, 574, 940, 98], "reason": "\"PHN\" and the address's second line: the PHN's field is named from \"(m/d/y)\" above it and the address's second line is labelled \"Address PHN\", so the hin goes to the address line (OCR on the fax)"}
     ]
