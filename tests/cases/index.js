@@ -2654,7 +2654,7 @@ window.TEST_CASE_LIST = [
     "session": "rebalance_msk_referral_session.json",
     "variations": true,
     "skip": [
-      {"test": "fields", "page": 1, "region": [512, 264, 264, 260], "reason": "\"Gender:\" (sex): the box beside it runs on down to the WCB row, blank under the label, so the field takes the box's height"},
+      {"test": "fields", "page": 1, "region": [512, 264, 264, 260], "reason": "\"Gender:\" (sex): the colon step's blank after it goes on down the empty box beside the label (blank under and beside it for more than a line), so the field takes the box's height, to the WCB row"},
       {"test": "extraFields", "page": 1, "region": [512, 264, 264, 260], "reason": "\"Gender:\": the field the box's height (see fields)"},
       {"test": "fields", "page": 1, "region": [362, 478, 170, 50], "reason": "\"WCB Claim # if applicable:\": the next row's tick boxes (\"☐ Yes. ☐ No. Prefer to see Dr.:\") lie within two text heights under it, so the colon step takes it for a heading over options and makes no blank"},
       {"test": "extraFields", "page": 1, "region": [280, 576, 822, 104], "reason": "the blank under \"☐ Yes. ☐ No. Prefer to see Dr.:\" in the FAAST cell: blank page in a box under a row of options"},
@@ -2812,7 +2812,7 @@ window.TEST_CASE_LIST = [
     "session": "foundry_pg_engagement_session.json",
     "variations": true,
     "skip": [
-      {"test": "ticks", "page": 1, "region": [152, 928, 46, 46], "reason": "the \"☐ I don't know it.\" box: under \"My BC Personal Health Number (PHN) is ____.\", its top edge a few pixels under the line, close enough that the ink map may join them"},
+      {"test": "ticks", "page": 1, "region": [152, 928, 46, 46], "reason": "the \"☐ I don't know it.\" box: under \"My BC Personal Health Number (PHN) is ____.\", its top edge a few pixels under the line: in the ink map they join, a 40×55 px blob, and the squares inside it fail the last check (5-6 of the top edge's columns run on up into the line, with no row of paper between)"},
       {"test": "extraTicks", "page": 1, "region": [354, 82, 45, 45], "reason": "the O of the \"FOUNDRY\" logo, a square-cornered letter as tall as a box, with an empty middle"},
       {"test": "extraFields", "page": 1, "region": [156, 142, 1198, 40], "reason": "the strip between \"MOIS Chart #\" and the header's grey line"},
       {"test": "extraFields", "page": 1, "region": [154, 1708, 1200, 50], "reason": "the strip under \"My email is ____\", above the section's grey line"},
