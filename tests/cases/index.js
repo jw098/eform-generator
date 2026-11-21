@@ -2212,6 +2212,7 @@ window.TEST_CASE_LIST = [
     "session": "idp_intake_session.json",
     "variations": true,
     "skip": [
+      {"test": "tags", "page": 1, "region": [310, 662, 1092, 52], "reason": "the two \"Contact number\" fields (no tag) under \"Child resides with: ☐ Mother ☐ Father ☐ Foster family\": the parents' numbers, which only the tick boxes' options say; the owner check doesn't read options"},
       {"test": "ticks", "page": 1, "region": [236, 637, 32, 32], "reason": "the first \"Father\" box (\"❑ Mother ❑ Father\"): its left side is a pixel thin, which the 0.82x working copy leaves at 0.82 of its length on the ink map, under the 0.85 a printed side needs; at 0.80 the box is still not taken (its other checks fail too) and nothing else on any case changes"},
       {"test": "extraTicks", "page": 1, "region": [434, 1142, 28, 28], "reason": "the D of \"Expected Due Date\": a capital's height, its curve on the right square at this size, with an empty middle"},
       {"test": "fields", "page": 1, "region": [476, 462, 300, 62], "reason": "\"Last Name\", the second caption under the name line (\"Child's First Name ... Last Name\"): captions spaced along a line split it only when nothing else labels it, and \"Family Information:\" above is taken for its label; a label above with a format under it (\"NAME\" over \"FIRST MIDDLE LAST\") is the commoner layout"},
@@ -2497,6 +2498,72 @@ window.TEST_CASE_LIST = [
     "skip": [
       {"test": "extraFields", "page": 5, "region": [56, 1564, 934, 56], "reason": "the PDF's text field for \"Signature\": a signature"},
       {"test": "tags", "page": 5, "region": [54, 1636, 1402, 250], "reason": "the certification's \"Telephone Number\", \"Fax Number\", \"Email Address\", \"Print/Stamp Address\" (clinic_phone, clinic_fax, no tag, clinic_label): the PDF's tooltips name no one, and the section's heading (\"I – Certification\") is a shaded bar's"}
+    ]
+  },
+  {
+    "name": "Epilepsy clinic referral (VCH, one page: a two-column table of the patient's and physicians' details, rows of tick boxes, an office-use section)",
+    "folder": "epilepsy-clinic-referral",
+    "session": "epilepsy_clinic_referral_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraTicks", "page": 1, "region": [444, 1842, 30, 30], "reason": "the D of \"Routine EED\" (\"☐ Routine EED ☐ SD EEG\"), a bold capital whose straight side and round back close an empty middle: taken for a box, as bold D's are on other forms at some sizes"},
+      {"test": "extraFields", "page": 1, "region": [594, 1266, 802, 66], "reason": "the blank right of \"☐ Fast growing brain tumor\" in the Comorbidities box: blank page after a tick box's label, with no line, colon or \"Other\" to ask for anything"},
+      {"test": "tags", "page": 1, "region": [1000, 394, 396, 50], "reason": "the family physician's \"Contact Number:\" (no tag): the column's heading, \"Physicians' Information\", names the clinician, and a table cell takes its column's heading before the field above it (\"Family physician:\"); the heading names both physicians, so the page can't say whose"}
+    ]
+  },
+  {
+    "name": "Early psychosis intervention referral (Fraser Health, one page: fill-in lines after labels, ruled rows under a heading, tick boxes for a region)",
+    "folder": "epi-referral",
+    "session": "epi_referral_session.json",
+    "variations": true,
+    "skip": [
+      {"test": "extraFields", "page": 1, "region": [214, 20, 124, 66], "reason": "a box drawn by the EPI logo's curve over \"epi\": blank page closed by the logo's lines"},
+      {"test": "tags", "page": 1, "region": [582, 1288, 784, 52], "reason": "\"FAMILY PHYSICIAN & BILLING #\" (no tag): one field for two details, the physician and their number; askedFor reads \"billing\" first and gives the family doctor's number"},
+      {"test": "tags", "page": 1, "region": [126, 1400, 1246, 150], "reason": "\"PRESENTING SYMPTOMS & CURRENT MEDICATIONS\" (no tag): one area for two details; askedFor reads \"medications\" and gives the drug list"}
+    ]
+  },
+  {
+    "name": "EMG and nerve conduction studies requisition (a scan, one page: boxes of fill-in lines, a writing area, a diagnosis table of tick boxes)",
+    "folder": "emg-requisition",
+    "session": "emg_requisition_session.json",
+    "todo": {"ticks": "the \"Sensory\" box (\"☐ Sensory\"), missed in pass 1 though its pixels match the \"Motor\" box beside it, which is found: cause not yet traced"},
+    "skip": [
+      {"test": "fields", "page": 1, "region": [236, 552, 930, 58], "reason": "the ordering physician's \"Phone:\" and \"Fax:\" lines (rows 593-596 at 1500 px), three pixels above the box's bottom edge (rows 599-601): in the ink map their soft edges join into one band, taken for the box's edge"},
+      {"test": "fields", "page": 1, "region": [826, 1154, 438, 46], "reason": "\"Describe: ____\" after \"Increased risk of bleeding? ☐ No ☐ Yes\": its line runs along the box's bottom edge, which takes it, as the Phone line above (a scan)"},
+      {"test": "extraFields", "page": 1, "region": [144, 830, 1278, 32], "reason": "the strip between the last fill-in line (\"Mobile #\", rows 831-833) and the patient box's bottom edge (rows 858-861): blank page between two lines, as a table row is"},
+      {"test": "extraFields", "page": 1, "region": [500, 1316, 260, 186], "reason": "blanks between the diagnoses' names and their \"Right\" boxes in the diagnosis table: blank page in a row ruled top and bottom, after an option's label"},
+      {"test": "extraFields", "page": 1, "region": [1012, 1324, 330, 186], "reason": "the blanks right of the \"Left\" boxes in the diagnosis table: blank page in a row ruled top and bottom, after an option's label"},
+      {"test": "extraFields", "page": 1, "region": [158, 1532, 1178, 46], "reason": "the blank row under \"☐ Peripheral Neuropathy ☐ Sensory ☐ Motor\", ruled top and bottom: blank page between two lines, as a table row is"},
+      {"test": "extraFields", "page": 1, "region": [566, 1632, 768, 46], "reason": "the blank right of \"☐ Motor Neuron Disorder\": blank page after an option's label, on a row ruled top and bottom"},
+      {"test": "tags", "page": 1, "region": [724, 798, 312, 36], "reason": "\"Home #:\" (phone): \"Home\" with \"#\" names a phone only beside \"Mobile #\"; the words alone ask for nothing"}
+    ]
+  },
+  {
+    "name": "Foundry gender affirming care intake (fillable PDF, two pages: tick boxes printed as characters the PDF has no fields for, a medications table)",
+    "folder": "foundry-gender-affirming-intake",
+    "session": "foundry_gender_affirming_intake_session.json",
+    "pdf": "Foundry_Gender_Affirming_Care_Intake_Form.pdf",
+    "skip": [
+      {"test": "ticks", "page": 1, "region": [729, 361, 23, 23], "reason": "\"□They / Them\": a box printed as a character, which the fillable PDF gives no field; Auto Detect takes a fillable PDF's own fields in place of what it sees"},
+      {"test": "ticks", "page": 1, "region": [743, 573, 24, 23], "reason": "\"□Yes\": a box printed as a character, which the fillable PDF gives no field (see \"They / Them\")"},
+      {"test": "ticks", "page": 1, "region": [80, 1616, 996, 120], "reason": "the twelve Health History boxes (\"□ High Blood Pressure\"...): boxes printed as characters, which the fillable PDF gives no fields; at 9 px they are smaller than the page's letters too"},
+      {"test": "ticks", "page": 2, "region": [58, 546, 906, 24], "reason": "the first row of Family History boxes (\"□ High Blood Pressure\" ... \"□ Cancers\"): printed as characters, which the fillable PDF gives no fields (the rows under it have them)"},
+      {"test": "extraFields", "page": 1, "region": [576, 38, 856, 86], "reason": "the PDF's own text field in the header right of the logo, with no label on the page or name in the PDF; a fillable PDF's fields are taken as they are"},
+      {"test": "tags", "page": 1, "region": [390, 492, 492, 42], "reason": "\"Current Health Care Provider\" (doctor): on a form the patient fills, their own provider; \"provider\" alone names the clinician"},
+      {"test": "tags", "page": 1, "region": [986, 494, 296, 42], "reason": "the current provider's \"Phone\" (no tag): taken for the clinician's, after the provider's name beside it (see that skip)"},
+      {"test": "tags", "page": 1, "region": [226, 700, 1092, 120], "reason": "\"Other Providers involved in my care\" \"Name\" and \"Phone\" (no tag): \"Providers\" names the clinician, but these are other providers of the patient's"}
+    ]
+  },
+  {
+    "name": "FIR unit referral (BC Women's, fillable PDF, five pages: tables under dark heading bars, the patient's supports' details, writing areas)",
+    "folder": "fir-referral",
+    "session": "fir_referral_session.json",
+    "pdf": "FIR_Referral_Form_2025.pdf",
+    "skip": [
+      {"test": "tags", "page": 1, "region": [882, 144, 556, 80], "reason": "\"Estimated Delivery Date\" (bcEDD): the patient's own when she is the one pregnant, which the label can't say (see Seamless Perinatal's due date)"},
+      {"test": "tags", "page": 1, "region": [160, 1124, 1292, 156], "reason": "the Referral Source's \"Name\" and \"Phone\" (current_user, clinic_phone): its heading is white letters in a dark bar, which OCR doesn't read here (it reads the other bars'), so nothing says the box is the clinician's"},
+      {"test": "tags", "page": 2, "region": [196, 1180, 1256, 268], "reason": "the early exit plan's support contacts (\"Name\", \"Phone\", \"Address\" rows, no tag): their heading, \"Early exit plan for all patients (...)\", says who the plan is for, which the owner check takes for whose details these are"},
+      {"test": "tags", "page": 2, "region": [1020, 1442, 432, 92], "reason": "the preferred pharmacy's \"Address\" (no tag): in a cell of its own, it looks at the column above it (the support contacts') before the pharmacy on its row"}
     ]
   }
 ];

@@ -1411,13 +1411,13 @@ else if (typeof exports === 'object')
   // (but none for the receiving office's; allergies and the drug list are always the patient's)
   const TAG_FOR = {
     any:       { today: 'today', history: 'medical_history', meds: 'druglist_line', clinic: 'clinic_name', allergies: 'allergies_des' },
-    patient:   { name: 'patient_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
+    patient:   { name: 'patient_name', firstLastName: 'first_last_name', lastName: 'patient_nameL', firstName: 'patient_nameF', phone: 'phone', cell: 'cell',
                  workPhone: 'phone2', email: 'email', address: 'addressline', city: 'city', province: 'province', postal: 'postal',
                  hin: 'hin', hinVersion: 'hinversion', dob: 'dobc2', sex: 'sex', age: 'age', number: 'hin', sin: 'sin', fullAddress: 'address' },   // (the patient's MSP or OHIP number is their health number)
-    clinician: { name: 'current_user', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
+    clinician: { name: 'current_user', firstLastName: 'current_user_fname_lname', phone: 'clinic_phone', workPhone: 'clinic_phone', fax: 'clinic_fax',
                  address: 'clinic_addressLine', city: 'clinic_city', province: 'clinic_province', postal: 'clinic_postal',
                  number: 'current_user_ohip_no', college: 'current_user_cpsid' },                       // (OSCAR 12 has no tag for their email)
-    family:    { name: 'doctor', number: 'doctor_ohip_no', college: 'doctor_cpsid' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
+    family:    { name: 'doctor', firstLastName: 'doctor', number: 'doctor_ohip_no', college: 'doctor_cpsid' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
     guardian:  {},                                               // (OSCAR 12 has no tags for their details)
     office:    {},                                               // ("FOR OFFICE USE ONLY": the receiving office fills these in)
     copy:      {}                                                // ("Copy to", "cc": someone sent a copy; OSCAR 12 has no tags for them)
@@ -1428,6 +1428,8 @@ else if (typeof exports === 'object')
   // any other is the date of something else ("Date of loss", "LMP (date)", "Date seen"), and an
   // age is the patient's only when it is just "Age" ("Age at diagnosis", "Menopause (age)").
   function askedFor(words){
+    // (an abbreviation spelled with dots is one word: "D.O.B" -> "dob", "G.P" -> "gp")
+    words = words.replace(/(^|_)((?:[a-z]_)+[a-z])(?=_|$)/g, (m, start, letters) => start + letters.replace(/_/g, ''));
     // (whether one of the words matches `re`, a whole word or words)
     const hasWord = (re) => new RegExp('(^|_)(' + re + ')(_|$)').test(words);
     // (not in the chart, or not the patient's own: an appointment, a maiden name, a doctor or
@@ -1438,8 +1440,12 @@ else if (typeof exports === 'object')
     // (a name the patient goes by, or went by, isn't the one in the chart: "Preferred Name",
     // "Nickname", "Last name at birth (if different from above)")
     if (hasWord('preferred_name|nickname|alias|birth_name') || (hasWord('at_birth') && hasWord('name|names|surname'))) return '';
-    // (a second number or contact isn't the chart's: "Alternate telephone number", "Alternative contact")
-    if (hasWord('alternate|alternative')) return '';
+    // (a second number or contact isn't the chart's: "Alternate telephone number", "Alternative
+    // contact", "Other contact number"; not "Other names")
+    if (hasWord('alternate|alternative|other_contact|other_phone|other_telephone|other_number')) return '';
+    // (one field for all of someone's ways to be reached holds no one detail: "Referring Agency
+    // Contact Information")
+    if (hasWord('contact_information|contact_info|contact_details')) return '';
     if (hasWord('email|e_mail')) return 'email';
     // (one field for two details holds neither alone: "Phone & Fax: ____", "Address and telephone number")
     if (hasWord('fax|address') && hasWord('phone|telephone|tel')) return '';
@@ -1457,7 +1463,8 @@ else if (typeof exports === 'object')
     // (a phone's kind in a letter: "Phone (c)", "Tel (W)")
     if (hasWord('cell|mobile') || (hasWord('phone|telephone|tel') && hasWord('c'))) return 'cell';
     if (hasWord('work_phone|business_phone') || (hasWord('phone|telephone|tel') && hasWord('w'))) return 'workPhone';
-    if (hasWord('phone|telephone|tel')) return 'phone';
+    // (a number to reach someone at is their phone: "Contact Number", "Contact No.")
+    if (hasWord('phone|telephone|tel|contact_number|contact_no|contact_num')) return 'phone';
     // (an address that names its city or postal code with it is the whole address: "Mailing address
     // (No., Street, Apt.), City/Town, Province/Territory, Postal code")
     if (hasWord('address') && hasWord('city|town|province|postal|postal_code|zip')) return 'fullAddress';
@@ -1465,7 +1472,11 @@ else if (typeof exports === 'object')
     if (hasWord('city|town')) return 'city';
     if (hasWord('province')) return 'province';
     if (hasWord('address|street')) return 'address';
-    if (hasWord('sex|gender|m_f|f_m')) return 'sex';                    // ("M/F")
+    // ("M/F"; not a gender the patient identifies as, which isn't OSCAR's sex: "Identifying Gender",
+    // "Gender identity")
+    if (hasWord('sex|gender|m_f|f_m|mf|fm')) return hasWord('identity|identifying|identifies|affirmed') ? '' : 'sex';
+    // (an agency or organization isn't a person, nor a detail OSCAR holds: "Referring Agency")
+    if (hasWord('agency|organization|organisation')) return '';
     if (hasWord('clinic')) return 'clinic';
     if (/^(date|today|todays_date|current_date|form_date)$/.test(words) || (hasWord('date') && hasWord('signed|referral|referred|request|requested|today|todays|sent|faxed|completed'))) return 'today';
     if (/^(patient_)?age$/.test(words)) return 'age';
@@ -1473,8 +1484,12 @@ else if (typeof exports === 'object')
     if (/medical_history/.test(words)) return 'history';
     if (hasWord('medications|meds|medication_list')) return /allerg/.test(words) ? '' : 'meds';   // (with allergies, not the drug list)
     if (hasWord('allergies|allergy|drug_allergies')) return 'allergies';                                // ("Allergies: ____"; with medications, neither)
+    // (both names in one field, first name first: "Legal First & Last Name", "Given name and surname")
+    if (hasWord('first|given') && hasWord('last|surname')) return /(^|_)(first|given)_.*(last|surname)/.test(words) ? 'firstLastName' : 'name';
     if (hasWord('last|surname')) return 'lastName';
-    if (hasWord('first|given')) return 'firstName';
+    // (a first name by name, or the word alone beside a surname: "Given name(s)", "Surname ____ Given
+    // ____"; not another first or given thing: "First pregnancy", "No. of children given birth to")
+    if (hasWord('first|given') && (hasWord('name|names') || /^(first|given)$/.test(words))) return 'firstName';
     if (hasWord('middle')) return '';
     // a name, or the person themselves ("Referring Physician: ____", "Family Doctor: ____")
     if (hasWord('name|physician|doctor|md|dr|provider|practitioner|prescriber|prescribing|gp|mrp|referring')) return 'name';
@@ -1537,7 +1552,9 @@ else if (typeof exports === 'object')
   // (current_user), the family doctor (doctor, the patient's MRP or PCP: "Primary care provider"),
   // someone else of the patient's ("Parent/guardian contact information", "Person to contact in
   // case of emergency", "☐ Representative  Name: ____", "name of director or person authorized by the
-  // director"; a witness's
+  // director"; someone who supports the patient: "Key Personal Supports (i.e., Partner, Family,
+  // Friends)", "Name of support #1", "Support contact"; a pharmacy's: "Preferred Pharmacy  Fax:
+  // ____"; a witness's
   // details are no more the chart's: "First name of witness"), the receiving office ("FOR
   // OFFICE USE ONLY", "For HOP use only") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
   // "cc": not the column's or the box's owner, whoever's details are around it); guessTag turns
@@ -1546,7 +1563,7 @@ else if (typeof exports === 'object')
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|for( [\w-]+){1,2} use only|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
     ['family', /\b(family|primary care) (doctor|physician|md|dr|practitioner|provider)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
-    ['guardian', /\b(parents?|guardians?|next of kin|(legal )?representatives?|directors?|emergency contact|in case of emergency|substitute decision maker|witness(es)?)\b/],
+    ['guardian', /\b(parents?|guardians?|next of kin|(legal )?representatives?|directors?|emergency contact|in case of emergency|substitute decision maker|witness(es)?|support (persons?|people|contacts?)|names? of supports?|personal supports?|pharmac(y|ies))\b/],
     ['clinician', /\b(referring|referred by|referral source|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|(?<!post )office)\b/],   // (not an address's "Post Office Box")
     ['patient', /\b(patients?|participants?|clients?|phn|personal health|care ?card|carecard|date of birth|birth ?date|dob|born|sex|gender|maiden|home|cell|mobile)\b/]
   ];
@@ -1650,7 +1667,13 @@ else if (typeof exports === 'object')
         const cell = (box) => heading(box) || rowOwner() || up(f, box, sectionTop) || left(f, box);
         const look = (box) => f.box ? cell(box) : left(f, box) || up(f, box);
         const box = !f.box && boxOf ? boxOf(extent(f).x0, f) : null;
-        owner.set(f, (box ? look(box) : look(null)) || 'patient');
+        // (a box holding nothing but its fields and their own labels is a table's row or cell, with
+        // no heading of its own: a fillable PDF's field in one too ("Email: ____  Phone: ____" under
+        // "Name of support #1: ____"), when nothing before or above it in the box says, looks at the
+        // page around it, as a cell does)
+        const labelsIn = new Set(box ? writes.filter(g => inside(box, rect(g))).flatMap(g => [...(g._words || []), ...(g._pageWords || [])]) : []);
+        const justACell = box && parts.some(p => inside(box, p)) && parts.filter(p => inside(box, p)).every(p => p.words.every(w => labelsIn.has(w)));
+        owner.set(f, (justACell ? left(f, box) || up(f, box) || cell(null) : box ? look(box) : look(null)) || 'patient');
       });
     return owner;
   }
@@ -4828,11 +4851,13 @@ else if (typeof exports === 'object')
       });
     }
     // Tables ruled across: the headings in a ruled area's first row, words more than a few letters
-    // apart starting a new one; each column from its heading's start to the next one's
+    // apart starting a new one; each column from its heading's start to the next one's. They lie
+    // wholly inside the area: not the area's own heading across its top ("PRESENTING SYMPTOMS
+    // (Please include consults & reports)" over ruled rows)
     fields.forEach(f => {
       if (!f._ruled || f._ruled.length < 2) return;
       const first = f._ruled[0];
-      const head = words.filter(w => (w.y0 + w.y1)/2 > f.y && w.y1 <= first + 2 && w.x0 >= f.x - 2 && w.x1 <= f.x + f.width + 2).sort((a,b) => a.x0-b.x0);
+      const head = words.filter(w => w.y0 >= f.y - 2 && w.y1 <= first + 2 && w.x0 >= f.x - 2 && w.x1 <= f.x + f.width + 2).sort((a,b) => a.x0-b.x0);
       const heads = [];
       head.forEach(w => { const g = heads[heads.length-1]; if (g && w.x0 - g[g.length-1].x1 <= wordHeight*3) g.push(w); else heads.push([w]); });
       if (heads.length < 2) return;
@@ -5016,8 +5041,11 @@ else if (typeof exports === 'object')
   //    MAMMOGRAPHY"), unless the label asks for it with a colon ("☐ OTHER, SPECIFY: ____"). A
   //    printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____");
   //  - a blank in a table cell after the cell's one label on its row is no field either, unless the
-  //    label ends with a colon ("Diagnosis: ____"): a heading's row, the rest of it empty ("WORK
-  //    STATUS" at the top of its table, "PHYSICAL EXAM"). Several labels spaced along a row are
+  //    label asks for it: it ends with a colon ("Diagnosis: ____") or "#" ("PHN#"), or, labelling
+  //    no other field and level with the blank, names a detail of someone's to write, which OCR may read without its colon
+  //    ("Contact Number", "DOB"; not a person, a date or a clinic, which head a box or a column as
+  //    often: "Practitioner information", "Date"). Otherwise it is a heading's row, the rest of it
+  //    empty ("WORK STATUS" at the top of its table, "PHYSICAL EXAM"). Several labels spaced along a row are
   //    each a blank's ("LMP (DATE): ____ MENOPAUSE (AGE): ____"), with or without a colon OCR reads;
   //  - a writing area down to the foot of the page is one only under a label of its own ending with
   //    a colon ("CURRENT MEDICATIONS:" over the rest of the page): words that are already another
@@ -5034,10 +5062,24 @@ else if (typeof exports === 'object')
                                     Math.min(g.y + g.height, f.y + f.height) - Math.max(g.y, f.y) >= Math.min(g.height, f.height)*0.5);
       if (next) Object.assign(next, { label: f.label, _words: f._words });
     });
+    // (whether a cell's one label asks for the blank after it)
+    const namesADetail = (f) => { const kind = askedFor(String(f.label || '').toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''));
+      return !!kind && !['name', 'firstLastName', 'today', 'clinic', 'history', 'meds', 'allergies'].includes(kind); };
+    // (a field just under the label, over its words: the cell's blank, the label over it, "Date of
+    // Birth (dd/mm/yyyy)" over ____)
+    const fieldUnder = (f) => { const ws = f._words, x0 = Math.min(...ws.map(w => w.x0)), x1 = Math.max(...ws.map(w => w.x1)), y1 = Math.max(...ws.map(w => w.y1)), lh = Math.max(...ws.map(w => w.y1 - w.y0));
+      return fields.some(g => g !== f && g.type !== 'checkbox' && g.y >= y1 - 2 && g.y - y1 <= lh && g.x < x1 && g.x + g.width > x0); };
+    // (a label level with the blank beside it, its middle by the blank's: one at the top of a
+    // taller cell heads the blank under it, "Date of Birth (dd/mm/yyyy)" over ____)
+    const levelWith = (f) => { const ws = f._words, y0 = Math.min(...ws.map(w => w.y0)), y1 = Math.max(...ws.map(w => w.y1));
+      return Math.abs((y0 + y1)/2 - (f.y + f.height/2)) <= (y1 - y0)*0.3; };
+    const asksForBlank = (f) => endsWithColon(f._words) || /#\s*$/.test(f._words[f._words.length - 1].text) ||
+      (f._words.length <= 4 && !labelShared(f) && !fieldUnder(f) && levelWith(f) && namesADetail(f));
     return fields.flatMap(f => {
       const { _split, _afterOption, _lone, toEnd, ...g } = f;
       if (_split) return _split.map(part => ({ ...g, ...part }));
-      if ((_afterOption && f.box || _lone && f.box || toEnd) && !endsWithColon(f._words)) return [];
+      if (_lone && f.box && !_afterOption && !toEnd && f._words && f._words.length){ if (!asksForBlank(f)) return []; }
+      else if ((_afterOption && f.box || _lone && f.box || toEnd) && !endsWithColon(f._words)) return [];
       if (toEnd && labelShared(f)) return [];
       return [g];
     });
