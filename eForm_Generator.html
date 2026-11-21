@@ -1473,8 +1473,8 @@ else if (typeof exports === 'object')
     if (hasWord('province')) return 'province';
     if (hasWord('address|street')) return 'address';
     // ("M/F"; not a gender the patient identifies as, which isn't OSCAR's sex: "Identifying Gender",
-    // "Gender identity")
-    if (hasWord('sex|gender|m_f|f_m|mf|fm')) return hasWord('identity|identifying|identifies|affirmed') ? '' : 'sex';
+    // "Gender identity", "My identified gender is")
+    if (hasWord('sex|gender|m_f|f_m|mf|fm')) return hasWord('identity|identifying|identifies|identified|affirmed') ? '' : 'sex';
     // (an agency or organization isn't a person, nor a detail OSCAR holds: "Referring Agency")
     if (hasWord('agency|organization|organisation')) return '';
     if (hasWord('clinic')) return 'clinic';
