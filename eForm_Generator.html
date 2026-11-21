@@ -5042,7 +5042,8 @@ else if (typeof exports === 'object')
   //    printed line after one is ("☐ OB/GYN ____", "☐ Other matters (specify) ____");
   //  - a blank in a table cell after the cell's one label on its row is no field either, unless the
   //    label asks for it: it ends with a colon ("Diagnosis: ____") or "#" ("PHN#"), or, labelling
-  //    no other field and level with the blank, names a detail of someone's to write, which OCR may read without its colon
+  //    no other field and level with the blank, names a detail of someone's to write (a label, not
+  //    words of a sentence: "THE ADDRESS PATIENT'S INJURY/INJURIES"), which OCR may read without its colon
   //    ("Contact Number", "DOB"; not a person, a date or a clinic, which head a box or a column as
   //    often: "Practitioner information", "Date"). Otherwise it is a heading's row, the rest of it
   //    empty ("WORK STATUS" at the top of its table, "PHYSICAL EXAM"). Several labels spaced along a row are
@@ -5069,12 +5070,16 @@ else if (typeof exports === 'object')
     // Birth (dd/mm/yyyy)" over ____)
     const fieldUnder = (f) => { const ws = f._words, x0 = Math.min(...ws.map(w => w.x0)), x1 = Math.max(...ws.map(w => w.x1)), y1 = Math.max(...ws.map(w => w.y1)), lh = Math.max(...ws.map(w => w.y1 - w.y0));
       return fields.some(g => g !== f && g.type !== 'checkbox' && g.y >= y1 - 2 && g.y - y1 <= lh && g.x < x1 && g.x + g.width > x0); };
+    // (words of a sentence, not a label: they start in lowercase, or with a word such as "the"
+    // that a label doesn't, "THE ADDRESS PATIENT'S INJURY/INJURIES")
+    const partOfASentence = (f) => { const t = String(f.label || '').trim().replace(/^[^A-Za-z]+/, '');
+      return /^[a-z]/.test(t) || /^(the|a|an|to|of|and|or|for|with|in|on|by|at)\b/i.test(t); };
     // (a label level with the blank beside it, its middle by the blank's: one at the top of a
     // taller cell heads the blank under it, "Date of Birth (dd/mm/yyyy)" over ____)
     const levelWith = (f) => { const ws = f._words, y0 = Math.min(...ws.map(w => w.y0)), y1 = Math.max(...ws.map(w => w.y1));
       return Math.abs((y0 + y1)/2 - (f.y + f.height/2)) <= (y1 - y0)*0.3; };
     const asksForBlank = (f) => endsWithColon(f._words) || /#\s*$/.test(f._words[f._words.length - 1].text) ||
-      (f._words.length <= 4 && !labelShared(f) && !fieldUnder(f) && levelWith(f) && namesADetail(f));
+      (f._words.length <= 4 && !partOfASentence(f) && !labelShared(f) && !fieldUnder(f) && levelWith(f) && namesADetail(f));
     return fields.flatMap(f => {
       const { _split, _afterOption, _lone, toEnd, ...g } = f;
       if (_split) return _split.map(part => ({ ...g, ...part }));

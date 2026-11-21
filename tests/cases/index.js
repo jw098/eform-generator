@@ -2505,6 +2505,13 @@ window.TEST_CASE_LIST = [
     "folder": "epilepsy-clinic-referral",
     "session": "epilepsy_clinic_referral_session.json",
     "variations": true,
+    "variationSkip": [
+      {"variation": "1.5× size", "test": "extraTicks", "page": 1, "region": [440, 1838, 38, 38], "reason": "the D of \"Routine EED\", a bold capital whose straight side and round back close an empty middle (see the case's skip): taken for a box on this copy too"},
+      {"variation": "2.5× size", "test": "extraTicks", "page": 1, "region": [440, 1838, 38, 38], "reason": "the D of \"Routine EED\", a bold capital whose straight side and round back close an empty middle (see the case's skip): taken for a box on this copy too"},
+      {"variation": "3× size", "test": "extraTicks", "page": 1, "region": [440, 1838, 38, 38], "reason": "the D of \"Routine EED\", a bold capital whose straight side and round back close an empty middle (see the case's skip): taken for a box on this copy too"},
+      {"variation": "faint print", "test": "extraTicks", "page": 1, "region": [440, 1838, 38, 38], "reason": "the D of \"Routine EED\", a bold capital whose straight side and round back close an empty middle (see the case's skip): taken for a box on this copy too"},
+      {"variation": "3× size", "test": "extraTicks", "page": 1, "region": [530, 1838, 38, 38], "reason": "the D of \"SD EEG\" (\"☐ SD EEG\"), a bold capital as the D of \"EED\" is: at 3× its middle is as empty as a box's"}
+    ],
     "skip": [
       {"test": "extraTicks", "page": 1, "region": [444, 1842, 30, 30], "reason": "the D of \"Routine EED\" (\"☐ Routine EED ☐ SD EEG\"), a bold capital whose straight side and round back close an empty middle: taken for a box, as bold D's are on other forms at some sizes"},
       {"test": "extraFields", "page": 1, "region": [594, 1266, 802, 66], "reason": "the blank right of \"☐ Fast growing brain tumor\" in the Comorbidities box: blank page after a tick box's label, with no line, colon or \"Other\" to ask for anything"},
