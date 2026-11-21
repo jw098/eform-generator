@@ -2594,14 +2594,12 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [474, 1754, 204, 50], "reason": "\"Contact information: Phone:\" under the referring physician (clinic_phone): \"contact information\" names a field for all of someone's ways to be reached, so askedFor gives nothing"}
     ],
     "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["hepatitis_c_referral", "current_hematology_profile_inr_alt_ast_g", "hiv_referral", "hepatitis_c_antibody", "liver_biopsy_fibroscan", "previous_hepatitis_c_treatment", "hiv_antibody_test", "hepatitis_a_b_results", "consults_with_other_specialists"], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"□\" box glyphs, 9 px at this size, are missed (most are missed on the page itself too: under 0.7 of the letter height)"},
       {"variation": "1.5× size", "boxes": ["hiv_referral", "liver_biopsy_fibroscan", "previous_hepatitis_c_treatment", "hepatitis_a_b_results", "immunizations", "consults_with_other_specialists"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "2× size", "boxes": ["liver_biopsy_fibroscan", "consults_with_other_specialists"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "2.5× size", "boxes": ["liver_biopsy_fibroscan", "immunizations", "consults_with_other_specialists"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "3× size", "boxes": ["hiv_referral", "liver_biopsy_fibroscan", "previous_hepatitis_c_treatment", "hepatitis_a_b_results", "immunizations", "consults_with_other_specialists"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "faint print", "boxes": ["hiv_referral", "hepatitis_c_antibody", "ultrasound", "liver_biopsy_fibroscan", "previous_hepatitis_c_treatment", "hiv_antibody_test", "hepatitis_a_b_results", "consults_with_other_specialists"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"}
-    ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"hepatitis_c_referral\" at (174, 652), \"current_hematology_profile_inr_alt_ast_g\" at (174, 998), \"hiv_referral\" at (176, 684), \"hepatitis_c_antibody\" at (176, 1062), \"liver_biopsy_fibroscan\" at (176, 1124), \"previous_hepatitis_c_treatment\" at (176, 1156), \"hiv_antibody_test\" at (176, 1220), \"hepatitis_a_b_results\" at (176, 1282), \"consults_with_other_specialists\" at (176, 1376)"}
     ]
   },
   {
@@ -2616,19 +2614,18 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [1054, 916, 364, 50], "reason": "the \"PHONE\" after \"BEST PERSON TO CONTACT\" (no tag): the contact's, read as the patient's phone"}
     ],
     "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["lateral_lumbar_and_thoracic_spine_x_rays", "previous_bone_density", "recent_lab_studies"], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the three 17 px boxes, 12 px at this size, are missed (the grey two are missed on the page itself too)"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [960, 994, 326, 56], "reason": "at 0.7× (the page about 1050 px wide), not traced further: a field over the BIRTHDATE month and year blanks"},
+      {"variation": "1.5× size", "test": "extraFields", "page": 1, "region": [60, 1742, 1364, 70], "reason": "the strip between the last \"Other meds\" line and the double rule at the page's foot: resized, the double rule's two lines merge into one band, and the strip between it and the line above is taken for a row (seen in the picture; Rebalance's double rule was traced)"},
+      {"variation": "2× size", "test": "extraFields", "page": 1, "region": [60, 1742, 1364, 70], "reason": "the strip between the last \"Other meds\" line and the double rule at the page's foot: resized, the double rule's two lines merge into one band, and the strip between it and the line above is taken for a row (seen in the picture; Rebalance's double rule was traced)"},
+      {"variation": "2.5× size", "test": "extraFields", "page": 1, "region": [60, 1742, 1364, 70], "reason": "the strip between the last \"Other meds\" line and the double rule at the page's foot: resized, the double rule's two lines merge into one band, and the strip between it and the line above is taken for a row (seen in the picture; Rebalance's double rule was traced)"},
+      {"variation": "3× size", "test": "extraFields", "page": 1, "region": [82, 1710, 350, 40], "reason": "the strip between the last \"Other meds\" line and the double rule at the page's foot: resized, the double rule's two lines merge into one band, and the strip between it and the line above is taken for a row (seen in the picture; Rebalance's double rule was traced)"},
+      {"variation": "3× size", "test": "extraFields", "page": 1, "region": [60, 1742, 1364, 70], "reason": "the strip between the last \"Other meds\" line and the double rule at the page's foot: resized, the double rule's two lines merge into one band, and the strip between it and the line above is taken for a row (seen in the picture; Rebalance's double rule was traced)"},
       {"variation": "1.5× size", "boxes": ["previous_bone_density", "recent_lab_studies"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "2× size", "boxes": ["previous_bone_density", "recent_lab_studies"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "2.5× size", "boxes": ["previous_bone_density", "recent_lab_studies"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "3× size", "boxes": ["previous_bone_density", "recent_lab_studies"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "faint print", "boxes": ["previous_bone_density", "recent_lab_studies"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"}
-    ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"lateral_lumbar_and_thoracic_spine_x_rays\" at (88, 498), \"previous_bone_density\" at (90, 532), \"recent_lab_studies\" at (90, 564)"},
-      {"variation": "0.7× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"birthdate_3\" at (968, 1002)"},
-      {"variation": "1.5× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"text_4\" at (68, 1750)"},
-      {"variation": "2× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"text_3\" at (68, 1750)"},
-      {"variation": "2.5× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"text_5\" at (68, 1750)"},
-      {"variation": "3× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"ess_ee\" at (90, 1718), \"text_1\" at (68, 1750)"}
     ]
   },
   {
@@ -2665,18 +2662,18 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [280, 576, 822, 104], "reason": "the blank under \"☐ Yes. ☐ No. Prefer to see Dr.:\" in the FAAST cell: blank page in a box under a row of options"},
       {"test": "tags", "page": 1, "region": [712, 550, 392, 48], "reason": "\"No. Prefer to see Dr.:\" (no tag): a specialist the patient would rather see, read as the clinician (\"Dr.\")"}
     ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"yes_2\" at (1120, 562), \"knee\" at (386, 716), \"shoulder_elbow\" at (776, 716), \"checkbox_4\" at (1376, 1392)"},
-      {"variation": "0.7× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"medical_surgical_history_history_attache\" at (66, 1240)"},
-      {"variation": "0.7× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"acute_msk_clinic_date_of_injury\" at (1104, 626)"},
-      {"variation": "1.5× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"medical_surgical_history_history_attache\" at (66, 1240)"},
-      {"variation": "1.5× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"acute_msk_clinic_date_of_injury\" at (1102, 624)"},
-      {"variation": "2× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"medical_surgical_history_history_attache\" at (66, 1240)"},
-      {"variation": "2× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"acute_msk_clinic_date_of_injury\" at (1102, 624)"},
-      {"variation": "2.5× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"medical_surgical_history_history_attache\" at (66, 1240)"},
-      {"variation": "2.5× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"acute_msk_clinic_date_of_injury\" at (1102, 624)"},
-      {"variation": "3× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"medical_surgical_history_history_attache\" at (66, 1240)"},
-      {"variation": "3× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"acute_msk_clinic_date_of_injury\" at (1102, 624)"}
+    "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["yes_2", "knee", "shoulder_elbow", "checkbox_4"], "reason": "at 0.7× (the page about 1050 px wide), not traced further: four of the 22 px boxes, 15 px at this size, are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [58, 1232, 722, 320], "reason": "the Medical & Surgical History box: its bottom is a double rule (two 6-row lines at y 1540 and 1550 at 1500 px), which resized merges into one 14-row band that isn't a solid line (solidLine), so the box has no bottom. Taking a double rule's top as its line was tried: it didn't separate the resampled rows and changed fields on the cardiology and PWD forms"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [1096, 618, 354, 62], "reason": "the strip under \"Date of Injury: ____\" to the box's bottom is taken for a blank in the resized copies (not traced)"},
+      {"variation": "1.5× size", "test": "fields", "page": 1, "region": [58, 1232, 722, 320], "reason": "the Medical & Surgical History box: its bottom is a double rule (two 6-row lines at y 1540 and 1550 at 1500 px), which resized merges into one 14-row band that isn't a solid line (solidLine), so the box has no bottom. Taking a double rule's top as its line was tried: it didn't separate the resampled rows and changed fields on the cardiology and PWD forms"},
+      {"variation": "1.5× size", "test": "extraFields", "page": 1, "region": [1094, 616, 356, 64], "reason": "the strip under \"Date of Injury: ____\" to the box's bottom is taken for a blank in the resized copies (not traced)"},
+      {"variation": "2× size", "test": "fields", "page": 1, "region": [58, 1232, 722, 320], "reason": "the Medical & Surgical History box: its bottom is a double rule (two 6-row lines at y 1540 and 1550 at 1500 px), which resized merges into one 14-row band that isn't a solid line (solidLine), so the box has no bottom. Taking a double rule's top as its line was tried: it didn't separate the resampled rows and changed fields on the cardiology and PWD forms"},
+      {"variation": "2× size", "test": "extraFields", "page": 1, "region": [1094, 616, 356, 64], "reason": "the strip under \"Date of Injury: ____\" to the box's bottom is taken for a blank in the resized copies (not traced)"},
+      {"variation": "2.5× size", "test": "fields", "page": 1, "region": [58, 1232, 722, 320], "reason": "the Medical & Surgical History box: its bottom is a double rule (two 6-row lines at y 1540 and 1550 at 1500 px), which resized merges into one 14-row band that isn't a solid line (solidLine), so the box has no bottom. Taking a double rule's top as its line was tried: it didn't separate the resampled rows and changed fields on the cardiology and PWD forms"},
+      {"variation": "2.5× size", "test": "extraFields", "page": 1, "region": [1094, 616, 356, 64], "reason": "the strip under \"Date of Injury: ____\" to the box's bottom is taken for a blank in the resized copies (not traced)"},
+      {"variation": "3× size", "test": "fields", "page": 1, "region": [58, 1232, 722, 320], "reason": "the Medical & Surgical History box: its bottom is a double rule (two 6-row lines at y 1540 and 1550 at 1500 px), which resized merges into one 14-row band that isn't a solid line (solidLine), so the box has no bottom. Taking a double rule's top as its line was tried: it didn't separate the resampled rows and changed fields on the cardiology and PWD forms"},
+      {"variation": "3× size", "test": "extraFields", "page": 1, "region": [1094, 616, 356, 64], "reason": "the strip under \"Date of Injury: ____\" to the box's bottom is taken for a blank in the resized copies (not traced)"}
     ]
   },
   {
@@ -2693,15 +2690,16 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [380, 616, 240, 54], "reason": "\"DOB: D/M/Y ___/___/___\" (dob_day, dob_month, dob_year): the format is printed in the label, not under each blank, so the blanks aren't read as the date's parts"}
     ],
     "variationSkip": [
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [380, 960, 74, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the last \"____\" of each list, 35 px long at this size, is missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [998, 960, 74, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the last \"____\" of each list, 35 px long at this size, is missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [380, 1156, 74, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the last \"____\" of each list, 35 px long at this size, is missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [998, 1156, 74, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the last \"____\" of each list, 35 px long at this size, is missed"},
       {"variation": "0.7× size", "boxes": ["holter_24_hr", "treadmill_test"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "1.5× size", "boxes": ["holter_24_hr", "treadmill_test"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "2× size", "boxes": ["holter_24_hr", "treadmill_test"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "2.5× size", "boxes": ["holter_24_hr", "treadmill_test"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "3× size", "boxes": ["holter_24_hr", "treadmill_test"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"},
       {"variation": "faint print", "boxes": ["holter_24_hr", "treadmill_test"], "reason": "the boxes the page itself skips (see the case's skips), for the same reason at this size"}
-    ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"dob_month\" at (472, 626), \"dob_year\" at (544, 626), \"angina\" at (388, 968), \"dizziness\" at (1006, 968), \"family_history\" at (388, 1164), \"smoker\" at (1006, 1164)"}
     ]
   },
   {
@@ -2733,10 +2731,10 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [662, 1034, 750, 58], "reason": "the blank after \"Lab results (including baseline monitoring):\" on its own row, as well as the strip under it"},
       {"test": "extraFields", "page": 1, "region": [466, 1410, 948, 48], "reason": "the blank after \"Substance Use Concerns:\" on its own row, as well as the strip under it"}
     ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "extraTicks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (taken for tick boxes): \"n_our_waitlist_have_the_following_labs_d\" at (336, 1652)"},
-      {"variation": "0.7× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"ll\" at (96, 1262)"},
-      {"variation": "2× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"obesity_accelerated_weight_gain\" at (360, 848)"}
+    "variationSkip": [
+      {"variation": "0.7× size", "test": "extraTicks", "page": 1, "region": [328, 1644, 40, 40], "reason": "at 0.7× (the page about 1050 px wide), not traced further: a mark in the print taken for a box, and a blank found by the Safety Concerns row's arrow"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [88, 1254, 118, 58], "reason": "at 0.7× (the page about 1050 px wide), not traced further: a mark in the print taken for a box, and a blank found by the Safety Concerns row's arrow"},
+      {"variation": "2× size", "boxes": ["obesity_accelerated_weight_gain"], "reason": "the \"☐Obesity\" box, printed touching the O of \"Obesity\": at 2× the box and the letter likely join in the ink map (seen in the picture, not traced)"}
     ]
   },
   {
@@ -2753,13 +2751,20 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 1, "region": [984, 900, 380, 60], "reason": "\"Date of Birth: __ | __ | __\" over \"YY MM DD\" (dob_year, dob_month, dob_day): the captions are under a second row of print, read as their own line, not the blanks' captions"},
       {"test": "tags", "page": 3, "region": [132, 1082, 1238, 144], "reason": "\"Have you recently stopped taking any prescription medications? If yes, details\" (no tag): a question with a request after it, read for \"medications\""}
     ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"date\" at (1096, 414)"},
-      {"variation": "0.7× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"j_any_suicide_attempts_ideations_v_yes_n\" at (140, 1390), \"suicide_yes\" at (664, 1358), \"suicide_no\" at (764, 1358)"},
-      {"variation": "0.7× size", "page": 2, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"se\" at (142, 1430), \"a_ee\" at (418, 1430), \"se_2\" at (854, 1430), \"se_3\" at (142, 1472), \"a_ee_2\" at (418, 1472), \"se_4\" at (854, 1472)"},
-      {"variation": "1.5× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"suicide_no\" at (764, 1358)"},
-      {"variation": "2.5× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"suicide_yes\" at (664, 1358), \"suicide_no\" at (764, 1358)"},
-      {"variation": "3× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"suicide_no\" at (764, 1358)"}
+    "variationSkip": [
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [132, 1382, 1238, 142], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [656, 1350, 66, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [756, 1350, 66, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [134, 1422, 294, 58], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [410, 1422, 454, 58], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [846, 1422, 522, 58], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [134, 1464, 294, 56], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [410, 1464, 454, 56], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [846, 1464, 522, 56], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the \"Yes ___ No ___\" blanks (30 px at this size) and the ruled area under them are missed; fields are found in the area's rows instead"},
+      {"variation": "1.5× size", "test": "fields", "page": 2, "region": [756, 1350, 66, 48], "reason": "\"(√) Yes ___ No ___\": at this size the line comes out 5 pixel rows thick in the ink map (at 3×), thicker than the short-line check's limit (0.2 of the letter height, 4 rows). Allowing 0.3 took letter tops for blanks on the TWC and Burnaby forms; measuring the core on the grey image took more"},
+      {"variation": "2.5× size", "test": "fields", "page": 2, "region": [656, 1350, 66, 48], "reason": "\"(√) Yes ___ No ___\": at this size the line comes out 5 pixel rows thick in the ink map (at 3×), thicker than the short-line check's limit (0.2 of the letter height, 4 rows). Allowing 0.3 took letter tops for blanks on the TWC and Burnaby forms; measuring the core on the grey image took more"},
+      {"variation": "2.5× size", "test": "fields", "page": 2, "region": [756, 1350, 66, 48], "reason": "\"(√) Yes ___ No ___\": at this size the line comes out 5 pixel rows thick in the ink map (at 3×), thicker than the short-line check's limit (0.2 of the letter height, 4 rows). Allowing 0.3 took letter tops for blanks on the TWC and Burnaby forms; measuring the core on the grey image took more"},
+      {"variation": "3× size", "test": "fields", "page": 2, "region": [756, 1350, 66, 48], "reason": "\"(√) Yes ___ No ___\": at this size the line comes out 5 pixel rows thick in the ink map (at 3×), thicker than the short-line check's limit (0.2 of the letter height, 4 rows). Allowing 0.3 took letter tops for blanks on the TWC and Burnaby forms; measuring the core on the grey image took more"}
     ]
   },
   {
@@ -2768,16 +2773,13 @@ window.TEST_CASE_LIST = [
     "session": "fetal_monitoring_intake_session.json",
     "variations": true,
     "skip": [
-      {"test": "fields", "page": 1, "region": [230, 768, 66, 48], "reason": "EDD's MM blank, \"___/___/___\" with a slash at each end: the slashes reach below the line on both sides, which the short-line check takes for a dash in a row of text"},
-      {"test": "fields", "page": 1, "region": [1296, 768, 70, 48], "reason": "LNMP's MM blank, between two slashes (as EDD's)"},
       {"test": "extraFields", "page": 1, "region": [1126, 342, 290, 92], "reason": "the two \"Signature: ____\" lines"},
       {"test": "extraFields", "page": 1, "region": [864, 1752, 546, 36], "reason": "the strip under \"GA ___ EDD ___ Initials ___\", above the office box's bottom edge"},
       {"test": "extraFields", "page": 1, "region": [1278, 1398, 134, 58], "reason": "the blank after \"For BC Women's Office use only:\" in its box"}
     ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"edd_yy\" at (286, 776)"},
-      {"variation": "2× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"lnmp_dd\" at (1258, 776)"},
-      {"variation": "2.5× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"lnmp_dd\" at (1258, 776)"}
+    "variationSkip": [
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [232, 768, 64, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: EDD's MM and YY blanks, 28 px each at this size between slashes, are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [278, 768, 66, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: EDD's MM and YY blanks, 28 px each at this size between slashes, are missed"}
     ]
   },
   {
@@ -2786,38 +2788,35 @@ window.TEST_CASE_LIST = [
     "session": "wrosc_registration_session.json",
     "variations": true,
     "skip": [
-      {"test": "fields", "page": 1, "region": [425, 878, 119, 46], "reason": "the blank after \"New Patient: Yes\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
       {"test": "fields", "page": 1, "region": [1138, 1696, 280, 46], "reason": "\"Explain:________\" after \"Does the patient have dependents at home?\": its line runs on from the colon, the label's ink over its start"},
       {"test": "fields", "page": 2, "region": [422, 1640, 119, 46], "reason": "\"any implanted device? Yes________\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
       {"test": "fields", "page": 2, "region": [1056, 1672, 100, 52], "reason": "\"... shrapnel Yes__No_\": two blanks of two underscores and one, shorter than a letter and a half, a run of letters' feet's length"},
-      {"test": "fields", "page": 3, "region": [268, 1004, 119, 46], "reason": "\"Bonesecan Yes_______\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
-      {"test": "fields", "page": 3, "region": [423, 1072, 119, 46], "reason": "\"Laboratory investigation Yes_______\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
-      {"test": "fields", "page": 3, "region": [1064, 1140, 119, 46], "reason": "\"... Procedures document? Yes________\": a fill-in line run on from the letters before it (\"Yes_______\"): the run starts at the word's last letter, with that letter's ink over it, so it is neither a line on its own nor a short blank after a word"},
       {"test": "extraFields", "page": 1, "region": [290, 182, 612, 54], "reason": "the blank right of the centre's logo, beside its address: blank page under the letterhead"},
       {"test": "extraFields", "page": 1, "region": [248, 880, 146, 52], "reason": "the blank between \"New Patient:\" and \"Yes_______\": blank page after a label with a colon, before options with blanks"},
       {"test": "extraFields", "page": 2, "region": [420, 1094, 998, 60], "reason": "the blank after the heading \"Does the patient have:\": blank page after a label with a colon, over the list it heads"},
       {"test": "extraFields", "page": 3, "region": [148, 222, 168, 52], "reason": "the blank between \"Pain:\" and \"Yes____\": blank page after a label with a colon, before options with blanks"},
       {"test": "extraFields", "page": 3, "region": [594, 1308, 822, 70], "reason": "the blank after \"Patient registration completed by:\", over the table's \"Print name | Signature | Date\" headings"}
     ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"no\" at (788, 886), \"smoker_yes\" at (276, 1090), \"smoker_no\" at (386, 1090), \"ever_smoked_no\" at (426, 1158), \"dependents_yes\" at (724, 1704), \"dependents_no\" at (914, 1704), \"stairs_no\" at (920, 1772)"},
-      {"variation": "0.7× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"no\" at (788, 858)"},
-      {"variation": "2× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"ever_smoked_yes\" at (338, 1158)"},
-      {"variation": "2× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"ever_smoked_yes\" at (336, 1148)"},
-      {"variation": "2.5× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"ever_smoked_yes\" at (338, 1158)"},
-      {"variation": "2.5× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"ever_smoked_yes\" at (336, 1148)"},
-      {"variation": "0.7× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"no_18\" at (758, 1550), \"permanent_disability_or_impairment_yes\" at (612, 1582), \"no_21\" at (578, 1648), \"affairs_yes\" at (740, 154), \"surgery_yes\" at (792, 560), \"surgery_no\" at (960, 560), \"reproductive_yes\" at (974, 1446)"},
-      {"variation": "0.7× size", "page": 2, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"no_14\" at (570, 1648), \"is_the_patient_responsible_for_his_her_o\" at (738, 144), \"disease_disease_or_or_condition_conditio\" at (972, 1410)"},
-      {"variation": "2× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"permanent_disability_or_impairment_yes\" at (612, 1582)"},
-      {"variation": "2.5× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"reproductive_yes\" at (974, 1446)"},
-      {"variation": "2.5× size", "page": 2, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"disease_disease_or_or_condition_conditio\" at (974, 1434)"},
-      {"variation": "0.7× size", "page": 3, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"loss_of_function_yes\" at (360, 332), \"no_25\" at (504, 332), \"yes_10\" at (362, 366), \"no_26\" at (508, 366), \"sleep_disturbance_yes\" at (368, 398), \"no_27\" at (514, 400), \"related_to_injury_yes\" at (368, 432), \"yes_11\" at (276, 908), \"no_29\" at (420, 902), \"yes_12\" at (276, 946), \"no_30\" at (424, 946), \"mri_yes\" at (280, 980)"},
-      {"variation": "0.7× size", "page": 3, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"x_rays\" at (258, 908), \"investigations_so_far\" at (404, 872)"},
-      {"variation": "1.5× size", "page": 3, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"yes_10\" at (362, 366), \"no_26\" at (508, 366), \"sleep_disturbance_yes\" at (368, 398), \"no_27\" at (514, 400), \"ultrasound_yes\" at (282, 1046)"},
-      {"variation": "2× size", "page": 3, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"no_22\" at (504, 220), \"no_24\" at (508, 298), \"yes_10\" at (362, 366), \"no_26\" at (508, 366), \"sleep_disturbance_yes\" at (368, 398), \"no_27\" at (514, 400), \"ultrasound_yes\" at (282, 1046)"},
-      {"variation": "2.5× size", "page": 3, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"no_22\" at (504, 220), \"no_23\" at (656, 260), \"no_24\" at (508, 298), \"yes_10\" at (362, 366), \"no_26\" at (508, 366), \"no_27\" at (514, 400), \"ultrasound_yes\" at (282, 1046)"},
-      {"variation": "3× size", "page": 3, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"yes_10\" at (362, 366), \"no_26\" at (508, 366), \"sleep_disturbance_yes\" at (368, 398), \"no_27\" at (514, 400), \"ultrasound_yes\" at (282, 1046)"},
-      {"variation": "faint print", "page": 3, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"ultrasound_yes\" at (282, 1046)"}
+    "variationSkip": [
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [780, 878, 108, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [426, 878, 128, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [268, 1082, 84, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [378, 1082, 82, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [418, 1150, 82, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [716, 1696, 82, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [906, 1696, 84, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [912, 1764, 68, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [780, 850, 106, 72], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [570, 1640, 92, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [784, 552, 68, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [952, 552, 68, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [966, 1438, 84, 50], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [562, 1640, 100, 32], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 2, "region": [964, 1402, 86, 82], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 3, "region": [500, 358, 92, 44], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 3, "region": [506, 392, 92, 44], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "fields", "page": 3, "region": [268, 900, 122, 48], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 3, "region": [250, 900, 138, 32], "reason": "at 0.7× (the page about 1050 px wide), not traced further: some of the \"Yes ____ No ____\" blanks, 30-40 px at this size, are missed, and a few found shifted"}
     ]
   },
   {
@@ -2838,22 +2837,27 @@ window.TEST_CASE_LIST = [
       {"test": "tags", "page": 2, "region": [196, 1688, 512, 70], "reason": "\"Print your name\" under the line (patient_name): the youth filling in the form, which the caption doesn't say"}
     ],
     "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["don_t_have_an_address", "dont_know_phn"], "reason": "\"☐ I don't know it.\" and \"☐ I don't have an address.\": each box's top edge is a few pixels under a fill-in line, and in the ink map the two join (at 2× a 40×54 px blob, box and line together); the page itself skips the first"},
+      {"variation": "0.7× size", "test": "extraFields", "page": 1, "region": [146, 1236, 1222, 68], "reason": "at 0.7× (the page about 1050 px wide), not traced further: a strip under \"Yes, I have accessed Foundry ____\", over the section's grey rule, is taken for a blank"},
+      {"variation": "1.5× size", "boxes": ["don_t_have_an_address", "dont_know_phn"], "reason": "\"☐ I don't know it.\" and \"☐ I don't have an address.\": each box's top edge is a few pixels under a fill-in line, and in the ink map the two join (at 2× a 40×54 px blob, box and line together); the page itself skips the first"},
+      {"variation": "2× size", "boxes": ["don_t_have_an_address", "dont_know_phn"], "reason": "\"☐ I don't know it.\" and \"☐ I don't have an address.\": each box's top edge is a few pixels under a fill-in line, and in the ink map the two join (at 2× a 40×54 px blob, box and line together); the page itself skips the first"},
+      {"variation": "2× size", "test": "extraFields", "page": 1, "region": [606, 76, 636, 66], "reason": "the blank right of the FOUNDRY logo's lettering, under the header: blank page after the logo's words"},
+      {"variation": "2.5× size", "boxes": ["don_t_have_an_address", "dont_know_phn"], "reason": "\"☐ I don't know it.\" and \"☐ I don't have an address.\": each box's top edge is a few pixels under a fill-in line, and in the ink map the two join (at 2× a 40×54 px blob, box and line together); the page itself skips the first"},
+      {"variation": "2.5× size", "test": "extraFields", "page": 1, "region": [606, 76, 636, 66], "reason": "the blank right of the FOUNDRY logo's lettering, under the header: blank page after the logo's words"},
+      {"variation": "3× size", "boxes": ["don_t_have_an_address", "dont_know_phn"], "reason": "\"☐ I don't know it.\" and \"☐ I don't have an address.\": each box's top edge is a few pixels under a fill-in line, and in the ink map the two join (at 2× a 40×54 px blob, box and line together); the page itself skips the first"},
+      {"variation": "faint print", "boxes": ["don_t_have_an_address", "dont_know_phn"], "reason": "\"☐ I don't know it.\" and \"☐ I don't have an address.\": each box's top edge is a few pixels under a fill-in line, and in the ink map the two join (at 2× a 40×54 px blob, box and line together); the page itself skips the first"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [156, 1424, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [460, 1424, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [764, 1424, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [1070, 1424, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [156, 1458, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [460, 1458, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [764, 1458, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 2, "region": [1070, 1458, 316, 46], "reason": "at 0.7× (the page about 1050 px wide), not traced further: the table's last two rows are missed"},
+      {"variation": "1.5× size", "test": "extraTicks", "page": 2, "region": [608, 534, 40, 40], "reason": "a letter of the light grey emergency-contact paragraph taken for a box at 1.5×"},
       {"variation": "0.7× size", "test": "extraTicks", "page": 1, "region": [354, 82, 45, 45], "reason": "as on the page itself (see the case's skip there): the O of the \"FOUNDRY\" logo, a square-cornered letter as tall as a box, with an empty middle"},
       {"variation": "1.5× size", "test": "extraTicks", "page": 1, "region": [354, 82, 45, 45], "reason": "as on the page itself (see the case's skip there): the O of the \"FOUNDRY\" logo, a square-cornered letter as tall as a box, with an empty middle"},
       {"variation": "3× size", "test": "extraTicks", "page": 1, "region": [354, 82, 45, 45], "reason": "as on the page itself (see the case's skip there): the O of the \"FOUNDRY\" logo, a square-cornered letter as tall as a box, with an empty middle"}
-    ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"don_t_have_an_address\" at (158, 1106), \"dont_know_phn\" at (160, 936)"},
-      {"variation": "0.7× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"have_you_accessed_foundry_in_another_com\" at (154, 1244)"},
-      {"variation": "1.5× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"don_t_have_an_address\" at (158, 1106), \"dont_know_phn\" at (160, 936)"},
-      {"variation": "2× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"don_t_have_an_address\" at (158, 1106), \"dont_know_phn\" at (160, 936)"},
-      {"variation": "2× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"foundry\" at (614, 84)"},
-      {"variation": "2.5× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"don_t_have_an_address\" at (158, 1106), \"dont_know_phn\" at (160, 936)"},
-      {"variation": "2.5× size", "page": 1, "test": "extraFields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (found, not expected): \"foundry\" at (614, 84)"},
-      {"variation": "3× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"don_t_have_an_address\" at (158, 1106), \"dont_know_phn\" at (160, 936)"},
-      {"variation": "faint print", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"don_t_have_an_address\" at (158, 1106), \"dont_know_phn\" at (160, 936)"},
-      {"variation": "0.7× size", "page": 2, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"name_4\" at (164, 1432), \"title_4\" at (468, 1432), \"organization_4\" at (772, 1432), \"phone_number_4\" at (1078, 1432), \"name_5\" at (164, 1466), \"title_5\" at (468, 1466), \"organization_5\" at (772, 1466), \"phone_number_5\" at (1078, 1466)"},
-      {"variation": "1.5× size", "page": 2, "test": "extraTicks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (taken for tick boxes): \"nsible_legal_adult_who_is_available_for\" at (616, 542)"}
     ]
   },
   {
@@ -2868,12 +2872,12 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [784, 832, 676, 46], "reason": "the blank after the column heading \"How you react:\": a table's heading with a colon over its rows"},
       {"test": "extraFields", "page": 1, "region": [498, 1410, 962, 50], "reason": "the blank after \"Screening for Sleep Apnea:\" in its grey heading bar"}
     ],
-    "variationTodo": [
-      {"variation": "0.7× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"checkbox_1\" at (1272, 1458), \"checkbox_7\" at (1272, 1616)"},
-      {"variation": "0.7× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"text_1\" at (144, 1366)"},
-      {"variation": "2× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"patient\" at (412, 690), \"family_member_friend_other_name\" at (582, 690), \"checkbox_1\" at (1272, 1458), \"checkbox_2\" at (1414, 1458)"},
-      {"variation": "2.5× size", "page": 1, "test": "ticks", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"patient\" at (412, 690), \"family_member_friend_other_name\" at (582, 690)"},
-      {"variation": "2.5× size", "page": 1, "test": "fields", "reason": "Auto Detect does better on the page itself; at this size it gets these wrong (missed): \"family_member_friend_other_name_2\" at (1102, 690)"}
+    "variationSkip": [
+      {"variation": "0.7× size", "boxes": ["checkbox_1", "checkbox_7"], "reason": "at 0.7× (the page about 1050 px wide), not traced further: two of the sleep table's shaded boxes, and the second line under \"If yes, explain:\", are missed"},
+      {"variation": "0.7× size", "test": "fields", "page": 1, "region": [136, 1358, 1330, 52], "reason": "at 0.7× (the page about 1050 px wide), not traced further: two of the sleep table's shaded boxes, and the second line under \"If yes, explain:\", are missed"},
+      {"variation": "2× size", "boxes": ["patient", "family_member_friend_other_name", "checkbox_1", "checkbox_2"], "reason": "the \"Form completed by: ☐ Patient ☐ Family member\" boxes sit on the table's top line, and the sleep table's shaded (3-D) boxes against its row lines: resized, box and line likely join in the ink map (seen in the picture, not traced)"},
+      {"variation": "2.5× size", "boxes": ["patient", "family_member_friend_other_name"], "reason": "the \"Form completed by: ☐ Patient ☐ Family member\" boxes sit on the table's top line, and the sleep table's shaded (3-D) boxes against its row lines: resized, box and line likely join in the ink map (seen in the picture, not traced)"},
+      {"variation": "2.5× size", "test": "fields", "page": 1, "region": [1094, 682, 370, 54], "reason": "\"Family member, Friend, Other Name: ____\": the blank after it, missed at 2.5×, its line close over the table's top line (not traced)"}
     ]
   },
   {
