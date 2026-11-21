@@ -1817,7 +1817,7 @@ else if (typeof exports === 'object')
     return null;
   }
 
-  // Names/ids on inputs that belong to the form toolbar, not to data fields
+  // Names/ids on inputs that belong to the form toolbar, not to data fields (lower case, exactly)
   const CONTROL_INPUT_NAMES = new Set([
     'submitbutton','submitfaxbutton','printsubmitbutton',
     'faxnumber','current_user_id','faxno'
@@ -1910,8 +1910,9 @@ else if (typeof exports === 'object')
       const tagName   = el.tagName.toLowerCase();
       const typeAttr  = (parseAttr(el, 'type') || '').toLowerCase();
       const className = (el.className || '').toLowerCase();
-      const elName    = (parseAttr(el, 'name') || '').toLowerCase().replace(/[^a-z0-9]/g,'');
-      const elId      = (parseAttr(el, 'id')   || '').toLowerCase().replace(/[^a-z0-9]/g,'');
+      // (as they are, but for case: a data field can be named "fax_number", the toolbar's "faxnumber")
+      const elName    = (parseAttr(el, 'name') || '').toLowerCase();
+      const elId      = (parseAttr(el, 'id')   || '').toLowerCase();
 
       // ── Skip non-data inputs from generated eForms ─────────────────────────
       if (isGenerated) {

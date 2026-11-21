@@ -2047,13 +2047,7 @@ window.TEST_CASE_LIST = [
   {
     "name": "Burnaby Maternity Clinic referral (fillable PDF whose fields have no names, and a page with none)",
     "folder": "burnaby-maternity-referral",
-    "eform": "burnaby_maternity_referral.html",
-    "images": [
-      "burnaby_maternity_referral_page1.png",
-      "burnaby_maternity_referral_page2.png",
-      "burnaby_maternity_referral_page3.png",
-      "burnaby_maternity_referral_page4.png"
-    ],
+    "session": "burnaby_maternity_referral_session.json",
     "pdf": "Burnaby_Maternity_Clinic_Referral.pdf",
     "skip": [
       {
@@ -2175,15 +2169,13 @@ window.TEST_CASE_LIST = [
   {
     "name": "New patient questionnaire (fillable PDF: radio buttons for Yes/No, sex)",
     "folder": "new-patient-questionnaire",
-    "eform": "new_patient_questionnaire.html",
-    "images": ["new_patient_questionnaire_page1.png"],
+    "session": "new_patient_questionnaire_session.json",
     "pdf": "New_Patient_Questionnaire_FGSG_2025_Fillable.pdf"
   },
   {
     "name": "Youth substance use treatment application (fillable PDF: date fields, a patient header on each page)",
     "folder": "youth-substance-use-application",
-    "eform": "youth_substance_use_application.html",
-    "images": ["youth_substance_use_application_page1.png", "youth_substance_use_application_page2.png", "youth_substance_use_application_page3.png", "youth_substance_use_application_page4.png"],
+    "session": "youth_substance_use_application_session.json",
     "pdf": "youth-substance-use-treatment-application.pdf",
     "skip": [
       {"test": "tags", "page": 1, "region": [870, 722, 240, 52], "reason": "\"Gender Identity\": the PDF names the field \"gender\", which elsewhere is the patient's sex; the page's own label isn't read when the PDF's name gives a tag"},
@@ -2238,8 +2230,7 @@ window.TEST_CASE_LIST = [
   {
     "name": "Access Line home and community care referral (fillable PDF: patient, alternative contact and referring clinician's details)",
     "folder": "access-line-referral",
-    "eform": "access_line_referral.html",
-    "images": ["access_line_referral_page1.png"],
+    "session": "access_line_referral_session.json",
     "pdf": "Access_Line_Referral_Form_April_2026.pdf",
     "skip": [
       {"test": "extraFields", "page": 1, "region": [495, 1768, 395, 46], "reason": "the PDF's text field for \"Physician/Nurse Practitioner Signature\": a signature, which the eForm leaves to the signature"}
@@ -2248,8 +2239,7 @@ window.TEST_CASE_LIST = [
   {
     "name": "MOST medical order for scope of treatment (fillable PDF: radio buttons in a table, a patient label box)",
     "folder": "most-order",
-    "eform": "most_order.html",
-    "images": ["most_order_page1.png"],
+    "session": "most_order_session.json",
     "pdf": "MOST_Medical_Order_for_Scope_of_Treatment.pdf",
     "skip": [
       {"test": "extraFields", "page": 1, "region": [508, 1774, 372, 72], "reason": "the PDF's text field for \"Prescriber Signature\": a signature"},
@@ -2259,8 +2249,7 @@ window.TEST_CASE_LIST = [
   {
     "name": "CPP disability medical report (fillable PDF, ten pages: a SIN header on each page, tables of medications, a declaration)",
     "folder": "cpp-disability-medical-report",
-    "eform": "cpp_disability_medical_report.html",
-    "images": ["cpp_disability_medical_report_page1.png", "cpp_disability_medical_report_page2.png", "cpp_disability_medical_report_page3.png", "cpp_disability_medical_report_page4.png", "cpp_disability_medical_report_page5.png", "cpp_disability_medical_report_page6.png", "cpp_disability_medical_report_page7.png", "cpp_disability_medical_report_page8.png", "cpp_disability_medical_report_page9.png", "cpp_disability_medical_report_page10.png"],
+    "session": "cpp_disability_medical_report_session.json",
     "pdf": "ISP-2519.pdf",
     "skip": [
       {"test": "extraFields", "page": 2, "region": [100, 1280, 682, 60], "reason": "the PDF's text field for \"Signature of applicant / legal representative\": a signature"},

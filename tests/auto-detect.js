@@ -426,6 +426,11 @@
   nameTest('a number is never one another field has', [[1, 'Name'], [1, 'Name'], [1, 'Name_3'], [2, 'Name']], ['Name', 'Name_1', 'Name_3', 'Name_2']);
   nameTest('a field named with a number a repeat took gets another', [[1, 'Name'], [1, 'Name'], [2, 'Name_1']], ['Name', 'Name_1', 'Name_1_1']);
   nameTest('names the same once made safe for HTML', [[1, 'Pt name'], [1, 'Pt_name']], ['Pt_name', 'Pt_name_1']);
+  // An exported eForm read back keeps every field, one named as a toolbar control is but for its
+  // punctuation too ("fax_number", the toolbar's hidden "faxnumber")
+  test('Export: field names: a field named like a toolbar control is read back', () =>
+    sameList(T.parseTemplateHtml(exportOf([[1, 'fax_number'], [1, 'Name']]).html, 'test.html').fields.map(f => f.name), ['fax_number', 'Name'], 'the fields read'),
+    { group: 'Export: field names', short: 'a field named like a toolbar control is read back' });
 
   // Date fields get OSCAR's calendar: the ids its Calendar.setup is called with when the eForm's
   // setUpCalendars runs, against a stand-in Calendar, and the format each fills in
