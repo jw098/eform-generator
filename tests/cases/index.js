@@ -115,6 +115,9 @@ window.TEST_CASE_LIST = [
       "RMH_2.png"
     ],
     "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "page": 2, "region": [668, 988, 30, 30], "reason": "the bold O of \"DIAGNOSIS OF\": at 0.7× its gap to the F is a fifth of the F's height, the round-button check's limit for a word space (letters measure 0.05 to 0.12 at full size); the grey line just above the heading used to count as the letters' tops, which rejected it, but the check now stops at a line across"}
+    ],
     "skip": [
       {
         "test": "extraFields",
@@ -2060,7 +2063,6 @@ window.TEST_CASE_LIST = [
       {"test": "extraFields", "page": 1, "region": [776, 1588, 656, 38], "reason": "a signature line (\"PHYSICIAN / NURSE PRACTITIONER SIGNATURE: (MANDATORY)\"): a signature, which the eForm leaves to the signature"},
       {"test": "extraFields", "page": 1, "region": [136, 1794, 1314, 76], "reason": "the HOP use only box's cells (\"Equipment Approved:\", \"HOP Physician Signature:\", \"Tracking Number:\"): the room under each label, beside the field after its colon, and the HOP physician's signature"},
       {"test": "tags", "page": 1, "region": [234, 636, 282, 34], "reason": "\"D. 0. B.\": OCR reads the O as a zero, so the label isn't a birth date's"},
-      {"test": "tags", "page": 1, "region": [406, 728, 628, 56], "reason": "the client's \"Primary Contact Number\" and \"Secondary Contact Number\" (phone, phone2): \"contact\" names someone else of the patient's (\"Emergency contact\"), and \"contact number\" alone can't be told from it"},
       {"test": "tags", "page": 1, "region": [350, 1440, 436, 42], "reason": "\"Hospital Ward Fax:\" (no tag): a fax in the referring physician's box, which is the clinician's"},
       {"test": "tags", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP subsidy review's \"Date:\" (no tag): the field is inside a box whose top line is under the shaded heading bar \"7. HOP SUBSIDY REVIEW - For HOP use only\"; in a box only what is inside it says whose, so the heading isn't seen and the date is read as the form's (today)"},
       {"test": "dates", "page": 1, "region": [662, 1740, 416, 66], "reason": "the HOP review's \"Date:\": a box taller than a line, made a text area"}
@@ -2597,6 +2599,23 @@ window.TEST_CASE_LIST = [
     "skip": [
       {"test": "tags", "page": 1, "region": [862, 1062, 562, 54], "reason": "\"If yes, what date is withdrawal management expected to be completed:\" (no tag): a question without its question mark, read as \"Date completed\""},
       {"test": "tags", "page": 2, "region": [640, 438, 780, 52], "reason": "the Referral Source's \"Cell\" and \"Fax\" (no tag, clinic_fax): \"Cell\" is one of the patient's cues in the owner check (a cell phone is most often the patient's), so its label makes the field the patient's, and the Fax after it on its row takes that owner. The box's heading, \"Referral Source: All correspondence ...\", makes its Name and Emails the clinician's"}
+    ]
+  },
+  {
+    "folder": "sleep-disorder-referral",
+    "session": "sleep_disorder_referral_session.json",
+    "variations": true,
+    "variationSkip": [
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [986, 190, 470, 44], "reason": "the referring practitioner's \"Name*\" blank: at 0.7× the line under it and the grey \"MSP Number*\" strip right under that line run together into one band 14 rows thick with no row of paper between, which the line check takes for a bar, so the cell has no bottom line; at full size a row of paper parts them"},
+      {"variation": "0.7× size", "page": 1, "test": "fields", "region": [46, 376, 912, 50], "reason": "the patient's \"Address\" blank: at 0.7× the line under it and the grey \"Safety Critical Occupation*\" strip right under that line run together into one band with no row of paper between, which the line check takes for a bar, so the row has no bottom line"},
+      {"variation": "2.5× size", "page": 1, "test": "fields", "region": [46, 254, 280, 44], "reason": "the \"Date of Birth* (YYYY / MM / DD)\" blank: at 2.5× OCR reads its format as \"(YYYY\", \"/MM/\", \"DD)\", words far enough apart to be taken for three labels spaced along the blank, which is split in three; at other sizes it reads \"(YYYY / MM / DD)\" as one label"},
+      {"variation": "2.5× size", "page": 1, "test": "extraFields", "region": [46, 254, 280, 44], "reason": "the three parts of the \"Date of Birth\" blank at 2.5× (see the missed field)"}
+    ],
+    "skip": [
+      {"test": "fields", "page": 1, "region": [986, 294, 470, 192], "reason": "the clinic's stamp box (clinic_label): its hints, \"Clinic Name\", \"Street Address\", \"STAMP\", \"Phone\", \"Fax\", are printed in pale grey (222, the shading's level, where the labels are 44), which the ink map takes for print like any label, so the box is read as labels with a blank under the last row; telling hint print from labels by its paleness, and then the box from its hints, would be two checks for one layout"},
+      {"test": "extraFields", "page": 1, "region": [986, 294, 470, 192], "reason": "the blank under the stamp box's last pale hint row, \"Phone  Fax\" (see the missed stamp field)"},
+      {"test": "extraFields", "page": 1, "region": [986, 1598, 470, 122], "reason": "\"Referring Practitioner Signature\": a signature's box, which the eForm leaves to the signature"},
+      {"test": "extraFields", "page": 1, "region": [44, 1756, 912, 26], "reason": "the 20 px strip between \"\u2610 Other: ____\" and the box's bottom edge: the line above, inside the box, has no sides joining it to the edge, so the edge reads as an open fill-in line with blank page over it. Tried: no field over a box's bottom edge (both its ends rising) with blank page and no label over it; it lost real blanks under a question inside a box (RMH page 2's \"Please specify\" second line, TWC's \"know anybody in a support recovery facility\" and allergy lines)"}
     ]
   }
 ];

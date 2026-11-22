@@ -1406,7 +1406,7 @@ else if (typeof exports === 'object')
     // (nor is a college licence the patient's: "Designation / College ID #")
     if (kind === 'college' && who === 'patient') who = 'clinician';
     // (the family doctor's clinic isn't the clinician's: "PCP's Clinic Name")
-    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' || who === 'copy' || (who === 'family' && kind === 'clinic') ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
+    const tag = TAG_FOR.any[kind] !== undefined ? (who === 'office' || who === 'copy' || who === 'consultant' || (who === 'family' && kind === 'clinic') ? '' : TAG_FOR.any[kind]) : (TAG_FOR[who] || {})[kind] || '';
     return tag;
   }
   // The tag for what a field asks for, by whose it is. "any" is the same tag whoever's it is
@@ -1422,7 +1422,8 @@ else if (typeof exports === 'object')
     family:    { name: 'doctor', firstLastName: 'doctor', number: 'doctor_ohip_no', college: 'doctor_cpsid' },     // (their phone isn't suggested, and OSCAR 12 has no tag for their fax or address)
     guardian:  {},                                               // (OSCAR 12 has no tags for their details)
     office:    {},                                               // ("FOR OFFICE USE ONLY": the receiving office fills these in)
-    copy:      {}                                                // ("Copy to", "cc": someone sent a copy; OSCAR 12 has no tags for them)
+    copy:      {},                                               // ("Copy to", "cc": someone sent a copy; OSCAR 12 has no tags for them)
+    consultant: {}                                               // ("Referred to", "Sleep disorder physician / facility": whom the patient is sent to)
   };
   // What a field asks for, from the whole words of its label (lowercase, joined by "_").
   // A date is today's only when it is the form's ("Date", "Date signed", "Date of referral", "Date sent":
@@ -1467,8 +1468,9 @@ else if (typeof exports === 'object')
     // (a phone's kind in a letter: "Phone (c)", "Tel (W)")
     if (hasWord('cell|mobile') || (hasWord('phone|telephone|tel') && hasWord('c'))) return 'cell';
     if (hasWord('work_phone|business_phone') || (hasWord('phone|telephone|tel') && hasWord('w'))) return 'workPhone';
-    // (a number to reach someone at is their phone: "Contact Number", "Contact No.", "Ph#")
-    if (hasWord('phone|telephone|tel|ph|contact_number|contact_no|contact_num')) return 'phone';
+    // (a number to reach someone at is their phone: "Contact Number", "Contact No.", "Ph#"; the second
+    // of two is OSCAR's second phone, phone2: "Primary Contact Number", "Secondary Contact Number")
+    if (hasWord('phone|telephone|tel|ph|contact_number|contact_no|contact_num')) return hasWord('secondary') ? 'workPhone' : 'phone';
     // (an address that names its city or postal code with it is the whole address: "Mailing address
     // (No., Street, Apt.), City/Town, Province/Territory, Postal code")
     if (hasWord('address') && hasWord('city|town|province|postal|postal_code|zip')) return 'fullAddress';
@@ -1568,12 +1570,17 @@ else if (typeof exports === 'object')
   // Friends)", "Name of support #1", "Support contact"; a pharmacy's: "Preferred Pharmacy  Fax:
   // ____"; a witness's
   // details are no more the chart's: "First name of witness"), the receiving office ("FOR
-  // OFFICE USE ONLY", "For HOP use only") or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
+  // OFFICE USE ONLY", "For HOP use only"), the one the patient is sent to (a consultant, a
+  // facility: no tags) or someone sent a copy ("COPY TO (NAME AND ADDRESS)", "Copies of report to",
   // "cc": not the column's or the box's owner, whoever's details are around it); guessTag turns
   // it into the tag (TAG_FOR).
   const OWNER_CUES = [
     ['copy', /\b(cop(y|ies)\b( \w+){0,2} to|cc)\b/],
     ['office', /\b(office use|for office|for( [\w-]+){1,2} use only|x-?ray use|completed by (the )?clerk|completed by( the)?( [\w-]+){0,3} staff)\b/],
+    // (whom the patient is sent to, a physician too, unless it is the sender's: "Referred to", "Name of
+    // Polysomnography Facility / Sleep Disorder Physician", not "Referring facility". Not "specialist":
+    // the word is as often in a question, "Any other services/specialists involved?")
+    ['consultant', /^(?!.*\b(referring|referred by|referral source)\b).*\b(referred to|refer to|facility|facilities)\b/],
     ['family', /\b(family|primary care) (doctor|physician|md|dr|practitioner|provider)\b|\b(gp|mrp|pcp)\b|\bg\.?\s?p\b/],
     ['guardian', /\b(parents?|guardians?|caregivers?|next of kin|(legal )?representatives?|directors?|emergency contact|in case of emergency|substitute decision maker|witness(es)?|support (persons?|people|contacts?)|names? of supports?|personal supports?|pharmac(y|ies)|friends?|family members?)\b/],
     ['clinician', /\b(referring|referred by|referral source|physicians?|practitioner|provider|prescriber|prescribing|md|np|mw|dr|doctor|signature|clinic|(?<!post )office)\b/],   // (not an address's "Post Office Box")
@@ -4110,7 +4117,13 @@ else if (typeof exports === 'object')
   // drawn and typed buttons 0.34 and up)
   function wordSpaceBeside(inkMap,w,h,x1,y1,x2,y2){
     const bw = x2-x1+1, bh = y2-y1+1;
-    const ya = Math.max(0, Math.round(y1 - bh*0.5)), yb = Math.min(h-1, Math.round(y2 + bh*0.3));
+    // (ink right across the ring's width and a little more, above or below it, is a line or a
+    // tint, not letters: the look stops at it, "○ Yes" just under a grey label strip)
+    const xa = Math.max(0, Math.round(x1 - bw/2)), xb = Math.min(w-1, Math.round(x2 + bw/2));
+    const across = (y) => { let n = 0; for (let x=xa; x<=xb; x++) n += inkMap[y*w+x] === 1; return n >= (xb-xa+1)*0.9; };
+    let ya = Math.max(0, Math.round(y1 - bh*0.5)), yb = Math.min(h-1, Math.round(y2 + bh*0.3));
+    for (let y=y1-1; y>=ya; y--) if (across(y)){ ya = y+1; break; }
+    for (let y=y2+1; y<=yb; y++) if (across(y)){ yb = y-1; break; }
     const columnInk = (x) => { let top = -1, bottom = -1;
       if (x >= 0 && x < w) for (let y=ya; y<=yb; y++) if (inkMap[y*w+x] === 1){ if (top < 0) top = y; bottom = y; }
       return { top, bottom }; };
@@ -4118,6 +4131,9 @@ else if (typeof exports === 'object')
       let gap = 0;
       for (let d=1; d<=bw && !gap; d++) if (columnInk(edge + step*d).top >= 0) gap = d;
       if (!gap) return true;
+      // (ink from the top of the look to its bottom is a box's side, not a letter: "| ○ Yes")
+      const near = columnInk(edge + step*gap);
+      if (near.top === ya && near.bottom === yb) return true;
       // (the neighbours' height over a stretch of the word as long as the ring and a half; the
       // baseline is the middle of their bottoms, so a letter's tail below it doesn't count)
       let top = Infinity; const bottoms = [];
@@ -4849,7 +4865,7 @@ else if (typeof exports === 'object')
   // writing has its one heading above it or beside it ("Current medications:"), its first row blank.
   // A bordered table's column of empty cells takes the heading over its top cell ("Date").
   // Sets f.label, and f._words, the label's words.
-  // lineAcross(x1, x2, y1, y2): is there a line across x1..x2 somewhere between y1 and y2?
+  // lineAcross(x1, x2, y1, y2, onTint): is there a line across x1..x2 somewhere between y1 and y2?
   function labelFields(fields, read, lineAcross){
     const { boxes, words, wordHeight } = labelWordsOf(fields, read);
     const onRow = (f, w) => { const cy = (w.y0+w.y1)/2; return cy >= f.y - wordHeight*0.3 && cy <= f.y + f.height + wordHeight*0.4; };
@@ -4890,7 +4906,10 @@ else if (typeof exports === 'object')
       if (over.length){
         const bottom = Math.max(...over.map(w => w.y1));
         above = over.filter(w => bottom - w.y1 < wordHeight*0.6).sort((a,b) => a.x0-b.x0);
-        if (lineAcross(f.x, fx2, bottom + 1, fy1 - 1)) above = [];
+        // (a label printed in a grey strip over its blank, when nothing is before the blank on its
+        // row: "Last Name*" over its box; a field with a label before it, "Last Name ____" under a
+        // grey heading bar, keeps the bar for a line)
+        if (lineAcross(f.x, fx2, bottom + 1, fy1 - 1, !words.some(w => onRow(f, w) && w.x1 <= f.x + 6))) above = [];
       }
       // The phrase just left of it on its row: the nearest words, no further apart than a few
       // letters, the nearest no further from the field than about a dozen (a label set well apart
@@ -6469,11 +6488,20 @@ else if (typeof exports === 'object')
         await progress('Naming the fields and suggesting tags…', 0.9);
       }
       // Is there a line across x1..x2 between y1 and y2 (page-image pixels)? From the ink map.
-      const lineAcross = (x1, x2, y1, y2) => {
+      // With `onTint`, a light tint that starts above y1 isn't a line between: the words over a field
+      // were printed on it, and its lower edge is the field's top, "Last Name*" in a grey strip over
+      // its blank; a dark bar's edge still is, white words in a black bar head what is under it.
+      const lineAcross = (x1, x2, y1, y2, onTint = false) => {
         const a = Math.max(0, Math.round(x1*scale)), z = Math.min(w-1, Math.round(x2*scale));
-        for (let y=Math.max(0, Math.round(y1*scale)); y<=Math.min(h-1, Math.round(y2*scale)); y++){
-          let n = 0; for (let x=a; x<=z; x++) if (inkMap[y*w+x]) n++;
-          if (n >= (z-a+1)*0.8) return true;
+        const inkRow = (y) => { let n = 0; for (let x=a; x<=z; x++) if (inkMap[y*w+x]) n++; return n >= (z-a+1)*0.8; };
+        const top = Math.max(0, Math.round(y1*scale));
+        for (let y=top; y<=Math.min(h-1, Math.round(y2*scale)); y++){
+          if (!inkRow(y)) continue;
+          if (y > top || !inkRow(y-1) || !onTint) return true;
+          let end = y; while (end < h-1 && inkRow(end+1)) end++;
+          let sum = 0; for (let yy=y; yy<=end; yy++) for (let x=a; x<=z; x++) sum += gray[yy*w+x];
+          if (sum / ((end-y+1)*(z-a+1)) < 128) return true;          // (darker than mid-grey: a bar)
+          y = end;
         }
         return false;
       };
