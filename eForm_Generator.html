@@ -6941,9 +6941,10 @@ function eformChecks(){
     tagUses.get(key).names.push(f.name || '(unnamed)');
   });
   const repeated = [...tagUses.values()].filter(u => u.names.length > 1).sort((a,b) => a.page - b.page || a.tag.localeCompare(b.tag));
-  if (repeated.length) out.push({ level: 'warn', text: `The same oscarDB tag on more than one field of a page (${repeated.length}): ` +
-    repeated.slice(0, 6).map(u => `${u.tag} ×${u.names.length} (page ${u.page}: ${u.names.join(', ')})`).join('; ') + (repeated.length > 6 ? '; …' : '') +
-    '. A tag is usually wanted once on a page: check each field is that person\'s detail, and leave it if it is (two signatures\' dates are both today).' });
+  if (repeated.length) out.push({ level: 'warn', text: `The same oscarDB tag on more than one field of a page (${repeated.length} case${repeated.length > 1 ? 's' : ''}):`,
+    items: repeated.slice(0, 6).map((u, i, shown) => `${u.tag} ×${u.names.length} (page ${u.page}: ${u.names.join(', ')})${i < shown.length - 1 || repeated.length > 6 ? ';' : '.'}`)
+      .concat(repeated.length > 6 ? [`… and ${repeated.length - 6} more.`] : []),
+    after: 'A tag is usually wanted once on a page: check each field is that person\'s detail, and leave it if it is (two signatures\' dates are both today).' });
 
   // (most untagged fields are filled in by hand, "Reason for referral": only those whose name or
   // label suggests a tag, "Patient Name", are pointed out, and nothing is said when there are none)
@@ -6982,7 +6983,10 @@ function renderPreflight(results){
     const resultsBox = $('preflightBox');
     if (!resultsBox) return;
     if (!results || !results.length){ resultsBox.innerHTML = '<div class="small" style="color:#64748b">Check eForm to see what to fix before export.</div>'; return; }
-    resultsBox.innerHTML = results.map(result => `<div class="pf-${result.level}" style="margin-bottom:4px">• ${escHtml(result.text)}</div>`).join('');
+    // (a result may list its cases, each on its own indented line, with a note after them)
+    resultsBox.innerHTML = results.map(result => `<div class="pf-${result.level}" style="margin-bottom:4px">• ${escHtml(result.text)}` +
+      (result.items || []).map(item => `<div style="padding-left:1.5em">- ${escHtml(item)}</div>`).join('') +
+      (result.after ? `<div>${escHtml(result.after)}</div>` : '') + '</div>').join('');
   }
 
   
