@@ -466,6 +466,17 @@
     }
   }, { group: 'Auto Detect: names', short: "a field with no label takes the form's next numbered name, not its page's" });
 
+  // The toolbar has an empty "Subject:" box just before Submit, which OSCAR saves as the eForm's
+  // subject; an eForm read back leaves it out of its fields
+  test('Export: toolbar: an empty Subject box beside Submit, which an eForm read back leaves out', () => {
+    const e = exportOf([[1, 'Name']]), box = e.doc.getElementById('subject');
+    if (!box || !box.closest('#BottomButtons')) throw new Error('no Subject box (#subject) in the toolbar');
+    if (box.getAttribute('name') !== 'subject' || box.value) throw new Error(`the Subject box is named "${box.getAttribute('name')}", holding "${box.value}"`);
+    const next = box.closest('label').nextElementSibling;
+    if (!next || next.id !== 'SubmitButton') throw new Error('the Subject box is not just before Submit');
+    sameList(T.parseTemplateHtml(e.html, 'test.html').fields.map(f => f.name), ['Name'], 'the fields read');
+  }, { group: 'Export: toolbar', short: 'an empty Subject box beside Submit, which an eForm read back leaves out' });
+
   // Faxing is OSCAR's: faxControl.js puts its recipients (the list of specialists, "otherFaxSelect")
   // and its own "Submit & Fax" and "Fax" buttons in the toolbar's #faxControl, so the export has no
   // fax button or fax number box of its own to show beside them

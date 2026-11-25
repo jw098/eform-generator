@@ -7684,12 +7684,14 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
   const docTitle = (state.exportTitle && String(state.exportTitle).trim()) ? String(state.exportTitle).trim() : 'Generated OSCAR eForm';
   const docAuthor = String(state.exportAuthor || '').trim();
 
-  // The toolbar: Submit and Print & Submit, and the place OSCAR's faxControl.js puts its fax
+  // The toolbar: the eForm's subject (OSCAR saves it with the form and lists it by the form's
+  // name; it starts empty), Submit and Print & Submit, and the place OSCAR's faxControl.js puts its fax
   // recipients and its own "Submit & Fax" and "Fax" buttons (the eForm has no fax button of its own)
   let bottomButtons = '';
   if (includeButtons) {
     bottomButtons = `
 <div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
+  <label for="subject">Subject: <input type="text" name="subject" id="subject" size="40" autocomplete="off"></label>
   <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="${usesValidation ? 'if(!requiredChecked &amp;&amp; !checkRequiredFields()) return false; requiredChecked=false; ' : ''}releaseDirtyFlag();">
   <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
   <div id="faxControl"></div>
