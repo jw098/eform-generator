@@ -117,6 +117,9 @@ Add button) and its "Submit & Fax" and "Fax" buttons. The eForm has no fax butto
       them in full
 - [ ] Pick a specialist (or type another number and press Add), then "Submit & Fax": the fax goes to
       that recipient and the form is submitted
+- [ ] With a required field empty, "Submit & Fax" and "Fax" first outline it in red and ask, as
+      Submit does: Cancel sends nothing and leaves the form open; OK faxes and submits
+- [ ] "Add Other Fax Recipient" never asks, whatever is filled in
 - [ ] With no fax set up in OSCAR, nothing breaks, and Submit and Print & Submit still work
 
 ## 11. Other

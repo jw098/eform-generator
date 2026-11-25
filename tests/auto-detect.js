@@ -402,20 +402,22 @@
   // text field unless given; `more`, anything else it has), in the order given: its HTML, and each field's input (null where there
   // is none). It is built from them alone (the app's pages and fields swapped out meanwhile, as
   // draftOf does), on blank pages
-  function exportOf(fields){
-    const keep = { pages: T.state.pages, fields: T.state.fields, current: T.state.currentPage };
+  // (`groups`: validation groups, each with the indexes of its fields in `fields`)
+  function exportOf(fields, groups = []){
+    const keep = { pages: T.state.pages, fields: T.state.fields, current: T.state.currentPage, groups: T.state.validationGroups };
     const blank = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
     const pages = {};
     fields.forEach(([page]) => { pages[page] = { imgData: blank, naturalW: 1000, naturalH: 1300, fileName: `page${page}.png` }; });
     try {
       T.state.pages = pages; T.state.currentPage = 1;
       T.state.fields = fields.map(([page, name, type = 'text', more = {}], i) => ({ id: 1000 + i, page, x: 10, y: 10 + 30*i, width: 200, height: 20, type, name, oscarTag: '', ...more }));
+      T.state.validationGroups = groups.map((g, i) => ({ id: 1 + i, name: g.name || `Group ${i + 1}`, rule: g.rule || 'all', message: g.message || '', exclusive: !!g.exclusive, fieldIds: g.fields.map(k => 1000 + k) }));
       const html = T.buildExportHtml(), doc = new DOMParser().parseFromString(html, 'text/html');
       // (each field's input is found by its id, its name on the eForm and its number)
       const inputs = [...doc.querySelectorAll('input[id]')];
       return { html, doc, inputs: T.state.fields.map(f => inputs.find(el => el.id.endsWith('_' + f.id)) || null) };
     } finally {
-      T.state.pages = keep.pages; T.state.fields = keep.fields; T.state.currentPage = keep.current;
+      T.state.pages = keep.pages; T.state.fields = keep.fields; T.state.currentPage = keep.current; T.state.validationGroups = keep.groups;
     }
   }
   const nameTest = (short, fields, expected) => test(`Export: field names: ${short}`, () =>
@@ -487,6 +489,33 @@
     if (!/eforms\/faxControl\.js/.test(e.html)) throw new Error('faxControl.js is not loaded');
     const own = [...e.doc.querySelectorAll('#BottomButtons input')].filter(el => /fax/i.test(el.id + ' ' + el.name + ' ' + el.value));
     if (own.length) throw new Error('fax controls of its own: ' + own.map(el => el.id || el.name).join(', '));
+  });
+  // OSCAR's "Submit & Fax" (faxSave_button) and "Fax" (fax_button) check the form's validation groups
+  // first, as Submit does, and Cancel stops them; its other buttons ("Add Other Fax Recipient") don't.
+  // The export's body and its validation script run in a frame, with stand-ins for OSCAR's buttons
+  // put after Submit as faxControl.js puts them, each noting when its own onclick runs
+  faxTest('"Submit & Fax" and "Fax" check the required fields first, and Cancel stops them; other buttons go on', () => {
+    const e = exportOf([[1, 'Name'], [1, 'Phone']], [{ fields: [0, 1], message: 'Name and phone' }]);
+    const script = [...e.doc.querySelectorAll('script')].map(el => el.textContent).find(text => /function checkRequiredFields/.test(text));
+    if (!script) throw new Error('no validation script in the export');
+    const frame = document.createElement('iframe'); frame.style.display = 'none'; document.body.appendChild(frame);
+    try {
+      const win = frame.contentWindow, doc = win.document;
+      doc.open(); doc.write('<!doctype html><body></body>'); doc.close();
+      doc.body.innerHTML = e.doc.body.innerHTML;
+      win.ran = []; win.asked = 0; win.answer = false; win.confirm = () => { win.asked++; return win.answer; };
+      const tag = doc.createElement('script'); tag.textContent = script; doc.head.appendChild(tag);
+      const submit = doc.getElementById('SubmitButton');
+      if (!submit) throw new Error('no Submit button in the toolbar');
+      [['fax_button', 'Fax'], ['faxSave_button', 'Submit & Fax'], ['addOtherFax', 'Add Other Fax Recipient']].forEach(([id, value]) => {
+        const b = doc.createElement('input'); b.type = 'button'; b.id = id; b.value = value; b.setAttribute('onclick', `ran.push('${id}')`); submit.after(b);
+      });
+      const press = (answer) => { win.ran = []; win.asked = 0; win.answer = answer; ['faxSave_button', 'fax_button', 'addOtherFax'].forEach(id => doc.getElementById(id).click()); return `${[...win.ran].join(', ') || '(none)'}; asked ${win.asked}`; };
+      sameList([press(false)], ['addOtherFax; asked 2'], 'the buttons that went on, and how often the form asked, with Cancel');
+      sameList([press(true)], ['faxSave_button, fax_button, addOtherFax; asked 2'], 'with OK');
+      e.inputs.forEach(input => { doc.getElementById(input.id).value = 'x'; });
+      sameList([press(false)], ['faxSave_button, fax_button, addOtherFax; asked 0'], 'with every required field filled in');
+    } finally { frame.remove(); }
   });
   faxTest("OSCAR's list of specialists to fax is kept narrower than the page", () => {
     const e = exportOf([[1, 'Name']]), rule = (e.html.match(/#otherFaxSelect\s*\{[^}]*max-width:\s*(\d+)px/) || [])[1];
