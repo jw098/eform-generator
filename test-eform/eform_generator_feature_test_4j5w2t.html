@@ -30,18 +30,21 @@
 	border : 0px;
 	overflow: hidden;
  }
- /* (on screen, each field is a light blue box, so it's clear where to type; drawn inside the
-    field, it doesn't move it, and the print styles have none, so the page prints clean) */
- .gen_input, .xMarkOnly { background:rgba(66,133,244,0.08) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.45) !important; }
- .gen_input:focus, .xMarkOnly:focus { background:rgba(66,133,244,0.16) !important; box-shadow:inset 0 0 0 1px rgba(66,133,244,0.9) !important; outline:0; }
+ /* (on screen, each field is a light blue box with a dark blue edge, so it's clear where to type
+    among the page's own lines; drawn inside the field, the edge doesn't move or grow it, and the
+    print styles have none, so the page prints clean. A circle toggle's is a dashed oval, as a ring
+    is its circled choice: solid black once circled) */
+ .gen_input, .xMarkOnly { background:rgba(66,133,244,0.08) !important; box-shadow:inset 0 0 0 1px #1e40af !important; }
+ .gen_input:focus, .xMarkOnly:focus { background:rgba(66,133,244,0.16) !important; box-shadow:inset 0 0 0 2px #1e40af !important; outline:0; }
  .xBox { text-align:center; font-weight:bold; }
  .sig img { display:block; }
  .xMarkOnly { -webkit-appearance:none; appearance:none; border:0; text-align:center; font-weight:bold; }
- .circleToggle { -webkit-appearance:none; appearance:none; background:rgba(66,133,244,0.08) !important; }
- .circleToggle[value="O"] { border-color:#000 !important; }
+ .circleToggle { -webkit-appearance:none; appearance:none; background:rgba(66,133,244,0.08) !important; border:1px dashed #1e40af !important; }
+ .circleToggle[value="O"] { border:2px solid #000 !important; }
  .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
  html, body { margin:0; padding:0; }
  img[id^="BGImage"] { display:block; }
+ #otherFaxSelect { max-width:300px; }   /* (OSCAR's list of specialists to fax, which long names would stretch past the page) */
 </style>
 <style type="text/css" media="print">
  .DoNotPrint {
@@ -145,65 +148,6 @@ function SignForm() {
       stamps[i].alt = provNum;
     }
   } catch(e){}
-}
-// A field on the form by its id, else by its name (the export's fields are named "clinic_fax",
-// with ids "clinic_fax_12"), or null
-function fieldCalled(name){ return document.getElementById(name) || document.getElementsByName(name)[0] || null; }
-// The fax number to send to: the first filled-in fax number field on the form
-function getFaxTargetNo(){
-  var ids = ['faxNo','faxno','fax_number','faxnumber','otherFax','toFax'];
-  for (var i=0;i<ids.length;i++){
-    var input = fieldCalled(ids[i]);
-    if (!input) continue;
-    var faxNo = (input.value || '').trim();
-    if (faxNo) return faxNo;
-  }
-  return '';
-}
-// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
-function syncFaxNoMirror(){
-  var faxNo = getFaxTargetNo();
-  var hiddenFaxNo = document.getElementById('faxnumber');
-  if (hiddenFaxNo) hiddenFaxNo.value = faxNo;
-}
-// Fills an empty faxNo field from the clinic's, referral's or provider's fax number, when the
-// form has one of those
-function primeFaxNo(){
-  try{
-    var faxNoBox = fieldCalled('faxNo');
-    if (!faxNoBox || (faxNoBox.value && faxNoBox.value.trim())) { syncFaxNoMirror(); return; }
-    var candidates = ['clinic_fax','referral_fax','family_doctor_fax','current_user_fax','fax'];
-    for (var i=0;i<candidates.length;i++){
-      var input = fieldCalled(candidates[i]);
-      if (!input) continue;
-      var faxNo = (input.value || '').trim();
-      if (faxNo){ faxNoBox.value = faxNo; break; }
-    }
-    syncFaxNoMirror();
-  }catch(e){}
-}
-// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
-function formFax(){
-  try{
-    syncFaxNoMirror();
-    var faxNo = getFaxTargetNo();
-    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
-    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
-    if (typeof setFaxNo === 'function') { setFaxNo(); }
-    var faxControl = document.getElementById('faxControl');
-    if (faxControl){
-      faxControl.style.display = 'inline-block';
-      if (faxControl.children && faxControl.children.length) return;
-    }
-    alert('Fax control not available in this context.');
-  }catch(e){ alert('Fax control not available in this context.'); }
-}
-// "Fax & Submit": fills in the fax number, faxes, then submits the form
-function formSubmitAndFax(){
-  try{ primeFaxNo(); }catch(e){}
-  try{ formFax(); }catch(e){}
-  try{ releaseDirtyFlag(); }catch(e){}
-  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
 }
 </script>
 
@@ -570,8 +514,6 @@ function startup(){
   changeImage('eform_generator_feature_test_4j5w2t_page3.png', 'BGImage3');
   loadFontSize();
   setFaxNo();
-  primeFaxNo();
-  syncFaxNoMirror();
   SignForm();
   checkGender();
   tickSexBoxes();
@@ -755,11 +697,10 @@ function startup(){
 </div>
 
 <div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
-  <input type="hidden" name="faxnumber" id="faxnumber">
+  <label for="subject">Subject: <input type="text" name="subject" id="subject" size="40" autocomplete="off"></label>
   <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="if(!requiredChecked &amp;&amp; !checkRequiredFields()) return false; requiredChecked=false; releaseDirtyFlag();">
-  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="if(!checkRequiredFields()) return; requiredChecked=true; formSubmitAndFax();">
   <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="if(!checkRequiredFields()) return; requiredChecked=true; formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
-  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+  <div id="faxControl"></div>
 </div>
 
 <input type="hidden" id="current_user_id" name="current_user_id" oscarDB="current_user_id">
