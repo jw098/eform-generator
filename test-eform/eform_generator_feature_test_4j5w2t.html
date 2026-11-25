@@ -484,6 +484,16 @@ function checkRequiredFields(){
   try { if (first) first.scrollIntoView({ block: 'center' }); } catch(e){ try { first.scrollIntoView(); } catch(e2){} }
   return confirm('This form is not complete:\n- ' + missing.join('\n- ') + '\n\nClick OK to submit it anyway, or Cancel to complete the fields outlined in red.');
 }
+// OSCAR's "Submit & Fax" (faxSave_button) and "Fax" (fax_button), which faxControl.js adds to the
+// toolbar, send the form without going through Submit: the form is checked first. (Listening in
+// the capture phase, this runs before the button's own onclick, and on Cancel stops it; OSCAR's
+// other fax buttons, "Add Other Fax Recipient", go on unchecked)
+document.addEventListener('click', function(e){
+  var button = e.target;
+  if (!button || (button.id !== 'faxSave_button' && button.id !== 'fax_button')) return;
+  if (checkRequiredFields()) return;
+  e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+}, true);
 // On load: a group's red outline goes once its rule holds, and in an "exactly one" group that
 // is exclusive, ticking or circling one of its boxes takes the tick or circle off the others
 function setUpValidation(){
