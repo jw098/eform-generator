@@ -427,7 +427,7 @@
   nameTest("a field keeps its own numbered name, which a repeat doesn't take", [[1, 'Name'], [1, 'Name'], [2, 'Name_2']], ['Name', 'Name_3', 'Name_2']);
   nameTest('names the same once made safe for HTML', [[1, 'Pt name'], [1, 'Pt_name']], ['Pt_name', 'Pt_name_2']);
   // An exported eForm read back keeps every field, one named as a toolbar control is but for its
-  // punctuation too ("fax_number", the toolbar's hidden "faxnumber")
+  // punctuation too ("fax_number", an older eForm's hidden "faxnumber")
   test('Export: field names: a field named like a toolbar control is read back', () =>
     sameList(T.parseTemplateHtml(exportOf([[1, 'fax_number'], [1, 'Name']]).html, 'test.html').fields.map(f => f.name), ['fax_number', 'Name'], 'the fields read'),
     { group: 'Export: field names', short: 'a field named like a toolbar control is read back' });
@@ -437,14 +437,6 @@
     sameList(T.parseTemplateHtml(exportOf([[1, 'phone'], [1, 'phone'], [1, 'phn_10']]).html, 'test.html').fields.map(f => f.name), ['phone', 'phone_2', 'phn_10'], 'the fields read'),
     { group: 'Export: field names', short: 'an eForm read back keeps its names, numbers and all' });
 
-  // The fax number OSCAR is sent (the hidden "faxnumber") once the eForm's syncFaxNoMirror runs,
-  // its fax functions run on the exported eForm's document; `fill`: values to type, by element id
-  const faxSent = (e, fill) => {
-    const source = ['getFaxTargetNo', 'syncFaxNoMirror'].map(fn => (e.html.match(new RegExp(`function ${fn}\\(\\)\\{[\\s\\S]*?\\n\\}`)) || [''])[0]).join('\n');
-    Object.entries(fill).forEach(([id, value]) => { const el = e.doc.getElementById(id); if (el) el.value = value; });
-    new Function('document', source + '\nsyncFaxNoMirror();')(e.doc);
-    return (e.doc.getElementById('faxnumber') || {}).value;
-  };
   // Auto Detect's numbered names ("text_1", "checkbox_1", for a field it has no label to name by,
   // as with no words read) go on across the form: page 2's carry on from page 1's. It runs on two
   // copies of a drawn page of fill-in lines and tick boxes, on the app's next two pages
@@ -474,18 +466,21 @@
     }
   }, { group: 'Auto Detect: names', short: "a field with no label takes the form's next numbered name, not its page's" });
 
-  const faxTest = (short, fn) => test(`Export: fax number: ${short}`, fn, { group: 'Export: fax number', short });
-  faxTest('the toolbar has its own "Fax to:" box, by the Fax button, which an eForm read back leaves out', () => {
-    const e = exportOf([[1, 'Name']]), box = e.doc.getElementById('faxNo');
-    if (!box || !box.closest('#BottomButtons')) throw new Error('no "Fax to:" box (#faxNo) in the toolbar');
-    if (box.getAttribute('oscarDB')) throw new Error('the "Fax to:" box has a tag: ' + box.getAttribute('oscarDB'));
-    sameList(T.parseTemplateHtml(e.html, 'test.html').fields.map(f => f.name), ['Name'], 'the fields read');
+  // Faxing is OSCAR's: faxControl.js puts its recipients (the list of specialists, "otherFaxSelect")
+  // and its own "Submit & Fax" and "Fax" buttons in the toolbar's #faxControl, so the export has no
+  // fax button or fax number box of its own to show beside them
+  const faxTest = (short, fn) => test(`Export: fax: ${short}`, fn, { group: 'Export: fax', short });
+  faxTest("the toolbar has the place for OSCAR's fax controls, and no fax button or number box of its own", () => {
+    const e = exportOf([[1, 'Name']]), place = e.doc.getElementById('faxControl');
+    if (!place || !place.closest('#BottomButtons')) throw new Error('no #faxControl in the toolbar');
+    if (!/eforms\/faxControl\.js/.test(e.html)) throw new Error('faxControl.js is not loaded');
+    const own = [...e.doc.querySelectorAll('#BottomButtons input')].filter(el => /fax/i.test(el.id + ' ' + el.name + ' ' + el.value));
+    if (own.length) throw new Error('fax controls of its own: ' + own.map(el => el.id || el.name).join(', '));
   });
-  faxTest("the fax goes to the box's number, never to a fax number on the form", () => {
-    const e = exportOf([[1, 'fax_number', 'text', { oscarTag: 'clinic_fax' }], [1, 'faxNo']]);
-    const onForm = e.inputs.map(el => el.id);
-    sameList([faxSent(e, { [onForm[0]]: '604-555-0100', [onForm[1]]: '604-555-0101', faxNo: '604-555-0199' })], ['604-555-0199'], 'the number sent, with the box filled');
-    sameList([faxSent(e, { faxNo: '' })], [''], 'the number sent, with the box empty');
+  faxTest("OSCAR's list of specialists to fax is kept narrower than the page", () => {
+    const e = exportOf([[1, 'Name']]), rule = (e.html.match(/#otherFaxSelect\s*\{[^}]*max-width:\s*(\d+)px/) || [])[1];
+    if (!rule) throw new Error('no max-width for #otherFaxSelect');
+    if (Number(rule) >= 750) throw new Error(`max-width ${rule}px is not narrower than the page`);
   });
 
   // Date fields get OSCAR's calendar: the ids its Calendar.setup is called with when the eForm's

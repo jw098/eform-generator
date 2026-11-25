@@ -638,7 +638,7 @@
 
     <div class="hr"></div>
     <div class="panel-title">Export</div>
-    <label style="margin-bottom:6px;display:flex;align-items:center;gap:7px"><input id="chkIncludeButtons" type="checkbox" checked/> Include Submit / Fax &amp; Submit / Print &amp; Submit buttons in export</label>
+    <label style="margin-bottom:6px;display:flex;align-items:center;gap:7px"><input id="chkIncludeButtons" type="checkbox" checked/> Include Submit / Print &amp; Submit buttons and OSCAR's fax controls in export</label>
     <label style="margin-bottom:8px;display:block">jQuery in exported eForm
       <select id="exportJquery" title="Modern: jQuery 3.7.1 + Migrate 3.4.1 (keeps older OSCAR scripts working), falls back to OSCAR's local copy if the CDN is unreachable. Legacy: OSCAR's bundled jquery-1.7.1 only (no internet, but has known XSS advisories).">
         <option value="modern" selected>3.7.1 + Migrate (recommended)</option>
@@ -2233,7 +2233,7 @@ else if (typeof exports === 'object')
     if(state.snippets.inlineScripts.length) rows.push(`Inline script blocks: ${state.snippets.inlineScripts.length}`);
     if(state.snippets.actionFns.size) rows.push(`Detected action fns: ${[...state.snippets.actionFns].join(', ')}`);
     if(state.snippets.onloads.size) rows.push(`Body onload hooks: ${state.snippets.onloads.size}`);
-    if(state.snippets.buttonHtml.length) rows.push(`Template button snippets detected: ${state.snippets.buttonHtml.length} (informational — output uses generated Submit/Fax/Print buttons)`);
+    if(state.snippets.buttonHtml.length) rows.push(`Template button snippets detected: ${state.snippets.buttonHtml.length} (informational — output uses its own Submit / Print & Submit buttons and OSCAR's fax controls)`);
     if(state.snippets.signatureHtml.length) rows.push(`Signature image snippets: ${state.snippets.signatureHtml.length}`);
     if(!rows.length){ list.innerHTML='<div class="list-item">No snippets extracted yet.</div>'; return; }
     rows.forEach(row=>{ const item=document.createElement('div'); item.className='list-item'; item.textContent=row; list.appendChild(item); });
@@ -6938,7 +6938,7 @@ function inputMarkup(f, inlinePosStyle=''){
 function eformChecks(){
   const out = [];
   const includeButtons = $('chkIncludeButtons').checked;
-  out.push({ level: includeButtons ? 'ok' : 'warn', text: includeButtons ? 'Submit / Fax & Submit / Print & Submit buttons included.' : 'The Submit / Fax & Submit / Print & Submit buttons are left out of the export: the eForm needs buttons of its own to be submitted.' });
+  out.push({ level: includeButtons ? 'ok' : 'warn', text: includeButtons ? "Submit / Print & Submit buttons and OSCAR's fax controls included." : "The Submit / Print & Submit buttons and OSCAR's fax controls are left out of the export: the eForm needs buttons of its own to be submitted." });
   const nameCounts = new Map();
   // (a signature's name on the eForm comes from its place, signatureKey, not its name)
   dataFields(state.fields).filter(f => f.type !== 'signature').forEach(f => {
@@ -7144,8 +7144,8 @@ ${fieldMarkupScaled(f, naturalW, naturalH, scale)}
     return out;
   }
 
-  // The imported eForm's scripts, with "Include snippets" ticked: all but jQuery, printControl.js
-  // and faxControl.js, which the export brings its own of
+  // The imported eForm's scripts, with "Include snippets" ticked: all but jQuery and faxControl.js,
+  // which the export loads itself, and printControl.js (the export prints with its own button)
   let addonScripts = '';
   if(includeSnippets){
     [...state.snippets.externalSrc].forEach(src => {
@@ -7255,45 +7255,11 @@ function SignForm() {
     }
   } catch(e){}
 }
-// The fax number to send to: what is typed in the toolbar's "Fax to:" box, which is the toolbar's
-// own, not a field of the form (nothing fills it: a fax number on the form can be the clinic's own)
-function getFaxTargetNo(){
-  var box = document.getElementById('faxNo');
-  return box ? (box.value || '').trim() : '';
-}
-// Copies the fax number into the hidden faxnumber field that OSCAR sends with the form
-function syncFaxNoMirror(){
-  var hiddenFaxNo = document.getElementById('faxnumber');
-  if (hiddenFaxNo) hiddenFaxNo.value = getFaxTargetNo();
-}
-// Opens OSCAR's fax, whichever way this OSCAR offers it (faxControl.js's control on older ones)
-function formFax(){
-  try{
-    syncFaxNoMirror();
-    var faxNo = getFaxTargetNo();
-    if (typeof popupPage === 'function') { popupPage('fax', faxNo || ''); return; }
-    if (typeof onEformFax === 'function') { onEformFax(faxNo || ''); return; }
-    if (typeof setFaxNo === 'function') { setFaxNo(); }
-    var faxControl = document.getElementById('faxControl');
-    if (faxControl){
-      faxControl.style.display = 'inline-block';
-      if (faxControl.children && faxControl.children.length) return;
-    }
-    alert('Fax control not available in this context.');
-  }catch(e){ alert('Fax control not available in this context.'); }
-}
-// "Fax & Submit": faxes to the number in the "Fax to:" box (OSCAR's fax asks for one when it's
-// empty), then submits the form
-function formSubmitAndFax(){
-  try{ formFax(); }catch(e){}
-  try{ releaseDirtyFlag(); }catch(e){}
-  setTimeout(function(){ var submitBtn=document.getElementById('SubmitButton'); if(submitBtn) submitBtn.click(); }, 350);
-}
 <\/script>
 `;
 
   // (the steps of startup(), which the body's onload calls)
-  let startupSteps = ['setFaxNo()', 'syncFaxNoMirror()', 'SignForm()', 'checkGender()'];
+  let startupSteps = ['setFaxNo()', 'SignForm()', 'checkGender()'];
   // (font size buttons: their script and style, and the saved sizes put back on load, only when a field has them)
   const usesFontButtons = exportPages.some(page => getPageFields(page).some(f => f.type === 'fontbuttons'));
   // (early, after the images: it needs nothing else, so a failing step after it can't stop it)
@@ -7718,17 +7684,15 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
   const docTitle = (state.exportTitle && String(state.exportTitle).trim()) ? String(state.exportTitle).trim() : 'Generated OSCAR eForm';
   const docAuthor = String(state.exportAuthor || '').trim();
 
-  // Optional imported button/snippet blocks (fax/print/signature widgets from template)
+  // The toolbar: Submit and Print & Submit, and the place OSCAR's faxControl.js puts its fax
+  // recipients and its own "Submit & Fax" and "Fax" buttons (the eForm has no fax button of its own)
   let bottomButtons = '';
   if (includeButtons) {
     bottomButtons = `
 <div class="DoNotPrint" id="BottomButtons" style="position:absolute; left:0px;">
-  <input type="hidden" name="faxnumber" id="faxnumber">
   <input value="Submit" name="SubmitButton" id="SubmitButton" type="submit" onclick="${usesValidation ? 'if(!requiredChecked &amp;&amp; !checkRequiredFields()) return false; requiredChecked=false; ' : ''}releaseDirtyFlag();">
-  <input value="Fax &amp; Submit" name="SubmitFaxButton" id="SubmitFaxButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formSubmitAndFax();">
-  <label for="faxNo" style="margin-left:4px;">Fax to: <input type="text" name="faxNo" id="faxNo" size="14" autocomplete="off" oninput="syncFaxNoMirror();"></label>
   <input value="Print &amp; Submit" name="PrintSubmitButton" id="PrintSubmitButton" type="button" onclick="${usesValidation ? 'if(!checkRequiredFields()) return; requiredChecked=true; ' : ''}formPrint();releaseDirtyFlag();setTimeout(function(){ var b=document.getElementById('SubmitButton'); if(b) b.click(); },1800);">
-  <div id="faxControl" style="display:inline-block; margin-left:6px;"></div>
+  <div id="faxControl"></div>
 </div>
 `;
   }
@@ -7778,6 +7742,7 @@ ${startupSteps.map(part => '  ' + part.replace(/;?\s*$/, ';').replace(/<\//g, '<
  .FontSizeChange { position:absolute; width:16px; height:15px; font-size:13px; line-height:15px; cursor:pointer; background:yellow; text-align:center; border:1px solid #000; z-index:5; }
  html, body { margin:0; padding:0; }
  img[id^="BGImage"] { display:block; }
+ #otherFaxSelect { max-width:300px; }   /* (OSCAR's list of specialists to fax, which long names would stretch past the page) */
 </style>
 <style type="text/css" media="print">
  .DoNotPrint {
